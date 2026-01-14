@@ -1,0 +1,89 @@
+import { apiClient, authUtils } from '@/lib/api';
+import { 
+  APIResponse, 
+  LoginRequest, 
+  LoginResponse, 
+  AdminUser 
+} from '@/types';
+
+export class AuthService {
+  // Login
+  static async login(credentials: LoginRequest): Promise<LoginResponse> {
+    const response = await apiClient.post<APIResponse<LoginResponse>>(
+      '/auth/login',
+      credentials
+    );
+    
+    if (response.data.success && response.data.data) {
+      // Store token in cookies
+      authUtils.setToken(response.data.data.token);
+      return response.data.data;
+    }
+    
+    throw new Error(response.data.message || 'Login failed');
+  }
+
+  // Logout
+  static async logout(): Promise<void> {
+    authUtils.removeToken();
+    // Redirect to login page
+    if (typeof window !== 'undefined') {
+      window.location.href = '/admin/login';
+    }
+  }
+
+  // Get current user profile
+  static async getProfile(): Promise<AdminUser> {
+    const response = await apiClient.get<APIResponse<AdminUser>>(
+      '/auth/profile'
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error(response.data.message || 'Failed to get profile');
+  }
+
+  // Update user profile
+  static async updateProfile(profileData: Partial<AdminUser>): Promise<AdminUser> {
+    const response = await apiClient.put<APIResponse<AdminUser>>(
+      '/auth/profile',
+      profileData
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    throw new Error(response.data.message || 'Failed to update profile');
+  }
+
+  // Change password
+  static async changePassword(passwordData: {
+    current_password: string;
+    new_password: string;
+    confirm_password: string;
+  }): Promise<void> {
+    const response = await apiClient.post<APIResponse<void>>(
+      '/auth/change-password',
+      passwordData
+    );
+    
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to change password');
+    }
+  }
+
+  // Check if user is authenticated
+  static isAuthenticated(): boolean {
+    return authUtils.isAuthenticated();
+  }
+
+  // Get stored token
+  static getToken(): string | undefined {
+    return authUtils.getToken();
+  }
+}
+
+export default AuthService;

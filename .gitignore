@@ -1,0 +1,46 @@
+# ==========================================
+# FANUC VCO 项目 Git 忽略规则
+# 目标：避免提交依赖、构建产物、敏感配置与大体积历史文件
+# ==========================================
+
+# 依赖目录
+**/node_modules/
+
+# 前端构建产物（Next.js）
+**/.next/
+**/out/
+**/build/
+**/dist/
+**/.turbo/
+
+# 环境变量（保留示例文件）
+**/.env
+**/.env.*
+!**/.env.example
+
+# 日志/临时文件/备份
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*.backup
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 本地工具配置（可按需提交）
+.claude/
+
+# 后端上传/生成文件与二进制
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/newvco
+backend/backup_*.json
+backend/*_backup*.json
+
+# 前端历史压缩包（体积大，不建议入库）
+frontend/frontend历史/
+

@@ -1,0 +1,297 @@
+import { getSiteUrl } from '@/lib/url';
+
+export function generateOrganizationSchema() {
+  const baseUrl = getSiteUrl();
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Vcocnc",
+    "alternateName": "VCOCNC Industrial Automation",
+    "description": "Professional FANUC CNC parts supplier since 2005. Leading provider of industrial automation components with over 100,000 items in stock.",
+    "url": baseUrl,
+    "logo": {
+      "@type": "ImageObject",
+      "url": `${baseUrl}/android-chrome-512x512.png`,
+      "width": 512,
+      "height": 512
+    },
+    "image": [
+      {
+        "@type": "ImageObject",
+        "url": `${baseUrl}/images/company-banner.jpg`,
+        "width": 1200,
+        "height": 630
+      }
+    ],
+    "foundingDate": "2005",
+    "founder": {
+      "@type": "Person",
+      "name": "Vcocnc Founder"
+    },
+    "numberOfEmployees": {
+      "@type": "QuantitativeValue",
+      "value": 50
+    },
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": process.env.NEXT_PUBLIC_COMPANY_STREET || "Industrial Park Road",
+      "addressLocality": process.env.NEXT_PUBLIC_COMPANY_CITY || "Kunshan",
+      "addressRegion": process.env.NEXT_PUBLIC_COMPANY_REGION || "Jiangsu",
+      "postalCode": process.env.NEXT_PUBLIC_COMPANY_POSTAL_CODE || "215300",
+      "addressCountry": process.env.NEXT_PUBLIC_COMPANY_COUNTRY_CODE || "CN"
+    },
+    "contactPoint": [
+      {
+        "@type": "ContactPoint",
+        "contactType": "sales",
+        "telephone": "+86-512-57826888",
+        "email": "sales@vcocnc.com",
+        "availableLanguage": ["en", "zh"],
+        "areaServed": "Worldwide"
+      },
+      {
+        "@type": "ContactPoint",
+        "contactType": "technical support",
+        "telephone": "+86-512-57826888",
+        "email": "support@vcocnc.com",
+        "availableLanguage": ["en", "zh"],
+        "areaServed": "Worldwide"
+      }
+    ],
+    "sameAs": [
+      "https://www.linkedin.com/company/vcocnc",
+      "https://twitter.com/vcocnc",
+      "https://www.youtube.com/channel/UC...",
+      "https://www.facebook.com/vcocnc"
+    ],
+    "slogan": "Your Trusted FANUC Parts Partner Since 2005",
+    "knowsAbout": [
+      "FANUC CNC parts",
+      "Industrial automation",
+      "Servo motors",
+      "PCB boards",
+      "I/O modules",
+      "Control units",
+      "Power supplies",
+      "CNC machine maintenance",
+      "Factory automation"
+    ],
+    "makesOffer": {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "FANUC Parts Supply and Technical Support",
+        "description": "Comprehensive FANUC parts supply with worldwide shipping and technical support"
+      },
+      "areaServed": "Worldwide",
+      "eligibleCustomerType": [
+        "Business",
+        "Industrial"
+      ]
+    },
+    "award": [
+      "Top 3 FANUC Supplier in China",
+      "ISO 9001:2015 Certified",
+      "Authorized FANUC Distributor"
+    ],
+    "hasCredential": [
+      "ISO 9001:2015 Quality Management System",
+      "CE Certification",
+      "FANUC Authorized Distributor Certificate"
+    ]
+  };
+}
+
+export function generateWebsiteSchema() {
+  const baseUrl = getSiteUrl();
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Vcocnc FANUC Parts",
+    "alternateName": "FANUC Parts & Industrial Automation Components",
+    "url": baseUrl,
+    "description": "Professional FANUC CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Vcocnc",
+      "url": baseUrl
+    },
+    "potentialAction": [
+      {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": `${baseUrl}/products?search={search_term_string}`
+        },
+        "query-input": "required name=search_term_string"
+      }
+    ],
+    "mainEntity": {
+      "@type": "ItemList",
+      "name": "FANUC Parts Categories",
+      "description": "Main product categories available at Vcocnc",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "PCB Boards",
+          "url": `${baseUrl}/categories/pcb-boards`
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "I/O Modules",
+          "url": `${baseUrl}/categories/io-modules`
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Servo Motors",
+          "url": `${baseUrl}/categories/servo-motors`
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Control Units",
+          "url": `${baseUrl}/categories/control-units`
+        },
+        {
+          "@type": "ListItem",
+          "position": 5,
+          "name": "Power Supplies",
+          "url": `${baseUrl}/categories/power-supplies`
+        },
+        {
+          "@type": "ListItem",
+          "position": 6,
+          "name": "Other Components",
+          "url": `${baseUrl}/categories/other-components`
+        }
+      ]
+    },
+    "speakable": {
+      "@type": "SpeakableSpecification",
+      "cssSelector": ["h1", ".product-name", ".category-title"]
+    }
+  };
+}
+
+export function generateBreadcrumbSchema(items: Array<{name: string, url: string}>) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": items.map((item, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "name": item.name,
+      "item": item.url
+    }))
+  };
+}
+
+export function generateFAQSchema() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What FANUC parts do you stock?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "We stock over 100,000 FANUC parts including PCB boards, I/O modules, servo motors, control units, power supplies, and other automation components. All parts are genuine FANUC or compatible alternatives."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do you ship worldwide?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, we ship FANUC parts worldwide. We offer express shipping options and can deliver to most countries within 3-10 business days."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Are your FANUC parts genuine?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "We supply both genuine FANUC parts and high-quality compatible alternatives. All parts are clearly marked and come with our quality guarantee."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is your warranty policy?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "We offer a comprehensive warranty on all FANUC parts. Genuine parts come with manufacturer warranty, while compatible parts include our 12-month guarantee."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How can I get technical support?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Our technical support team is available via email at support@vcocnc.com or phone. We provide installation guidance, troubleshooting, and compatibility assistance."
+        }
+      }
+    ]
+  };
+}
+
+export function generateLocalBusinessSchema() {
+  const baseUrl = getSiteUrl();
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": `${baseUrl}/#organization`,
+    "name": "Vcocnc",
+    "image": [
+      `${baseUrl}/images/company-banner.jpg`,
+      `${baseUrl}/android-chrome-512x512.png`
+    ],
+    "telephone": "+86-512-57826888",
+    "email": "sales@vcocnc.com",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": process.env.NEXT_PUBLIC_COMPANY_STREET || "Industrial Park Road",
+      "addressLocality": process.env.NEXT_PUBLIC_COMPANY_CITY || "Kunshan",
+      "addressRegion": process.env.NEXT_PUBLIC_COMPANY_REGION || "Jiangsu",
+      "postalCode": process.env.NEXT_PUBLIC_COMPANY_POSTAL_CODE || "215300",
+      "addressCountry": process.env.NEXT_PUBLIC_COMPANY_COUNTRY_CODE || "CN"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 31.3888,
+      "longitude": 120.9625
+    },
+    "url": baseUrl,
+    "openingHoursSpecification": [
+      {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday"
+        ],
+        "opens": "08:00",
+        "closes": "18:00"
+      }
+    ],
+    "priceRange": "$$",
+    "currenciesAccepted": "USD,EUR,CNY",
+    "paymentAccepted": "PayPal,Bank Transfer,Credit Card",
+    "areaServed": {
+      "@type": "Place",
+      "name": "Worldwide"
+    },
+    "serviceArea": {
+      "@type": "Place",
+      "name": "Worldwide"
+    }
+  };
+}

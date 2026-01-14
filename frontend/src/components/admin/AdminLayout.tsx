@@ -1,0 +1,205 @@
+'use client';
+
+import { useState, ReactNode } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  Bars3Icon,
+  XMarkIcon,
+  HomeIcon,
+  CubeIcon,
+  TagIcon,
+  ShoppingBagIcon,
+  UsersIcon,
+  PhotoIcon,
+  BuildingOfficeIcon,
+  DocumentTextIcon,
+  ChartBarIcon,
+  Cog6ToothIcon,
+  ArrowRightOnRectangleIcon,
+  BellIcon,
+  UserCircleIcon,
+  EnvelopeIcon,
+  TicketIcon,
+  ChatBubbleLeftRightIcon
+} from '@heroicons/react/24/outline';
+import { useAuth, useLogout } from '@/hooks/useAuth';
+import AuthGuard from '@/components/auth/AuthGuard';
+
+const navigation = [
+  { name: 'Dashboard', href: '/admin', icon: HomeIcon },
+  { name: 'Products', href: '/admin/products', icon: CubeIcon },
+  { name: 'Categories', href: '/admin/categories', icon: TagIcon },
+  { name: 'Orders', href: '/admin/orders', icon: ShoppingBagIcon },
+  { name: 'Customers', href: '/admin/customers', icon: UserCircleIcon },
+  { name: 'Support Tickets', href: '/admin/tickets', icon: ChatBubbleLeftRightIcon },
+  { name: 'Coupons', href: '/admin/coupons', icon: TicketIcon },
+  { name: 'Users', href: '/admin/users', icon: UsersIcon },
+  { name: 'Contact Messages', href: '/admin/contacts', icon: EnvelopeIcon },
+  { name: 'Banners', href: '/admin/banners', icon: PhotoIcon },
+  { name: 'Company Profile', href: '/admin/company', icon: BuildingOfficeIcon },
+  { name: 'Homepage Content', href: '/admin/homepage', icon: DocumentTextIcon },
+  { name: 'Analytics', href: '/admin/analytics', icon: ChartBarIcon },
+  { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
+];
+
+interface AdminLayoutProps {
+  children: ReactNode;
+}
+
+export function AdminLayout({ children }: AdminLayoutProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
+  const { user } = useAuth();
+  const logoutMutation = useLogout();
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
+
+  return (
+    <AuthGuard>
+      <div className="min-h-screen bg-gray-50 flex">
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div 
+            className="fixed inset-0 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-75" />
+          </div>
+        )}
+
+        {/* Sidebar */}
+        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}>
+          <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-600 text-white px-3 py-1 rounded font-bold text-lg">
+                FANUC
+              </div>
+              <span className="text-gray-900 font-semibold">Admin</span>
+            </div>
+            <button
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <XMarkIcon className="h-6 w-6 text-gray-400" />
+            </button>
+          </div>
+
+          <nav className="mt-6 px-3">
+            <div className="space-y-1">
+              {navigation.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      isActive
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <item.icon
+                      className={`mr-3 h-5 w-5 ${
+                        isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+                      }`}
+                    />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+
+          {/* User info at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+            <div className="flex items-center space-x-3 mb-3">
+              <UserCircleIcon className="h-8 w-8 text-gray-400" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {user?.full_name || user?.username}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {user?.role}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              <ArrowRightOnRectangleIcon className="mr-3 h-4 w-4" />
+              Sign out
+            </button>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="flex-1 flex flex-col lg:ml-0">
+          {/* Top navigation */}
+          <header className="bg-white shadow-sm border-b border-gray-200">
+            <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center">
+                <button
+                  className="lg:hidden"
+                  onClick={() => setSidebarOpen(true)}
+                >
+                  <Bars3Icon className="h-6 w-6 text-gray-500" />
+                </button>
+                
+                <h1 className="ml-4 lg:ml-0 text-xl font-semibold text-gray-900">
+                  {navigation.find(item => item.href === pathname)?.name || 'Admin Panel'}
+                </h1>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                {/* Notifications */}
+                <button className="relative p-2 text-gray-400 hover:text-gray-500">
+                  <BellIcon className="h-6 w-6" />
+                  <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400"></span>
+                </button>
+
+                {/* User menu */}
+                <div className="flex items-center space-x-3">
+                  <UserCircleIcon className="h-8 w-8 text-gray-400" />
+                  <div className="hidden md:block">
+                    <p className="text-sm font-medium text-gray-900">
+                      {user?.full_name || user?.username}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {user?.role}
+                    </p>
+                  </div>
+
+                  {/* Logout button */}
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    title="Sign out"
+                  >
+                    <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                    <span className="ml-2 hidden sm:block">Sign out</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Page content */}
+          <main className="flex-1 overflow-y-auto">
+            <div className="p-4 sm:p-6 lg:p-8">
+              {children}
+            </div>
+          </main>
+        </div>
+      </div>
+    </AuthGuard>
+  );
+}
+
+export default AdminLayout;
