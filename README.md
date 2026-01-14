@@ -43,6 +43,47 @@ npm run dev
 
 访问 `http://localhost:3000`。
 
+## 🐳 Docker 部署（推荐）
+
+> 说明：本环境里未安装 Docker，我已补齐配置文件；你在服务器/本机装好 Docker 后按下面步骤执行即可。
+
+### 1) 准备环境变量
+
+在仓库根目录：
+
+```bash
+cp .env.docker.example .env
+```
+
+然后按需修改 `.env`（至少把 `MYSQL_ROOT_PASSWORD`、`MYSQL_PASSWORD`、`JWT_SECRET` 改掉）。
+
+### 2) 启动（包含 MySQL + 后端 + 前端 + Nginx）
+
+```bash
+docker compose up -d --build
+```
+
+默认对外端口：
+- 站点入口：`http://<服务器IP或域名>/`（Nginx 容器监听 80）
+- 后端 API：通过 Nginx 转发（浏览器端使用 `/api/v1`）
+- 健康检查：`http://<服务器IP或域名>/health`
+
+### 3) 常用命令
+
+```bash
+docker compose ps
+docker compose logs -f nginx
+docker compose logs -f backend
+docker compose down
+```
+
+### 4) 关键文件
+
+- `docker-compose.yml`：一键编排
+- `docker/nginx.conf`：容器内反向代理（前端 + `/api/*` 转发到后端）
+- `backend/Dockerfile`：后端镜像构建
+- `frontend/Dockerfile`：前端 standalone 构建（通过 build args 注入必要环境变量）
+
 ## 📚 相关文档
 
 - PayPal 沙箱配置：`PAYPAL_SANDBOX_SETUP.md`
@@ -57,4 +98,3 @@ npm run dev
   - 开发环境未配置 `SEED_DEFAULT_ADMIN` 时会创建默认管理员（密码兜底为 `admin123`，不会在日志输出明文）
   - 生产环境需要显式设置 `SEED_DEFAULT_ADMIN=true` 且提供 `DEFAULT_ADMIN_PASSWORD`
   - 已存在管理员时默认不会重置密码，除非设置 `RESET_DEFAULT_ADMIN_PASSWORD=true`
-

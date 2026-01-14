@@ -1,0 +1,22 @@
+**/node_modules/
+**/.git/
+**/.DS_Store
+**/*.log
+**/*.tmp
+**/*.swp
+**/*.swo
+
+# 本地配置（不进镜像）
+.env
+.env.*
+
+# 大文件/历史文件
+newvco
+backup_*.json
+*_backup*.json
+merge_to_products.log
+
+# 上传目录由 volume 挂载
+uploads/*
+!uploads/.gitkeep
+

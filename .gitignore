@@ -17,6 +17,7 @@
 **/.env
 **/.env.*
 !**/.env.example
+!**/.env*.example
 
 # 日志/临时文件/备份
 *.log
@@ -43,4 +44,3 @@ backend/*_backup*.json
 
 # 前端历史压缩包（体积大，不建议入库）
 frontend/frontend历史/
-

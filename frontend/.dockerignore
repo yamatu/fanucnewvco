@@ -1,0 +1,16 @@
+**/node_modules/
+**/.next/
+**/out/
+**/.turbo/
+**/.git/
+**/.DS_Store
+**/*.log
+**/*.tmp
+
+# 本地/生产环境变量文件不进镜像（用 build args 或运行时注入）
+.env
+.env.*
+
+# 体积很大的历史压缩包
+frontend历史/
+
