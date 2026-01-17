@@ -53,7 +53,8 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
     logoutMutation.mutate();
   };
 
-  const activeNav = navigation.find(item => item.href === pathname);
+  // Make nested routes (e.g. /admin/products/new, /admin/products/[id]/edit) still show the parent title.
+  const activeNav = navigation.find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -150,7 +151,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
                 </button>
                 
                 <h1 className="ml-4 lg:ml-0 text-xl font-semibold text-gray-900">
-                  {activeNav ? t(activeNav.key, activeNav.name) : 'Admin Panel'}
+                  {activeNav ? t(activeNav.key, activeNav.name) : t('admin.panel', 'Admin Panel')}
                 </h1>
               </div>
 

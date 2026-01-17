@@ -283,3 +283,37 @@ curl -fsS http://localhost:3006/api/v1/public/homepage-content | head
    - `curl -fsS http://localhost:3006/robots.txt | head`
    - `curl -fsS http://localhost:3006/sitemap-products-index.xml | head`
    - `curl -fsS http://localhost:3006/sitemap-products-1.xml | head`
+
+## 2026-01-17：后台 i18n 更彻底（admin 文案中英切换 + 组件优化）
+
+### 变更
+
+- i18n 基础能力增强：
+  - `frontend/src/lib/admin-i18n.tsx`：
+    - `t(key)` 缺失时会 fallback 到英文（避免部分 key 未补齐时出现 key 本身）
+    - `t(key, fallback, vars)` 支持 `{var}` 插值（用于确认弹窗/计数文案）
+    - 补齐更多 common/categories/products/media/seo/sitemap 的 key
+- AdminLayout 优化：
+  - `frontend/src/components/admin/AdminLayout.tsx`：子路由（如 `/admin/products/new`）顶部标题会正确匹配到父级菜单，并随语言切换
+- 后台常用组件更彻底中文化：
+  - `frontend/src/components/admin/SeoPreview.tsx`：SEO 预览文案随语言切换
+  - `frontend/src/components/admin/MediaPickerModal.tsx`：搜索/分页/按钮/空态文案随语言切换
+- 分类/产品页面补齐未翻译到的 toast/提示/确认文案：
+  - `frontend/src/app/admin/categories/page.tsx`
+  - `frontend/src/app/admin/products/page.tsx`
+  - `frontend/src/app/admin/products/new/page.tsx`
+  - `frontend/src/app/admin/products/[id]/edit/page.tsx`
+  - `frontend/src/app/admin/sitemap/page.tsx`
+
+### 验证方式
+
+1) 进入后台任意页面（例如 `http://localhost:3006/admin/products`），切换 Language 为 `中文`
+2) 跳转到其它页面（Products/Categories/Sitemap），顶部标题、分页/按钮、弹窗确认文案应保持中文
+3) 冒烟：
+
+```bash
+docker compose up -d --build
+curl -fsS http://localhost:3006/admin/categories >/dev/null
+curl -fsS http://localhost:3006/admin/products >/dev/null
+curl -fsS http://localhost:3006/admin/sitemap >/dev/null
+```

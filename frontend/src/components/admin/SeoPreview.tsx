@@ -2,6 +2,7 @@
 
 import { getSiteUrl } from "@/lib/url";
 import React from "react";
+import { useAdminI18n } from "@/lib/admin-i18n";
 
 interface SeoPreviewProps {
   title?: string;
@@ -27,6 +28,7 @@ function rangeClass(value: number, idealMin: number, idealMax: number, softMin: 
 }
 
 export default function SeoPreview({ title, description, sku, name }: SeoPreviewProps) {
+  const { t } = useAdminI18n();
   const site = getSiteUrl();
   const path = `/products/${(sku || "SKU").trim()}${name ? `-${slugify(name)}` : ""}`;
 
@@ -45,8 +47,8 @@ export default function SeoPreview({ title, description, sku, name }: SeoPreview
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-semibold text-gray-900">Google 预览</h4>
-        <div className="text-xs text-gray-500">仅供参考，实际展示以搜索引擎为准</div>
+        <h4 className="text-sm font-semibold text-gray-900">{t('seo.preview.title', 'Google Preview')}</h4>
+        <div className="text-xs text-gray-500">{t('seo.preview.note', 'For reference only')}</div>
       </div>
 
       {/* SERP Card */}
@@ -68,18 +70,23 @@ export default function SeoPreview({ title, description, sku, name }: SeoPreview
       <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
         <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5">
           <div className="text-gray-600">
-            标题长度 <span className="text-gray-400">(建议 50–60)</span>
+            {t('seo.preview.titleLen', 'Title length')}{' '}
+            <span className="text-gray-400">({t('seo.preview.reco', 'Recommended {min}-{max}', { min: 50, max: 60 })})</span>
           </div>
-          <div className={`font-medium ${titleClass}`}>{clamp(titleLen, 0, 999)} chars</div>
+          <div className={`font-medium ${titleClass}`}>
+            {t('seo.preview.chars', '{count} chars', { count: clamp(titleLen, 0, 999) })}
+          </div>
         </div>
         <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5">
           <div className="text-gray-600">
-            描述长度 <span className="text-gray-400">(建议 150–160)</span>
+            {t('seo.preview.descLen', 'Description length')}{' '}
+            <span className="text-gray-400">({t('seo.preview.reco', 'Recommended {min}-{max}', { min: 150, max: 160 })})</span>
           </div>
-          <div className={`font-medium ${descClass}`}>{clamp(descLen, 0, 999)} chars</div>
+          <div className={`font-medium ${descClass}`}>
+            {t('seo.preview.chars', '{count} chars', { count: clamp(descLen, 0, 999) })}
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

@@ -6,6 +6,7 @@ import { XMarkIcon, MagnifyingGlassIcon, PhotoIcon } from '@heroicons/react/24/o
 import { MediaService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import type { MediaAsset } from '@/services/media.service';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 type Props = {
   open: boolean;
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export default function MediaPickerModal({ open, onClose, onSelect, multiple = false, title = 'Select from Media Library' }: Props) {
+  const { t } = useAdminI18n();
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 24;
@@ -81,12 +83,12 @@ export default function MediaPickerModal({ open, onClose, onSelect, multiple = f
                     setPage(1);
                   }}
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Search by filename / hash / title..."
+                  placeholder={t('media.picker.search', 'Search...')}
                 />
               </div>
             </div>
             <div className="text-sm text-gray-600">
-              Selected: <span className="font-medium">{selected.length}</span>
+              {t('media.picker.selected', 'Selected: {count}', { count: selected.length })}{' '}
             </div>
           </div>
 
@@ -94,12 +96,12 @@ export default function MediaPickerModal({ open, onClose, onSelect, multiple = f
             {isLoading ? (
               <div className="p-10 text-center">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto" />
-                <p className="mt-3 text-gray-500 text-sm">Loading...</p>
+                <p className="mt-3 text-gray-500 text-sm">{t('media.picker.loading', 'Loading...')}</p>
               </div>
             ) : items.length === 0 ? (
               <div className="p-10 text-center">
                 <PhotoIcon className="h-10 w-10 text-gray-300 mx-auto" />
-                <p className="mt-3 text-gray-500 text-sm">No images found</p>
+                <p className="mt-3 text-gray-500 text-sm">{t('media.picker.empty', 'No images found')}</p>
               </div>
             ) : (
               <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -132,7 +134,7 @@ export default function MediaPickerModal({ open, onClose, onSelect, multiple = f
 
           <div className="mt-4 flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Total: <span className="font-medium">{total}</span>
+              {t('media.picker.total', 'Total: {total}', { total })}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -140,31 +142,31 @@ export default function MediaPickerModal({ open, onClose, onSelect, multiple = f
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
               >
-                Prev
+                {t('media.picker.prev', 'Prev')}
               </button>
               <div className="text-sm text-gray-700">
-                Page <span className="font-medium">{page}</span> / {totalPages}
+                {t('common.page', 'Page {page} / {pages}', { page, pages: totalPages })}
               </div>
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
               >
-                Next
+                {t('media.picker.next', 'Next')}
               </button>
             </div>
           </div>
 
           <div className="mt-6 flex justify-end gap-2">
             <button onClick={onClose} className="px-4 py-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50">
-              Cancel
+              {t('media.picker.cancel', 'Cancel')}
             </button>
             <button
               onClick={confirm}
               disabled={selected.length === 0}
               className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              Use Selected
+              {t('media.picker.useSelected', 'Use Selected')}
             </button>
           </div>
         </div>
@@ -172,4 +174,3 @@ export default function MediaPickerModal({ open, onClose, onSelect, multiple = f
     </div>
   );
 }
-

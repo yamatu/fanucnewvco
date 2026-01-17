@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { ProductService } from '@/services/product.service';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { getSiteUrl } from '@/lib/url';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 export default function SitemapManagementPage() {
+  const { t } = useAdminI18n();
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalSitemaps: 0,
@@ -56,13 +58,13 @@ export default function SitemapManagementPage() {
     <AdminLayout>
       <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Sitemap Management</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('sitemap.title', 'Sitemap Management')}</h1>
             <button
               onClick={fetchSitemapStats}
               disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
             >
-              {loading ? 'Refreshing...' : 'Refresh Stats'}
+              {loading ? t('sitemap.refreshing', 'Refreshing...') : t('sitemap.refresh', 'Refresh Stats')}
             </button>
           </div>
 
@@ -76,10 +78,10 @@ export default function SitemapManagementPage() {
                     </div>
                   </div>
                   <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Total Products</dt>
-                      <dd className="text-lg font-medium text-gray-900">{stats.totalProducts.toLocaleString()}</dd>
-                    </dl>
+	                    <dl>
+	                      <dt className="text-sm font-medium text-gray-500 truncate">{t('sitemap.stats.totalProducts', 'Total Products')}</dt>
+	                      <dd className="text-lg font-medium text-gray-900">{stats.totalProducts.toLocaleString()}</dd>
+	                    </dl>
                   </div>
                 </div>
               </div>
@@ -94,10 +96,10 @@ export default function SitemapManagementPage() {
                     </div>
                   </div>
                   <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Product Sitemaps</dt>
-                      <dd className="text-lg font-medium text-gray-900">{stats.totalSitemaps}</dd>
-                    </dl>
+	                    <dl>
+	                      <dt className="text-sm font-medium text-gray-500 truncate">{t('sitemap.stats.productSitemaps', 'Product Sitemaps')}</dt>
+	                      <dd className="text-lg font-medium text-gray-900">{stats.totalSitemaps}</dd>
+	                    </dl>
                   </div>
                 </div>
               </div>
@@ -112,10 +114,10 @@ export default function SitemapManagementPage() {
                     </div>
                   </div>
                   <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Per Sitemap</dt>
-                      <dd className="text-lg font-medium text-gray-900">{stats.productsPerSitemap.toLocaleString()}</dd>
-                    </dl>
+	                    <dl>
+	                      <dt className="text-sm font-medium text-gray-500 truncate">{t('sitemap.stats.perSitemap', 'Per Sitemap')}</dt>
+	                      <dd className="text-lg font-medium text-gray-900">{stats.productsPerSitemap.toLocaleString()}</dd>
+	                    </dl>
                   </div>
                 </div>
               </div>
@@ -130,12 +132,12 @@ export default function SitemapManagementPage() {
                     </div>
                   </div>
                   <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Last Updated</dt>
-                      <dd className="text-sm font-medium text-gray-900">
-                        {stats.lastUpdated ? new Date(stats.lastUpdated).toLocaleString() : 'Loading...'}
-                      </dd>
-                    </dl>
+	                    <dl>
+	                      <dt className="text-sm font-medium text-gray-500 truncate">{t('sitemap.stats.lastUpdated', 'Last Updated')}</dt>
+	                      <dd className="text-sm font-medium text-gray-900">
+	                        {stats.lastUpdated ? new Date(stats.lastUpdated).toLocaleString() : t('common.loading', 'Loading...')}
+	                      </dd>
+	                    </dl>
                   </div>
                 </div>
               </div>
@@ -144,9 +146,9 @@ export default function SitemapManagementPage() {
 
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
             <div className="px-4 py-5 sm:px-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">Sitemap URLs</h3>
+              <h3 className="text-lg leading-6 font-medium text-gray-900">{t('sitemap.urls.title', 'Sitemap URLs')}</h3>
               <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                All available sitemap files for your website
+                {t('sitemap.urls.subtitle', 'All available sitemap files for your website')}
               </p>
             </div>
             <ul className="divide-y divide-gray-200">
@@ -171,13 +173,13 @@ export default function SitemapManagementPage() {
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-500 text-sm font-medium"
                       >
-                        View
+                        {t('sitemap.view', 'View')}
                       </a>
                       <button
                         onClick={() => navigator.clipboard.writeText(sitemap.url)}
                         className="text-gray-400 hover:text-gray-500 text-sm font-medium"
                       >
-                        Copy URL
+                        {t('sitemap.copy', 'Copy URL')}
                       </button>
                     </div>
                   </div>
@@ -194,13 +196,13 @@ export default function SitemapManagementPage() {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">SEO Instructions</h3>
+                <h3 className="text-sm font-medium text-blue-800">{t('sitemap.instructions.title', 'SEO Instructions')}</h3>
                 <div className="mt-2 text-sm text-blue-700">
                   <ul className="list-disc list-inside space-y-1">
-                    <li>Submit sitemap-index.xml to Google Search Console</li>
-                    <li>Sitemaps are automatically updated every 30 minutes</li>
-                    <li>Each product sitemap contains up to 100 products</li>
-                    <li>New products are automatically included in sitemaps</li>
+                    <li>{t('sitemap.instructions.1', 'Submit sitemap-index.xml to Google Search Console')}</li>
+                    <li>{t('sitemap.instructions.2', 'Sitemaps are automatically updated every 30 minutes')}</li>
+                    <li>{t('sitemap.instructions.3', 'Each product sitemap contains up to 100 products')}</li>
+                    <li>{t('sitemap.instructions.4', 'New products are automatically included in sitemaps')}</li>
                   </ul>
                 </div>
               </div>

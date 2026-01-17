@@ -25,7 +25,7 @@ interface ProductFormData extends Omit<ProductCreateRequest, 'images'> {
 }
 
 export default function NewProductPage() {
-  const { locale } = useAdminI18n();
+  const { locale, t } = useAdminI18n();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [imageUrl, setImageUrl] = useState<string>('');
@@ -57,20 +57,20 @@ export default function NewProductPage() {
   const createProductMutation = useMutation({
     mutationFn: (data: ProductCreateRequest) => ProductService.createProduct(data),
     onSuccess: () => {
-      toast.success('Product created successfully!');
+      toast.success(t('products.toast.created', 'Product created successfully!'));
       // Invalidate and refetch products list
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
       router.push('/admin/products');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to create product');
+      toast.error(error.message || t('products.toast.createFailed', 'Failed to create product'));
     },
   });
 
   // Image management functions
   const handleAddImage = () => {
     if (!imageUrl.trim()) {
-      toast.error('Please enter a valid image URL');
+      toast.error(t('products.toast.imageUrlInvalid', 'Please enter a valid image URL'));
       return;
     }
 
@@ -78,7 +78,7 @@ export default function NewProductPage() {
     try {
       new URL(imageUrl);
     } catch {
-      toast.error('Please enter a valid URL');
+      toast.error(t('products.toast.urlInvalid', 'Please enter a valid URL'));
       return;
     }
 
@@ -91,7 +91,7 @@ export default function NewProductPage() {
     setImages([...images, newImage]);
     setImageUrl('');
     setShowImageForm(false);
-    toast.success('Image added successfully!');
+    toast.success(t('products.toast.imageAdded', 'Image added successfully!'));
   };
 
   const removeImage = (index: number) => {
@@ -105,7 +105,7 @@ export default function NewProductPage() {
       const catId = Number(data.category_id);
       const hasValidCategory = Array.isArray(categories) && categories.some((c: any) => Number(c.id) === catId);
       if (!catId || !hasValidCategory) {
-        toast.error('Please select a valid category');
+        toast.error(t('products.toast.categoryInvalid', 'Please select a valid category'));
         return;
       }
       // Convert form data to ProductCreateRequest
@@ -537,7 +537,7 @@ export default function NewProductPage() {
               }
               return next;
             });
-            toast.success('Added from media library');
+            toast.success(t('products.toast.addedFromLibrary', 'Added from media library'));
           }}
         />
       </div>

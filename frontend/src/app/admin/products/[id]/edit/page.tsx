@@ -33,7 +33,7 @@ interface ProductFormData extends Omit<ProductCreateRequest, 'images'> {
 }
 
 export default function EditProductPage() {
-  const { locale } = useAdminI18n();
+  const { locale, t } = useAdminI18n();
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -75,7 +75,7 @@ export default function EditProductPage() {
     mutationFn: (data: Partial<ProductCreateRequest>) => 
       ProductService.updateProduct(productId, data),
     onSuccess: () => {
-      toast.success('Product updated successfully!');
+      toast.success(t('products.toast.updated', 'Product updated successfully!'));
       queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(productId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
       // If we have a returnTo param, go back to list position
@@ -84,7 +84,7 @@ export default function EditProductPage() {
       }
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to update product');
+      toast.error(error.message || t('products.toast.updateFailed', 'Failed to update product'));
     },
   });
 
@@ -172,19 +172,19 @@ export default function EditProductPage() {
 
 
   // Image management functions
-  const handleAddImage = () => {
-    if (!imageUrl.trim()) {
-      toast.error('Please enter a valid image URL');
-      return;
-    }
+	  const handleAddImage = () => {
+	    if (!imageUrl.trim()) {
+	      toast.error(t('products.toast.imageUrlInvalid', 'Please enter a valid image URL'));
+	      return;
+	    }
 
     // Basic URL validation
-    try {
-      new URL(imageUrl);
-    } catch {
-      toast.error('Please enter a valid URL');
-      return;
-    }
+	    try {
+	      new URL(imageUrl);
+	    } catch {
+	      toast.error(t('products.toast.urlInvalid', 'Please enter a valid URL'));
+	      return;
+	    }
 
     // Add image to local state
     const newImage = {
@@ -198,18 +198,18 @@ export default function EditProductPage() {
       updated_at: new Date().toISOString()
     };
 
-    setImages([...images, newImage]);
-    setImageUrl('');
-    setShowImageForm(false);
-    toast.success('Image added successfully!');
-  };
+	    setImages([...images, newImage]);
+	    setImageUrl('');
+	    setShowImageForm(false);
+	    toast.success(t('products.toast.imageAdded', 'Image added successfully!'));
+	  };
 
   // Batch import function
-  const handleBatchImport = () => {
-    if (!batchUrls.trim()) {
-      toast.error('Please enter URLs to import');
-      return;
-    }
+	  const handleBatchImport = () => {
+	    if (!batchUrls.trim()) {
+	      toast.error(t('products.toast.batchUrlsRequired', 'Please enter URLs to import'));
+	      return;
+	    }
 
     // Split by lines and filter out empty lines
     const urls = batchUrls
@@ -217,10 +217,10 @@ export default function EditProductPage() {
       .map(url => url.trim())
       .filter(url => url.length > 0);
 
-    if (urls.length === 0) {
-      toast.error('No valid URLs found');
-      return;
-    }
+	    if (urls.length === 0) {
+	      toast.error(t('products.toast.noValidUrls', 'No valid URLs found'));
+	      return;
+	    }
 
     // Validate each URL
     const validUrls: string[] = [];
@@ -235,10 +235,10 @@ export default function EditProductPage() {
       }
     });
 
-    if (invalidUrls.length > 0) {
-      toast.error(`Found ${invalidUrls.length} invalid URLs. Please check and try again.`);
-      return;
-    }
+	    if (invalidUrls.length > 0) {
+	      toast.error(t('products.toast.invalidUrlsFound', 'Found {count} invalid URLs. Please check and try again.', { count: invalidUrls.length }));
+	      return;
+	    }
 
     // Create new image objects
     const newImages = validUrls.map((url, index) => ({
@@ -929,7 +929,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
             }
             return next;
           });
-          toast.success('Added from media library');
+          toast.success(t('products.toast.addedFromLibrary', 'Added from media library'));
         }}
       />
     </AdminLayout>

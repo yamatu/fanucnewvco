@@ -164,13 +164,13 @@ function AdminProductsContent() {
     mutationFn: (payload: { ids?: number[]; skus?: string[]; is_active?: boolean; is_featured?: boolean }) =>
       ProductService.bulkUpdateProducts(payload),
     onSuccess: () => {
-      toast.success('Products updated successfully');
+      toast.success(t('products.toast.bulkUpdated', 'Products updated successfully'));
       setSelectedIds([]);
       setSelectAllResults(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Bulk update failed');
+      toast.error(error.message || t('products.toast.bulkFailed', 'Bulk update failed'));
     },
   });
 
@@ -180,16 +180,17 @@ function AdminProductsContent() {
   const deleteProductMutation = useMutation({
     mutationFn: (productId: number) => ProductService.deleteProduct(productId),
     onSuccess: () => {
-      toast.success('Product deleted successfully!');
+      toast.success(t('products.toast.deleted', 'Product deleted successfully!'));
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to delete product');
+      toast.error(error.message || t('products.toast.deleteFailed', 'Failed to delete product'));
     },
   });
 
   const handleDelete = (product: any) => {
-    if (window.confirm(`Are you sure you want to delete "${product.name}"? This action cannot be undone.`)) {
+    const msg = t('products.confirm.delete', 'Are you sure you want to delete \"{name}\"? This action cannot be undone.', { name: product.name });
+    if (window.confirm(msg)) {
       deleteProductMutation.mutate(product.id);
     }
   };
@@ -246,7 +247,7 @@ function AdminProductsContent() {
   };
 
   const bulkSetActive = (value: boolean) => {
-    if (!selectAllResults && selectedIds.length === 0) { toast.error('Select at least one product'); return; }
+    if (!selectAllResults && selectedIds.length === 0) { toast.error(t('products.toast.selectOne', 'Select at least one product')); return; }
     if (selectAllResults) {
       bulkUpdateMutation.mutate({
         is_active: value,
@@ -262,7 +263,7 @@ function AdminProductsContent() {
   };
 
   const bulkSetFeatured = (value: boolean) => {
-    if (!selectAllResults && selectedIds.length === 0) { toast.error('Select at least one product'); return; }
+    if (!selectAllResults && selectedIds.length === 0) { toast.error(t('products.toast.selectOne', 'Select at least one product')); return; }
     if (selectAllResults) {
       bulkUpdateMutation.mutate({
         is_featured: value,

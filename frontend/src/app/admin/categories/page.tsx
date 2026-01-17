@@ -54,13 +54,13 @@ export default function AdminCategoriesPage() {
   const createCategoryMutation = useMutation({
     mutationFn: (data: any) => CategoryService.createCategory(data),
     onSuccess: () => {
-      toast.success('Category created successfully!');
+      toast.success(t('categories.toast.created', 'Category created successfully!'));
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() });
       closeDrawer();
       setFormData({ name: '', description: '', image_url: '', sort_order: 0, is_active: true });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to create category');
+      toast.error(error.message || t('categories.toast.createFailed', 'Failed to create category'));
     },
   });
 
@@ -68,13 +68,13 @@ export default function AdminCategoriesPage() {
   const updateCategoryMutation = useMutation({
     mutationFn: (payload: { id: number; data: any }) => CategoryService.updateCategory(payload.id, payload.data),
     onSuccess: () => {
-      toast.success('Category updated successfully!');
+      toast.success(t('categories.toast.updated', 'Category updated successfully!'));
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() });
       closeDrawer();
       setFormData({ name: '', description: '', image_url: '', sort_order: 0, is_active: true });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to update category');
+      toast.error(error.message || t('categories.toast.updateFailed', 'Failed to update category'));
     },
   });
 
@@ -82,11 +82,11 @@ export default function AdminCategoriesPage() {
   const deleteCategoryMutation = useMutation({
     mutationFn: (id: number) => CategoryService.deleteCategory(id),
     onSuccess: () => {
-      toast.success('Category deleted successfully!');
+      toast.success(t('categories.toast.deleted', 'Category deleted successfully!'));
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to delete category');
+      toast.error(error.message || t('categories.toast.deleteFailed', 'Failed to delete category'));
     },
   });
   // Populate form when editing
@@ -165,7 +165,8 @@ export default function AdminCategoriesPage() {
   });
 
   const handleDelete = (category: any) => {
-    if (window.confirm(`Are you sure you want to delete "${category.name}"? This action cannot be undone.`)) {
+    const msg = t('categories.confirm.delete', 'Are you sure you want to delete \"{name}\"? This action cannot be undone.', { name: category.name });
+    if (window.confirm(msg)) {
       deleteCategoryMutation.mutate(category.id);
     }
   };
@@ -174,7 +175,7 @@ export default function AdminCategoriesPage() {
     e.preventDefault();
 
     if (!formData.name.trim()) {
-      toast.error('Category name is required');
+      toast.error(t('categories.toast.nameRequired', 'Category name is required'));
       return;
     }
 
@@ -220,13 +221,13 @@ export default function AdminCategoriesPage() {
       <AdminLayout>
         <div className="text-center py-20">
           <div className="text-red-600 mb-4">
-            Error loading categories: {error instanceof Error ? error.message : 'Unknown error'}
+            {locale === 'zh' ? '分类加载失败：' : 'Error loading categories: '}{error instanceof Error ? error.message : (locale === 'zh' ? '未知错误' : 'Unknown error')}
           </div>
           <button
             onClick={() => window.location.reload()}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold"
           >
-            Retry
+            {t('common.retry', 'Retry')}
           </button>
         </div>
       </AdminLayout>
@@ -373,12 +374,12 @@ export default function AdminCategoriesPage() {
                   )}
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Products</span>
+                    <span className="text-gray-500">{t('categories.products', 'Products')}</span>
                     <span className="font-medium text-gray-900">{(category as any).product_count || 0}</span>
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Created</span>
+                    <span className="text-gray-500">{t('categories.created', 'Created')}</span>
                     <span className="text-gray-900">
                       {new Date(category.created_at).toLocaleDateString()}
                     </span>
@@ -406,11 +407,11 @@ export default function AdminCategoriesPage() {
         {filteredCategories.length === 0 && (
           <div className="text-center py-12">
             <TagIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No categories found</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">{t('categories.empty.title', 'No categories found')}</h3>
             <p className="mt-1 text-sm text-gray-500">
               {searchQuery || statusFilter !== 'all'
-                ? 'Try adjusting your search or filter criteria.'
-                : 'Get started by creating your first category.'
+                ? t('categories.empty.filtered', 'Try adjusting your search or filter criteria.')
+                : t('categories.empty.fresh', 'Get started by creating your first category.')
               }
             </p>
             {!searchQuery && statusFilter === 'all' && (
@@ -429,33 +430,33 @@ export default function AdminCategoriesPage() {
 
         {/* Statistics */}
         <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Category Statistics</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">{t('categories.stats.title', 'Category Statistics')}</h3>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">{categoriesData.length}</div>
-              <div className="text-sm text-gray-500">Total Categories</div>
+              <div className="text-sm text-gray-500">{t('categories.stats.total', 'Total Categories')}</div>
             </div>
 
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
                 {categoriesData.filter(c => c.is_active).length}
               </div>
-              <div className="text-sm text-gray-500">Active Categories</div>
+              <div className="text-sm text-gray-500">{t('categories.stats.active', 'Active Categories')}</div>
             </div>
 
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-600">
                 {categoriesData.reduce((sum, c) => sum + ((c as any).product_count || 0), 0)}
               </div>
-              <div className="text-sm text-gray-500">Total Products</div>
+              <div className="text-sm text-gray-500">{t('categories.stats.totalProducts', 'Total Products')}</div>
             </div>
 
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
                 {categoriesData.length > 0 ? Math.round(categoriesData.reduce((sum, c) => sum + ((c as any).product_count || 0), 0) / categoriesData.length) : 0}
               </div>
-              <div className="text-sm text-gray-500">Avg Products/Category</div>
+              <div className="text-sm text-gray-500">{t('categories.stats.avgProducts', 'Avg Products/Category')}</div>
             </div>
           </div>
         </div>
@@ -469,10 +470,10 @@ export default function AdminCategoriesPage() {
             <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-200">
               <div>
                 <div className="text-lg font-semibold text-gray-900">
-                  {editingCategory ? (locale === 'zh' ? '编辑分类' : 'Edit Category') : (locale === 'zh' ? '新增分类' : 'Create Category')}
+                  {editingCategory ? t('categories.drawer.editTitle', 'Edit Category') : t('categories.drawer.createTitle', 'Create Category')}
                 </div>
                 <div className="text-xs text-gray-500 mt-0.5">
-                  {locale === 'zh' ? '在右侧面板编辑，保存后列表会自动刷新。' : 'Edit in this panel; list will refresh after saving.'}
+                  {t('categories.drawer.hint', 'Edit in this panel; list will refresh after saving.')}
                 </div>
               </div>
               <button onClick={closeDrawer} className="p-2 rounded-md hover:bg-gray-50 text-gray-500" title={locale === 'zh' ? '关闭' : 'Close'}>
@@ -484,7 +485,7 @@ export default function AdminCategoriesPage() {
               <form id="category-form" onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {locale === 'zh' ? '分类名称' : 'Category Name'} <span className="text-red-500">*</span>
+                    {t('categories.field.name', 'Category Name')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -499,7 +500,7 @@ export default function AdminCategoriesPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {locale === 'zh' ? '描述' : 'Description'}
+                    {t('categories.field.description', 'Description')}
                   </label>
                   <textarea
                     name="description"
@@ -513,7 +514,7 @@ export default function AdminCategoriesPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {locale === 'zh' ? '分类图片' : 'Category Image'}
+                    {t('categories.field.image', 'Category Image')}
                   </label>
                   <div className="flex gap-2">
                     <input
@@ -551,7 +552,7 @@ export default function AdminCategoriesPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {locale === 'zh' ? '排序' : 'Sort Order'}
+                      {t('categories.field.sortOrder', 'Sort Order')}
                     </label>
                     <input
                       type="number"
@@ -563,7 +564,7 @@ export default function AdminCategoriesPage() {
                       max={9999}
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      {locale === 'zh' ? '数字越小越靠前。' : 'Smaller numbers appear first.'}
+                      {t('categories.field.sortHint', 'Smaller numbers appear first.')}
                     </p>
                   </div>
 
@@ -576,7 +577,7 @@ export default function AdminCategoriesPage() {
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <label className="ml-2 block text-sm text-gray-900">
-                      {locale === 'zh' ? '启用' : 'Active'}
+                      {t('categories.field.isActive', 'Active')}
                     </label>
                   </div>
                 </div>
@@ -589,7 +590,7 @@ export default function AdminCategoriesPage() {
                 onClick={closeDrawer}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
-                {locale === 'zh' ? '取消' : 'Cancel'}
+                {t('common.cancel', 'Cancel')}
               </button>
               <button
                 type="submit"
@@ -598,8 +599,8 @@ export default function AdminCategoriesPage() {
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
               >
                 {(createCategoryMutation.isPending || updateCategoryMutation.isPending)
-                  ? (editingCategory ? (locale === 'zh' ? '保存中...' : 'Saving...') : (locale === 'zh' ? '创建中...' : 'Creating...'))
-                  : (editingCategory ? (locale === 'zh' ? '保存' : 'Save') : (locale === 'zh' ? '创建' : 'Create'))}
+                  ? (editingCategory ? t('common.saving', 'Saving...') : t('common.creating', 'Creating...'))
+                  : (editingCategory ? t('common.save', 'Save') : t('common.create', 'Create'))}
               </button>
             </div>
           </div>
