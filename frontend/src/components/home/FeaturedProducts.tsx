@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import type { HomepageContent } from '@/types';
 import {
   ShoppingCartIcon,
   EyeIcon,
@@ -14,6 +15,7 @@ import { formatCurrency, getProductImageUrl } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
+import { DEFAULT_FEATURED_PRODUCTS_SECTION_DATA } from '@/lib/homepage-defaults';
 
 // Fallback products with test images for development (using image_urls format)
 const featuredProductsFallback: any[] = [
@@ -58,9 +60,14 @@ const featuredProductsFallback: any[] = [
 ];
 
 
-export function FeaturedProducts() {
+export function FeaturedProducts({ content }: { content?: HomepageContent | null }) {
   const [hoveredProduct, setHoveredProduct] = useState<number | null>(null);
   const { addItem } = useCart();
+
+  const headerTitle = content?.title || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.headerTitle;
+  const headerDescription = content?.description || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.headerDescription;
+  const ctaText = content?.button_text || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.ctaText;
+  const ctaHref = content?.button_url || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.ctaHref;
 
   // Load featured products dynamically with error handling
   const { data: featured = [], error: featuredError } = useQuery({
@@ -100,11 +107,10 @@ export function FeaturedProducts() {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Featured FANUC Products
+            {headerTitle}
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Discover our most popular and high-quality FANUC parts, carefully selected
-            for their reliability and performance in industrial automation applications.
+            {headerDescription}
           </p>
         </div>
 
@@ -235,10 +241,10 @@ export function FeaturedProducts() {
         {/* View All Products CTA */}
         <div className="text-center">
           <Link
-            href="/products"
+            href={ctaHref}
             className="inline-flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105"
           >
-            <span>View All Products</span>
+            <span>{ctaText}</span>
             <ArrowRightIcon className="h-5 w-5" />
           </Link>
         </div>

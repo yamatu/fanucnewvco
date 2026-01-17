@@ -5,13 +5,11 @@ import CategoryServiceDefault from './category.service';
 import OrderServiceDefault from './order.service';
 import UserServiceDefault from './user.service';
 import BannerServiceDefault from './banner.service';
-import CompanyServiceDefault from './company.service';
 import HomepageServiceDefault from './homepage.service';
 import UploadServiceDefault from './upload.service';
 import DashboardServiceDefault from './dashboard.service';
-import { AnalyticsService as AnalyticsServiceDefault } from './analytics.service';
-import { SettingsService as SettingsServiceDefault } from './settings.service';
 import ContactServiceDefault from './contact.service';
+import { MediaService as MediaServiceDefault } from './media.service';
 
 // Export all services
 export const AuthService = AuthServiceDefault;
@@ -20,13 +18,11 @@ export const CategoryService = CategoryServiceDefault;
 export const OrderService = OrderServiceDefault;
 export const UserService = UserServiceDefault;
 export const BannerService = BannerServiceDefault;
-export const CompanyService = CompanyServiceDefault;
 export const HomepageService = HomepageServiceDefault;
 export const UploadService = UploadServiceDefault;
 export const DashboardService = DashboardServiceDefault;
-export const AnalyticsService = AnalyticsServiceDefault;
-export const SettingsService = SettingsServiceDefault;
 export const ContactService = ContactServiceDefault;
+export const MediaService = MediaServiceDefault;
 
 // Export types
 export type { ProductFilters } from './product.service';
@@ -49,6 +45,7 @@ export type {
   ContactFilters,
   ContactStats
 } from './contact.service';
+export type { MediaAsset, MediaListResponse, MediaUploadResponse } from './media.service';
 
 // API Service class that combines all services
 export class ApiService {
@@ -58,13 +55,11 @@ export class ApiService {
   static orders = OrderService;
   static users = UserService;
   static banners = BannerService;
-  static company = CompanyService;
   static homepage = HomepageService;
   static uploads = UploadService;
   static dashboard = DashboardService;
-  static analytics = AnalyticsService;
-  static settings = SettingsService;
   static contacts = ContactService;
+  static media = MediaService;
 }
 
 export default ApiService;

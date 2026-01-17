@@ -8,12 +8,14 @@ import {
   CurrencyDollarIcon,
   ArrowUpIcon,
   ArrowDownIcon,
-  EyeIcon
+  EyeIcon,
+  PhotoIcon
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { DashboardService, OrderService, ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { formatCurrency } from '@/lib/utils';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 // Mock data for demonstration
 const mockStats = {
@@ -129,6 +131,7 @@ function StatCard({ title, value, change, changeType, icon: Icon, color }: any) 
 }
 
 export default function AdminDashboard() {
+  const { t } = useAdminI18n();
   // Fetch dashboard stats from API
   const { data: dashboardData, isLoading } = useQuery({
     queryKey: queryKeys.dashboard.stats(),
@@ -181,7 +184,7 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         {/* Page Header */}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav.dashboard', 'Dashboard')}</h1>
           <p className="mt-1 text-sm text-gray-500">
             Welcome back! Here's what's happening with your FANUC store today.
           </p>
@@ -377,7 +380,7 @@ export default function AdminDashboard() {
                 <div className="mt-4">
                   <h3 className="text-lg font-medium">
                     <span className="absolute inset-0" />
-                    Add Product
+                    {t('nav.products', 'Products')}
                   </h3>
                   <p className="mt-2 text-sm text-gray-500">
                     Add a new FANUC product to your inventory
@@ -397,7 +400,7 @@ export default function AdminDashboard() {
                 <div className="mt-4">
                   <h3 className="text-lg font-medium">
                     <span className="absolute inset-0" />
-                    Manage Orders
+                    {t('nav.orders', 'Orders')}
                   </h3>
                   <p className="mt-2 text-sm text-gray-500">
                     View and manage customer orders
@@ -406,21 +409,21 @@ export default function AdminDashboard() {
               </a>
 
               <a
-                href="/admin/banners"
+                href="/admin/media"
                 className="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 border border-gray-200 rounded-lg hover:border-gray-300"
               >
                 <div>
                   <span className="rounded-lg inline-flex p-3 bg-purple-50 text-purple-700 ring-4 ring-white">
-                    <EyeIcon className="h-6 w-6" />
+                    <PhotoIcon className="h-6 w-6" />
                   </span>
                 </div>
                 <div className="mt-4">
                   <h3 className="text-lg font-medium">
                     <span className="absolute inset-0" />
-                    Update Banners
+                    {t('nav.media', 'Media Library')}
                   </h3>
                   <p className="mt-2 text-sm text-gray-500">
-                    Manage homepage banners and content
+                    Upload and manage site images (deduplicated by hash)
                   </p>
                 </div>
               </a>
@@ -437,7 +440,7 @@ export default function AdminDashboard() {
                 <div className="mt-4">
                   <h3 className="text-lg font-medium">
                     <span className="absolute inset-0" />
-                    User Management
+                    {t('nav.users', 'All Users')}
                   </h3>
                   <p className="mt-2 text-sm text-gray-500">
                     Manage admin users and permissions

@@ -9,6 +9,7 @@ export interface HomepageContentRequest {
   image_url: string;
   button_text: string;
   button_url: string;
+  data?: any;
   sort_order: number;
   is_active: boolean;
 }
@@ -44,6 +45,14 @@ export class HomepageService {
     return response.data;
   }
 
+  // Admin: Get predefined sections (from backend)
+  static async getAdminSections(): Promise<HomepageSection[]> {
+    const response = await apiClient.get<HomepageSection[]>(
+      '/admin/homepage-content/sections'
+    );
+    return response.data;
+  }
+
   // Admin: Get single homepage content
   static async getAdminHomepageContent(id: number): Promise<HomepageContent> {
     const response = await apiClient.get<HomepageContent>(
@@ -65,6 +74,15 @@ export class HomepageService {
   static async updateHomepageContent(id: number, contentData: Partial<HomepageContentRequest>): Promise<HomepageContent> {
     const response = await apiClient.put<HomepageContent>(
       `/admin/homepage-content/${id}`,
+      contentData
+    );
+    return response.data;
+  }
+
+  // Admin: Upsert by section key (preferred for the visual editor)
+  static async upsertAdminBySectionKey(sectionKey: string, contentData: Partial<HomepageContentRequest>): Promise<HomepageContent> {
+    const response = await apiClient.put<HomepageContent>(
+      `/admin/homepage-content/section/${sectionKey}`,
       contentData
     );
     return response.data;

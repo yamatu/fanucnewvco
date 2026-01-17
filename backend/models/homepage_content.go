@@ -1,6 +1,7 @@
 package models
 
 import (
+	"gorm.io/datatypes"
 	"time"
 )
 
@@ -14,6 +15,9 @@ type HomepageContent struct {
 	ImageURL    string    `json:"image_url"`
 	ButtonText  string    `json:"button_text"`
 	ButtonURL   string    `json:"button_url"`
+	// Data stores structured section config (slides/stats/services/etc).
+	// Optional to keep backwards compatibility with the simple fields above.
+	Data      datatypes.JSON `json:"data" gorm:"type:json"`
 	SortOrder   int       `json:"sort_order" gorm:"default:0"`
 	IsActive    bool      `json:"is_active" gorm:"default:true"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -29,6 +33,7 @@ type HomepageContentCreateRequest struct {
 	ImageURL    string `json:"image_url"`
 	ButtonText  string `json:"button_text"`
 	ButtonURL   string `json:"button_url"`
+	Data        datatypes.JSON `json:"data"`
 	SortOrder   int    `json:"sort_order"`
 	IsActive    bool   `json:"is_active"`
 }
@@ -41,6 +46,7 @@ type HomepageContentUpdateRequest struct {
 	ImageURL    *string `json:"image_url"`
 	ButtonText  *string `json:"button_text"`
 	ButtonURL   *string `json:"button_url"`
+	Data        *datatypes.JSON `json:"data"`
 	SortOrder   *int    `json:"sort_order"`
 	IsActive    *bool   `json:"is_active"`
 }
@@ -59,6 +65,21 @@ func GetPredefinedSections() []HomepageSection {
 			Key:         "hero_section",
 			Name:        "Hero Section",
 			Description: "Main banner section at the top of the homepage",
+		},
+		{
+			Key:         "company_stats",
+			Name:        "Company Stats",
+			Description: "Company introduction + stats grid section",
+		},
+		{
+			Key:         "featured_products",
+			Name:        "Featured Products",
+			Description: "Featured products section title/description/CTA",
+		},
+		{
+			Key:         "workshop_section",
+			Name:        "Workshop Section",
+			Description: "Workshop facility tabs/capabilities/CTA section",
 		},
 		{
 			Key:         "workshop_facility",

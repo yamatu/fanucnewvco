@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
@@ -9,19 +9,25 @@ import {
   MagnifyingGlassIcon,
   PencilIcon,
   TrashIcon,
-  TagIcon
+  TagIcon,
+  PhotoIcon,
+  ArrowsUpDownIcon
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
+import MediaPickerModal from '@/components/admin/MediaPickerModal';
 import { CategoryService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 // Categories data now comes from API only
 
 export default function AdminCategoriesPage() {
+  const { locale, t } = useAdminI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -105,14 +111,49 @@ export default function AdminCategoriesPage() {
     }
   }, [showCreateModal, editingCategory]);
 
-  const filteredCategories = categoriesData.filter(category => {
-    const matchesSearch = category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         category.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' ||
-                         (statusFilter === 'active' && category.is_active) ||
-                         (statusFilter === 'inactive' && !category.is_active);
+  const sortedCategories = useMemo(() => {
+    const list = Array.isArray(categoriesData) ? [...categoriesData] : [];
+    list.sort((a: any, b: any) => {
+      const ao = Number(a.sort_order ?? 0);
+      const bo = Number(b.sort_order ?? 0);
+      if (ao !== bo) return ao - bo;
+      return String(a.name || '').localeCompare(String(b.name || ''), locale === 'zh' ? 'zh' : 'en');
+    });
+    return list;
+  }, [categoriesData, locale]);
 
-    return matchesSearch && matchesStatus;
+  const filteredCategories = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return sortedCategories.filter((category: any) => {
+      const matchesSearch =
+        !q ||
+        category.name?.toLowerCase().includes(q) ||
+        category.description?.toLowerCase().includes(q);
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && category.is_active) ||
+        (statusFilter === 'inactive' && !category.is_active);
+      return matchesSearch && matchesStatus;
+    });
+  }, [sortedCategories, searchQuery, statusFilter]);
+
+  const normalizeSortMutation = useMutation({
+    mutationFn: async () => {
+      for (let i = 0; i < sortedCategories.length; i++) {
+        const c: any = sortedCategories[i];
+        const desired = i + 1;
+        if (Number(c.sort_order ?? 0) === desired) continue;
+        // eslint-disable-next-line no-await-in-loop
+        await CategoryService.updateCategory(c.id, { sort_order: desired } as any);
+      }
+    },
+    onSuccess: () => {
+      toast.success(locale === 'zh' ? '已重置排序' : 'Sort order normalized');
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to normalize sort order');
+    },
   });
 
   const handleDelete = (category: any) => {
@@ -196,18 +237,32 @@ export default function AdminCategoriesPage() {
         {/* Page Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('categories.title', 'Categories')}</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Manage product categories and organization
+              {t('categories.subtitle', 'Manage product categories and organization')}
             </p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Add Category
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const msg = locale === 'zh' ? '确定要把分类排序重置为 1..N 吗？' : 'Normalize sort order to 1..N?';
+                if (!window.confirm(msg)) return;
+                normalizeSortMutation.mutate();
+              }}
+              disabled={normalizeSortMutation.isPending || sortedCategories.length === 0}
+              className="inline-flex items-center px-4 py-2 border border-gray-200 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              <ArrowsUpDownIcon className="h-4 w-4 mr-2" />
+              {t('categories.sort.normalize', 'Normalize Sort')}
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              {t('categories.add', 'Add Category')}
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -216,7 +271,7 @@ export default function AdminCategoriesPage() {
             {/* Search */}
             <div className="sm:col-span-2">
               <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-                Search Categories
+                {t('categories.search', 'Search Categories')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -228,7 +283,7 @@ export default function AdminCategoriesPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Search by name or description..."
+                  placeholder={locale === 'zh' ? '按名称/描述搜索...' : 'Search by name or description...'}
                 />
               </div>
             </div>
@@ -236,7 +291,7 @@ export default function AdminCategoriesPage() {
             {/* Status Filter */}
             <div>
               <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                Status
+                {t('categories.status', 'Status')}
               </label>
               <select
                 id="status"
@@ -244,9 +299,9 @@ export default function AdminCategoriesPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+                <option value="all">{t('categories.all', 'All')}</option>
+                <option value="active">{t('categories.active', 'Active')}</option>
+                <option value="inactive">{t('categories.inactive', 'Inactive')}</option>
               </select>
             </div>
           </div>
@@ -260,19 +315,37 @@ export default function AdminCategoriesPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
-                      <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <TagIcon className="h-6 w-6 text-blue-600" />
-                      </div>
+                      {category.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={category.image_url}
+                          alt={category.name}
+                          className="h-10 w-10 rounded-lg object-cover border border-gray-200"
+                          onError={(e) => {
+                            const img = e.target as HTMLImageElement;
+                            img.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <TagIcon className="h-6 w-6 text-blue-600" />
+                        </div>
+                      )}
                     </div>
                     <div className="ml-3">
                       <h3 className="text-lg font-medium text-gray-900">{category.name}</h3>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        category.is_active
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {category.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          category.is_active
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {category.is_active ? t('categories.active', 'Active') : t('categories.inactive', 'Inactive')}
+                        </span>
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
+                          sort {Number((category as any).sort_order ?? 0)}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -317,7 +390,7 @@ export default function AdminCategoriesPage() {
                     onClick={() => setEditingCategory(category)}
                     className="text-sm font-medium text-blue-600 hover:text-blue-500"
                   >
-                    Edit Category
+                    {t('categories.edit', 'Edit')}
                   </button>
                   <span className="text-xs text-gray-500">
                     ID: {category.id}
@@ -429,15 +502,40 @@ export default function AdminCategoriesPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Image URL
                   </label>
-                  <input
-                    type="url"
-                    name="image_url"
-                    value={formData.image_url}
-                    onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">可填写外链图片 URL，前台分类卡片会展示该图片。</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      name="image_url"
+                      value={formData.image_url}
+                      onChange={handleInputChange}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder={locale === 'zh' ? '可填写外链或 /uploads/...' : 'External URL or /uploads/...'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowMediaPicker(true)}
+                      className="inline-flex items-center px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      <PhotoIcon className="h-4 w-4 mr-1" />
+                      {t('categories.image.choose', 'Choose')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData((p) => ({ ...p, image_url: '' }))}
+                      className="px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      {t('categories.image.clear', 'Clear')}
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {locale === 'zh' ? '建议从图库选择图片；也可填写外链 URL。' : 'Prefer picking from Media Library; external URLs also supported.'}
+                  </p>
+                  {formData.image_url ? (
+                    <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={formData.image_url} alt="preview" className="w-full h-auto" />
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -452,6 +550,8 @@ export default function AdminCategoriesPage() {
                       onChange={handleInputChange}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       placeholder="0"
+                      min={0}
+                      max={9999}
                     />
                   </div>
 
@@ -495,6 +595,19 @@ export default function AdminCategoriesPage() {
           </div>
         </div>
       )}
+
+      <MediaPickerModal
+        open={showMediaPicker}
+        onClose={() => setShowMediaPicker(false)}
+        multiple={false}
+        title={locale === 'zh' ? '从图库选择分类图片' : 'Select category image'}
+        onSelect={(assets) => {
+          if (assets[0]) {
+            setFormData((p) => ({ ...p, image_url: assets[0].url }));
+            toast.success(locale === 'zh' ? '已选择图片' : 'Image selected');
+          }
+        }}
+      />
     </AdminLayout>
   );
 }

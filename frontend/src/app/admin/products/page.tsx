@@ -20,8 +20,10 @@ import Pagination from '@/components/common/Pagination';
 import { ProductService, CategoryService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { formatCurrency, getProductImageUrl } from '@/lib/utils';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 function AdminProductsContent() {
+  const { t } = useAdminI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
@@ -336,7 +338,7 @@ function AdminProductsContent() {
         {/* Page Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Products</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('nav.products', 'Products')}</h1>
             <p className="mt-1 text-sm text-gray-500">
               Manage your FANUC product inventory
             </p>

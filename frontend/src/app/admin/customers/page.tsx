@@ -10,6 +10,7 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { apiClient } from '@/lib/api';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 interface Customer {
   id: number;
@@ -24,6 +25,7 @@ interface Customer {
 }
 
 export default function CustomersPage() {
+  const { t } = useAdminI18n();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,7 +90,7 @@ export default function CustomersPage() {
         {/* Header */}
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
-            <h1 className="text-2xl font-semibold text-gray-900">Customers</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">{t('nav.customers', 'Customers')}</h1>
             <p className="mt-2 text-sm text-gray-700">
               Manage all registered customers and their accounts
             </p>

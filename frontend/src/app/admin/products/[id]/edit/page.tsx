@@ -16,20 +16,24 @@ import {
   ChevronRightIcon,
   StarIcon,
   DocumentPlusIcon,
+  PhotoIcon,
   CloudArrowUpIcon,
   TrashIcon
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
+import MediaPickerModal from '@/components/admin/MediaPickerModal';
 import SeoPreview from '@/components/admin/SeoPreview';
 import { ProductService, CategoryService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { ProductCreateRequest } from '@/types';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 interface ProductFormData extends Omit<ProductCreateRequest, 'images'> {
   images: FileList | null;
 }
 
 export default function EditProductPage() {
+  const { locale } = useAdminI18n();
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,6 +46,7 @@ export default function EditProductPage() {
   const [showImageForm, setShowImageForm] = useState<boolean>(false);
   const [showBatchImport, setShowBatchImport] = useState<boolean>(false);
   const [batchUrls, setBatchUrls] = useState<string>('');
+  const [showMediaPicker, setShowMediaPicker] = useState<boolean>(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [importSource, setImportSource] = useState<string>('https://fanucworld.com/products/');
   const [importing, setImporting] = useState<boolean>(false);
@@ -694,6 +699,14 @@ export default function EditProductPage() {
                       <div className="flex space-x-2">
                         <button
                           type="button"
+                          onClick={() => setShowMediaPicker(true)}
+                          className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                          <PhotoIcon className="h-4 w-4 mr-1" />
+                          {locale === 'zh' ? '从图库选择' : 'Choose From Library'}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => {
                             setShowImageForm(!showImageForm);
                             setShowBatchImport(false);
@@ -985,6 +998,38 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
           </div>
         </form>
       </div>
+
+      <MediaPickerModal
+        open={showMediaPicker}
+        onClose={() => setShowMediaPicker(false)}
+        multiple={true}
+        title="Select product images"
+        onSelect={(assets) => {
+          setImages((prev) => {
+            const existing = new Set(prev.map((p: any) => p.url));
+            const next = [...prev];
+            let isPrimaryAvailable = next.length === 0;
+            for (let i = 0; i < assets.length; i++) {
+              const a = assets[i];
+              if (existing.has(a.url)) continue;
+              next.push({
+                id: Date.now() + i,
+                url: a.url,
+                alt_text: a.alt_text || '',
+                is_primary: isPrimaryAvailable,
+                sort_order: next.length,
+                product_id: productId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+              existing.add(a.url);
+              if (isPrimaryAvailable) isPrimaryAvailable = false;
+            }
+            return next;
+          });
+          toast.success('Added from media library');
+        }}
+      />
     </AdminLayout>
   );
 }

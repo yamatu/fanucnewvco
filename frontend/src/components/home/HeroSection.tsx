@@ -4,49 +4,39 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import type { HomepageContent } from '@/types';
+import { DEFAULT_HERO_DATA, type HeroSectionData } from '@/lib/homepage-defaults';
 
+type Props = { content?: HomepageContent | null };
 
-const heroSlides = [
-  {
-    id: 1,
-    title: 'Vcocnc - One-Stop CNC Solution Supplier',
-    subtitle: 'Your Trusted Partner Since 2005',
-    description: 'Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.',
-    image: 'https://s2.loli.net/2025/08/26/Vo4JfbtW5H2GMEN.png',
-    cta: {
-      primary: { text: 'Browse Products', href: '/products' },
-      secondary: { text: 'Learn More', href: '/about' }
-    }
-  },
+function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
+  const raw = (content as any)?.data;
+  const parsed = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
 
-// Optional: HeroContent type (for future dynamic props)
-// type HeroContent = Pick<HomepageContent, 'title' | 'subtitle' | 'description' | 'image_url' | 'button_text' | 'button_url'>;
+  // Start from structured data if provided, otherwise defaults.
+  const baseSlides = Array.isArray(parsed?.slides) && parsed.slides.length > 0 ? parsed.slides : DEFAULT_HERO_DATA.slides;
+  const autoPlayMs = typeof parsed?.autoPlayMs === 'number' ? parsed.autoPlayMs : DEFAULT_HERO_DATA.autoPlayMs;
 
-  {
-    id: 2,
-    title: '5,000sqm Workshop Facility',
-    subtitle: 'Top 3 Fanuc Supplier in China',
-    description: 'Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.',
-    image: 'https://s2.loli.net/2025/08/26/17MRNhXEcrKTdDY.png',
-    cta: {
-      primary: { text: 'View Facility', href: '/about' },
-      secondary: { text: 'Contact Us', href: '/contact' }
-    }
-  },
-  {
-    id: 3,
-    title: '20+ Years Professional Service',
-    subtitle: 'Sales, Testing & Maintenance',
-    description: 'More than 18 years experience we have ability to coordinate specific strengths into a whole, providing clients with solutions that consider various import and export transportation options.',
-    image: 'https://s2.loli.net/2025/08/26/17MRNhXEcrKTdDY.png',
-    cta: {
-      primary: { text: 'Get Support', href: '/contact' },
-      secondary: { text: 'View Categories', href: '/categories' }
-    }
+  // Backwards-compatible override: if admin only edited simple fields (title/subtitle/etc),
+  // reflect those changes in the first slide even when `data` is null.
+  const slides = [...baseSlides];
+  if (slides.length > 0) {
+    const s0 = { ...slides[0] };
+    if (content?.title) s0.title = content.title;
+    if (content?.subtitle) s0.subtitle = content.subtitle;
+    if (content?.description) s0.description = content.description;
+    if (content?.image_url) s0.image = content.image_url;
+    if (content?.button_text) s0.cta = { ...(s0.cta || {}), primary: { ...(s0.cta?.primary || {}), text: content.button_text, href: content.button_url || s0.cta?.primary?.href || '/products' }, secondary: s0.cta?.secondary || { text: 'Learn More', href: '/about' } };
+    slides[0] = s0;
   }
-];
 
-export function HeroSection() {
+  return { slides, autoPlayMs };
+}
+
+export function HeroSection({ content }: Props) {
+  const heroData = normalizeHeroData(content);
+  const slides = heroData.slides;
+  const autoPlayMs = heroData.autoPlayMs || 6000;
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
@@ -55,19 +45,19 @@ export function HeroSection() {
     if (!isAutoPlaying) return;
 
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
-    }, 6000);
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, autoPlayMs);
 
     return () => clearInterval(interval);
-  }, [isAutoPlaying]);
+  }, [isAutoPlaying, slides.length, autoPlayMs]);
 
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
     setIsAutoPlaying(false);
   };
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
     setIsAutoPlaying(false);
   };
 
@@ -79,9 +69,9 @@ export function HeroSection() {
   return (
     <section className="relative w-full h-screen min-h-screen flex items-center justify-center overflow-hidden bg-gray-900">
       {/* Background Images */}
-      {heroSlides.map((slide, index) => (
+      {slides.map((slide, index) => (
         <div
-          key={slide.id}
+          key={slide.id ?? index}
           className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${
             index === currentSlide ? 'opacity-100' : 'opacity-0'
           }`}
@@ -111,9 +101,9 @@ export function HeroSection() {
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <div className="max-w-4xl mx-auto bg-white bg-opacity-90 rounded-2xl p-8 md:p-12 shadow-2xl backdrop-blur-sm">
-          {heroSlides.map((slide, index) => (
+          {slides.map((slide, index) => (
             <div
-              key={slide.id}
+              key={slide.id ?? index}
               className={`transition-all duration-1000 ${
                 index === currentSlide
                   ? 'opacity-100 transform translate-y-0'
@@ -172,7 +162,7 @@ export function HeroSection() {
 
       {/* Slide Indicators */}
       <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex space-x-3">
-        {heroSlides.map((_, index) => (
+        {slides.map((_, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}

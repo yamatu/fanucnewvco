@@ -18,8 +18,10 @@ import {
   TagIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 export default function CouponsPage() {
+  const { t } = useAdminI18n();
   const [coupons, setCoupons] = useState<PaginationResponse<Coupon> | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<number | null>(null);
@@ -114,7 +116,7 @@ export default function CouponsPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <TagIcon className="h-8 w-8 text-amber-600" />
-            <h1 className="text-2xl font-bold text-gray-900">Coupon Management</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('nav.coupons', 'Coupon Management')}</h1>
           </div>
           <Link
             href="/admin/coupons/new"

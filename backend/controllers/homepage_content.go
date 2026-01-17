@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -8,6 +9,7 @@ import (
 	"fanuc-backend/models"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // HomepageContentController handles homepage content operations
@@ -17,9 +19,33 @@ type HomepageContentController struct{}
 func (hc *HomepageContentController) GetHomepageContents(c *gin.Context) {
 	var contents []models.HomepageContent
 
-	query := config.DB.Where("is_active = ?", true).Order("sort_order ASC, created_at ASC")
+	query := config.DB.Order("sort_order ASC, created_at ASC")
+
+	// Public endpoint should only return active sections.
+	// Admin can opt-in to include inactive sections via query param.
+	includeInactive := c.Query("include_inactive")
+	if includeInactive != "1" && includeInactive != "true" {
+		query = query.Where("is_active = ?", true)
+	}
 
 	// Optional section filter
+	if sectionKey := c.Query("section_key"); sectionKey != "" {
+		query = query.Where("section_key = ?", sectionKey)
+	}
+
+	if err := query.Find(&contents).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch homepage contents"})
+		return
+	}
+
+	c.JSON(http.StatusOK, contents)
+}
+
+// GetHomepageContentsAdmin returns homepage sections including inactive ones (no query param needed).
+func (hc *HomepageContentController) GetHomepageContentsAdmin(c *gin.Context) {
+	var contents []models.HomepageContent
+
+	query := config.DB.Order("sort_order ASC, created_at ASC")
 	if sectionKey := c.Query("section_key"); sectionKey != "" {
 		query = query.Where("section_key = ?", sectionKey)
 	}
@@ -72,6 +98,7 @@ func (hc *HomepageContentController) CreateHomepageContent(c *gin.Context) {
 		ImageURL:    req.ImageURL,
 		ButtonText:  req.ButtonText,
 		ButtonURL:   req.ButtonURL,
+		Data:        req.Data,
 		SortOrder:   req.SortOrder,
 		IsActive:    req.IsActive,
 	}
@@ -122,6 +149,126 @@ func (hc *HomepageContentController) UpdateHomepageContent(c *gin.Context) {
 	}
 	if req.ButtonURL != nil {
 		content.ButtonURL = *req.ButtonURL
+	}
+	if req.Data != nil {
+		content.Data = *req.Data
+	}
+	if req.SortOrder != nil {
+		content.SortOrder = *req.SortOrder
+	}
+	if req.IsActive != nil {
+		content.IsActive = *req.IsActive
+	}
+
+	if err := config.DB.Save(&content).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update homepage content"})
+		return
+	}
+
+	c.JSON(http.StatusOK, content)
+}
+
+// GetHomepageContentBySectionAdmin retrieves homepage content by section key (including inactive).
+func (hc *HomepageContentController) GetHomepageContentBySectionAdmin(c *gin.Context) {
+	sectionKey := c.Param("section_key")
+	if sectionKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Section key is required"})
+		return
+	}
+
+	var content models.HomepageContent
+	if err := config.DB.Where("section_key = ?", sectionKey).First(&content).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Homepage content not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, content)
+}
+
+// UpsertHomepageContentBySection creates or updates a homepage content section by section_key.
+func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Context) {
+	sectionKey := c.Param("section_key")
+	if sectionKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Section key is required"})
+		return
+	}
+
+	// Use the existing update request type (includes Data) to avoid duplicating JSON handling.
+	var req models.HomepageContentUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var content models.HomepageContent
+	err := config.DB.Where("section_key = ?", sectionKey).First(&content).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			content = models.HomepageContent{
+				SectionKey: sectionKey,
+				IsActive:   true,
+			}
+			if req.Title != nil {
+				content.Title = *req.Title
+			}
+			if req.Subtitle != nil {
+				content.Subtitle = *req.Subtitle
+			}
+			if req.Description != nil {
+				content.Description = *req.Description
+			}
+			if req.ImageURL != nil {
+				content.ImageURL = *req.ImageURL
+			}
+			if req.ButtonText != nil {
+				content.ButtonText = *req.ButtonText
+			}
+			if req.ButtonURL != nil {
+				content.ButtonURL = *req.ButtonURL
+			}
+			if req.Data != nil {
+				content.Data = *req.Data
+			}
+			if req.SortOrder != nil {
+				content.SortOrder = *req.SortOrder
+			}
+			if req.IsActive != nil {
+				content.IsActive = *req.IsActive
+			}
+
+			if err := config.DB.Create(&content).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create homepage content"})
+				return
+			}
+			c.JSON(http.StatusCreated, content)
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch homepage content"})
+		return
+	}
+
+	// Update existing record using the same logic as UpdateHomepageContent
+	if req.Title != nil {
+		content.Title = *req.Title
+	}
+	if req.Subtitle != nil {
+		content.Subtitle = *req.Subtitle
+	}
+	if req.Description != nil {
+		content.Description = *req.Description
+	}
+	if req.ImageURL != nil {
+		content.ImageURL = *req.ImageURL
+	}
+	if req.ButtonText != nil {
+		content.ButtonText = *req.ButtonText
+	}
+	if req.ButtonURL != nil {
+		content.ButtonURL = *req.ButtonURL
+	}
+	if req.Data != nil {
+		content.Data = *req.Data
 	}
 	if req.SortOrder != nil {
 		content.SortOrder = *req.SortOrder

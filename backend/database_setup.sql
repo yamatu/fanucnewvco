@@ -355,6 +355,7 @@ CREATE TABLE IF NOT EXISTS homepage_contents (
     image_url VARCHAR(500),
     button_text VARCHAR(100),
     button_url VARCHAR(500),
+    data JSON,
     sort_order INT DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

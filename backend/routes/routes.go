@@ -32,6 +32,7 @@ func SetupRoutes(r *gin.Engine) {
 	couponController := &controllers.CouponController{}
 	customerController := &controllers.CustomerController{}
 	ticketController := &controllers.TicketController{}
+	mediaController := &controllers.MediaController{}
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -195,12 +196,25 @@ func SetupRoutes(r *gin.Engine) {
 				purchaseLinks.DELETE("/:id", middleware.AdminOnly(), purchaseLinkController.DeletePurchaseLink)
 			}
 
+			// Media library (admin and editor access)
+			media := admin.Group("/media")
+			media.Use(middleware.EditorOrAdmin())
+			{
+				media.GET("", mediaController.List)
+				media.POST("/upload", mediaController.Upload)
+				media.PUT("/batch", mediaController.BatchUpdate)
+				media.DELETE("/batch", mediaController.BatchDelete)
+				media.PUT("/:id", mediaController.Update)
+			}
+
 			// Homepage Content management (admin and editor access)
 			homepageContent := admin.Group("/homepage-content")
 			homepageContent.Use(middleware.EditorOrAdmin())
 			{
-				homepageContent.GET("", homepageContentController.GetHomepageContents)
+				homepageContent.GET("", homepageContentController.GetHomepageContentsAdmin)
 				homepageContent.GET("/sections", homepageContentController.GetPredefinedSections)
+				homepageContent.GET("/section/:section_key", homepageContentController.GetHomepageContentBySectionAdmin)
+				homepageContent.PUT("/section/:section_key", homepageContentController.UpsertHomepageContentBySection)
 				homepageContent.GET("/:id", homepageContentController.GetHomepageContent)
 				homepageContent.POST("", homepageContentController.CreateHomepageContent)
 				homepageContent.PUT("/:id", homepageContentController.UpdateHomepageContent)

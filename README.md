@@ -45,8 +45,6 @@ npm run dev
 
 ## 🐳 Docker 部署（推荐）
 
-> 说明：本环境里未安装 Docker，我已补齐配置文件；你在服务器/本机装好 Docker 后按下面步骤执行即可。
-
 ### 1) 准备环境变量
 
 在仓库根目录：
@@ -64,9 +62,16 @@ docker compose up -d --build
 ```
 
 默认对外端口：
-- 站点入口：`http://<服务器IP或域名>/`（Nginx 容器监听 80）
+- 站点入口：`http://<服务器IP或域名>:3006/`（默认 `NGINX_PORT=3006`，可在 `.env` 中修改）
 - 后端 API：通过 Nginx 转发（浏览器端使用 `/api/v1`）
-- 健康检查：`http://<服务器IP或域名>/health`
+- 健康检查：`http://<服务器IP或域名>:3006/health`
+
+### 后台默认账号/密码（可重置）
+
+- 默认会通过后端“种子管理员”逻辑创建/更新账号（由 `.env` 控制）：
+  - 用户名：`DEFAULT_ADMIN_USERNAME`（默认 `admin`）
+  - 密码：`DEFAULT_ADMIN_PASSWORD`（例如 `admin123`）
+- 如果浏览器登录提示 `403`，通常是 CORS：把 `.env` 的 `CORS_ORIGINS` 改成你实际访问站点的地址（协议+域名/IP+端口），然后重建后端容器。
 
 ### 3) 常用命令
 
@@ -77,9 +82,23 @@ docker compose logs -f backend
 docker compose down
 ```
 
+## 🧰 Docker 开发模式（不使用 Nginx 反向代理）
+
+如果你不想走 Nginx（开发环境常见），可以用 `docker-compose.dev.yml` 直接暴露端口：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+访问：
+- 前端：`http://localhost:${FRONTEND_HOST_PORT:-3000}`
+- 后端：`http://localhost:${BACKEND_HOST_PORT:-8080}/health`
+- MySQL：`localhost:${MYSQL_HOST_PORT:-3307}`（容器内仍是 3306）
+
 ### 4) 关键文件
 
 - `docker-compose.yml`：一键编排
+- `docker-compose.dev.yml`：开发覆盖（暴露端口 + 默认禁用 nginx）
 - `docker/nginx.conf`：容器内反向代理（前端 + `/api/*` 转发到后端）
 - `backend/Dockerfile`：后端镜像构建
 - `frontend/Dockerfile`：前端 standalone 构建（通过 build args 注入必要环境变量）

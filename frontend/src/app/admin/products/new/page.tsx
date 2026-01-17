@@ -13,21 +13,25 @@ import {
   LinkIcon
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
+import MediaPickerModal from '@/components/admin/MediaPickerModal';
 import SeoPreview from '@/components/admin/SeoPreview';
 import { ProductService, CategoryService } from '@/services';
 import { ProductCreateRequest } from '@/types';
 import { queryKeys } from '@/lib/react-query';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 interface ProductFormData extends Omit<ProductCreateRequest, 'images'> {
   images: FileList | null;
 }
 
 export default function NewProductPage() {
+  const { locale } = useAdminI18n();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [imageUrl, setImageUrl] = useState<string>('');
   const [images, setImages] = useState<Array<{url: string; alt_text?: string; is_primary?: boolean}>>([]);
   const [showImageForm, setShowImageForm] = useState<boolean>(false);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [importSource, setImportSource] = useState<string>('https://fanucworld.com/products/');
   const [importing, setImporting] = useState<boolean>(false);
   const [importResult, setImportResult] = useState<any>(null);
@@ -430,14 +434,24 @@ export default function NewProductPage() {
                   <div className="border-t pt-6">
                     <div className="flex items-center justify-between mb-4">
                       <h4 className="text-sm font-medium text-gray-700">Images (URLs)</h4>
-                      <button
-                        type="button"
-                        onClick={() => setShowImageForm(!showImageForm)}
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        <LinkIcon className="h-4 w-4 mr-1" />
-                        Add Image
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowMediaPicker(true)}
+                          className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                          <PhotoIcon className="h-4 w-4 mr-1" />
+                          {locale === 'zh' ? '从图库选择' : 'Choose From Library'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowImageForm(!showImageForm)}
+                          className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                          <LinkIcon className="h-4 w-4 mr-1" />
+                          {locale === 'zh' ? '添加图片链接' : 'Add Image URL'}
+                        </button>
+                      </div>
                     </div>
 
                     {/* Image Form */}
@@ -595,6 +609,27 @@ export default function NewProductPage() {
             </div>
           </div>
         </form>
+
+        <MediaPickerModal
+          open={showMediaPicker}
+          onClose={() => setShowMediaPicker(false)}
+          multiple={true}
+          title="Select product images"
+          onSelect={(assets) => {
+            setImages((prev) => {
+              const existing = new Set(prev.map((p) => p.url));
+              const next = [...prev];
+              for (const a of assets) {
+                if (!existing.has(a.url)) {
+                  next.push({ url: a.url, alt_text: a.alt_text || '' });
+                  existing.add(a.url);
+                }
+              }
+              return next;
+            });
+            toast.success('Added from media library');
+          }}
+        />
       </div>
     </AdminLayout>
   );

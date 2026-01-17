@@ -252,6 +252,8 @@ export interface HomepageContent {
   image_url: string;
   button_text: string;
   button_url: string;
+  // Optional structured config (slides/stats/services/etc)
+  data?: any;
   sort_order: number;
   is_active: boolean;
   created_at: string;

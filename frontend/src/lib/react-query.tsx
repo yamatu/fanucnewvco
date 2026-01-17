@@ -115,12 +115,6 @@ export const queryKeys = {
     byType: (type: string) => [...queryKeys.banners.all(), 'type', type] as const,
   },
 
-  // Company
-  company: {
-    profile: () => ['company', 'profile'] as const,
-    adminProfile: () => ['company', 'admin', 'profile'] as const,
-  },
-
   // Homepage
   homepage: {
     all: () => ['homepage'] as const,
@@ -130,10 +124,6 @@ export const queryKeys = {
   },
 
   // Settings
-  settings: {
-    all: () => ['settings'] as const,
-  },
-
   // Dashboard
   dashboard: {
     stats: () => ['dashboard', 'stats'] as const,
@@ -144,10 +134,6 @@ export const queryKeys = {
   },
 
   // Analytics
-  analytics: {
-    overview: (filters: any) => ['analytics', 'overview', filters] as const,
-  },
-
   // Contact Messages
   contacts: {
     all: () => ['contacts'] as const,
@@ -156,6 +142,15 @@ export const queryKeys = {
     details: () => [...queryKeys.contacts.all(), 'detail'] as const,
     detail: (id: number) => [...queryKeys.contacts.details(), id] as const,
     stats: () => [...queryKeys.contacts.all(), 'stats'] as const,
+  },
+
+  // Media Library
+  media: {
+    all: () => ['media'] as const,
+    lists: () => [...queryKeys.media.all(), 'list'] as const,
+    list: (filters: any) => [...queryKeys.media.lists(), filters] as const,
+    details: () => [...queryKeys.media.all(), 'detail'] as const,
+    detail: (id: number) => [...queryKeys.media.details(), id] as const,
   },
 };
 

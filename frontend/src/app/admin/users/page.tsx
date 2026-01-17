@@ -17,6 +17,7 @@ import {
 import AdminLayout from '@/components/admin/AdminLayout';
 import { apiClient } from '@/lib/api';
 import Link from 'next/link';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 interface User {
   id: number;
@@ -31,6 +32,7 @@ interface User {
 }
 
 export default function AdminUsersPage() {
+  const { t } = useAdminI18n();
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -181,7 +183,7 @@ export default function AdminUsersPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">All Users</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('nav.users', 'All Users')}</h1>
             <p className="mt-1 text-sm text-gray-500">
               Manage admin users and registered customers
             </p>

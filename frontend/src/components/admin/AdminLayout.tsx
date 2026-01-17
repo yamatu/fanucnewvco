@@ -12,10 +12,7 @@ import {
   ShoppingBagIcon,
   UsersIcon,
   PhotoIcon,
-  BuildingOfficeIcon,
   DocumentTextIcon,
-  ChartBarIcon,
-  Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   BellIcon,
   UserCircleIcon,
@@ -25,41 +22,41 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth, useLogout } from '@/hooks/useAuth';
 import AuthGuard from '@/components/auth/AuthGuard';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 const navigation = [
-  { name: 'Dashboard', href: '/admin', icon: HomeIcon },
-  { name: 'Products', href: '/admin/products', icon: CubeIcon },
-  { name: 'Categories', href: '/admin/categories', icon: TagIcon },
-  { name: 'Orders', href: '/admin/orders', icon: ShoppingBagIcon },
-  { name: 'Customers', href: '/admin/customers', icon: UserCircleIcon },
-  { name: 'Support Tickets', href: '/admin/tickets', icon: ChatBubbleLeftRightIcon },
-  { name: 'Coupons', href: '/admin/coupons', icon: TicketIcon },
-  { name: 'Users', href: '/admin/users', icon: UsersIcon },
-  { name: 'Contact Messages', href: '/admin/contacts', icon: EnvelopeIcon },
-  { name: 'Banners', href: '/admin/banners', icon: PhotoIcon },
-  { name: 'Company Profile', href: '/admin/company', icon: BuildingOfficeIcon },
-  { name: 'Homepage Content', href: '/admin/homepage', icon: DocumentTextIcon },
-  { name: 'Analytics', href: '/admin/analytics', icon: ChartBarIcon },
-  { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
+  { key: 'nav.dashboard', name: 'Dashboard', href: '/admin', icon: HomeIcon },
+  { key: 'nav.products', name: 'Products', href: '/admin/products', icon: CubeIcon },
+  { key: 'nav.categories', name: 'Categories', href: '/admin/categories', icon: TagIcon },
+  { key: 'nav.orders', name: 'Orders', href: '/admin/orders', icon: ShoppingBagIcon },
+  { key: 'nav.customers', name: 'Customers', href: '/admin/customers', icon: UserCircleIcon },
+  { key: 'nav.tickets', name: 'Support Tickets', href: '/admin/tickets', icon: ChatBubbleLeftRightIcon },
+  { key: 'nav.coupons', name: 'Coupon Management', href: '/admin/coupons', icon: TicketIcon },
+  { key: 'nav.users', name: 'All Users', href: '/admin/users', icon: UsersIcon },
+  { key: 'nav.contacts', name: 'Contact Messages', href: '/admin/contacts', icon: EnvelopeIcon },
+  { key: 'nav.media', name: 'Media Library', href: '/admin/media', icon: PhotoIcon },
+  { key: 'nav.homepage', name: 'Homepage Content', href: '/admin/homepage', icon: DocumentTextIcon },
 ];
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
-export function AdminLayout({ children }: AdminLayoutProps) {
+function AdminLayoutInner({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { user } = useAuth();
   const logoutMutation = useLogout();
+  const { locale, setLocale, t } = useAdminI18n();
 
   const handleLogout = () => {
     logoutMutation.mutate();
   };
 
+  const activeNav = navigation.find(item => item.href === pathname);
+
   return (
-    <AuthGuard>
-      <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex">
         {/* Mobile sidebar overlay */}
         {sidebarOpen && (
           <div 
@@ -95,7 +92,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 const isActive = pathname === item.href;
                 return (
                   <Link
-                    key={item.name}
+                    key={item.href}
                     href={item.href}
                     className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                       isActive
@@ -109,7 +106,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                         isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
                       }`}
                     />
-                    {item.name}
+                    {t(item.key, item.name)}
                   </Link>
                 );
               })}
@@ -129,15 +126,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-            >
-              <ArrowRightOnRectangleIcon className="mr-3 h-4 w-4" />
-              Sign out
-            </button>
-          </div>
-        </div>
+	            <button
+	              onClick={handleLogout}
+	              className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+	            >
+	              <ArrowRightOnRectangleIcon className="mr-3 h-4 w-4" />
+	              {t('action.signOut', 'Sign out')}
+	            </button>
+	          </div>
+	        </div>
 
         {/* Main content */}
         <div className="flex-1 flex flex-col lg:ml-0">
@@ -153,7 +150,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 </button>
                 
                 <h1 className="ml-4 lg:ml-0 text-xl font-semibold text-gray-900">
-                  {navigation.find(item => item.href === pathname)?.name || 'Admin Panel'}
+                  {activeNav ? t(activeNav.key, activeNav.name) : 'Admin Panel'}
                 </h1>
               </div>
 
@@ -163,6 +160,20 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   <BellIcon className="h-6 w-6" />
                   <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400"></span>
                 </button>
+
+                {/* Language */}
+                <div className="flex items-center space-x-2">
+                  <span className="hidden md:block text-sm text-gray-500">{t('action.language', 'Language')}</span>
+                  <select
+                    value={locale}
+                    onChange={(e) => setLocale(e.target.value as any)}
+                    className="block px-2 py-1 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Language"
+                  >
+                    <option value="en">English</option>
+                    <option value="zh">中文</option>
+                  </select>
+                </div>
 
                 {/* User menu */}
                 <div className="flex items-center space-x-3">
@@ -180,24 +191,31 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   <button
                     onClick={handleLogout}
                     className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    title="Sign out"
+                    title={t('action.signOut', 'Sign out')}
                   >
                     <ArrowRightOnRectangleIcon className="h-5 w-5" />
-                    <span className="ml-2 hidden sm:block">Sign out</span>
+                    <span className="ml-2 hidden sm:block">{t('action.signOut', 'Sign out')}</span>
                   </button>
                 </div>
               </div>
             </div>
           </header>
 
-          {/* Page content */}
-          <main className="flex-1 overflow-y-auto">
-            <div className="p-4 sm:p-6 lg:p-8">
-              {children}
-            </div>
-          </main>
-        </div>
-      </div>
+	        {/* Page content */}
+	        <main className="flex-1 overflow-y-auto">
+	            <div className="p-4 sm:p-6 lg:p-8">
+	              {children}
+	            </div>
+	        </main>
+	        </div>
+	      </div>
+	  );
+}
+
+export function AdminLayout({ children }: AdminLayoutProps) {
+  return (
+    <AuthGuard>
+      <AdminLayoutInner>{children}</AdminLayoutInner>
     </AuthGuard>
   );
 }

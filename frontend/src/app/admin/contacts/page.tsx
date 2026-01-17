@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ContactService, ContactMessage, ContactStats } from '@/services';
 import { queryKeys } from '@/lib/react-query';
@@ -17,12 +17,18 @@ import {
   ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import { formatDistanceToNow } from 'date-fns';
+import AdminLayout from '@/components/admin/AdminLayout';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 export default function ContactsPage() {
+  const { t } = useAdminI18n();
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [selectedPriority, setSelectedPriority] = useState<string>('');
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [editingStatus, setEditingStatus] = useState<ContactMessage['status']>('new');
+  const [editingPriority, setEditingPriority] = useState<ContactMessage['priority']>('medium');
+  const [adminNotes, setAdminNotes] = useState<string>('');
 
   const queryClient = useQueryClient();
 
@@ -43,10 +49,9 @@ export default function ContactsPage() {
 
   const contacts = contactsResponse?.data || [];
 
-  // 更新消息状态
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status, priority }: { id: number; status: string; priority?: string }) =>
-      ContactService.updateContact(id, { status: status as any, priority: priority as any }),
+  const updateContactMutation = useMutation({
+    mutationFn: ({ id, status, priority, admin_notes }: { id: number; status: ContactMessage['status']; priority?: ContactMessage['priority']; admin_notes?: string }) =>
+      ContactService.updateContact(id, { status, priority, admin_notes }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts.stats() });
@@ -101,15 +106,16 @@ export default function ContactsPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Contact Messages</h1>
-        <p className="text-gray-600 mt-2">Manage customer inquiries and support requests</p>
-      </div>
+    <AdminLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav.contacts', 'Contact Messages')}</h1>
+          <p className="mt-1 text-sm text-gray-500">Manage customer inquiries and support requests</p>
+        </div>
 
       {/* Statistics Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
             <div className="text-sm text-gray-600">Total</div>
@@ -262,15 +268,25 @@ export default function ContactsPage() {
                       <div className="flex space-x-2">
                         <button
                           onClick={() => {
-                            setSelectedMessage(contact);
-                            setShowModal(true);
+                            // Fetch full record and mark as read via GET /admin/contacts/:id
+                            ContactService.getContact(contact.id)
+                              .then((msg) => {
+                                setSelectedMessage(msg);
+                                setEditingStatus(msg.status);
+                                setEditingPriority(msg.priority);
+                                setAdminNotes(msg.admin_notes || '');
+                                setShowModal(true);
+                              })
+                              .catch((e: any) => {
+                                toast.error(e?.message || 'Failed to load message');
+                              });
                           }}
                           className="text-yellow-600 hover:text-yellow-900"
                         >
                           <EyeIcon className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => updateStatusMutation.mutate({ id: contact.id, status: 'replied' })}
+                          onClick={() => updateContactMutation.mutate({ id: contact.id, status: 'replied', priority: contact.priority })}
                           className="text-green-600 hover:text-green-900"
                           disabled={contact.status === 'replied'}
                         >
@@ -354,16 +370,41 @@ export default function ContactsPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Status</label>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedMessage.status)}`}>
-                    {selectedMessage.status}
-                  </span>
+                  <select
+                    value={editingStatus}
+                    onChange={(e) => setEditingStatus(e.target.value as any)}
+                    className="mt-1 w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="new">new</option>
+                    <option value="read">read</option>
+                    <option value="replied">replied</option>
+                    <option value="closed">closed</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Priority</label>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(selectedMessage.priority)}`}>
-                    {selectedMessage.priority}
-                  </span>
+                  <select
+                    value={editingPriority}
+                    onChange={(e) => setEditingPriority(e.target.value as any)}
+                    className="mt-1 w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="urgent">urgent</option>
+                    <option value="high">high</option>
+                    <option value="medium">medium</option>
+                    <option value="low">low</option>
+                  </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Admin Notes</label>
+                <textarea
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  rows={4}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Internal notes (not visible to customer)"
+                />
               </div>
               
               <div>
@@ -377,12 +418,17 @@ export default function ContactsPage() {
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 onClick={() => {
-                  updateStatusMutation.mutate({ id: selectedMessage.id, status: 'replied' });
+                  updateContactMutation.mutate({
+                    id: selectedMessage.id,
+                    status: editingStatus,
+                    priority: editingPriority,
+                    admin_notes: adminNotes,
+                  });
                   setShowModal(false);
                 }}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
-                Mark as Replied
+                Save
               </button>
               <button
                 onClick={() => setShowModal(false)}
@@ -394,6 +440,7 @@ export default function ContactsPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

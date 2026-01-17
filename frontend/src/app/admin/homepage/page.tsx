@@ -1,501 +1,360 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import {
-  DocumentTextIcon,
-  PhotoIcon,
-  PlusIcon,
-  TrashIcon,
-  XCircleIcon
-} from '@heroicons/react/24/outline';
+import { Bars3Icon, CheckCircleIcon, DocumentTextIcon, EyeIcon, XCircleIcon } from '@heroicons/react/24/outline';
+
 import AdminLayout from '@/components/admin/AdminLayout';
 import { HomepageService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
+import type { HomepageContent } from '@/types';
+import { useAdminI18n } from '@/lib/admin-i18n';
+import { SortableList } from '@/components/admin/homepage/SortableList';
 
-interface HomepageContentForm {
-  hero_title: string;
-  hero_subtitle: string;
-  hero_description: string;
-  hero_image_url: string;
-  hero_button_text: string;
-  hero_button_url: string;
-  about_title: string;
-  about_description: string;
-  about_image_url: string;
-  features: Array<{
-    id?: number;
-    title: string;
-    description: string;
-    icon: string;
-    order: number;
-  }>;
+import HeroEditor from '@/components/admin/homepage/editors/HeroEditor';
+import CompanyStatsEditor from '@/components/admin/homepage/editors/CompanyStatsEditor';
+import FeaturedProductsEditor from '@/components/admin/homepage/editors/FeaturedProductsEditor';
+import WorkshopEditor from '@/components/admin/homepage/editors/WorkshopEditor';
+import ServicesEditor from '@/components/admin/homepage/editors/ServicesEditor';
+import SimpleSectionEditor from '@/components/admin/homepage/editors/SimpleSectionEditor';
 
-  stats: Array<{
-    id?: number;
-    label: string;
-    value: string;
-    description: string;
-    order: number;
-  }>;
+type SectionDef = { id: string; key: string; name: string; description: string; predefined?: boolean; sortOrder: number };
+
+const PRIMARY_HOME_SECTION_KEYS = ['hero_section', 'company_stats', 'featured_products', 'workshop_section', 'services_section'] as const;
+
+function getEditorType(key: string):
+  | 'hero'
+  | 'company_stats'
+  | 'featured_products'
+  | 'workshop'
+  | 'services'
+  | 'simple' {
+  if (key === 'hero_section') return 'hero';
+  if (key === 'company_stats') return 'company_stats';
+  if (key === 'featured_products') return 'featured_products';
+  if (key === 'workshop_section') return 'workshop';
+  if (key === 'services_section') return 'services';
+  return 'simple';
 }
 
-export default function AdminHomepagePage() {
-  const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState('hero');
+export default function AdminHomepageContentPage() {
+  const { locale, t } = useAdminI18n();
   const queryClient = useQueryClient();
 
-  // Fetch homepage content for Admin editor (aggregated)
-  const { data: homepageData, isLoading, error } = useQuery({
+  const [selectedKey, setSelectedKey] = useState<string>('hero_section');
+  const [layoutOrder, setLayoutOrder] = useState<SectionDef[]>([]);
+  const [layoutDirty, setLayoutDirty] = useState(false);
+
+  const { data: sections = [], isLoading: sectionsLoading } = useQuery({
+    queryKey: ['homepage', 'sections'],
+    queryFn: () => HomepageService.getAdminSections(),
+    retry: 1,
+  });
+
+  const { data: contents = [], isLoading: contentsLoading, error } = useQuery({
     queryKey: queryKeys.homepage.adminContents(),
-    queryFn: () => HomepageService.getContent(),
+    queryFn: () => HomepageService.getAdminHomepageContents(),
+    retry: 1,
   });
 
-  const content = homepageData?.data;
+  const mergedSections = useMemo<SectionDef[]>(() => {
+    const byKey = Object.fromEntries((contents || []).map((c) => [c.section_key, c]));
+    const predefined = sections.map((s, idx) => {
+      const c = byKey[s.key] as HomepageContent | undefined;
+      const baseSort = (idx + 1) * 100;
+      return {
+        id: s.key,
+        key: s.key,
+        name: s.name,
+        description: s.description,
+        predefined: true,
+        sortOrder: Number((c as any)?.sort_order ?? baseSort),
+      };
+    });
+    const predefinedKeys = new Set(predefined.map((s) => s.key));
+    const extras = (contents || [])
+      .filter((c) => !predefinedKeys.has(c.section_key))
+      .map((c, idx) => ({
+        id: c.section_key,
+        key: c.section_key,
+        name: c.section_key,
+        description: 'Custom section',
+        predefined: false,
+        sortOrder: Number((c as any)?.sort_order ?? (9000 + idx)),
+      }));
+    return [...predefined, ...extras].sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [sections, contents]);
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<HomepageContentForm>({
-    defaultValues: content || {
-      features: [],
-      stats: []
+  useEffect(() => {
+    // Keep selection valid when list changes
+    if (mergedSections.length === 0) return;
+    if (!selectedKey) {
+      setSelectedKey(mergedSections[0].key);
+      return;
     }
+    if (!mergedSections.some((s) => s.key === selectedKey)) {
+      setSelectedKey(mergedSections[0].key);
+    }
+  }, [mergedSections, selectedKey]);
+
+  const current: HomepageContent | null = useMemo(
+    () => (contents || []).find((c) => c.section_key === selectedKey) || null,
+    [contents, selectedKey]
+  );
+
+  const layoutCandidates = useMemo<SectionDef[]>(() => {
+    const byKey = new Map((contents || []).map((c) => [c.section_key, c]));
+    return mergedSections
+      .filter((s) => PRIMARY_HOME_SECTION_KEYS.includes(s.key as any) || byKey.has(s.key))
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [mergedSections, contents]);
+
+  useEffect(() => {
+    // Initialize the layout order from the DB order; keep user's drag order until saved.
+    if (layoutDirty) return;
+    setLayoutOrder(layoutCandidates);
+  }, [layoutCandidates, layoutDirty]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      return HomepageService.upsertAdminBySectionKey(selectedKey, payload);
+    },
+    onSuccess: async () => {
+      toast.success(locale === 'zh' ? '已保存' : 'Saved');
+      await queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
+    },
+    onError: (e: any) => {
+      toast.error(e?.message || (locale === 'zh' ? '保存失败' : 'Failed to save'));
+    },
   });
 
-  const watchedFeatures = watch('features') || [];
-  const watchedStats = watch('stats') || [];
-
-  // Update homepage content mutation
-  const updateContentMutation = useMutation({
-    mutationFn: (data: HomepageContentForm) => HomepageService.updateContent(data),
-    onSuccess: () => {
-      toast.success('Homepage content updated successfully!');
-      queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
-      setIsEditing(false);
+  const saveLayoutMutation = useMutation({
+    mutationFn: async (nextOrder: SectionDef[]) => {
+      // Persist only the block ordering (sort_order). This also "initializes" missing rows for primary blocks.
+      // Use gaps so future inserts are easier.
+      const updates = nextOrder.map((s, idx) =>
+        HomepageService.upsertAdminBySectionKey(s.key, { sort_order: (idx + 1) * 10 })
+      );
+      await Promise.all(updates);
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to update homepage content');
+    onSuccess: async () => {
+      setLayoutDirty(false);
+      toast.success(locale === 'zh' ? '布局顺序已保存' : 'Layout saved');
+      await queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
+    },
+    onError: (e: any) => {
+      toast.error(e?.message || (locale === 'zh' ? '保存布局失败' : 'Failed to save layout'));
     },
   });
 
-  const onSubmit = (data: HomepageContentForm) => {
-    updateContentMutation.mutate(data);
-  };
-
-  const handleCancel = () => {
-    reset(content);
-    setIsEditing(false);
-  };
-
-  const addFeature = () => {
-    const newFeature = {
-      title: '',
-      description: '',
-      icon: '',
-      order: watchedFeatures.length
-    };
-    setValue('features', [...watchedFeatures, newFeature]);
-  };
-
-  const removeFeature = (index: number) => {
-    const updatedFeatures = watchedFeatures.filter((_, i) => i !== index);
-    setValue('features', updatedFeatures);
-  };
-
-
-
-  const addStat = () => {
-    const newStat = {
-      label: '',
-      value: '',
-      description: '',
-      order: watchedStats.length
-    };
-    setValue('stats', [...watchedStats, newStat]);
-  };
-
-  const removeStat = (index: number) => {
-    const updatedStats = watchedStats.filter((_, i) => i !== index);
-    setValue('stats', updatedStats);
-  };
-
-  const tabs = [
-    { id: 'hero', name: 'Hero Section', icon: PhotoIcon },
-    { id: 'about', name: 'About Section', icon: DocumentTextIcon },
-    { id: 'features', name: 'Features', icon: DocumentTextIcon },
-    { id: 'stats', name: 'Statistics', icon: DocumentTextIcon },
-  ];
+  const isLoading = sectionsLoading || contentsLoading;
 
   if (error) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="text-red-600 mb-4">
-            <XCircleIcon className="h-12 w-12 mx-auto" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Homepage Content</h3>
-          <p className="text-gray-500">{error.message}</p>
+        <div className="text-center py-20">
+          <XCircleIcon className="h-12 w-12 mx-auto text-red-500" />
+          <h3 className="mt-4 text-lg font-medium text-gray-900">Error loading homepage content</h3>
+          <p className="mt-2 text-sm text-gray-500">{(error as any)?.message || 'Unknown error'}</p>
         </div>
       </AdminLayout>
     );
   }
 
+  const editorType = getEditorType(selectedKey);
+
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Homepage Content</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('nav.homepage', 'Homepage Content')}</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Manage your homepage content and sections
+              {locale === 'zh'
+                ? '可视化编辑首页区块：增删、拖拽排序、图片从图库选择（不需要手写 JSON）'
+                : 'Visual editor for homepage sections: add/remove, drag reorder, pick images from Media Library (no JSON editing)'}
             </p>
           </div>
-          <div className="flex items-center space-x-3">
-            {!isEditing ? (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-              >
-                Edit Content
-              </button>
-            ) : (
-              <div className="flex space-x-2">
-                <button
-                  onClick={handleCancel}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSubmit(onSubmit)}
-                  disabled={updateContentMutation.isPending}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {updateContentMutation.isPending ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            )}
-          </div>
+          <a
+            href="/"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+          >
+            <EyeIcon className="h-5 w-5" />
+            {locale === 'zh' ? '预览首页' : 'Preview Home'}
+          </a>
         </div>
 
         {isLoading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-500">Loading homepage content...</p>
+          <div className="p-10 text-center bg-white shadow rounded-lg">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto" />
+            <p className="mt-3 text-gray-500 text-sm">{t('common.loading', 'Loading...')}</p>
           </div>
         ) : (
-          <div className="bg-white shadow rounded-lg">
-            {/* Tabs */}
-            <div className="border-b border-gray-200">
-              <nav className="-mb-px flex space-x-8 px-6">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
-                        activeTab === tab.id
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Section list */}
+            <div className="lg:col-span-4">
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DocumentTextIcon className="h-5 w-5 text-gray-400" />
+                    <span className="font-medium text-gray-900">{locale === 'zh' ? '区块' : 'Sections'}</span>
+                  </div>
+                  <span className="text-xs text-gray-500">{mergedSections.length}</span>
+                </div>
+
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="text-xs font-medium text-gray-700">{locale === 'zh' ? '首页布局顺序' : 'Homepage Layout Order'}</div>
+                  <div className="mt-2 text-xs text-gray-500">
+                    {locale === 'zh'
+                      ? '拖拽下面的区块来调整前台首页的显示顺序，然后保存。'
+                      : 'Drag blocks below to change the public homepage order, then save.'}
+                  </div>
+                  <div className="mt-3">
+                    <SortableList
+                      items={layoutOrder}
+                      onReorder={(next) => {
+                        setLayoutOrder(next);
+                        setLayoutDirty(true);
+                      }}
                     >
-                      <Icon className="h-4 w-4 mr-2" />
-                      {tab.name}
+                      {(s, drag) => (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 bg-white">
+                          <button
+                            type="button"
+                            ref={drag.setActivatorNodeRef as any}
+                            {...drag.attributes}
+                            {...drag.listeners}
+                            className="p-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing"
+                            title={locale === 'zh' ? '拖拽排序' : 'Drag to reorder'}
+                          >
+                            <Bars3Icon className="h-5 w-5" />
+                          </button>
+                          <button
+                            type="button"
+                            className="flex-1 text-left min-w-0"
+                            onClick={() => setSelectedKey(s.key)}
+                            title={s.key}
+                          >
+                            <div className="text-sm font-medium text-gray-900 truncate">{s.name}</div>
+                            <div className="text-xs text-gray-500 truncate">{s.key}</div>
+                          </button>
+                        </div>
+                      )}
+                    </SortableList>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLayoutOrder(layoutCandidates);
+                        setLayoutDirty(false);
+                      }}
+                      className="px-3 py-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm"
+                      disabled={!layoutDirty || saveLayoutMutation.isPending}
+                    >
+                      {locale === 'zh' ? '撤销' : 'Reset'}
                     </button>
-                  );
-                })}
-              </nav>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await saveLayoutMutation.mutateAsync(layoutOrder);
+                      }}
+                      className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm disabled:opacity-50"
+                      disabled={!layoutDirty || saveLayoutMutation.isPending}
+                    >
+                      {locale === 'zh' ? '保存顺序' : 'Save Order'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="divide-y divide-gray-200">
+                  {mergedSections.map((s) => {
+                    const c = (contents || []).find((x) => x.section_key === s.key);
+                    const isActive = c ? Boolean((c as any)?.is_active ?? false) : PRIMARY_HOME_SECTION_KEYS.includes(s.key as any);
+                    const isSelected = s.key === selectedKey;
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => setSelectedKey(s.key)}
+                        className={`w-full text-left px-6 py-4 hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : 'bg-white'}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-gray-900 truncate">{s.name}</div>
+                            <div className="text-xs text-gray-500 mt-1 line-clamp-2">{s.description}</div>
+                            <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                              <span className="font-mono">{s.key}</span>
+                              <span>·</span>
+                              <span>sort: {(c as any)?.sort_order ?? '-'}</span>
+                              <span>·</span>
+                              <span>{getEditorType(s.key)}</span>
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0">
+                            {isActive ? (
+                              <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                            ) : (
+                              <XCircleIcon className="h-5 w-5 text-gray-300" />
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="p-6">
-              {/* Hero Section */}
-              {activeTab === 'hero' && (
-                <div className="space-y-6">
-                  <div>
-                    <label htmlFor="hero_title" className="block text-sm font-medium text-gray-700">
-                      Hero Title *
-                    </label>
-                    <input
-                      type="text"
-                      id="hero_title"
-                      {...register('hero_title', { required: 'Hero title is required' })}
-                      disabled={!isEditing}
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                    />
-                    {errors.hero_title && (
-                      <p className="mt-1 text-sm text-red-600">{errors.hero_title.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="hero_subtitle" className="block text-sm font-medium text-gray-700">
-                      Hero Subtitle
-                    </label>
-                    <input
-                      type="text"
-                      id="hero_subtitle"
-                      {...register('hero_subtitle')}
-                      disabled={!isEditing}
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="hero_description" className="block text-sm font-medium text-gray-700">
-                      Hero Description
-                    </label>
-                    <textarea
-                      id="hero_description"
-                      rows={4}
-                      {...register('hero_description')}
-                      disabled={!isEditing}
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="hero_image_url" className="block text-sm font-medium text-gray-700">
-                      Hero Image URL
-                    </label>
-                    <input
-                      type="url"
-                      id="hero_image_url"
-                      {...register('hero_image_url')}
-                      disabled={!isEditing}
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    <div>
-                      <label htmlFor="hero_button_text" className="block text-sm font-medium text-gray-700">
-                        Button Text
-                      </label>
-                      <input
-                        type="text"
-                        id="hero_button_text"
-                        {...register('hero_button_text')}
-                        disabled={!isEditing}
-                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="hero_button_url" className="block text-sm font-medium text-gray-700">
-                        Button URL
-                      </label>
-                      <input
-                        type="url"
-                        id="hero_button_url"
-                        {...register('hero_button_url')}
-                        disabled={!isEditing}
-                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                      />
-                    </div>
-                  </div>
-                </div>
+            {/* Editor */}
+            <div className="lg:col-span-8 space-y-4">
+              {editorType === 'hero' ? (
+                <HeroEditor
+                  content={current}
+                  onSave={async (payload) => {
+                    await saveMutation.mutateAsync(payload);
+                  }}
+                />
+              ) : editorType === 'company_stats' ? (
+                <CompanyStatsEditor
+                  content={current}
+                  onSave={async (payload) => {
+                    await saveMutation.mutateAsync(payload);
+                  }}
+                />
+              ) : editorType === 'featured_products' ? (
+                <FeaturedProductsEditor
+                  content={current}
+                  onSave={async (payload) => {
+                    await saveMutation.mutateAsync(payload);
+                  }}
+                />
+              ) : editorType === 'workshop' ? (
+                <WorkshopEditor
+                  content={current}
+                  onSave={async (payload) => {
+                    await saveMutation.mutateAsync(payload);
+                  }}
+                />
+              ) : editorType === 'services' ? (
+                <ServicesEditor
+                  content={current}
+                  onSave={async (payload) => {
+                    await saveMutation.mutateAsync(payload);
+                  }}
+                />
+              ) : (
+                <SimpleSectionEditor
+                  content={current}
+                  onSave={async (payload) => {
+                    await saveMutation.mutateAsync(payload);
+                  }}
+                />
               )}
-
-              {/* About Section */}
-              {activeTab === 'about' && (
-                <div className="space-y-6">
-                  <div>
-                    <label htmlFor="about_title" className="block text-sm font-medium text-gray-700">
-                      About Title
-                    </label>
-                    <input
-                      type="text"
-                      id="about_title"
-                      {...register('about_title')}
-                      disabled={!isEditing}
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="about_description" className="block text-sm font-medium text-gray-700">
-                      About Description
-                    </label>
-                    <textarea
-                      id="about_description"
-                      rows={6}
-                      {...register('about_description')}
-                      disabled={!isEditing}
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="about_image_url" className="block text-sm font-medium text-gray-700">
-                      About Image URL
-                    </label>
-                    <input
-                      type="url"
-                      id="about_image_url"
-                      {...register('about_image_url')}
-                      disabled={!isEditing}
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Features Section */}
-              {activeTab === 'features' && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900">Features</h3>
-                    {isEditing && (
-                      <button
-                        type="button"
-                        onClick={addFeature}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
-                      >
-                        <PlusIcon className="h-4 w-4 mr-1" />
-                        Add Feature
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="space-y-4">
-                    {watchedFeatures.map((feature, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-sm font-medium text-gray-900">Feature {index + 1}</h4>
-                          {isEditing && (
-                            <button
-                              type="button"
-                              onClick={() => removeFeature(index)}
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                              Title
-                            </label>
-                            <input
-                              type="text"
-                              {...register(`features.${index}.title`)}
-                              disabled={!isEditing}
-                              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                              Icon
-                            </label>
-                            <input
-                              type="text"
-                              {...register(`features.${index}.icon`)}
-                              disabled={!isEditing}
-                              placeholder="e.g., cog, shield, lightning"
-                              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-4">
-                          <label className="block text-sm font-medium text-gray-700">
-                            Description
-                          </label>
-                          <textarea
-                            rows={3}
-                            {...register(`features.${index}.description`)}
-                            disabled={!isEditing}
-                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Statistics Section */}
-              {activeTab === 'stats' && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900">Statistics</h3>
-                    {isEditing && (
-                      <button
-                        type="button"
-                        onClick={addStat}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
-                      >
-                        <PlusIcon className="h-4 w-4 mr-1" />
-                        Add Statistic
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    {watchedStats.map((stat, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-sm font-medium text-gray-900">Statistic {index + 1}</h4>
-                          {isEditing && (
-                            <button
-                              type="button"
-                              onClick={() => removeStat(index)}
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                              Label
-                            </label>
-                            <input
-                              type="text"
-                              {...register(`stats.${index}.label`)}
-                              disabled={!isEditing}
-                              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                              Value
-                            </label>
-                            <input
-                              type="text"
-                              {...register(`stats.${index}.value`)}
-                              disabled={!isEditing}
-                              placeholder="e.g., 1000+, 99%"
-                              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                              Description
-                            </label>
-                            <input
-                              type="text"
-                              {...register(`stats.${index}.description`)}
-                              disabled={!isEditing}
-                              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </form>
+            </div>
           </div>
         )}
       </div>

@@ -22,8 +22,10 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import { OrderService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { formatCurrency } from '@/lib/utils';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 export default function AdminOrdersPage() {
+  const { t } = useAdminI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -139,13 +141,13 @@ export default function AdminOrdersPage() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Manage customer orders and track fulfillment
-            </p>
-          </div>
+	        <div className="flex items-center justify-between">
+	          <div>
+	            <h1 className="text-2xl font-bold text-gray-900">{t('nav.orders', 'Orders')}</h1>
+	            <p className="mt-1 text-sm text-gray-500">
+	              Manage customer orders and track fulfillment
+	            </p>
+	          </div>
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setShowFilters(!showFilters)}

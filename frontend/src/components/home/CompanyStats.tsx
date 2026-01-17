@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import ClientOnly from '@/components/common/ClientOnly';
+import type { HomepageContent } from '@/types';
 import { 
   CalendarIcon, 
   BuildingOfficeIcon, 
@@ -12,81 +13,35 @@ import {
   TruckIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
+import { DEFAULT_COMPANY_STATS_DATA, type CompanyStatsData } from '@/lib/homepage-defaults';
 
-const stats = [
-  {
-    id: 1,
-    icon: CalendarIcon,
-    value: 18,
-    suffix: '+',
-    label: 'Years Experience',
-    description: 'Established in 2005 in Kunshan, China',
-    color: 'text-yellow-600'
-  },
-  {
-    id: 2,
-    icon: BuildingOfficeIcon,
-    value: 5000,
-    suffix: 'sqm',
-    label: 'Workshop Facility',
-    description: 'Modern infrastructure for quality service',
-    color: 'text-yellow-600'
-  },
-  {
-    id: 3,
-    icon: UsersIcon,
-    value: 37,
-    suffix: '',
-    label: 'Total Employees',
-    description: '27 workers and 10 sales professionals',
-    color: 'text-yellow-600'
-  },
-  {
-    id: 4,
-    icon: ShieldCheckIcon,
-    value: 3,
-    suffix: '',
-    label: 'Top Fanuc Supplier',
-    description: 'One of top 3 suppliers in China',
-    color: 'text-yellow-600'
-  },
-  {
-    id: 5,
-    icon: CogIcon,
-    value: 100000,
-    suffix: '+',
-    label: 'Items in Stock',
-    description: 'Comprehensive inventory management',
-    color: 'text-yellow-600'
-  },
-  {
-    id: 6,
-    icon: TruckIcon,
-    value: 100,
-    suffix: '',
-    label: 'Daily Parcels',
-    description: '50-100 parcels shipped daily',
-    color: 'text-yellow-600'
-  },
-  {
-    id: 7,
-    icon: GlobeAltIcon,
-    value: 200,
-    suffix: 'M',
-    label: 'Yearly Turnover',
-    description: 'Annual revenue in millions',
-    color: 'text-yellow-600'
-  },
-  {
-    id: 8,
-    icon: ClockIcon,
-    value: 365,
-    suffix: ' days',
-    label: 'Professional Service',
-    description: 'Sales, testing and maintenance',
-    color: 'text-yellow-600'
-  }
-];
+type Props = { content?: HomepageContent | null };
+
+const ICONS: Record<string, any> = {
+  calendar: CalendarIcon,
+  building: BuildingOfficeIcon,
+  users: UsersIcon,
+  globe: GlobeAltIcon,
+  cog: CogIcon,
+  shield: ShieldCheckIcon,
+  truck: TruckIcon,
+  clock: ClockIcon,
+};
+
+function normalizeCompanyStatsData(input: any): CompanyStatsData {
+  if (!input) return DEFAULT_COMPANY_STATS_DATA;
+  const data = typeof input === 'string' ? (() => { try { return JSON.parse(input); } catch { return null; } })() : input;
+  const stats = Array.isArray(data?.stats) && data.stats.length > 0 ? data.stats : DEFAULT_COMPANY_STATS_DATA.stats;
+  return {
+    headerTitle: data?.headerTitle || DEFAULT_COMPANY_STATS_DATA.headerTitle,
+    headerDescription: data?.headerDescription || DEFAULT_COMPANY_STATS_DATA.headerDescription,
+    stats,
+    ctaTitle: data?.ctaTitle || DEFAULT_COMPANY_STATS_DATA.ctaTitle,
+    ctaDescription: data?.ctaDescription || DEFAULT_COMPANY_STATS_DATA.ctaDescription,
+    ctaPrimary: data?.ctaPrimary || DEFAULT_COMPANY_STATS_DATA.ctaPrimary,
+    ctaSecondary: data?.ctaSecondary || DEFAULT_COMPANY_STATS_DATA.ctaSecondary,
+  };
+}
 
 function AnimatedCounter({ value, duration = 2000 }: { value: number; duration?: number }) {
   const [count, setCount] = useState(0);
@@ -118,8 +73,18 @@ function AnimatedCounter({ value, duration = 2000 }: { value: number; duration?:
   return <span suppressHydrationWarning>{count.toLocaleString()}</span>;
 }
 
-export function CompanyStats() {
+export function CompanyStats({ content }: Props) {
   const [isVisible, setIsVisible] = useState(false);
+  const base = normalizeCompanyStatsData((content as any)?.data);
+  const data: CompanyStatsData = {
+    ...base,
+    // Back-compat: allow simple fields to affect the section even if `data` is null.
+    headerTitle: content?.title || base.headerTitle,
+    headerDescription: content?.description || base.headerDescription,
+    ctaPrimary: content?.button_text
+      ? { text: content.button_text, href: content.button_url || base.ctaPrimary.href }
+      : base.ctaPrimary,
+  };
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -149,19 +114,17 @@ export function CompanyStats() {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Vcocnc - One-Stop CNC Solution Supplier
+            {data.headerTitle}
           </h2>
           <p className="text-xl text-gray-600 max-w-4xl mx-auto">
-            We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter,
-            Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens
-            and other manufacturers in our own 5,000sqm workshop.
+            {data.headerDescription}
           </p>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-          {stats.map((stat, index) => {
-            const IconComponent = stat.icon;
+          {data.stats.map((stat: any, index: number) => {
+            const IconComponent = ICONS[String(stat.icon)] || CalendarIcon;
             
             return (
               <div
@@ -210,24 +173,23 @@ export function CompanyStats() {
         <div className="text-center mt-16">
           <div className="bg-white rounded-2xl p-8 shadow-lg max-w-4xl mx-auto">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              Ready to Experience Professional Service?
+              {data.ctaTitle}
             </h3>
             <p className="text-gray-600 mb-6">
-              We have a professional team to provide services including sales, testing and maintenance.
-              Join thousands of satisfied customers worldwide.
+              {data.ctaDescription}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
-                href="/contact"
+                href={data.ctaPrimary?.href || '/contact'}
                 className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-3 rounded-lg font-semibold transition-colors duration-300"
               >
-                Contact Our Experts
+                {data.ctaPrimary?.text || 'Contact Our Experts'}
               </a>
               <a
-                href="/categories"
+                href={data.ctaSecondary?.href || '/categories'}
                 className="border-2 border-yellow-500 text-yellow-600 hover:bg-yellow-500 hover:text-black px-8 py-3 rounded-lg font-semibold transition-colors duration-300"
               >
-                Browse Categories
+                {data.ctaSecondary?.text || 'Browse Categories'}
               </a>
             </div>
           </div>

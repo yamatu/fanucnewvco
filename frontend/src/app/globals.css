@@ -12,12 +12,8 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Keep the public site in a consistent light theme for now.
+   (Dark OS theme previously made pages like /categories appear with a black background.) */
 
 body {
   background: var(--background);

@@ -36,6 +36,10 @@ services:
       DB_PASSWORD: ${MYSQL_PASSWORD:-change_me_db_password}
       DB_NAME: ${MYSQL_DATABASE:-fanuc_sales}
 
+      # CORS: allow the browser origin(s) you access the site from.
+      # For local docker+nginx the origin is usually http://localhost:${NGINX_PORT}.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3006,http://127.0.0.1:3000,http://127.0.0.1:3006}
+
       JWT_SECRET: ${JWT_SECRET:-please_change_me_in_production}
       JWT_EXPIRES_HOURS: ${JWT_EXPIRES_HOURS:-24}
       CUSTOMER_JWT_EXPIRES_HOURS: ${CUSTOMER_JWT_EXPIRES_HOURS:-168}
@@ -45,6 +49,10 @@ services:
 
       # 默认管理员（生产环境建议首次初始化后关闭 SEED_DEFAULT_ADMIN）
       SEED_DEFAULT_ADMIN: ${SEED_DEFAULT_ADMIN:-false}
+      DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-admin}
+      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-admin@vcocnc.com}
+      DEFAULT_ADMIN_FULLNAME: ${DEFAULT_ADMIN_FULLNAME:-System Administrator}
+      DEFAULT_ADMIN_ROLE: ${DEFAULT_ADMIN_ROLE:-admin}
       DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-}
       RESET_DEFAULT_ADMIN_PASSWORD: ${RESET_DEFAULT_ADMIN_PASSWORD:-false}
     depends_on:
@@ -78,7 +86,7 @@ services:
     image: nginx:1.27-alpine
     container_name: fanuc_nginx
     ports:
-      - "80:80"
+      - "${NGINX_PORT:-3006}:80"
     volumes:
       - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:

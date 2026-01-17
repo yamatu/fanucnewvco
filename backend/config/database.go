@@ -107,12 +107,24 @@ func ConnectDatabase() {
             &models.CompanyProfile{},
             &models.ContactMessage{},
             &models.Coupon{},
-            &models.CouponUsage{},
-            &models.Ticket{},
-            &models.TicketReply{},
-            &models.TicketAttachment{},
-        }
+			&models.CouponUsage{},
+			&models.Ticket{},
+			&models.TicketReply{},
+			&models.TicketAttachment{},
+			&models.MediaAsset{},
+		}
         for _, m := range modelsToMigrate {
+            // GORM may try to "DROP FOREIGN KEY <uni_xxx>" on existing tables (a known benign issue when
+            // unique indexes are mistaken for FKs during diff). If that happens while migrating a model
+            // whose table does NOT yet exist (e.g. products), AutoMigrate aborts early and the table
+            // never gets created. To keep startup reliable, we proactively create missing tables first.
+            if !DB.Migrator().HasTable(m) {
+                if e := DB.Migrator().CreateTable(m); e != nil {
+                    DB.Exec("SET FOREIGN_KEY_CHECKS=1;")
+                    log.Fatalf("Failed to create table for %T: %v", m, e)
+                }
+            }
+
             if e := DB.AutoMigrate(m); !ignoreDropErr(e) {
                 // Re-enable FK checks before exiting
                 DB.Exec("SET FOREIGN_KEY_CHECKS=1;")

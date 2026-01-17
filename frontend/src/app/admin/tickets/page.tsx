@@ -13,6 +13,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 interface Ticket {
   id: number;
@@ -47,6 +48,7 @@ const priorityColors: Record<string, string> = {
 };
 
 export default function AdminTicketsPage() {
+  const { t } = useAdminI18n();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -116,7 +118,7 @@ export default function AdminTicketsPage() {
         {/* Header */}
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
-            <h1 className="text-2xl font-semibold text-gray-900">Support Tickets</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">{t('nav.tickets', 'Support Tickets')}</h1>
             <p className="mt-2 text-sm text-gray-700">
               Manage customer support tickets and inquiries
             </p>
