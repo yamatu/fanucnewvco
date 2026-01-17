@@ -48,9 +48,6 @@ export default function EditProductPage() {
   const [batchUrls, setBatchUrls] = useState<string>('');
   const [showMediaPicker, setShowMediaPicker] = useState<boolean>(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [importSource, setImportSource] = useState<string>('https://fanucworld.com/products/');
-  const [importing, setImporting] = useState<boolean>(false);
-  const [importResult, setImportResult] = useState<any>(null);
 
   const {
     register,
@@ -360,43 +357,6 @@ export default function EditProductPage() {
     }
   };
 
-  const fetchSEO = async () => {
-    try {
-      setImporting(true);
-      setImportResult(null);
-      const res = await ProductService.autoImportSEO(productId, { source_base_url: importSource, apply: false });
-      setImportResult(res);
-      toast.success('Imported SEO suggestions fetched');
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to fetch');
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const applyToForm = () => {
-    if (!importResult) return;
-    const strip = (html: string) => html ? html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
-    if (importResult.suggest_meta_title) setValue('meta_title', importResult.suggest_meta_title);
-    if (importResult.suggest_meta_description) setValue('meta_description', importResult.suggest_meta_description);
-    if (importResult.suggest_meta_keywords) setValue('meta_keywords', importResult.suggest_meta_keywords);
-    if (importResult.suggest_description_html) setValue('description', strip(importResult.suggest_description_html));
-    toast.success('Applied to form (not saved yet)');
-  };
-
-  const applyAndSave = async () => {
-    try {
-      setImporting(true);
-      await ProductService.autoImportSEO(productId, { source_base_url: importSource, apply: true });
-      toast.success('SEO imported and saved');
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(productId) });
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to apply and save');
-    } finally {
-      setImporting(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <AdminLayout>
@@ -621,64 +581,6 @@ export default function EditProductPage() {
               sku={watch('sku')}
               name={watch('name')}
             />
-
-            {/* Auto Import from external site */}
-            <div className="mt-6 border-t pt-4">
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Auto Import from Site</h4>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <input
-                  type="text"
-                  value={importSource}
-                  onChange={(e) => setImportSource(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                <button
-                  type="button"
-                  onClick={fetchSEO}
-                  disabled={importing}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {importing ? 'Fetching...' : 'Fetch Suggestions'}
-                </button>
-                <button
-                  type="button"
-                  onClick={applyToForm}
-                  disabled={!importResult}
-                  className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 disabled:opacity-50"
-                >
-                  Apply to Form
-                </button>
-                <button
-                  type="button"
-                  onClick={applyAndSave}
-                  disabled={importing}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
-                >
-                  {importing ? 'Applying...' : 'Apply & Save'}
-                </button>
-              </div>
-
-              {importResult && (
-                <div className="mt-4 text-sm">
-                  <div className="text-gray-500">Source: <a className="text-blue-600 hover:underline" href={importResult.source_url} target="_blank" rel="noreferrer">{importResult.source_url}</a></div>
-                  <div className="mt-2"><span className="font-medium">Title:</span> {importResult.suggest_meta_title || '—'}</div>
-                  <div className="mt-1"><span className="font-medium">Description:</span> {importResult.suggest_meta_description || '—'}</div>
-                  {importResult.suggest_category && (
-                    <div className="mt-1"><span className="font-medium">Category Guess:</span> {importResult.suggest_category}</div>
-                  )}
-                  {Array.isArray(importResult.tried_urls) && importResult.tried_urls.length > 0 && (
-                    <div className="mt-2">
-                      <div className="font-medium">Tried URLs</div>
-                      <ul className="list-disc list-inside text-gray-500">
-                        {importResult.tried_urls.slice(0,6).map((u: string) => (
-                          <li key={u} className="truncate"><a href={u} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{u}</a></li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Product Images */}

@@ -7,8 +7,18 @@ import ServicesSection from '@/components/home/ServicesSection';
 import SimpleContentSection from '@/components/home/SimpleContentSection';
 import { generateOrganizationSchema, generateWebsiteSchema, generateLocalBusinessSchema } from '@/lib/structured-data';
 import type { HomepageContent } from '@/types';
+import type { Metadata } from 'next';
+import { getSiteUrl } from '@/lib/url';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = getSiteUrl();
+  return {
+    alternates: { canonical: baseUrl },
+    openGraph: { url: baseUrl },
+  };
+}
 
 const PRIMARY_HOME_SECTIONS: Array<{ key: string; defaultSort: number }> = [
   { key: 'hero_section', defaultSort: 10 },

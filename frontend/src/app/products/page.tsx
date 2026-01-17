@@ -1,4 +1,4 @@
-﻿import { Metadata } from 'next';
+import { Metadata } from 'next';
 import { Suspense } from 'react';
 import { ProductService, CategoryService } from '@/services';
 import { getSiteUrl } from '@/lib/url';
@@ -36,10 +36,10 @@ export async function generateMetadata({ searchParams }: {
             title,
             description,
             type: 'website',
-            url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.vcocncspare.com'}/categories/${category.slug}`,
+            url: `${getSiteUrl()}/categories/${category.slug}`,
           },
           alternates: {
-            canonical: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.vcocncspare.com'}/categories/${category.slug}`,
+            canonical: `${getSiteUrl()}/categories/${category.slug}`,
           },
         };
       }

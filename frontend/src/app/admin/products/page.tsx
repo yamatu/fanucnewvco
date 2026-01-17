@@ -174,59 +174,7 @@ function AdminProductsContent() {
     },
   });
 
-  // Auto SEO + Category for selected products
-  const autoSeoCategoryMutation = useMutation({
-    mutationFn: async (ids: number[]) => {
-      const results: Array<{ id: number; ok: boolean; error?: string }> = [];
-      for (const id of ids) {
-        try {
-          await ProductService.autoImportSEO(id, {
-            source_base_url: 'https://fanucworld.com',
-            apply: true,
-            auto_category: true,
-          });
-          results.push({ id, ok: true });
-        } catch (e: any) {
-          results.push({ id, ok: false, error: e?.message || 'failed' });
-        }
-      }
-      return results;
-    },
-    onSuccess: (results) => {
-      const okCount = (results || []).filter((r) => r.ok).length;
-      const total = results?.length || 0;
-      if (total > 0) {
-        toast.success(`Auto SEO + Category finished: ${okCount}/${total} updated`);
-      } else {
-        toast.success('Auto SEO + Category finished');
-      }
-      setSelectedIds([]);
-      setSelectAllResults(false);
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
-    },
-    onError: (error: any) => {
-      toast.error(error?.message || 'Auto SEO + Category failed');
-    },
-  });
-
-  const handleAutoCategorizeSelected = () => {
-    if (selectAllResults) {
-      toast.error('For now, auto-categorize supports only selected items on this page.');
-      return;
-    }
-    if (selectedIds.length === 0) {
-      toast.error('Select at least one product');
-      return;
-    }
-    const proceed = window.confirm(
-      `Auto SEO + Category will fetch external data and update categories for ${selectedIds.length} product(s). Continue?`
-    );
-    if (!proceed) return;
-    toast.loading('Running auto SEO + category...', { id: 'auto-seo-cat' });
-    autoSeoCategoryMutation.mutate(selectedIds, {
-      onSettled: () => toast.dismiss('auto-seo-cat'),
-    });
-  };
+  // (Removed) Auto Import from Site feature
 
   // Delete product mutation
   const deleteProductMutation = useMutation({
@@ -454,18 +402,6 @@ function AdminProductsContent() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
                 </svg>
                 Unmark Featured
-              </button>
-
-              <button
-                onClick={handleAutoCategorizeSelected}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={autoSeoCategoryMutation.isPending || (!selectAllResults && selectedIds.length === 0)}
-                title="Fetch SEO from external source and auto-assign category"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
-                </svg>
-                Auto SEO + Category
               </button>
 
               {(selectedIds.length > 0 || selectAllResults) && (

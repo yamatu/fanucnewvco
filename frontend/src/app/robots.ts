@@ -1,4 +1,4 @@
-﻿import type { MetadataRoute } from 'next';
+import type { MetadataRoute } from 'next';
 import { getSiteUrl } from '@/lib/url';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +20,6 @@ export default function robots(): MetadataRoute.Robots {
       `${site}/sitemap-static.xml`,
       `${site}/sitemap-categories.xml`,
       `${site}/sitemap-products-index.xml`,
-      `${site}/xmlsitemap.php`, // Primary sitemap for enhanced SEO compatibility
     ],
   };
 }

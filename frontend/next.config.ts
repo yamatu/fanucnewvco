@@ -18,11 +18,6 @@ const nextConfig: NextConfig = {
   // API 重写配置，开发环境代理到后端
   async rewrites() {
     return [
-      // Sitemap rewrites - redirect sitemap-products-[page].xml to API route
-      {
-        source: '/sitemap-products-:page.xml',
-        destination: '/api/sitemap-products/:page',
-      },
       {
         source: '/api/:path*',
         destination: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'}/api/:path*`,

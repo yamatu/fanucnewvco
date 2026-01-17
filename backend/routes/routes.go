@@ -125,34 +125,22 @@ func SetupRoutes(r *gin.Engine) {
 			{
 				products.GET("", productController.GetProducts)
 				products.GET("/:id", productController.GetProduct)
-				products.POST("", productController.CreateProduct)
-				products.PUT("/:id", productController.UpdateProduct)
-				products.DELETE("/:id", middleware.AdminOnly(), productController.DeleteProduct)
+					products.POST("", productController.CreateProduct)
+					products.PUT("/:id", productController.UpdateProduct)
+					products.DELETE("/:id", middleware.AdminOnly(), productController.DeleteProduct)
 
-				// SEO auto-import from external site (e.g., fanucworld.com)
-				products.POST("/:id/auto-seo", productController.AutoImportSEO)
-
-				// Bulk update is_active / is_featured
-				products.PUT("/bulk-update", productController.BulkUpdateProducts)
+					// Bulk update is_active / is_featured
+					products.PUT("/bulk-update", productController.BulkUpdateProducts)
 
                 // Product image management
                 products.POST("/:id/images", productController.AddImage)
                 products.GET("/:id/images", productController.GetProductImages)
                 // Note: controller expects :imageIndex for deletion
                 products.DELETE("/:id/images/:imageIndex", middleware.AdminOnly(), productController.DeleteImage)
-			}
+				}
 
-			// SEO import utilities (admin and editor access)
-			seo := admin.Group("/seo")
-			seo.Use(middleware.EditorOrAdmin())
-			{
-				seo.POST("/lookup", productController.LookupSEO)
-                // Bulk import endpoint (IDs or SKUs)
-                seo.POST("/bulk-import", productController.BulkAutoImportSEO)
-			}
-
-			// Order management (admin only)
-			orders := admin.Group("/orders")
+				// Order management (admin only)
+				orders := admin.Group("/orders")
 			orders.Use(middleware.AdminOnly())
 			{
 				orders.GET("", orderController.GetOrders)

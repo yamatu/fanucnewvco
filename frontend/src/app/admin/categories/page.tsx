@@ -1,7 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import {
@@ -11,7 +10,8 @@ import {
   TrashIcon,
   TagIcon,
   PhotoIcon,
-  ArrowsUpDownIcon
+  ArrowsUpDownIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import MediaPickerModal from '@/components/admin/MediaPickerModal';
@@ -25,8 +25,8 @@ export default function AdminCategoriesPage() {
   const { locale, t } = useAdminI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
 
   // Form state
@@ -56,8 +56,7 @@ export default function AdminCategoriesPage() {
     onSuccess: () => {
       toast.success('Category created successfully!');
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() });
-      setShowCreateModal(false);
-      setEditingCategory(null);
+      closeDrawer();
       setFormData({ name: '', description: '', image_url: '', sort_order: 0, is_active: true });
     },
     onError: (error: any) => {
@@ -71,8 +70,7 @@ export default function AdminCategoriesPage() {
     onSuccess: () => {
       toast.success('Category updated successfully!');
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() });
-      setShowCreateModal(false);
-      setEditingCategory(null);
+      closeDrawer();
       setFormData({ name: '', description: '', image_url: '', sort_order: 0, is_active: true });
     },
     onError: (error: any) => {
@@ -104,12 +102,22 @@ export default function AdminCategoriesPage() {
     }
   }, [editingCategory]);
 
-  // Reset form when opening create modal
-  useEffect(() => {
-    if (showCreateModal && !editingCategory) {
-      setFormData({ name: '', description: '', image_url: '', sort_order: 0, is_active: true });
-    }
-  }, [showCreateModal, editingCategory]);
+  const openCreate = () => {
+    setEditingCategory(null);
+    setFormData({ name: '', description: '', image_url: '', sort_order: 0, is_active: true });
+    setDrawerOpen(true);
+  };
+
+  const openEdit = (category: any) => {
+    setEditingCategory(category);
+    setDrawerOpen(true);
+  };
+
+  const closeDrawer = () => {
+    setDrawerOpen(false);
+    setEditingCategory(null);
+    setShowMediaPicker(false);
+  };
 
   const sortedCategories = useMemo(() => {
     const list = Array.isArray(categoriesData) ? [...categoriesData] : [];
@@ -192,13 +200,7 @@ export default function AdminCategoriesPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const newValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
-    console.log('Input changed:', { name, value: newValue, type });
-
-    setFormData(prev => {
-      const newData = { ...prev, [name]: newValue };
-      console.log('Updated form data:', newData);
-      return newData;
-    });
+    setFormData(prev => ({ ...prev, [name]: newValue }));
   };
 
   // Show loading state
@@ -256,7 +258,7 @@ export default function AdminCategoriesPage() {
               {t('categories.sort.normalize', 'Normalize Sort')}
             </button>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={openCreate}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <PlusIcon className="h-4 w-4 mr-2" />
@@ -351,7 +353,7 @@ export default function AdminCategoriesPage() {
 
                   <div className="flex items-center space-x-2">
                     <button
-                      onClick={() => setEditingCategory(category)}
+                      onClick={() => openEdit(category)}
                       className="text-gray-400 hover:text-gray-500"
                     >
                       <PencilIcon className="h-4 w-4" />
@@ -387,7 +389,7 @@ export default function AdminCategoriesPage() {
               <div className="bg-gray-50 px-6 py-3">
                 <div className="flex justify-between items-center">
                   <button
-                    onClick={() => setEditingCategory(category)}
+                    onClick={() => openEdit(category)}
                     className="text-sm font-medium text-blue-600 hover:text-blue-500"
                   >
                     {t('categories.edit', 'Edit')}
@@ -414,7 +416,7 @@ export default function AdminCategoriesPage() {
             {!searchQuery && statusFilter === 'all' && (
               <div className="mt-6">
                 <button
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={openCreate}
                   className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
                   <PlusIcon className="h-4 w-4 mr-2" />
@@ -459,19 +461,30 @@ export default function AdminCategoriesPage() {
         </div>
       </div>
 
-      {/* Create/Edit Modal would go here */}
-      {(showCreateModal || editingCategory) && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {editingCategory ? 'Edit Category' : 'Create New Category'}
-              </h3>
+      {/* Create/Edit Drawer (no navigation) */}
+      {drawerOpen ? (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-gray-600/50" onClick={closeDrawer} />
+          <div className="absolute inset-y-0 right-0 w-full max-w-xl bg-white shadow-xl overflow-y-auto">
+            <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-200">
+              <div>
+                <div className="text-lg font-semibold text-gray-900">
+                  {editingCategory ? (locale === 'zh' ? '编辑分类' : 'Edit Category') : (locale === 'zh' ? '新增分类' : 'Create Category')}
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {locale === 'zh' ? '在右侧面板编辑，保存后列表会自动刷新。' : 'Edit in this panel; list will refresh after saving.'}
+                </div>
+              </div>
+              <button onClick={closeDrawer} className="p-2 rounded-md hover:bg-gray-50 text-gray-500" title={locale === 'zh' ? '关闭' : 'Close'}>
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
 
-              <form id="category-form" onSubmit={handleSubmit} className="space-y-4">
+            <div className="p-6">
+              <form id="category-form" onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category Name *
+                    {locale === 'zh' ? '分类名称' : 'Category Name'} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -479,37 +492,37 @@ export default function AdminCategoriesPage() {
                     value={formData.name}
                     onChange={handleInputChange}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="e.g., Servo Drives"
+                    placeholder={locale === 'zh' ? '例如：Servo Drives' : 'e.g., Servo Drives'}
                     required
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
+                    {locale === 'zh' ? '描述' : 'Description'}
                   </label>
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={handleInputChange}
-                    rows={3}
+                    rows={4}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Category description..."
+                    placeholder={locale === 'zh' ? '分类描述…' : 'Category description...'}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Image URL
+                    {locale === 'zh' ? '分类图片' : 'Category Image'}
                   </label>
                   <div className="flex gap-2">
                     <input
-                      type="url"
+                      type="text"
                       name="image_url"
                       value={formData.image_url}
                       onChange={handleInputChange}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder={locale === 'zh' ? '可填写外链或 /uploads/...' : 'External URL or /uploads/...'}
+                      placeholder={locale === 'zh' ? '外链或 /uploads/...' : 'External URL or /uploads/...'}
                     />
                     <button
                       type="button"
@@ -527,11 +540,8 @@ export default function AdminCategoriesPage() {
                       {t('categories.image.clear', 'Clear')}
                     </button>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {locale === 'zh' ? '建议从图库选择图片；也可填写外链 URL。' : 'Prefer picking from Media Library; external URLs also supported.'}
-                  </p>
                   {formData.image_url ? (
-                    <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                    <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={formData.image_url} alt="preview" className="w-full h-auto" />
                     </div>
@@ -541,7 +551,7 @@ export default function AdminCategoriesPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Sort Order
+                      {locale === 'zh' ? '排序' : 'Sort Order'}
                     </label>
                     <input
                       type="number"
@@ -549,10 +559,12 @@ export default function AdminCategoriesPage() {
                       value={formData.sort_order}
                       onChange={handleInputChange}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="0"
                       min={0}
                       max={9999}
                     />
+                    <p className="mt-1 text-xs text-gray-500">
+                      {locale === 'zh' ? '数字越小越靠前。' : 'Smaller numbers appear first.'}
+                    </p>
                   </div>
 
                   <div className="flex items-center mt-6">
@@ -564,37 +576,35 @@ export default function AdminCategoriesPage() {
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <label className="ml-2 block text-sm text-gray-900">
-                      Active
+                      {locale === 'zh' ? '启用' : 'Active'}
                     </label>
                   </div>
                 </div>
               </form>
+            </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setEditingCategory(null);
-                    setFormData({ name: '', description: '', image_url: '', sort_order: 0, is_active: true });
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  form="category-form"
-                  disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {(createCategoryMutation.isPending || updateCategoryMutation.isPending) ? (editingCategory ? 'Updating...' : 'Creating...') : (editingCategory ? 'Update' : 'Create')}
-                </button>
-              </div>
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeDrawer}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                {locale === 'zh' ? '取消' : 'Cancel'}
+              </button>
+              <button
+                type="submit"
+                form="category-form"
+                disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {(createCategoryMutation.isPending || updateCategoryMutation.isPending)
+                  ? (editingCategory ? (locale === 'zh' ? '保存中...' : 'Saving...') : (locale === 'zh' ? '创建中...' : 'Creating...'))
+                  : (editingCategory ? (locale === 'zh' ? '保存' : 'Save') : (locale === 'zh' ? '创建' : 'Create'))}
+              </button>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       <MediaPickerModal
         open={showMediaPicker}

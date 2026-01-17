@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { ProductService } from '@/services/product.service';
+import AdminLayout from '@/components/admin/AdminLayout';
+import { getSiteUrl } from '@/lib/url';
 
 export default function SitemapManagementPage() {
   const [stats, setStats] = useState({
@@ -41,7 +43,7 @@ export default function SitemapManagementPage() {
     }
   };
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
+  const baseUrl = getSiteUrl();
 
   const sitemapUrls = [
     { name: 'Main Sitemap', url: `${baseUrl}/sitemap.xml`, description: 'Main pages' },
@@ -51,9 +53,8 @@ export default function SitemapManagementPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Sitemap Management</h1>
             <button
@@ -206,7 +207,6 @@ export default function SitemapManagementPage() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </AdminLayout>
   );
 }

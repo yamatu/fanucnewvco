@@ -246,3 +246,40 @@ curl -fsS http://localhost:3006/api/v1/public/homepage-content | head
 ### 注意事项
 
 - 如果你在后台创建了一个自定义 section_key（非 5 个主区块），前台会用 `SimpleContentSection` 渲染；但如果该记录内容为空，会自动跳过渲染（防止空白块占位）。
+
+## 2026-01-17：Admin Categories 抽屉式编辑 + 移除 Auto Import from Site + SEO 配置修复
+
+### 变更
+
+- 分类管理 `/admin/categories`：新增/编辑不再用“小弹窗”，改为右侧抽屉（更好编辑、不会像“跳新页面”）
+  - `frontend/src/app/admin/categories/page.tsx`
+- 移除 “Auto Import from Site” 功能（产品新增/编辑/列表批量按钮都去掉；后端对应路由也下线）
+  - 前端：`frontend/src/app/admin/products/new/page.tsx`
+  - 前端：`frontend/src/app/admin/products/[id]/edit/page.tsx`
+  - 前端：`frontend/src/app/admin/products/page.tsx`
+  - 前端：`frontend/src/services/product.service.ts`
+  - 后端：`backend/routes/routes.go`（移除 `/api/v1/admin/products/:id/auto-seo` 与 `/api/v1/admin/seo/*`）
+- SEO/站点 URL 配置修复与简化
+  - `NEXT_PUBLIC_SITE_URL` 的 docker 默认值修正为 `http://localhost:3006`
+    - `.env.docker.example`
+    - `docker-compose.yml`
+  - `getSiteUrl()` 现在会正确处理 localhost（本地/容器里 sitemap/canonical 不再跑到生产域名）
+    - `frontend/src/lib/url.ts`
+  - 去掉 root metadata 强行写死 `alternates.canonical`，避免覆盖具体页面（产品/分类）自己的 canonical
+    - `frontend/src/app/layout.tsx`
+  - 统一 sitemap-products 入口：移除多余的 rewrite 与重复 API route，保留 `/sitemap-products-{page}.xml`
+    - `frontend/next.config.ts`
+    - 删除：`frontend/src/app/api/sitemap-products/[page]/route.ts`
+  - `robots.txt` 移除不存在的 `xmlsitemap.php`，并清理 BOM
+    - `frontend/src/app/robots.ts`
+
+### 验证方式
+
+1) Categories 抽屉：
+   - 打开 `http://localhost:3006/admin/categories` → “Add Category / Edit” 应在右侧抽屉打开
+2) 产品页不再出现 Auto Import：
+   - `http://localhost:3006/admin/products/new` 与任意产品编辑页，不应再有 “Auto Import from Site”
+3) SEO 基础检查（本地）：
+   - `curl -fsS http://localhost:3006/robots.txt | head`
+   - `curl -fsS http://localhost:3006/sitemap-products-index.xml | head`
+   - `curl -fsS http://localhost:3006/sitemap-products-1.xml | head`

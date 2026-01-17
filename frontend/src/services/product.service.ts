@@ -305,28 +305,6 @@ export class ProductService {
     throw new Error(response.data.message || 'Failed to update product');
   }
 
-  // Admin: Auto-import SEO/content from external site (e.g., fanucworld.com)
-  static async autoImportSEO(
-    productId: number,
-    payload: {
-      source_base_url?: string;
-      apply?: boolean;
-      auto_category?: boolean;
-      provider?: string;
-    }
-  ): Promise<any> {
-    const response = await apiClient.post<APIResponse<any>>(
-      `/admin/products/${productId}/auto-seo`,
-      payload || {}
-    );
-
-    if (response.data.success) {
-      return response.data.data;
-    }
-
-    throw new Error(response.data.message || 'Failed to auto-import SEO');
-  }
-
   // Admin: Delete product
   static async deleteProduct(id: number): Promise<void> {
     const response = await apiClient.delete<APIResponse<void>>(

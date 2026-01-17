@@ -68,7 +68,7 @@ services:
       args:
         # 仅用于 SSR 端访问后端（浏览器端会走 /api/v1 相对路径）
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://backend:8080}
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3006}
         NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-FANUC Parts Store}
         NEXT_PUBLIC_SITE_DESCRIPTION: ${NEXT_PUBLIC_SITE_DESCRIPTION:-Professional FANUC Parts and Equipment Sales}
         NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
@@ -78,6 +78,14 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
+      SITE_URL: ${SITE_URL:-http://localhost:3006}
+      # Also pass these at runtime so dynamic routes (robots/sitemaps/SSR) can read them without rebuild.
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://backend:8080}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3006}
+      NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-FANUC Parts Store}
+      NEXT_PUBLIC_SITE_DESCRIPTION: ${NEXT_PUBLIC_SITE_DESCRIPTION:-Professional FANUC Parts and Equipment Sales}
+      NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
+      NEXT_PUBLIC_PAYPAL_ENVIRONMENT: ${NEXT_PUBLIC_PAYPAL_ENVIRONMENT:-sandbox}
     depends_on:
       - backend
     restart: unless-stopped

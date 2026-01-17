@@ -54,6 +54,7 @@ cp .env.docker.example .env
 ```
 
 然后按需修改 `.env`（至少把 `MYSQL_ROOT_PASSWORD`、`MYSQL_PASSWORD`、`JWT_SECRET` 改掉）。
+SEO 相关（canonical/sitemap/robots）依赖 `NEXT_PUBLIC_SITE_URL`，请确保它是你实际访问站点的完整地址（含协议与端口；例如本地 `http://localhost:3006`，生产 `https://your-domain.com`）。
 
 ### 2) 启动（包含 MySQL + 后端 + 前端 + Nginx）
 

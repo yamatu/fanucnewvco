@@ -1,17 +1,14 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ReactQueryProvider } from "@/lib/react-query";
 import { Toaster } from "react-hot-toast";
 import Clarity from "@/components/analytics/Clarity";
+import { getSiteUrl } from "@/lib/url";
 
 const inter = Inter({ subsets: ["latin"] });
 
-// Normalize site URL to ensure it has protocol and is valid
-const rawSiteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
-const SITE_URL = /^https?:\/\//i.test(rawSiteUrl)
-  ? rawSiteUrl
-  : 'https://www.vcocncspare.com';
+const SITE_URL = getSiteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -61,7 +58,6 @@ export const metadata: Metadata = {
     description: "Professional FANUC CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping.",
     images: ["/images/og-image.jpg"],
   },
-  alternates: { canonical: SITE_URL },
   verification: {
     google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
   },
@@ -89,10 +85,10 @@ export default function RootLayout({
             "@type": "Organization",
             "name": "Vcocnc",
             "description": "Professional FANUC CNC parts supplier since 2005",
-              "url": process.env.NEXT_PUBLIC_SITE_URL || "https://www.vcocncspare.com",
+              "url": SITE_URL,
               "logo": {
                 "@type": "ImageObject",
-                "url": `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.vcocncspare.com'}/android-chrome-512x512.png`
+                "url": `${SITE_URL}/android-chrome-512x512.png`
               },
               "foundingDate": "2005",
               "address": {
@@ -149,4 +145,3 @@ export default function RootLayout({
     </html>
   );
 }
-
