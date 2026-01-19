@@ -80,12 +80,23 @@ export function getImageUrl(imagePath: string, fallback: string = '/images/place
     return imagePath;
   }
   
-  // If it starts with /uploads, route through Nginx proxy in the browser, or use env on the server
+  // If it's a full URL that points to /uploads/*, normalize to a relative path.
+  // This avoids mixed-content issues when the site is behind HTTPS.
+  if ((imagePath.startsWith('http://') || imagePath.startsWith('https://')) && imagePath.includes('/uploads/')) {
+    try {
+      const u = new URL(imagePath);
+      if (u.pathname.startsWith('/uploads/')) return u.pathname;
+    } catch {
+      // ignore
+    }
+  }
+
+  // If it starts with /uploads, prefer relative path in the browser.
+  // If you run without external Nginx, Next rewrites /uploads/* -> backend.
   if (imagePath.startsWith('/uploads')) {
     const isBrowser = typeof window !== 'undefined';
     if (isBrowser) {
-      // Browser: use relative path so it hits Nginx /api -> backend
-      return `/api${imagePath}`;
+      return imagePath;
     }
     // Server (SSR): use API base from env
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8080';
@@ -133,9 +144,9 @@ export function getProductImageUrl(imageUrls: string[] | any[] | any, fallback: 
   // Now we know it's an array
   if (imageUrls.length === 0) return fallback;
 
-  // If it's an array of strings (image_urls), return the first one
+  // If it's an array of strings (image_urls), normalize through getImageUrl
   if (typeof imageUrls[0] === 'string') {
-    return imageUrls[0] || fallback;
+    return getImageUrl(String(imageUrls[0] || ''), fallback);
   }
 
   // If it's an array of objects (ProductImage[]), find primary image first
@@ -144,8 +155,8 @@ export function getProductImageUrl(imageUrls: string[] | any[] | any, fallback: 
 
   if (!imageToUse) return fallback;
 
-  // All images are now external URLs
-  return imageToUse.url || fallback;
+  // Normalize through getImageUrl
+  return getImageUrl(String(imageToUse.url || ''), fallback);
 }
 
 // Get specific product image URL by index

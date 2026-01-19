@@ -12,88 +12,27 @@ import {
   PhotoIcon
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { DashboardService, OrderService, ProductService } from '@/services';
+import { DashboardService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { formatCurrency } from '@/lib/utils';
 import { useAdminI18n } from '@/lib/admin-i18n';
 
-// Mock data for demonstration
-const mockStats = {
-  total_products: 1250,
-  active_products: 1180,
-  featured_products: 24,
-  total_categories: 15,
-  total_orders: 3420,
-  pending_orders: 45,
-  completed_orders: 3200,
-  total_revenue: 2850000,
-  monthly_revenue: 185000,
-  total_users: 8,
-  active_users: 6,
+const emptyStats = {
+  total_products: 0,
+  active_products: 0,
+  featured_products: 0,
+  total_categories: 0,
+  total_orders: 0,
+  pending_orders: 0,
+  completed_orders: 0,
+  monthly_orders: 0,
+  total_revenue: 0,
+  monthly_revenue: 0,
+  total_users: 0,
+  active_users: 0,
+  total_banners: 0,
+  total_purchase_links: 0,
 };
-
-const mockRecentOrders = [
-  {
-    id: 1,
-    order_number: 'ORD-2024-001',
-    customer_name: 'John Smith',
-    customer_email: 'john@company.com',
-    total_amount: 2850.00,
-    status: 'pending',
-    created_at: '2024-01-15T10:30:00Z'
-  },
-  {
-    id: 2,
-    order_number: 'ORD-2024-002',
-    customer_name: 'Sarah Johnson',
-    customer_email: 'sarah@manufacturing.com',
-    total_amount: 4200.00,
-    status: 'completed',
-    created_at: '2024-01-15T09:15:00Z'
-  },
-  {
-    id: 3,
-    order_number: 'ORD-2024-003',
-    customer_name: 'Mike Chen',
-    customer_email: 'mike@automation.com',
-    total_amount: 1950.00,
-    status: 'processing',
-    created_at: '2024-01-15T08:45:00Z'
-  }
-];
-
-const mockTopProducts = [
-  {
-    product: {
-      id: 1,
-      name: 'FANUC A02B-0120-C041',
-      sku: 'A02B-0120-C041',
-      price: 2850.00
-    },
-    total_sold: 45,
-    revenue: 128250.00
-  },
-  {
-    product: {
-      id: 2,
-      name: 'FANUC A860-0360-T001',
-      sku: 'A860-0360-T001',
-      price: 1950.00
-    },
-    total_sold: 38,
-    revenue: 74100.00
-  },
-  {
-    product: {
-      id: 3,
-      name: 'FANUC 10S-3000',
-      sku: '10S-3000',
-      price: 4200.00
-    },
-    total_sold: 22,
-    revenue: 92400.00
-  }
-];
 
 function StatCard({ title, value, change, changeType, icon: Icon, color }: any) {
   return (
@@ -133,21 +72,33 @@ function StatCard({ title, value, change, changeType, icon: Icon, color }: any) 
 export default function AdminDashboard() {
   const { t } = useAdminI18n();
   // Fetch dashboard stats from API
-  const { data: dashboardData, isLoading } = useQuery({
+  const {
+    data: dashboardData,
+    isLoading: isStatsLoading,
+    error: statsError,
+  } = useQuery({
     queryKey: queryKeys.dashboard.stats(),
     queryFn: DashboardService.getDashboardStats,
   });
 
   // Fetch recent orders
-  const { data: ordersData } = useQuery({
-    queryKey: ['dashboard', 'recent-orders'],
-    queryFn: () => DashboardService.getRecentOrders(5),
+  const {
+    data: ordersData,
+    isLoading: isRecentOrdersLoading,
+    error: recentOrdersError,
+  } = useQuery({
+    queryKey: ['dashboard', 'recent-orders', { includePending: false }],
+    queryFn: () => DashboardService.getRecentOrders(5, false),
   });
 
   // Fetch top products
-  const { data: productsData } = useQuery({
-    queryKey: ['dashboard', 'top-products'],
-    queryFn: () => DashboardService.getTopProducts(5),
+  const {
+    data: productsData,
+    isLoading: isTopProductsLoading,
+    error: topProductsError,
+  } = useQuery({
+    queryKey: ['dashboard', 'top-products', 30],
+    queryFn: () => DashboardService.getTopProducts(5, 30),
   });
 
   // Fetch revenue data
@@ -156,13 +107,13 @@ export default function AdminDashboard() {
     queryFn: () => DashboardService.getRevenueData('month'),
   });
 
-  const stats = dashboardData || mockStats; // Fallback to mock data
-  const recentOrders = ordersData || mockRecentOrders;
-  const topProducts = productsData || mockTopProducts;
+  const stats = dashboardData ?? emptyStats;
+  const recentOrders = ordersData ?? [];
+  const topProducts = productsData ?? [];
 
   const dashboardCards = DashboardService.getDashboardCards(stats);
 
-  if (isLoading) {
+  if (isStatsLoading) {
     return (
       <AdminLayout>
         <div className="space-y-6">
@@ -269,7 +220,14 @@ export default function AdminDashboard() {
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Recent Orders</h3>
             </div>
-            <div className="overflow-hidden">
+              <div className="overflow-hidden">
+              {isRecentOrdersLoading ? (
+                <div className="p-6 text-sm text-gray-500">Loading...</div>
+              ) : recentOrdersError ? (
+                <div className="p-6 text-sm text-red-600">Failed to load recent orders.</div>
+              ) : recentOrders.length === 0 ? (
+                <div className="p-6 text-sm text-gray-500">No recent orders yet.</div>
+              ) : (
               <ul className="divide-y divide-gray-200">
                 {recentOrders.map((order) => (
                   <li key={order.id} className="px-6 py-4">
@@ -288,7 +246,7 @@ export default function AdminDashboard() {
                             {formatCurrency(order.total_amount)}
                           </p>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            order.status === 'completed' 
+                            order.status === 'delivered' || order.status === 'completed'
                               ? 'bg-green-100 text-green-800'
                               : order.status === 'pending'
                               ? 'bg-yellow-100 text-yellow-800'
@@ -297,14 +255,15 @@ export default function AdminDashboard() {
                             {order.status}
                           </span>
                         </div>
-                        <button className="text-gray-400 hover:text-gray-500">
+                        <a href={`/admin/orders/${order.id}`} className="text-gray-400 hover:text-gray-500" aria-label="View order">
                           <EyeIcon className="h-5 w-5" />
-                        </button>
+                        </a>
                       </div>
                     </div>
                   </li>
                 ))}
               </ul>
+              )}
             </div>
             <div className="px-6 py-3 border-t border-gray-200">
               <a href="/admin/orders" className="text-sm font-medium text-blue-600 hover:text-blue-500">
@@ -318,7 +277,14 @@ export default function AdminDashboard() {
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Top Products</h3>
             </div>
-            <div className="overflow-hidden">
+              <div className="overflow-hidden">
+              {isTopProductsLoading ? (
+                <div className="p-6 text-sm text-gray-500">Loading...</div>
+              ) : topProductsError ? (
+                <div className="p-6 text-sm text-red-600">Failed to load top products.</div>
+              ) : topProducts.length === 0 ? (
+                <div className="p-6 text-sm text-gray-500">No sales data yet.</div>
+              ) : (
               <ul className="divide-y divide-gray-200">
                 {topProducts.map((item, index) => (
                   <li key={item.id || index} className="px-6 py-4">
@@ -352,6 +318,7 @@ export default function AdminDashboard() {
                   </li>
                 ))}
               </ul>
+              )}
             </div>
             <div className="px-6 py-3 border-t border-gray-200">
               <a href="/admin/products" className="text-sm font-medium text-blue-600 hover:text-blue-500">

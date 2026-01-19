@@ -24,62 +24,62 @@ type Category struct {
 
 // Product represents the main product entity with enhanced SEO fields
 type Product struct {
-	ID                    uint                 `json:"id" gorm:"primaryKey"`
-	SKU                   string               `json:"sku" gorm:"size:100;uniqueIndex;not null"`
-	Name                  string               `json:"name" gorm:"size:255;not null"`
-	Slug                  string               `json:"slug" gorm:"size:255;uniqueIndex;not null"`
-	ShortDescription      string               `json:"short_description" gorm:"type:text"`
-	Description           string               `json:"description" gorm:"type:longtext"`
-	Price                 float64              `json:"price" gorm:"type:decimal(10,2);default:0.00"`
-	ComparePrice          *float64             `json:"compare_price" gorm:"type:decimal(10,2)"`
-	CostPrice             *float64             `json:"cost_price" gorm:"type:decimal(10,2)"`
-	StockQuantity         int                  `json:"stock_quantity" gorm:"default:0"`
-	MinStockLevel         int                  `json:"min_stock_level" gorm:"default:0"`
-	Weight                *float64             `json:"weight" gorm:"type:decimal(8,2)"`
-	Dimensions            string               `json:"dimensions" gorm:"size:100"`
-	Brand                 string               `json:"brand" gorm:"size:100;default:'FANUC';index"`
-	Model                 string               `json:"model" gorm:"size:100;index"`
-	PartNumber            string               `json:"part_number" gorm:"size:100;index"`
-	CategoryID            uint                 `json:"category_id" gorm:"not null;index"`
-	Category              Category             `json:"category" gorm:"foreignKey:CategoryID"`
-	IsActive              bool                 `json:"is_active" gorm:"default:true;index"`
-	IsFeatured            bool                 `json:"is_featured" gorm:"default:false;index"`
-	MetaTitle             string               `json:"meta_title" gorm:"size:255"`
-	MetaDescription       string               `json:"meta_description" gorm:"type:text"`
-	MetaKeywords          string               `json:"meta_keywords" gorm:"type:text"`
-	ImageURLs             string               `json:"image_urls" gorm:"type:json"`
+	ID               uint     `json:"id" gorm:"primaryKey"`
+	SKU              string   `json:"sku" gorm:"size:100;uniqueIndex;not null"`
+	Name             string   `json:"name" gorm:"size:255;not null"`
+	Slug             string   `json:"slug" gorm:"size:255;uniqueIndex;not null"`
+	ShortDescription string   `json:"short_description" gorm:"type:text"`
+	Description      string   `json:"description" gorm:"type:longtext"`
+	Price            float64  `json:"price" gorm:"type:decimal(10,2);default:0.00"`
+	ComparePrice     *float64 `json:"compare_price" gorm:"type:decimal(10,2)"`
+	CostPrice        *float64 `json:"cost_price" gorm:"type:decimal(10,2)"`
+	StockQuantity    int      `json:"stock_quantity" gorm:"default:0"`
+	MinStockLevel    int      `json:"min_stock_level" gorm:"default:0"`
+	Weight           *float64 `json:"weight" gorm:"type:decimal(8,2)"`
+	Dimensions       string   `json:"dimensions" gorm:"size:100"`
+	Brand            string   `json:"brand" gorm:"size:100;default:'FANUC';index"`
+	Model            string   `json:"model" gorm:"size:100;index"`
+	PartNumber       string   `json:"part_number" gorm:"size:100;index"`
+	CategoryID       uint     `json:"category_id" gorm:"not null;index"`
+	Category         Category `json:"category" gorm:"foreignKey:CategoryID"`
+	IsActive         bool     `json:"is_active" gorm:"default:true;index"`
+	IsFeatured       bool     `json:"is_featured" gorm:"default:false;index"`
+	MetaTitle        string   `json:"meta_title" gorm:"size:255"`
+	MetaDescription  string   `json:"meta_description" gorm:"type:text"`
+	MetaKeywords     string   `json:"meta_keywords" gorm:"type:text"`
+	ImageURLs        string   `json:"image_urls" gorm:"type:json"`
 
 	// Enhanced fields for fanucworld.com compatibility
-	WarrantyPeriod        string               `json:"warranty_period" gorm:"size:50;default:'12 months'"`
-	ConditionType         string               `json:"condition_type" gorm:"type:enum('new','refurbished','used');default:'new'"`
-	OriginCountry         string               `json:"origin_country" gorm:"size:50;default:'China'"`
-	Manufacturer          string               `json:"manufacturer" gorm:"size:100;default:'FANUC'"`
-	LeadTime              string               `json:"lead_time" gorm:"size:50;default:'3-7 days'"`
-	MinimumOrderQuantity  int                  `json:"minimum_order_quantity" gorm:"default:1"`
-	PackagingInfo         string               `json:"packaging_info" gorm:"type:text"`
-	Certifications        string               `json:"certifications" gorm:"type:text"`
-	TechnicalSpecs        string               `json:"technical_specs" gorm:"type:json"`
-	CompatibilityInfo     string               `json:"compatibility_info" gorm:"type:text"`
-	InstallationGuide     string               `json:"installation_guide" gorm:"type:text"`
-	MaintenanceTips       string               `json:"maintenance_tips" gorm:"type:text"`
-	RelatedProducts       string               `json:"related_products" gorm:"type:json"`
-	VideoURLs             string               `json:"video_urls" gorm:"type:json"`
-	DatasheetURL          string               `json:"datasheet_url" gorm:"size:500"`
-	ManualURL             string               `json:"manual_url" gorm:"size:500"`
-	ViewCount             int                  `json:"view_count" gorm:"default:0"`
-	PopularityScore       float64              `json:"popularity_score" gorm:"type:decimal(3,2);default:0.00"`
-	SEOScore              float64              `json:"seo_score" gorm:"type:decimal(3,2);default:0.00"`
-	LastOptimizedAt       *time.Time           `json:"last_optimized_at"`
+	WarrantyPeriod       string     `json:"warranty_period" gorm:"size:50;default:'12 months'"`
+	ConditionType        string     `json:"condition_type" gorm:"type:enum('new','refurbished','used');default:'new'"`
+	OriginCountry        string     `json:"origin_country" gorm:"size:50;default:'China'"`
+	Manufacturer         string     `json:"manufacturer" gorm:"size:100;default:'FANUC'"`
+	LeadTime             string     `json:"lead_time" gorm:"size:50;default:'3-7 days'"`
+	MinimumOrderQuantity int        `json:"minimum_order_quantity" gorm:"default:1"`
+	PackagingInfo        string     `json:"packaging_info" gorm:"type:text"`
+	Certifications       string     `json:"certifications" gorm:"type:text"`
+	TechnicalSpecs       string     `json:"technical_specs" gorm:"type:json"`
+	CompatibilityInfo    string     `json:"compatibility_info" gorm:"type:text"`
+	InstallationGuide    string     `json:"installation_guide" gorm:"type:text"`
+	MaintenanceTips      string     `json:"maintenance_tips" gorm:"type:text"`
+	RelatedProducts      string     `json:"related_products" gorm:"type:json"`
+	VideoURLs            string     `json:"video_urls" gorm:"type:json"`
+	DatasheetURL         string     `json:"datasheet_url" gorm:"size:500"`
+	ManualURL            string     `json:"manual_url" gorm:"size:500"`
+	ViewCount            int        `json:"view_count" gorm:"default:0"`
+	PopularityScore      float64    `json:"popularity_score" gorm:"type:decimal(3,2);default:0.00"`
+	SEOScore             float64    `json:"seo_score" gorm:"type:decimal(3,2);default:0.00"`
+	LastOptimizedAt      *time.Time `json:"last_optimized_at"`
 
-	CreatedAt             time.Time            `json:"created_at"`
-	UpdatedAt             time.Time            `json:"updated_at"`
-	Images                []ProductImage       `json:"images,omitempty" gorm:"foreignKey:ProductID"`
-	Attributes            []ProductAttribute   `json:"attributes,omitempty" gorm:"foreignKey:ProductID"`
-	Translations          []ProductTranslation `json:"translations,omitempty" gorm:"foreignKey:ProductID"`
-	PurchaseLinks         []PurchaseLink       `json:"purchase_links,omitempty" gorm:"foreignKey:ProductID"`
-	Reviews               []ProductReview      `json:"reviews,omitempty" gorm:"foreignKey:ProductID"`
-	FAQs                  []ProductFAQ         `json:"faqs,omitempty" gorm:"foreignKey:ProductID"`
-	Tags                  []ProductTag         `json:"tags,omitempty" gorm:"many2many:product_tag_relations"`
+	CreatedAt     time.Time            `json:"created_at"`
+	UpdatedAt     time.Time            `json:"updated_at"`
+	Images        []ProductImage       `json:"images,omitempty" gorm:"foreignKey:ProductID"`
+	Attributes    []ProductAttribute   `json:"attributes,omitempty" gorm:"foreignKey:ProductID"`
+	Translations  []ProductTranslation `json:"translations,omitempty" gorm:"foreignKey:ProductID"`
+	PurchaseLinks []PurchaseLink       `json:"purchase_links,omitempty" gorm:"foreignKey:ProductID"`
+	Reviews       []ProductReview      `json:"reviews,omitempty" gorm:"foreignKey:ProductID"`
+	FAQs          []ProductFAQ         `json:"faqs,omitempty" gorm:"foreignKey:ProductID"`
+	Tags          []ProductTag         `json:"tags,omitempty" gorm:"many2many:product_tag_relations"`
 }
 
 // ProductImage represents product images (external URLs only)
@@ -233,7 +233,6 @@ type ImageReq struct {
 	SortOrder int    `json:"sort_order"`
 }
 
-
 // ProductAttributeReq represents product attribute in request
 type ProductAttributeReq struct {
 	AttributeName  string `json:"attribute_name" binding:"required"`
@@ -273,33 +272,33 @@ type PaginationResponse struct {
 
 // Coupon represents discount coupons
 type Coupon struct {
-	ID              uint      `json:"id" gorm:"primaryKey"`
-	Code            string    `json:"code" gorm:"size:50;uniqueIndex;not null"`
-	Name            string    `json:"name" gorm:"size:100;not null"`
-	Description     string    `json:"description" gorm:"type:text"`
-	Type            string    `json:"type" gorm:"type:enum('percentage','fixed_amount');not null"` // percentage or fixed_amount
-	Value           float64   `json:"value" gorm:"type:decimal(10,2);not null"`                     // percentage (0-100) or fixed amount
-	MinOrderAmount  float64   `json:"min_order_amount" gorm:"type:decimal(10,2);default:0"`        // minimum order amount to use coupon
-	MaxDiscountAmount *float64 `json:"max_discount_amount" gorm:"type:decimal(10,2)"`              // maximum discount amount for percentage coupons
-	UsageLimit      *int      `json:"usage_limit"`                                                  // total usage limit (null = unlimited)
-	UsedCount       int       `json:"used_count" gorm:"default:0"`                                 // current usage count
-	UserUsageLimit  *int      `json:"user_usage_limit"`                                            // per user usage limit (null = unlimited)
-	IsActive        bool      `json:"is_active" gorm:"default:true;index"`
-	StartsAt        *time.Time `json:"starts_at"`                                                   // when coupon becomes active
-	ExpiresAt       *time.Time `json:"expires_at"`                                                  // when coupon expires
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID                uint       `json:"id" gorm:"primaryKey"`
+	Code              string     `json:"code" gorm:"size:50;uniqueIndex;not null"`
+	Name              string     `json:"name" gorm:"size:100;not null"`
+	Description       string     `json:"description" gorm:"type:text"`
+	Type              string     `json:"type" gorm:"type:enum('percentage','fixed_amount');not null"` // percentage or fixed_amount
+	Value             float64    `json:"value" gorm:"type:decimal(10,2);not null"`                    // percentage (0-100) or fixed amount
+	MinOrderAmount    float64    `json:"min_order_amount" gorm:"type:decimal(10,2);default:0"`        // minimum order amount to use coupon
+	MaxDiscountAmount *float64   `json:"max_discount_amount" gorm:"type:decimal(10,2)"`               // maximum discount amount for percentage coupons
+	UsageLimit        *int       `json:"usage_limit"`                                                 // total usage limit (null = unlimited)
+	UsedCount         int        `json:"used_count" gorm:"default:0"`                                 // current usage count
+	UserUsageLimit    *int       `json:"user_usage_limit"`                                            // per user usage limit (null = unlimited)
+	IsActive          bool       `json:"is_active" gorm:"default:true;index"`
+	StartsAt          *time.Time `json:"starts_at"`  // when coupon becomes active
+	ExpiresAt         *time.Time `json:"expires_at"` // when coupon expires
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
 // CouponUsage tracks individual coupon usage
 type CouponUsage struct {
-	ID            uint      `json:"id" gorm:"primaryKey"`
-	CouponID      uint      `json:"coupon_id" gorm:"not null;index"`
-	Coupon        Coupon    `json:"coupon" gorm:"foreignKey:CouponID"`
-	OrderID       uint      `json:"order_id" gorm:"not null;index"`
-	CustomerEmail string    `json:"customer_email" gorm:"size:100;not null;index"`
-	DiscountAmount float64  `json:"discount_amount" gorm:"type:decimal(10,2);not null"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID             uint      `json:"id" gorm:"primaryKey"`
+	CouponID       uint      `json:"coupon_id" gorm:"not null;index"`
+	Coupon         Coupon    `json:"coupon" gorm:"foreignKey:CouponID"`
+	OrderID        uint      `json:"order_id" gorm:"not null;index"`
+	CustomerEmail  string    `json:"customer_email" gorm:"size:100;not null;index"`
+	DiscountAmount float64   `json:"discount_amount" gorm:"type:decimal(10,2);not null"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 // CouponCreateRequest represents coupon creation request
@@ -327,15 +326,15 @@ type CouponValidateRequest struct {
 
 // CouponValidateResponse represents coupon validation response
 type CouponValidateResponse struct {
-	Valid             bool    `json:"valid"`
-	CouponID          uint    `json:"coupon_id,omitempty"`
-	Code              string  `json:"code,omitempty"`
-	Name              string  `json:"name,omitempty"`
-	Type              string  `json:"type,omitempty"`
-	Value             float64 `json:"value,omitempty"`
-	DiscountAmount    float64 `json:"discount_amount,omitempty"`
-	FinalAmount       float64 `json:"final_amount,omitempty"`
-	Message           string  `json:"message"`
+	Valid          bool    `json:"valid"`
+	CouponID       uint    `json:"coupon_id,omitempty"`
+	Code           string  `json:"code,omitempty"`
+	Name           string  `json:"name,omitempty"`
+	Type           string  `json:"type,omitempty"`
+	Value          float64 `json:"value,omitempty"`
+	DiscountAmount float64 `json:"discount_amount,omitempty"`
+	FinalAmount    float64 `json:"final_amount,omitempty"`
+	Message        string  `json:"message"`
 }
 
 // APIResponse represents standard API response
@@ -350,18 +349,18 @@ type APIResponse struct {
 
 // ProductReview represents customer reviews for products
 type ProductReview struct {
-	ID             uint      `json:"id" gorm:"primaryKey"`
-	ProductID      uint      `json:"product_id" gorm:"not null;index"`
-	CustomerName   string    `json:"customer_name" gorm:"size:100;not null"`
-	CustomerEmail  string    `json:"customer_email" gorm:"size:255"`
-	Rating         int       `json:"rating" gorm:"not null;check:rating >= 1 AND rating <= 5"`
-	ReviewTitle    string    `json:"review_title" gorm:"size:255"`
-	ReviewContent  string    `json:"review_content" gorm:"type:text"`
-	IsVerified     bool      `json:"is_verified" gorm:"default:false"`
-	IsApproved     bool      `json:"is_approved" gorm:"default:false"`
-	HelpfulCount   int       `json:"helpful_count" gorm:"default:0"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID            uint      `json:"id" gorm:"primaryKey"`
+	ProductID     uint      `json:"product_id" gorm:"not null;index"`
+	CustomerName  string    `json:"customer_name" gorm:"size:100;not null"`
+	CustomerEmail string    `json:"customer_email" gorm:"size:255"`
+	Rating        int       `json:"rating" gorm:"not null;check:rating >= 1 AND rating <= 5"`
+	ReviewTitle   string    `json:"review_title" gorm:"size:255"`
+	ReviewContent string    `json:"review_content" gorm:"type:text"`
+	IsVerified    bool      `json:"is_verified" gorm:"default:false"`
+	IsApproved    bool      `json:"is_approved" gorm:"default:false"`
+	HelpfulCount  int       `json:"helpful_count" gorm:"default:0"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // ProductFAQ represents frequently asked questions for products
@@ -393,14 +392,14 @@ type ProductTag struct {
 
 // ProductCrossReference represents compatible/alternative parts
 type ProductCrossReference struct {
-	ID                  uint      `json:"id" gorm:"primaryKey"`
-	ProductID           uint      `json:"product_id" gorm:"not null;index"`
-	ReferenceProductID  uint      `json:"reference_product_id" gorm:"not null"`
-	ReferenceType       string    `json:"reference_type" gorm:"type:enum('compatible','alternative','upgrade','related');not null"`
-	ConfidenceScore     float64   `json:"confidence_score" gorm:"type:decimal(3,2);default:1.00"`
-	CreatedAt           time.Time `json:"created_at"`
-	Product             Product   `json:"product" gorm:"foreignKey:ProductID"`
-	ReferenceProduct    Product   `json:"reference_product" gorm:"foreignKey:ReferenceProductID"`
+	ID                 uint      `json:"id" gorm:"primaryKey"`
+	ProductID          uint      `json:"product_id" gorm:"not null;index"`
+	ReferenceProductID uint      `json:"reference_product_id" gorm:"not null"`
+	ReferenceType      string    `json:"reference_type" gorm:"type:enum('compatible','alternative','upgrade','related');not null"`
+	ConfidenceScore    float64   `json:"confidence_score" gorm:"type:decimal(3,2);default:1.00"`
+	CreatedAt          time.Time `json:"created_at"`
+	Product            Product   `json:"product" gorm:"foreignKey:ProductID"`
+	ReferenceProduct   Product   `json:"reference_product" gorm:"foreignKey:ReferenceProductID"`
 }
 
 // SEOAnalytics represents SEO performance tracking
@@ -451,19 +450,19 @@ type EnhancedProductCreateRequest struct {
 
 // Product optimization request
 type ProductOptimizationRequest struct {
-	ProductID int `json:"product_id" binding:"required"`
+	ProductID   int  `json:"product_id" binding:"required"`
 	ForceUpdate bool `json:"force_update"`
 }
 
 // Product optimization response
 type ProductOptimizationResponse struct {
-	ProductID       int    `json:"product_id"`
-	SKU             string `json:"sku"`
-	OptimizationStatus string `json:"optimization_status"`
-	ContentUpdated  bool   `json:"content_updated"`
-	SEOScoreBefore  float64 `json:"seo_score_before"`
-	SEOScoreAfter   float64 `json:"seo_score_after"`
-	Message         string `json:"message"`
+	ProductID          int     `json:"product_id"`
+	SKU                string  `json:"sku"`
+	OptimizationStatus string  `json:"optimization_status"`
+	ContentUpdated     bool    `json:"content_updated"`
+	SEOScoreBefore     float64 `json:"seo_score_before"`
+	SEOScoreAfter      float64 `json:"seo_score_after"`
+	Message            string  `json:"message"`
 }
 
 // Bulk optimization request

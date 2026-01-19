@@ -26,6 +26,16 @@ export interface RevenueData {
   orders: number;
 }
 
+export interface RecentOrder {
+  id: number;
+  order_number: string;
+  customer_name: string;
+  customer_email: string;
+  total_amount: number;
+  status: string;
+  created_at: string;
+}
+
 export interface TopProduct {
   id: number;
   name: string;
@@ -56,9 +66,9 @@ export class DashboardService {
   }
 
   // Get recent orders for dashboard
-  static async getRecentOrders(limit: number = 5): Promise<any[]> {
-    const response = await apiClient.get<APIResponse<any[]>>(
-      `/admin/dashboard/recent-orders?limit=${limit}`
+  static async getRecentOrders(limit: number = 5, includePending: boolean = false): Promise<RecentOrder[]> {
+    const response = await apiClient.get<APIResponse<RecentOrder[]>>(
+      `/admin/dashboard/recent-orders?limit=${limit}&include_pending=${includePending ? 1 : 0}`
     );
 
     if (response.data.success && response.data.data) {
@@ -69,9 +79,9 @@ export class DashboardService {
   }
 
   // Get top products for dashboard
-  static async getTopProducts(limit: number = 5): Promise<TopProduct[]> {
+  static async getTopProducts(limit: number = 5, days: number = 30): Promise<TopProduct[]> {
     const response = await apiClient.get<APIResponse<TopProduct[]>>(
-      `/admin/dashboard/top-products?limit=${limit}`
+      `/admin/dashboard/top-products?limit=${limit}&days=${days}`
     );
 
     if (response.data.success && response.data.data) {

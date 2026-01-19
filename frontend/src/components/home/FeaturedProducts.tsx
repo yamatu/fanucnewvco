@@ -125,13 +125,20 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
             >
               {/* Product Image */}
               <div className="relative h-64 overflow-hidden">
+                {(() => {
+                  const src = getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []));
+                  const unoptimized = typeof src === 'string' && src.startsWith('/uploads/');
+                  return (
                 <Image
-                  src={getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []))}
+                  src={src}
                   alt={product.name}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   className="object-cover group-hover:scale-110 transition-transform duration-500"
+                  unoptimized={unoptimized}
                 />
+                  );
+                })()}
                 
                 {/* Overlay Actions */}
                 <div className={`absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center space-x-4 transition-opacity duration-300 ${

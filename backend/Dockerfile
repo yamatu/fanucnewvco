@@ -1,6 +1,13 @@
 # FANUC Backend Dockerfile（Go / Gin）
 
-FROM golang:1.21-alpine AS builder
+# Optional registry/mirror prefix for base images.
+# Examples:
+# - docker.io (default)
+# - dockerproxy.net
+# - docker.m.daocloud.io
+ARG BASE_REGISTRY=docker.io
+
+FROM ${BASE_REGISTRY}/library/golang:1.21-alpine AS builder
 
 WORKDIR /src
 
@@ -13,10 +20,12 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/server .
 
-FROM alpine:3.19 AS runner
+ARG BASE_REGISTRY=docker.io
+FROM ${BASE_REGISTRY}/library/alpine:3.19 AS runner
 
 WORKDIR /app
-RUN apk add --no-cache ca-certificates tzdata
+# mysql client tools (mysqldump/mysql) are used by the admin backup/restore endpoints.
+RUN apk add --no-cache ca-certificates tzdata mariadb-client
 
 COPY --from=builder /out/server /app/server
 
@@ -29,4 +38,3 @@ ENV HOST=0.0.0.0
 ENV PORT=8080
 
 CMD ["/app/server"]
-

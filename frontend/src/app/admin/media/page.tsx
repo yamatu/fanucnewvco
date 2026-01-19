@@ -156,7 +156,7 @@ export default function AdminMediaPage() {
 
   const addFiles = (files: FileList | File[]) => {
     const list = Array.isArray(files) ? files : Array.from(files);
-    const onlyImages = list.filter(f => f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(f.name));
+    const onlyImages = list.filter(f => f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|avif|bmp|tiff?|heic|heif)$/i.test(f.name));
     if (onlyImages.length === 0) {
       toast.error('Please select image files');
       return;

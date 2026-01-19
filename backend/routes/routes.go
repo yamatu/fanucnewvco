@@ -33,6 +33,7 @@ func SetupRoutes(r *gin.Engine) {
 	customerController := &controllers.CustomerController{}
 	ticketController := &controllers.TicketController{}
 	mediaController := &controllers.MediaController{}
+	backupController := &controllers.BackupController{}
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -193,6 +194,16 @@ func SetupRoutes(r *gin.Engine) {
 				media.PUT("/batch", mediaController.BatchUpdate)
 				media.DELETE("/batch", mediaController.BatchDelete)
 				media.PUT("/:id", mediaController.Update)
+			}
+
+			// Backup & restore (admin only)
+			backup := admin.Group("/backup")
+			backup.Use(middleware.AdminOnly())
+			{
+				backup.GET("/db", backupController.DownloadDBBackup)
+				backup.POST("/db/restore", backupController.RestoreDBBackup)
+				backup.GET("/media", backupController.DownloadMediaBackup)
+				backup.POST("/media/restore", backupController.RestoreMediaBackup)
 			}
 
 			// Homepage Content management (admin and editor access)

@@ -99,6 +99,7 @@ export function WorkshopSection({ content }: Props) {
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 50vw"
                       className="object-cover"
+                      unoptimized={typeof facility.image === 'string' && facility.image.startsWith('/uploads/')}
                       onError={(e) => {
                         console.error('Image failed to load:', facility.image);
                         // 可以设置备用图片

@@ -49,6 +49,8 @@ func main() {
 
 	// Create Gin router
 	r := gin.New()
+	// Allow larger multipart uploads (e.g. backup ZIP restore). Files are spooled to disk when exceeding this.
+	r.MaxMultipartMemory = 256 << 20 // 256 MiB
 
 	// Add middleware
 	r.Use(gin.Logger())

@@ -18,7 +18,8 @@ import {
   UserCircleIcon,
   EnvelopeIcon,
   TicketIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { useAuth, useLogout } from '@/hooks/useAuth';
 import AuthGuard from '@/components/auth/AuthGuard';
@@ -35,6 +36,7 @@ const navigation = [
   { key: 'nav.users', name: 'All Users', href: '/admin/users', icon: UsersIcon },
   { key: 'nav.contacts', name: 'Contact Messages', href: '/admin/contacts', icon: EnvelopeIcon },
   { key: 'nav.media', name: 'Media Library', href: '/admin/media', icon: PhotoIcon },
+  { key: 'nav.backup', name: 'Backup & Restore', href: '/admin/backup', icon: ArrowDownTrayIcon },
   { key: 'nav.homepage', name: 'Homepage Content', href: '/admin/homepage', icon: DocumentTextIcon },
 ];
 

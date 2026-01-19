@@ -135,12 +135,9 @@ func (uc *UploadController) BatchUploadImages(c *gin.Context) {
 			continue
 		}
 
-		// Generate URL for the uploaded file
-		baseURL := os.Getenv("BASE_URL")
-		if baseURL == "" {
-			baseURL = "http://localhost:8080"
-		}
-		imageURL := fmt.Sprintf("%s/uploads/%s", baseURL, newFilename)
+		// Store as a relative URL so it works behind host Nginx (TLS) and in docker.
+		// The host reverse-proxy should serve /uploads/* to the backend.
+		imageURL := fmt.Sprintf("/uploads/%s", newFilename)
 
 		// Add to current URLs
 		currentURLs = append(currentURLs, imageURL)

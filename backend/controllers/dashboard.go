@@ -117,9 +117,12 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 		return
 	}
 
-	// Get total orders count
+	// Get total delivered orders count
 	var totalOrders int64
-	if err := db.Model(&models.Order{}).Count(&totalOrders).Error; err != nil {
+	if err := db.Model(&models.Order{}).
+		Where("payment_status = ?", "paid").
+		Where("status IN ?", []string{"delivered", "completed"}).
+		Count(&totalOrders).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to get orders count",
@@ -130,7 +133,10 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 
 	// Get pending orders count
 	var pendingOrders int64
-	if err := db.Model(&models.Order{}).Where("status = ?", "pending").Count(&pendingOrders).Error; err != nil {
+	if err := db.Model(&models.Order{}).
+		Where("payment_status <> ?", "paid").
+		Where("status <> ?", "cancelled").
+		Count(&pendingOrders).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to get pending orders count",
@@ -139,9 +145,12 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 		return
 	}
 
-	// Get completed orders count
+	// Get completed orders count (delivered orders)
 	var completedOrders int64
-	if err := db.Model(&models.Order{}).Where("status = ?", "completed").Count(&completedOrders).Error; err != nil {
+	if err := db.Model(&models.Order{}).
+		Where("payment_status = ?", "paid").
+		Where("status IN ?", []string{"delivered", "completed"}).
+		Count(&completedOrders).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to get completed orders count",
@@ -150,11 +159,15 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 		return
 	}
 
-	// Get monthly orders count (current month)
+	// Get monthly delivered orders count (current month)
 	now := time.Now()
 	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	var monthlyOrders int64
-	if err := db.Model(&models.Order{}).Where("created_at >= ? AND created_at <= ?", startOfMonth, now).Count(&monthlyOrders).Error; err != nil {
+	if err := db.Model(&models.Order{}).
+		Where("payment_status = ?", "paid").
+		Where("status IN ?", []string{"delivered", "completed"}).
+		Where("created_at >= ? AND created_at <= ?", startOfMonth, now).
+		Count(&monthlyOrders).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to get monthly orders count",
@@ -163,9 +176,13 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 		return
 	}
 
-	// Get total revenue
+	// Get total revenue (delivered orders)
 	var totalRevenue float64
-	if err := db.Model(&models.Order{}).Where("status = ?", "completed").Select("COALESCE(SUM(total_amount), 0)").Scan(&totalRevenue).Error; err != nil {
+	if err := db.Model(&models.Order{}).
+		Where("payment_status = ?", "paid").
+		Where("status IN ?", []string{"delivered", "completed"}).
+		Select("COALESCE(SUM(total_amount), 0)").
+		Scan(&totalRevenue).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to get total revenue",
@@ -174,9 +191,14 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 		return
 	}
 
-	// Get monthly revenue
+	// Get monthly revenue (delivered orders)
 	var monthlyRevenue float64
-	if err := db.Model(&models.Order{}).Where("status = ? AND created_at >= ? AND created_at <= ?", "completed", startOfMonth, now).Select("COALESCE(SUM(total_amount), 0)").Scan(&monthlyRevenue).Error; err != nil {
+	if err := db.Model(&models.Order{}).
+		Where("payment_status = ?", "paid").
+		Where("status IN ?", []string{"delivered", "completed"}).
+		Where("created_at >= ? AND created_at <= ?", startOfMonth, now).
+		Select("COALESCE(SUM(total_amount), 0)").
+		Scan(&monthlyRevenue).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to get monthly revenue",
@@ -262,6 +284,7 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param limit query int false "Number of orders to return" default(5)
+// @Param include_pending query int false "Include non-paid / non-delivered orders" default(0)
 // @Success 200 {object} models.APIResponse{data=[]RecentOrder}
 // @Failure 401 {object} models.APIResponse
 // @Failure 500 {object} models.APIResponse
@@ -277,11 +300,20 @@ func (c *DashboardController) GetRecentOrders(ctx *gin.Context) {
 		}
 	}
 
-	var orders []models.Order
-	if err := db.Preload("Items").Preload("Items.Product").
+	query := db.Preload("Items").Preload("Items.Product").
 		Order("created_at DESC").
-		Limit(limit).
-		Find(&orders).Error; err != nil {
+		Limit(limit)
+
+	// Default: only show meaningful orders on the dashboard.
+	// You can override this by passing ?include_pending=1.
+	// Note: we treat both "delivered" and legacy "completed" as successful.
+	includePending := ctx.Query("include_pending") == "1"
+	if !includePending {
+		query = query.Where("payment_status = ?", "paid").Where("status IN ?", []string{"delivered", "completed"})
+	}
+
+	var orders []models.Order
+	if err := query.Find(&orders).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to get recent orders",
@@ -291,7 +323,7 @@ func (c *DashboardController) GetRecentOrders(ctx *gin.Context) {
 	}
 
 	// Convert to RecentOrder format
-	var recentOrders []RecentOrder
+	recentOrders := []RecentOrder{}
 	for _, order := range orders {
 		recentOrders = append(recentOrders, RecentOrder{
 			ID:            order.ID,
@@ -319,6 +351,7 @@ func (c *DashboardController) GetRecentOrders(ctx *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param limit query int false "Number of products to return" default(5)
+// @Param days query int false "Time range in days (0=all time)" default(30)
 // @Success 200 {object} models.APIResponse{data=[]TopProduct}
 // @Failure 401 {object} models.APIResponse
 // @Failure 500 {object} models.APIResponse
@@ -334,36 +367,50 @@ func (c *DashboardController) GetTopProducts(ctx *gin.Context) {
 		}
 	}
 
-	// For now, return featured products as top products
-	// In a real scenario, you would calculate this based on order items
-	var products []models.Product
-	if err := db.Where("is_featured = ?", true).
-		Order("created_at DESC").
+	// Compute top products from real sales data.
+	// Default range: last 30 days. Use ?days=0 for all-time.
+	days := 30
+	if daysStr := ctx.Query("days"); daysStr != "" {
+		if parsedDays, err := strconv.Atoi(daysStr); err == nil && parsedDays >= 0 {
+			days = parsedDays
+		}
+	}
+	var since time.Time
+	if days > 0 {
+		since = time.Now().AddDate(0, 0, -days)
+	}
+
+	// We aggregate order_items by product and join product info.
+	topProducts := []TopProduct{}
+	query := db.Table("order_items").
+		Select(
+			"products.id AS id, products.name AS name, products.sku AS sku, products.price AS price, "+
+				"COALESCE(SUM(order_items.quantity), 0) AS total_sold, "+
+				"COALESCE(SUM(order_items.total_price), 0) AS revenue",
+		).
+		Joins("JOIN orders ON orders.id = order_items.order_id").
+		Joins("JOIN products ON products.id = order_items.product_id").
+		Where("orders.payment_status = ?", "paid").
+		Where("orders.status IN ?", []string{"delivered", "completed"})
+	if days > 0 {
+		query = query.Where("orders.created_at >= ?", since)
+	}
+	if err := query.
+		Select(
+			"products.id AS id, products.name AS name, products.sku AS sku, products.price AS price, " +
+				"COALESCE(SUM(order_items.quantity), 0) AS total_sold, " +
+				"COALESCE(SUM(order_items.total_price), 0) AS revenue",
+		).
+		Group("products.id, products.name, products.sku, products.price").
+		Order("total_sold DESC, revenue DESC").
 		Limit(limit).
-		Find(&products).Error; err != nil {
+		Scan(&topProducts).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to get top products",
 			Error:   err.Error(),
 		})
 		return
-	}
-
-	// Convert to TopProduct format
-	var topProducts []TopProduct
-	for _, product := range products {
-		// Mock data for demonstration - in real scenario, calculate from order_items
-		totalSold := int64(10 + (product.ID % 50)) // Mock sold count
-		revenue := float64(totalSold) * product.Price
-
-		topProducts = append(topProducts, TopProduct{
-			ID:        product.ID,
-			Name:      product.Name,
-			SKU:       product.SKU,
-			Price:     product.Price,
-			TotalSold: totalSold,
-			Revenue:   revenue,
-		})
 	}
 
 	ctx.JSON(http.StatusOK, models.APIResponse{
@@ -404,10 +451,14 @@ func (c *DashboardController) GetRevenueData(ctx *gin.Context) {
 			var orders int64
 
 			db.Model(&models.Order{}).
-				Where("status = ? AND created_at >= ? AND created_at < ?", "completed", startOfDay, endOfDay).
+				Where("payment_status = ?", "paid").
+				Where("status IN ?", []string{"delivered", "completed"}).
+				Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
 				Select("COALESCE(SUM(total_amount), 0)").Scan(&revenue)
 
 			db.Model(&models.Order{}).
+				Where("payment_status = ?", "paid").
+				Where("status IN ?", []string{"delivered", "completed"}).
 				Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
 				Count(&orders)
 
@@ -428,10 +479,14 @@ func (c *DashboardController) GetRevenueData(ctx *gin.Context) {
 			var orders int64
 
 			db.Model(&models.Order{}).
-				Where("status = ? AND created_at >= ? AND created_at < ?", "completed", startOfMonth, endOfMonth).
+				Where("payment_status = ?", "paid").
+				Where("status IN ?", []string{"delivered", "completed"}).
+				Where("created_at >= ? AND created_at < ?", startOfMonth, endOfMonth).
 				Select("COALESCE(SUM(total_amount), 0)").Scan(&revenue)
 
 			db.Model(&models.Order{}).
+				Where("payment_status = ?", "paid").
+				Where("status IN ?", []string{"delivered", "completed"}).
 				Where("created_at >= ? AND created_at < ?", startOfMonth, endOfMonth).
 				Count(&orders)
 
@@ -452,10 +507,14 @@ func (c *DashboardController) GetRevenueData(ctx *gin.Context) {
 			var orders int64
 
 			db.Model(&models.Order{}).
-				Where("status = ? AND created_at >= ? AND created_at < ?", "completed", startOfDay, endOfDay).
+				Where("payment_status = ?", "paid").
+				Where("status IN ?", []string{"delivered", "completed"}).
+				Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
 				Select("COALESCE(SUM(total_amount), 0)").Scan(&revenue)
 
 			db.Model(&models.Order{}).
+				Where("payment_status = ?", "paid").
+				Where("status IN ?", []string{"delivered", "completed"}).
 				Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
 				Count(&orders)
 

@@ -556,6 +556,8 @@ function AdminProductsContent() {
                               width={48}
                               height={48}
                               className="h-12 w-12 rounded-lg object-cover"
+                              // /uploads is served by nginx -> backend; skip Next image optimizer.
+                              unoptimized={String(getProductImageUrl(product.image_urls)).startsWith('/uploads/')}
                             />
                           ) : (
                             <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">

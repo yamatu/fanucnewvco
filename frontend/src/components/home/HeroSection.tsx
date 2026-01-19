@@ -87,6 +87,7 @@ export function HeroSection({ content }: Props) {
             }}
             sizes="100vw"
             priority={index === 0}
+            unoptimized={typeof slide.image === 'string' && slide.image.startsWith('/uploads/')}
             onError={(e) => {
               console.error('Image failed to load:', slide.image);
               // 设置备用图片

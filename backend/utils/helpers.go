@@ -86,7 +86,16 @@ func CalculateTotalPages(total int64, pageSize int) int {
 
 // ValidateImageExtension checks if file extension is allowed for images
 func ValidateImageExtension(filename string) bool {
-	allowedExts := []string{".jpg", ".jpeg", ".png", ".gif", ".webp"}
+	// Keep this list conservative but practical for real-world uploads.
+	// Note: SVG can contain scripts; when used via <img> it's generally safe, but avoid inline embedding.
+	allowedExts := []string{
+		".jpg", ".jpeg", ".png", ".gif", ".webp",
+		".svg",
+		".avif",
+		".bmp",
+		".tif", ".tiff",
+		".heic", ".heif",
+	}
 
 	filename = strings.ToLower(filename)
 	for _, ext := range allowedExts {

@@ -317,3 +317,293 @@ curl -fsS http://localhost:3006/admin/categories >/dev/null
 curl -fsS http://localhost:3006/admin/products >/dev/null
 curl -fsS http://localhost:3006/admin/sitemap >/dev/null
 ```
+
+## 2026-01-17：后台“备份与恢复”（数据库 + 图库 ZIP）
+
+### 变更
+
+- 后端新增 admin-only 备份/恢复接口（ZIP 传输格式）：
+  - `GET /api/v1/admin/backup/db`：下载数据库备份（ZIP 内为 `db.sql`）
+  - `POST /api/v1/admin/backup/db/restore?force=1`：上传 ZIP 恢复数据库（会覆盖数据）
+  - `GET /api/v1/admin/backup/media`：下载图库/上传目录备份（ZIP）
+  - `POST /api/v1/admin/backup/media/restore?force=1`：上传 ZIP 恢复图库（会覆盖 uploads）
+  - 代码：`backend/controllers/backup.go`
+  - 路由：`backend/routes/routes.go`
+- 为了在容器内执行 `mysqldump/mysql`：
+  - `backend/Dockerfile`：runner 镜像安装 `mariadb-client`（提供 `mysql/mysqldump` 或兼容命令）
+- 构建镜像源可配置（避免部分网络下 Docker Hub / 镜像源不稳定）：
+  - `backend/Dockerfile` / `frontend/Dockerfile` 支持 build arg：`BASE_REGISTRY`（默认 `docker.io`）
+  - `docker-compose.yml` 已传递：`BASE_REGISTRY: ${BASE_REGISTRY:-docker.io}`
+  - 可在 `.env` / `.env.docker.example` 设置 `BASE_REGISTRY=docker.io` / `dockerproxy.net` / `docker.m.daocloud.io`
+- 上传限制与超时放宽（避免大 ZIP 上传/下载被截断）：
+  - `backend/main.go`：`r.MaxMultipartMemory = 256 << 20`
+  - `docker/nginx.conf`：`client_max_body_size 500m`，并将 `/api/` 的 proxy 超时提升到 1800s
+- 后台新增页面与导航入口：
+  - 页面：`frontend/src/app/admin/backup/page.tsx`
+  - 菜单：`frontend/src/components/admin/AdminLayout.tsx`
+  - i18n：`frontend/src/lib/admin-i18n.tsx`（`nav.backup` 与备份页面相关文案）
+
+### 使用方式（后台）
+
+1) 打开：`http://localhost:3006/admin/backup`
+2) DB：点击 “Download DB Backup”，或选择 ZIP 后勾选确认并点击 “Restore Now”
+3) 图库：同理（恢复会先清空 uploads 再恢复）
+
+### 注意事项
+
+- 两个 restore 接口都需要 `?force=1` 且 UI 里也要求勾选确认（避免误操作）。
+- 如果 ZIP 来自系统自带压缩工具，可能会带一个顶层目录；图库 restore 会自动尝试“单目录根”展开一次。
+- 备份/恢复是管理员专属：接口挂在 `AdminOnly()` 之下。
+
+## 2026-01-17：修复“从图库选择的 /uploads 图片在首页不显示”（Next Image 与 /uploads）
+
+### 原因
+
+- `next/image` 对以 `/` 开头的图片会走“本地图片/优化器”逻辑；在 docker 架构里 `/uploads/*` 实际由 nginx -> backend 提供，而不是 Next 容器自己提供。
+- 结果：Next 的 image optimizer 会尝试从 Next 容器自身去抓 `/uploads/*`，导致 404，页面上看起来就是图片不显示。
+
+### 修复
+
+- 对 `src` 以 `/uploads/` 开头的图片，统一加 `unoptimized`，让浏览器直接请求 `/uploads/*`（走 nginx 代理即可）。
+  - `frontend/src/components/home/HeroSection.tsx`
+  - `frontend/src/components/home/SimpleContentSection.tsx`
+  - `frontend/src/components/home/WorkshopSection.tsx`
+  - `frontend/src/components/home/FeaturedProducts.tsx`
+
+## 2026-01-18：后台 Dashboard Recent Orders/Top Products/Stats 真实数据 + 统一口径 + 时间范围
+
+目标：
+- Dashboard 的 `Recent Orders`、`Top Products` 从静态 mock 改为真实 API 数据。
+- 统一“成功订单”口径（本次按你选择的 delivered 口径执行）。
+- `Top Products` 支持时间范围（最近 N 天 / 全部）。
+
+口径说明（本次实现）：
+- 成功订单：`payment_status=paid` 且 `status IN (delivered, completed)`（兼容旧数据的 `completed`）。
+- Recent Orders：默认只显示成功订单；可用 `include_pending=1` 显示全部。
+- Stats/Revenue：按成功订单统计。
+
+### 变更
+
+- 后端：Recent Orders 默认按“成功订单”过滤
+  - 改动：`backend/controllers/dashboard.go`
+    - `GET /api/v1/admin/dashboard/recent-orders?limit=5`：默认只返回 `paid + delivered/completed`。
+    - 可选：`include_pending=1` 返回全部（用于排查/对账）。
+    - 无数据时返回 `[]`（非 `null`）。
+- 后端：Top Products 改为真实销量榜 + 支持时间范围
+  - 改动：`backend/controllers/dashboard.go`
+    - `GET /api/v1/admin/dashboard/top-products?limit=5&days=30`：最近 30 天成功订单的销量榜。
+    - `days=0`：全部时间。
+- 后端：Dashboard stats 与 revenue 统一口径
+  - 改动：`backend/controllers/dashboard.go`
+    - `total_orders/completed_orders/total_revenue/monthly_revenue/monthly_orders` 按成功订单口径统计。
+    - `pending_orders` 统计“非 paid 且非 cancelled”的订单数量。
+
+- 前端：Dashboard 接口参数对齐
+  - 改动：`frontend/src/services/dashboard.service.ts`
+    - `getRecentOrders(limit, includePending)` 支持传参。
+    - `getTopProducts(limit, days)` 支持传参（默认 30 天）。
+  - 改动：`frontend/src/app/admin/page.tsx`
+    - Recent Orders 默认 `includePending=false`
+    - Top Products 默认 `days=30`
+    - 继续保留 loading/error/empty 展示。
+
+### 验证方式
+
+- 运行态检查（不改数据）：
+  - `docker compose ps`
+  - `curl -fsS http://localhost:3006/health`
+- Admin API 冒烟（需要 token）：
+  - `POST http://localhost:3006/api/v1/auth/login` 获取 token
+  - Recent Orders：
+    - `GET "http://localhost:3006/api/v1/admin/dashboard/recent-orders?limit=5"`
+    - `GET "http://localhost:3006/api/v1/admin/dashboard/recent-orders?limit=5&include_pending=1"`
+  - Top Products：
+    - `GET "http://localhost:3006/api/v1/admin/dashboard/top-products?limit=5&days=30"`
+    - `GET "http://localhost:3006/api/v1/admin/dashboard/top-products?limit=5&days=0"`
+  - Stats：
+    - `GET "http://localhost:3006/api/v1/admin/dashboard/stats"`
+- 页面：登录后台后访问 `http://localhost:3006/admin`，Recent Orders/Top Products 使用真实数据（无数据则空态）。
+
+### 注意事项 / 潜在风险 / 回滚
+
+- 口径：本次按 `delivered` 口径统计，并兼容旧的 `completed`；如果你未来希望“只统计 delivered”或“confirmed+”，需要再统一调整 Where 条件。
+- 时间范围：Top Products 默认 `days=30`；如果你希望在后台 UI 上可切换 7/30/90/0，我可以再加一个小下拉（不大改布局）。
+- 回滚：
+  - 后端：恢复 `backend/controllers/dashboard.go` 的查询逻辑（recent/top/stats/revenue）。
+  - 前端：恢复 `frontend/src/app/admin/page.tsx` 的 mock fallback 或改回旧参数调用。
+
+## 2026-01-18：修复 Admin Products 缩略图不显示（Next Image + /uploads）
+
+### 问题
+
+- 后台产品列表页（`/admin/products`）的缩略图部分图片加载不出来。
+- 原因：图片路径是 `/uploads/*`（由 nginx -> backend 提供），但 `next/image` 默认会走 Next 的 image optimizer，docker 架构下会导致请求落到 Next 容器自身，出现 404/无法显示。
+
+### 修复
+
+- 对 `src` 以 `/uploads/` 开头的缩略图，增加 `unoptimized`，让浏览器直接请求 `/uploads/*`。
+  - 改动：`frontend/src/app/admin/products/page.tsx`
+
+### 验证方式
+
+- 页面：登录后台后访问 `http://localhost:3006/admin/products`，产品缩略图应正常显示。
+- 冒烟：
+  - `curl -fsSI http://localhost:3006/admin/products | head`
+
+### 回滚
+
+- 回滚该行为：移除 `frontend/src/app/admin/products/page.tsx` 中 `Image` 的 `unoptimized` 条件。
+
+## 2026-01-18：Admin Homepage Content 页面整理（大量区块时不再杂乱）
+
+目标：当首页区块数据很多（包含自定义 section）时，左侧列表和布局排序面板不再“挤在一起”，更容易定位与管理。
+
+### 变更
+
+- 左侧增加区块筛选能力：搜索 + 过滤器
+  - 改动：`frontend/src/app/admin/homepage/page.tsx`
+    - 搜索框：按 name/key/description 模糊过滤
+    - 过滤器：All / Primary / Custom / Active / Inactive
+    - 顶部计数显示 `filtered/total`
+- 布局排序面板默认收起
+  - 改动：`frontend/src/app/admin/homepage/page.tsx`
+    - 新增 `Layout` 切换按钮，按需展开“Homepage Layout Order”拖拽面板
+
+### 验证方式
+
+- 登录后台后打开：`http://localhost:3006/admin/homepage`
+  - 使用搜索/过滤器定位区块
+  - 点击 `Layout` 展开/收起拖拽排序面板，保存顺序仍生效
+
+### 回滚
+
+- 回滚：恢复 `frontend/src/app/admin/homepage/page.tsx` 里新增的 search/filter/layout toggle 相关 UI。
+
+## 2026-01-18：Admin Homepage 编辑器进一步去杂乱（折叠分组 + 隐藏空白区块）
+
+目标：
+- 右侧编辑器内容多时不“铺满一页”，改为按模块折叠。
+- 左侧列表支持隐藏“完全空白”的自定义区块（避免历史残留 section_key 太多）。
+
+### 变更
+
+- 左侧：增加“隐藏空白自定义区块”开关（默认开启）
+  - 改动：`frontend/src/app/admin/homepage/page.tsx`
+  - 判定逻辑：custom section 且 title/subtitle/description/image/button/data 都为空（或 data 为 `{}`/`[]`/`null`）时隐藏。
+- 右侧：SimpleSectionEditor 增加折叠分组（Basics/Image/Button/Advanced JSON）
+  - 新增：`frontend/src/components/admin/homepage/EditorPanel.tsx`
+  - 改动：`frontend/src/components/admin/homepage/editors/SimpleSectionEditor.tsx`
+    - Advanced 支持编辑 `data`（JSON 文本）
+
+### 验证方式
+
+- 登录后台访问 `http://localhost:3006/admin/homepage`
+  - 左侧勾选/取消“隐藏空白自定义区块”，列表数量应变化
+  - 选择一个 custom section，右侧编辑器应可折叠展开，并可在 Advanced 编辑 data JSON
+
+### 注意事项 / 回滚
+
+- `data_json` 为空时会保存 `data=null`（等价于清空 data）。
+- 回滚：移除 `EditorPanel` 及 `SimpleSectionEditor` 的分组 UI，并删除左侧的 hide-empty 过滤开关。
+
+## 2026-01-18：改为宿主机 Nginx（不在 docker-compose 里跑 nginx）
+
+目标：不再在 docker-compose 内启动 nginx 容器，方便在宿主机直接配置证书（acme/letsencrypt）与反向代理。
+
+### 变更
+
+- `docker-compose.yml`
+  - `backend` / `frontend` 增加端口绑定到宿主机 `127.0.0.1`：
+    - `BACKEND_PORT`（默认 8080）
+    - `FRONTEND_PORT`（默认 3000）
+  - `nginx` 服务改为可选 profile：`internal-nginx`
+    - 默认 `docker compose up -d` 不会启动 nginx
+    - 如确实需要容器 nginx，可用：`docker compose --profile internal-nginx up -d nginx`
+- `.env.docker.example`
+  - `NEXT_PUBLIC_SITE_URL` / `SITE_URL` 默认改为 `http://localhost:3000`
+  - 新增 `FRONTEND_PORT` / `BACKEND_PORT`
+- 新增宿主机 Nginx 配置示例：`docs/host-nginx.conf.example`
+  - 将 upstream 指向 `127.0.0.1:3000` 和 `127.0.0.1:8080`
+  - 需你自行填入域名与 ssl 证书路径
+
+### 验证方式
+
+- 仅起三件套（无 docker nginx）：
+  - `docker compose up -d --build mysql backend frontend`
+  - `curl -fsS http://127.0.0.1:8080/health`
+  - `curl -fsSI http://127.0.0.1:3000/ | head`
+- 使用宿主机 Nginx 后：
+  - 访问 `https://<your-domain>/`（前端）
+  - `https://<your-domain>/api/v1/...`（后端）
+  - `https://<your-domain>/uploads/...`（上传文件）
+
+### 注意事项 / 回滚
+
+- 安全：compose 里端口只绑定到 `127.0.0.1`，避免直接暴露在公网。
+- CORS：你需要把 `CORS_ORIGINS` 配成你的真实域名（例如 `https://www.example.com`）。
+- 回滚：删除 `backend/frontend` 的 ports 绑定，并恢复原本 docker nginx 服务的默认启用。
+
+## 2026-01-18：修复“上传图片加载不出来”（去掉硬编码 BASE_URL + /uploads 代理）
+
+### 问题
+
+- 在不使用 docker 内置 nginx、改为宿主机 Nginx 的方案下，部分新上传图片 URL 会变成 `http://localhost:8080/uploads/...`（或历史遗留），导致：
+  - 线上 https 站点出现 mixed-content
+  - 或者图片绕过反代域名，浏览器访问不到
+- 同时，在本地直接访问 Next（:3000）时，`/uploads/*` 没有反代的话也会 404。
+
+### 修复
+
+- 后端：上传接口返回相对路径 `/uploads/...`（避免写死 BASE_URL）
+  - 改动：`backend/controllers/upload.go`
+- 前端：在“无外部 Nginx”场景下，让 Next 直接代理 `/uploads/*` 到后端
+  - 改动：`frontend/next.config.ts`
+  - `rewrites` 增加：`/uploads/:path* -> {API_BASE}/uploads/:path*`
+- 前端：统一图片 URL 处理逻辑
+  - 改动：`frontend/src/lib/utils.ts`
+  - 如果是 `http(s)://.../uploads/...` 会归一化成 `/uploads/...`；浏览器端优先用相对路径。
+
+### 验证方式
+
+- 直接验证后端静态：
+  - `curl -fsSI http://127.0.0.1:8080/uploads/media/<file>.jpg | head`
+- 直接访问 Next（无外部 Nginx）验证代理：
+  - `curl -fsSI http://127.0.0.1:3000/uploads/media/<file>.jpg | head`
+- 页面：后台 Media Library / Products / Homepage 等引用上传图的地方应恢复显示。
+
+### 回滚
+
+- 回滚后端：恢复 `backend/controllers/upload.go` 的 BASE_URL 拼接。
+- 回滚前端：移除 `frontend/next.config.ts` 的 `/uploads` rewrite，及 `frontend/src/lib/utils.ts` 的 URL 归一化逻辑。
+
+## 2026-01-18：后台“选择图库图片”弹窗支持批量上传 + 拖拽上传（产品/分类/首页通用）
+
+### 变更
+
+- `MediaPickerModal` 增强：
+  - 弹窗内支持 `Upload` 多选上传
+  - 支持拖拽图片到弹窗区域上传（批量）
+  - 上传成功后会刷新列表，并自动把新上传的资源加入“已选择”
+  - `frontend/src/components/admin/MediaPickerModal.tsx`
+- i18n 文案补齐：
+  - `frontend/src/lib/admin-i18n.tsx`
+
+### 413 排查（上传图片报 Request Entity Too Large）
+
+- Nginx 默认 `client_max_body_size` 是 `1m`，手机/相机照片很容易超过导致 413。
+- Docker 场景：已在 `docker/nginx.conf` 提升到 `500m`（同时对 `/api/` location 显式设置）。
+  - 注意：修改挂载的 nginx.conf 后，需要 reload/recreate nginx 容器才会生效：
+    - `docker exec fanuc_nginx nginx -s reload`
+    - 或 `docker compose up -d --force-recreate nginx`
+- 线上自建 Nginx（仓库根目录 `nginx.conf`）也已加入 `client_max_body_size 500m`（以及 /api 超时放宽）。
+
+### 支持的图片格式
+
+- 后端允许的扩展名已扩展：jpg/jpeg/png/gif/webp/svg/avif/bmp/tif/tiff/heic/heif
+  - `backend/utils/helpers.go`
+
+### 覆盖范围
+
+- 分类管理：选择分类图片时（`/admin/categories`）
+- 产品创建/编辑：选择产品图片时（`/admin/products/new`、`/admin/products/:id/edit`）
+- 首页内容编辑：各区块选择图片时（`/admin/homepage`）

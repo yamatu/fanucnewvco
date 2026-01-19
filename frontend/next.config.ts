@@ -17,10 +17,18 @@ const nextConfig: NextConfig = {
 
   // API 重写配置，开发环境代理到后端
   async rewrites() {
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+
     return [
+      // When you run without an external Nginx (directly hitting Next on :3000),
+      // proxy /uploads/* to the backend so uploaded images keep working.
+      {
+        source: '/uploads/:path*',
+        destination: `${apiBase}/uploads/:path*`,
+      },
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'}/api/:path*`,
+        destination: `${apiBase}/api/:path*`,
       },
     ];
   },

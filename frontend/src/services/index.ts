@@ -10,6 +10,7 @@ import UploadServiceDefault from './upload.service';
 import DashboardServiceDefault from './dashboard.service';
 import ContactServiceDefault from './contact.service';
 import { MediaService as MediaServiceDefault } from './media.service';
+import { BackupService as BackupServiceDefault } from './backup.service';
 
 // Export all services
 export const AuthService = AuthServiceDefault;
@@ -23,6 +24,7 @@ export const UploadService = UploadServiceDefault;
 export const DashboardService = DashboardServiceDefault;
 export const ContactService = ContactServiceDefault;
 export const MediaService = MediaServiceDefault;
+export const BackupService = BackupServiceDefault;
 
 // Export types
 export type { ProductFilters } from './product.service';
@@ -60,6 +62,7 @@ export class ApiService {
   static dashboard = DashboardService;
   static contacts = ContactService;
   static media = MediaService;
+  static backup = BackupService;
 }
 
 export default ApiService;

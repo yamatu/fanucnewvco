@@ -1,5 +1,12 @@
 # FANUC Next.js Dockerfile（Next.js Standalone）
-FROM node:18-alpine AS base
+# Optional registry/mirror prefix for base images.
+# Examples:
+# - docker.io (default)
+# - dockerproxy.net
+# - docker.m.daocloud.io
+ARG BASE_REGISTRY=docker.io
+
+FROM ${BASE_REGISTRY}/library/node:18-alpine AS base
 
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
