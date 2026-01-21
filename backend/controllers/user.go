@@ -26,7 +26,7 @@ func (uc *UserController) GetUsers(c *gin.Context) {
 
 	// Apply filters
 	if search != "" {
-		query = query.Where("username LIKE ? OR email LIKE ? OR full_name LIKE ?", 
+		query = query.Where("username LIKE ? OR email LIKE ? OR full_name LIKE ?",
 			"%"+search+"%", "%"+search+"%", "%"+search+"%")
 	}
 
@@ -215,6 +215,50 @@ func (uc *UserController) UpdateUser(c *gin.Context) {
 		return
 	}
 
+	// Safety checks
+	if currentUserIDAny, ok := c.Get("user_id"); ok {
+		if currentUserID, ok2 := currentUserIDAny.(uint); ok2 {
+			// Avoid locking yourself out.
+			if user.ID == currentUserID {
+				if !req.IsActive {
+					c.JSON(http.StatusForbidden, models.APIResponse{
+						Success: false,
+						Message: "Cannot deactivate your own account",
+						Error:   "cannot_deactivate_self",
+					})
+					return
+				}
+				if req.Role != "admin" {
+					c.JSON(http.StatusForbidden, models.APIResponse{
+						Success: false,
+						Message: "Cannot change your own role",
+						Error:   "cannot_change_own_role",
+					})
+					return
+				}
+			}
+		}
+	}
+
+	// Ensure we never end up with zero active admins
+	if user.Role == "admin" && !req.IsActive {
+		var activeAdmins int64
+		if err := db.Model(&models.AdminUser{}).
+			Where("role = ?", "admin").
+			Where("is_active = ?", true).
+			Where("id <> ?", user.ID).
+			Count(&activeAdmins).Error; err == nil {
+			if activeAdmins == 0 {
+				c.JSON(http.StatusForbidden, models.APIResponse{
+					Success: false,
+					Message: "Cannot deactivate the last active admin",
+					Error:   "cannot_deactivate_last_admin",
+				})
+				return
+			}
+		}
+	}
+
 	// Update user fields
 	user.Username = req.Username
 	user.Email = req.Email
@@ -278,14 +322,36 @@ func (uc *UserController) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	// Prevent deletion of main admin user
-	if user.Username == "admin" {
-		c.JSON(http.StatusForbidden, models.APIResponse{
-			Success: false,
-			Message: "Cannot delete the main admin user",
-			Error:   "cannot_delete_admin",
-		})
-		return
+	// Prevent deleting yourself and prevent removing the last active admin.
+	if currentUserIDAny, ok := c.Get("user_id"); ok {
+		if currentUserID, ok2 := currentUserIDAny.(uint); ok2 {
+			if user.ID == currentUserID {
+				c.JSON(http.StatusForbidden, models.APIResponse{
+					Success: false,
+					Message: "Cannot delete your own account",
+					Error:   "cannot_delete_self",
+				})
+				return
+			}
+		}
+	}
+
+	if user.Role == "admin" && user.IsActive {
+		var activeAdmins int64
+		if err := db.Model(&models.AdminUser{}).
+			Where("role = ?", "admin").
+			Where("is_active = ?", true).
+			Where("id <> ?", user.ID).
+			Count(&activeAdmins).Error; err == nil {
+			if activeAdmins == 0 {
+				c.JSON(http.StatusForbidden, models.APIResponse{
+					Success: false,
+					Message: "Cannot delete the last active admin",
+					Error:   "cannot_delete_last_admin",
+				})
+				return
+			}
+		}
 	}
 
 	// Delete user

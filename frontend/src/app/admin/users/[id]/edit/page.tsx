@@ -22,6 +22,9 @@ export default function EditUserPage() {
     role: 'editor',
     is_active: true,
   });
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
 
   useEffect(() => {
     fetchUser();
@@ -52,10 +55,27 @@ export default function EditUserPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (newPassword || confirmPassword) {
+      if (newPassword.length < 6) {
+        toast.error('新密码至少 6 位');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        toast.error('两次输入的密码不一致');
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
-      await UserService.updateUser(userId, formData);
+      const payload: AdminUserUpdateRequest = {
+        ...formData,
+        ...(newPassword ? { password: newPassword } : {}),
+      };
+
+      await UserService.updateUser(userId, payload);
       toast.success('用户更新成功');
       router.push('/admin/users');
     } catch (error: any) {
@@ -224,6 +244,39 @@ export default function EditUserPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">重置密码</h3>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div>
+                <label htmlFor="new_password" className="block text-sm font-medium text-gray-700">
+                  新密码
+                </label>
+                <input
+                  id="new_password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="至少 6 位"
+                />
+              </div>
+              <div>
+                <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700">
+                  确认新密码
+                </label>
+                <input
+                  id="confirm_password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="再次输入"
+                />
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">不填写则不修改密码。</p>
           </div>
 
           <div className="flex justify-end space-x-3">

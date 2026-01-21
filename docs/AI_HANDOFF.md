@@ -576,6 +576,45 @@ curl -fsS http://localhost:3006/admin/sitemap >/dev/null
 - 回滚后端：恢复 `backend/controllers/upload.go` 的 BASE_URL 拼接。
 - 回滚前端：移除 `frontend/next.config.ts` 的 `/uploads` rewrite，及 `frontend/src/lib/utils.ts` 的 URL 归一化逻辑。
 
+## 2026-01-21：管理员账号管理（禁用不需要的管理员 + 支持修改密码）
+
+### 背景
+
+- `admin_users` 表里存在两个 admin：
+  - `admin`（full_name=System Administrator）
+  - `yamatu`
+- 需求：可以在后台修改管理员密码，并可禁用/删除不需要的管理员账号；同时避免把自己锁出系统。
+
+### 代码改动
+
+- 后端：增加安全校验，避免“最后一个 active admin”被删除/禁用，也避免用户禁用/删除自己
+  - 改动：`backend/controllers/user.go`
+    - UpdateUser：禁止对自己 `is_active=false`，并阻止禁用最后一个 active admin
+    - DeleteUser：禁止删除自己，并阻止删除最后一个 active admin
+- 前端：管理员编辑页增加“重置密码”输入框（可选，留空不修改）
+  - 改动：`frontend/src/app/admin/users/[id]/edit/page.tsx`
+
+### 数据库变更（本地已执行）
+
+- 保留 `admin` 作为主账号（id=1），禁用 `yamatu`（id=2）：
+  - `UPDATE admin_users SET is_active=0 WHERE id=2;`
+
+### 验证方式
+
+- DB 检查：
+  - `SELECT id, username, is_active, role FROM admin_users ORDER BY id;`
+- API：
+  - `POST http://127.0.0.1:8080/api/v1/auth/login`（admin 登录应成功）
+  - `POST http://127.0.0.1:8080/api/v1/auth/login`（yamatu 登录应返回 401）
+- 页面：
+  - `http://127.0.0.1:3000/admin/users` 列表中 yamatu 显示为 Inactive
+  - `http://127.0.0.1:3000/admin/users/1/edit` 可设置新密码
+
+### 回滚
+
+- 把 `yamatu` 重新启用：
+  - `UPDATE admin_users SET is_active=1 WHERE id=2;`
+
 ## 2026-01-18：后台“选择图库图片”弹窗支持批量上传 + 拖拽上传（产品/分类/首页通用）
 
 ### 变更
