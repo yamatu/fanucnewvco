@@ -636,6 +636,31 @@ curl -fsS http://localhost:3006/admin/sitemap >/dev/null
 
 - `npm audit` 报告的 vulnerabilities 需要单独评估/升级依赖（不建议直接 `npm audit fix --force`）。
 
+## 2026-01-22：升级 React 到 19.2.3（修复 RSC 安全漏洞区间）
+
+### 背景
+
+- React Server Components 相关组件在 19.0.0 ~ 19.2.1 区间存在高危漏洞风险（DoS / 信息泄露）。
+- 本项目前端使用 `react` / `react-dom` 19.x（Next 15）。
+
+### 变更
+
+- `frontend/package.json`：
+  - `react`：`19.1.0` -> `19.2.3`
+  - `react-dom`：`19.1.0` -> `19.2.3`
+- `frontend/package-lock.json`：随 `npm install` 更新
+
+### 验证方式
+
+- 本地依赖验证：
+  - `cd frontend && npm ls react react-dom --depth=0`
+- 容器构建验证（需要 Docker daemon 正常）：
+  - `docker compose build frontend`
+
+### 注意事项
+
+- 这不是针对“xmrig 挖矿”类入侵的修复；若生产出现挖矿日志，需要按安全事件处理。
+
 ## 2026-01-18：后台“选择图库图片”弹窗支持批量上传 + 拖拽上传（产品/分类/首页通用）
 
 ### 变更
