@@ -6,7 +6,7 @@
 # - docker.m.daocloud.io
 ARG BASE_REGISTRY=docker.io
 
-FROM ${BASE_REGISTRY}/library/node:18-alpine AS base
+FROM ${BASE_REGISTRY}/library/node:20-alpine AS base
 
 WORKDIR /app
 RUN apk add --no-cache libc6-compat

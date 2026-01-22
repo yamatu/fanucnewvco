@@ -615,6 +615,27 @@ curl -fsS http://localhost:3006/admin/sitemap >/dev/null
 - 把 `yamatu` 重新启用：
   - `UPDATE admin_users SET is_active=1 WHERE id=2;`
 
+## 2026-01-21：前端 Docker Node 升级到 20（修复 cross-env@10 Node>=20 警告）
+
+### 背景
+
+- `frontend` 构建时出现：`cross-env@10.0.0 required node >=20`，而镜像是 Node 18。
+- 虽然可能暂时不阻塞 build，但属于不稳定因素，建议直接升级到 Node 20。
+
+### 变更
+
+- `frontend/Dockerfile`：基础镜像从 `node:18-alpine` 升级到 `node:20-alpine`。
+
+### 验证方式
+
+- `docker compose build frontend`（应不再出现 cross-env 的 EBADENGINE 警告）
+- `docker compose up -d frontend`
+- `curl -fsSI http://127.0.0.1:3000/ | head`
+
+### 注意事项
+
+- `npm audit` 报告的 vulnerabilities 需要单独评估/升级依赖（不建议直接 `npm audit fix --force`）。
+
 ## 2026-01-18：后台“选择图库图片”弹窗支持批量上传 + 拖拽上传（产品/分类/首页通用）
 
 ### 变更
