@@ -85,7 +85,15 @@ export default function AdminCachePage() {
   });
 
   const testMutation = useMutation({
-    mutationFn: () => CacheService.test(),
+    mutationFn: async () => {
+      // Prevent "Cloudflare is disabled" confusion when user toggles UI but hasn't saved.
+      // Backend allows test even if feature is disabled, but we still require Save first
+      // so the user doesn't test with unsaved form values.
+      if (!settings) {
+        throw new Error(t('cache.saveBeforeTest', 'Please save settings before testing.'));
+      }
+      return CacheService.test();
+    },
     onSuccess: () => toast.success(t('cache.testOk', 'Cloudflare credentials OK')),
     onError: (e: unknown) => {
       const msg = e instanceof Error ? e.message : '';

@@ -208,10 +208,8 @@ func (cc *CacheController) Test(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Cache settings not configured", Error: err.Error()})
 		return
 	}
-	if !s.Enabled {
-		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Cloudflare is disabled", Error: "disabled"})
-		return
-	}
+	// Allow testing credentials even when the feature is disabled.
+	// This avoids confusing UX where users must enable+save before they can validate credentials.
 	apiKey, err := utils.DecryptSecret(s.ApiKeyEnc)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid api key encryption", Error: err.Error()})
