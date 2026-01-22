@@ -34,6 +34,7 @@ func SetupRoutes(r *gin.Engine) {
 	ticketController := &controllers.TicketController{}
 	mediaController := &controllers.MediaController{}
 	backupController := &controllers.BackupController{}
+	cacheController := &controllers.CacheController{}
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -207,6 +208,16 @@ func SetupRoutes(r *gin.Engine) {
 				backup.POST("/db/restore", backupController.RestoreDBBackup)
 				backup.GET("/media", backupController.DownloadMediaBackup)
 				backup.POST("/media/restore", backupController.RestoreMediaBackup)
+			}
+
+			// Cache & CDN (admin only)
+			cache := admin.Group("/cache")
+			cache.Use(middleware.AdminOnly())
+			{
+				cache.GET("/settings", cacheController.GetSettings)
+				cache.PUT("/settings", cacheController.UpdateSettings)
+				cache.POST("/purge", cacheController.PurgeNow)
+				cache.POST("/test", cacheController.Test)
 			}
 
 			// Homepage Content management (admin and editor access)

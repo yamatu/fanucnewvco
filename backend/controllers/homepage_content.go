@@ -7,6 +7,7 @@ import (
 
 	"fanuc-backend/config"
 	"fanuc-backend/models"
+	"fanuc-backend/services"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -165,6 +166,7 @@ func (hc *HomepageContentController) UpdateHomepageContent(c *gin.Context) {
 		return
 	}
 
+	services.InvalidatePublicCaches(c.Request.Context(), "homepage:update", nil)
 	c.JSON(http.StatusOK, content)
 }
 
@@ -240,7 +242,9 @@ func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Conte
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create homepage content"})
 				return
 			}
+			services.InvalidatePublicCaches(c.Request.Context(), "homepage:create", nil)
 			c.JSON(http.StatusCreated, content)
+
 			return
 		}
 
@@ -282,6 +286,7 @@ func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Conte
 		return
 	}
 
+	services.InvalidatePublicCaches(c.Request.Context(), "homepage:update", nil)
 	c.JSON(http.StatusOK, content)
 }
 
@@ -298,6 +303,7 @@ func (hc *HomepageContentController) DeleteHomepageContent(c *gin.Context) {
 		return
 	}
 
+	services.InvalidatePublicCaches(c.Request.Context(), "homepage:delete", nil)
 	c.JSON(http.StatusOK, gin.H{"message": "Homepage content deleted successfully"})
 }
 

@@ -11,6 +11,7 @@ import DashboardServiceDefault from './dashboard.service';
 import ContactServiceDefault from './contact.service';
 import { MediaService as MediaServiceDefault } from './media.service';
 import { BackupService as BackupServiceDefault } from './backup.service';
+import { CacheService as CacheServiceDefault } from './cache.service';
 
 // Export all services
 export const AuthService = AuthServiceDefault;
@@ -25,6 +26,7 @@ export const DashboardService = DashboardServiceDefault;
 export const ContactService = ContactServiceDefault;
 export const MediaService = MediaServiceDefault;
 export const BackupService = BackupServiceDefault;
+export const CacheService = CacheServiceDefault;
 
 // Export types
 export type { ProductFilters } from './product.service';
@@ -63,6 +65,7 @@ export class ApiService {
   static contacts = ContactService;
   static media = MediaService;
   static backup = BackupService;
+  static cache = CacheService;
 }
 
 export default ApiService;

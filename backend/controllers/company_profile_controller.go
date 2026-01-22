@@ -270,6 +270,8 @@ func (c *CompanyProfileController) UpsertCompanyProfile(ctx *gin.Context) {
 		return
 	}
 
+	services.InvalidatePublicCaches(ctx.Request.Context(), "company-profile:upsert", nil)
+
 	ctx.JSON(http.StatusOK, models.APIResponse{
 		Success: true,
 		Message: "Company profile saved successfully",

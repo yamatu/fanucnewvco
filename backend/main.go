@@ -4,6 +4,7 @@ import (
 	"fanuc-backend/config"
 	"fanuc-backend/middleware"
 	"fanuc-backend/routes"
+	"fanuc-backend/services"
 	"log"
 	"os"
 
@@ -61,6 +62,9 @@ func main() {
 
 	// Setup routes
 	routes.SetupRoutes(r)
+
+	// Background jobs (best-effort)
+	services.StartCloudflareAutoPurgeScheduler()
 
 	// Get host and port from environment
 	host := os.Getenv("HOST")

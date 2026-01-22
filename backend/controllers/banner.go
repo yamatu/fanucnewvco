@@ -3,6 +3,7 @@ package controllers
 import (
 	"fanuc-backend/config"
 	"fanuc-backend/models"
+	"fanuc-backend/services"
 	"net/http"
 	"strconv"
 
@@ -169,6 +170,8 @@ func (bc *BannerController) CreateBanner(c *gin.Context) {
 		return
 	}
 
+	services.InvalidatePublicCaches(c.Request.Context(), "banner:create", nil)
+
 	c.JSON(http.StatusCreated, models.APIResponse{
 		Success: true,
 		Message: "Banner created successfully",
@@ -247,6 +250,8 @@ func (bc *BannerController) UpdateBanner(c *gin.Context) {
 		return
 	}
 
+	services.InvalidatePublicCaches(c.Request.Context(), "banner:update", nil)
+
 	c.JSON(http.StatusOK, models.APIResponse{
 		Success: true,
 		Message: "Banner updated successfully",
@@ -289,6 +294,8 @@ func (bc *BannerController) DeleteBanner(c *gin.Context) {
 		})
 		return
 	}
+
+	services.InvalidatePublicCaches(c.Request.Context(), "banner:delete", nil)
 
 	c.JSON(http.StatusOK, models.APIResponse{
 		Success: true,

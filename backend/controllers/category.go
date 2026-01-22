@@ -6,6 +6,7 @@ import (
 
 	"fanuc-backend/config"
 	"fanuc-backend/models"
+	"fanuc-backend/services"
 	"fanuc-backend/utils"
 
 	"github.com/gin-gonic/gin"
@@ -167,6 +168,8 @@ func (cc *CategoryController) CreateCategory(c *gin.Context) {
 		return
 	}
 
+	services.InvalidatePublicCaches(c.Request.Context(), "category:create", nil)
+
 	c.JSON(http.StatusCreated, models.APIResponse{
 		Success: true,
 		Message: "Category created successfully",
@@ -245,6 +248,8 @@ func (cc *CategoryController) UpdateCategory(c *gin.Context) {
 		return
 	}
 
+	services.InvalidatePublicCaches(c.Request.Context(), "category:update", nil)
+
 	c.JSON(http.StatusOK, models.APIResponse{
 		Success: true,
 		Message: "Category updated successfully",
@@ -316,6 +321,8 @@ func (cc *CategoryController) DeleteCategory(c *gin.Context) {
 		})
 		return
 	}
+
+	services.InvalidatePublicCaches(c.Request.Context(), "category:delete", nil)
 
 	c.JSON(http.StatusOK, models.APIResponse{
 		Success: true,
