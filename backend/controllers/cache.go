@@ -169,6 +169,10 @@ func (cc *CacheController) PurgeNow(c *gin.Context) {
 		return
 	}
 
+	if strings.TrimSpace(s.ApiKeyEnc) == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Cloudflare api key not set", Error: "missing_api_key"})
+		return
+	}
 	apiKey, err := utils.DecryptSecret(s.ApiKeyEnc)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid api key encryption", Error: err.Error()})
@@ -210,6 +214,10 @@ func (cc *CacheController) Test(c *gin.Context) {
 	}
 	// Allow testing credentials even when the feature is disabled.
 	// This avoids confusing UX where users must enable+save before they can validate credentials.
+	if strings.TrimSpace(s.ApiKeyEnc) == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Cloudflare api key not set", Error: "missing_api_key"})
+		return
+	}
 	apiKey, err := utils.DecryptSecret(s.ApiKeyEnc)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid api key encryption", Error: err.Error()})

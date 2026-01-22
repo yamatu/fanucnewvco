@@ -81,6 +81,9 @@ services:
       DEFAULT_ADMIN_ROLE: ${DEFAULT_ADMIN_ROLE:-admin}
       DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-}
       RESET_DEFAULT_ADMIN_PASSWORD: ${RESET_DEFAULT_ADMIN_PASSWORD:-false}
+
+      # Used to encrypt sensitive admin settings (e.g. Cloudflare Global API Key)
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}
     depends_on:
       mysql:
         condition: service_healthy
