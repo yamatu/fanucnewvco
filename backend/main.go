@@ -39,6 +39,8 @@ func main() {
 
 	// Connect to database
 	config.ConnectDatabase()
+	// Connect to Redis (optional: rate limit + cache)
+	config.ConnectRedis()
 
 	// Set Gin mode
 	ginMode := os.Getenv("GIN_MODE")

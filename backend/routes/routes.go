@@ -52,22 +52,25 @@ func SetupRoutes(r *gin.Engine) {
 		// Public routes (no authentication required)
 		public := v1.Group("/public")
 		{
-			// Categories (public read access)
-			public.GET("/categories", categoryController.GetCategories)
+			// Categories (public read access) - cached
+			public.GET("/categories", middleware.CachePublicGET(middleware.CacheTTLCategories(), "cache:public:categories:"), categoryController.GetCategories)
+
 			public.GET("/categories/:id", categoryController.GetCategory)
 			public.GET("/categories/slug/:slug", categoryController.GetCategoryBySlug)
 
-			// Products (public read access)
-			public.GET("/products", productController.GetProducts)
+			// Products (public read access) - cached
+			public.GET("/products", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:products:"), productController.GetProducts)
+
 			public.GET("/products/:id", productController.GetProduct)
 			public.GET("/products/sku", productController.GetProductBySKUQuery) // query param: sku=...
-			public.GET("/products/sku/:sku", productController.GetProductBySKU)  // legacy: path param
+			public.GET("/products/sku/:sku", productController.GetProductBySKU) // legacy: path param
 
 			// Banners (public read access)
 			public.GET("/banners", bannerController.GetPublicBanners)
 
-			// Homepage Content (public read access)
-			public.GET("/homepage-content", homepageContentController.GetHomepageContents)
+			// Homepage Content (public read access) - cached
+			public.GET("/homepage-content", middleware.CachePublicGET(middleware.CacheTTLHomepage(), "cache:public:homepage:"), homepageContentController.GetHomepageContents)
+
 			public.GET("/homepage-content/section/:section_key", homepageContentController.GetHomepageContentBySection)
 
 			// Company Profile (public read access)
@@ -83,7 +86,7 @@ func SetupRoutes(r *gin.Engine) {
 		// Authentication routes
 		auth := v1.Group("/auth")
 		{
-			auth.POST("/login", authController.Login)
+			auth.POST("/login", middleware.LoginRateLimitMiddleware(), authController.Login)
 
 			// Protected auth routes
 			authProtected := auth.Group("")
@@ -126,22 +129,22 @@ func SetupRoutes(r *gin.Engine) {
 			{
 				products.GET("", productController.GetProducts)
 				products.GET("/:id", productController.GetProduct)
-					products.POST("", productController.CreateProduct)
-					products.PUT("/:id", productController.UpdateProduct)
-					products.DELETE("/:id", middleware.AdminOnly(), productController.DeleteProduct)
+				products.POST("", productController.CreateProduct)
+				products.PUT("/:id", productController.UpdateProduct)
+				products.DELETE("/:id", middleware.AdminOnly(), productController.DeleteProduct)
 
-					// Bulk update is_active / is_featured
-					products.PUT("/bulk-update", productController.BulkUpdateProducts)
+				// Bulk update is_active / is_featured
+				products.PUT("/bulk-update", productController.BulkUpdateProducts)
 
-                // Product image management
-                products.POST("/:id/images", productController.AddImage)
-                products.GET("/:id/images", productController.GetProductImages)
-                // Note: controller expects :imageIndex for deletion
-                products.DELETE("/:id/images/:imageIndex", middleware.AdminOnly(), productController.DeleteImage)
-				}
+				// Product image management
+				products.POST("/:id/images", productController.AddImage)
+				products.GET("/:id/images", productController.GetProductImages)
+				// Note: controller expects :imageIndex for deletion
+				products.DELETE("/:id/images/:imageIndex", middleware.AdminOnly(), productController.DeleteImage)
+			}
 
-				// Order management (admin only)
-				orders := admin.Group("/orders")
+			// Order management (admin only)
+			orders := admin.Group("/orders")
 			orders.Use(middleware.AdminOnly())
 			{
 				orders.GET("", orderController.GetOrders)

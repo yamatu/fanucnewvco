@@ -20,6 +20,17 @@ services:
       retries: 30
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: fanuc_redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    # Expose only to host if you really need it (default: internal only)
+    # ports:
+    #   - "127.0.0.1:6379:6379"
+    restart: unless-stopped
+
   backend:
     build:
       context: ./backend
@@ -41,6 +52,19 @@ services:
       # CORS: allow the browser origin(s) you access the site from.
       # If you run Nginx on the host for TLS, set CORS_ORIGINS to your domain(s).
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+
+      # Redis (rate limit + cache)
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+
+      # Rate limiting
+      LOGIN_RATE_LIMIT_PER_MINUTE: ${LOGIN_RATE_LIMIT_PER_MINUTE:-10}
+
+      # Public cache TTLs (seconds)
+      CACHE_TTL_CATEGORIES_SECONDS: ${CACHE_TTL_CATEGORIES_SECONDS:-300}
+      CACHE_TTL_HOMEPAGE_SECONDS: ${CACHE_TTL_HOMEPAGE_SECONDS:-120}
+      CACHE_TTL_PRODUCTS_SECONDS: ${CACHE_TTL_PRODUCTS_SECONDS:-60}
 
       JWT_SECRET: ${JWT_SECRET:-please_change_me_in_production}
       JWT_EXPIRES_HOURS: ${JWT_EXPIRES_HOURS:-24}
@@ -116,3 +140,4 @@ services:
 
 volumes:
   mysql_data:
+  redis_data:

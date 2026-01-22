@@ -661,6 +661,50 @@ curl -fsS http://localhost:3006/admin/sitemap >/dev/null
 
 - 这不是针对“xmrig 挖矿”类入侵的修复；若生产出现挖矿日志，需要按安全事件处理。
 
+## 2026-01-22：引入 Redis（限流 + Public API 缓存）
+
+目标：
+- 抗攻击：登录接口按 IP 限流（默认 10 req/min/IP）。
+- 抗压力：对常用 public GET 接口加 Redis 缓存，减少 DB 压力。
+- 双保险：Nginx 侧也加基础限流（在到达 Go/Redis 之前先挡一层）。
+
+### 变更
+
+- Docker：新增 `redis` 服务（仅内部网络）
+  - 改动：`docker-compose.yml`
+  - 新增 volume：`redis_data`
+- 后端：Redis client + 限流中间件 + 缓存中间件
+  - 新增：`backend/config/redis.go`
+  - 新增：`backend/middleware/rate_limit.go`（`/api/v1/auth/login` 限流）
+  - 新增：`backend/middleware/cache.go`（public GET 缓存）
+  - 改动：`backend/main.go`（启动时 `ConnectRedis()`）
+  - 改动：`backend/routes/routes.go`
+    - `POST /api/v1/auth/login`：加 `LoginRateLimitMiddleware()`
+    - 缓存：
+      - `GET /api/v1/public/categories`
+      - `GET /api/v1/public/products`
+      - `GET /api/v1/public/homepage-content`
+- Nginx：增加基础限流（login 更严格）
+  - 改动：`nginx.conf`
+
+- 配置示例：补齐 Redis/限流/缓存 TTL 环境变量
+  - 改动：`.env.docker.example`
+
+### 验证方式
+
+- 依赖：
+  - `docker compose up -d redis`
+- 限流验证（需要 Redis 生效）：
+  - 连续请求 `POST /api/v1/auth/login` 超过 10 次/分钟应返回 `429`。
+- 缓存验证：
+  - `GET /api/v1/public/categories` / `products` / `homepage-content`
+  - 第二次请求应更快，且响应头可看到 `X-Cache: HIT`（命中缓存时）。
+
+### 注意事项 / 回滚
+
+- Redis 连接不通时：中间件会自动降级为 no-op（不会阻断请求），但限流/缓存功能不会生效。
+- 回滚：移除 `docker-compose.yml` 的 redis 服务与相关 env，并删除上述后端中间件/配置改动。
+
 ## 2026-01-18：后台“选择图库图片”弹窗支持批量上传 + 拖拽上传（产品/分类/首页通用）
 
 ### 变更
