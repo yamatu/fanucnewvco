@@ -243,6 +243,54 @@ func zipDirToFile(srcDir string, zipPath string) error {
 	})
 }
 
+func zipDirToFilePrefixed(srcDir string, zipPath string, prefix string) error {
+	prefix = strings.Trim(prefix, "/")
+	if prefix == "" {
+		return zipDirToFile(srcDir, zipPath)
+	}
+
+	out, err := os.Create(zipPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	zw := zip.NewWriter(out)
+	defer zw.Close()
+
+	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+		if rel == "." {
+			return nil
+		}
+		rel = filepath.ToSlash(rel)
+		rel = prefix + "/" + rel
+
+		if info.IsDir() {
+			_, err := zw.Create(rel + "/")
+			return err
+		}
+
+		fw, err := zw.Create(rel)
+		if err != nil {
+			return err
+		}
+		in, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer in.Close()
+		_, err = io.Copy(fw, in)
+		return err
+	})
+}
+
 // DownloadDBBackup generates a ZIP with db.sql inside.
 // GET /api/v1/admin/backup/db
 func (bc *BackupController) DownloadDBBackup(c *gin.Context) {
@@ -450,10 +498,13 @@ func (bc *BackupController) RestoreDBBackup(c *gin.Context) {
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Database restored successfully"})
 }
 
-// DownloadMediaBackup generates a ZIP of /app/uploads.
+// DownloadMediaBackup generates a ZIP of the uploads directory.
 // GET /api/v1/admin/backup/media
 func (bc *BackupController) DownloadMediaBackup(c *gin.Context) {
-	uploadsDir := "/app/uploads"
+	uploadsDir := strings.TrimSpace(os.Getenv("UPLOAD_PATH"))
+	if uploadsDir == "" {
+		uploadsDir = "./uploads"
+	}
 	if st, err := os.Stat(uploadsDir); err != nil || !st.IsDir() {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Uploads directory not found", Error: uploadsDir})
 		return
@@ -468,6 +519,7 @@ func (bc *BackupController) DownloadMediaBackup(c *gin.Context) {
 	tmpZip.Close()
 	defer func() { _ = os.Remove(tmpZipPath) }()
 
+	// Zip the *contents* of uploadsDir (root entries like media/, products/, ...)
 	if err := zipDirToFile(uploadsDir, tmpZipPath); err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to create media zip", Error: err.Error()})
 		return
@@ -502,7 +554,10 @@ func (bc *BackupController) RestoreMediaBackup(c *gin.Context) {
 	}
 	defer mediaRestoreMu.Unlock()
 
-	uploadsDir := "/app/uploads"
+	uploadsDir := strings.TrimSpace(os.Getenv("UPLOAD_PATH"))
+	if uploadsDir == "" {
+		uploadsDir = "./uploads"
+	}
 	if st, err := os.Stat(uploadsDir); err != nil || !st.IsDir() {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Uploads directory not found", Error: uploadsDir})
 		return
@@ -537,7 +592,7 @@ func (bc *BackupController) RestoreMediaBackup(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to save upload", Error: err.Error()})
 		return
 	}
-	tmpZip.Close()
+	_ = tmpZip.Close()
 
 	tmpDir, err := os.MkdirTemp("", "fanuc-media-restore-*")
 	if err != nil {
@@ -551,7 +606,19 @@ func (bc *BackupController) RestoreMediaBackup(c *gin.Context) {
 		return
 	}
 
+	// macOS zip artifacts can break "single root dir" detection.
+	_ = os.RemoveAll(filepath.Join(tmpDir, "__MACOSX"))
+
 	restoreRoot := detectSingleDirRoot(tmpDir)
+
+	// Some users zip the whole "uploads/" folder instead of its contents.
+	// Normalize so we always copy the *contents* into uploadsDir.
+	if st, err := os.Stat(filepath.Join(restoreRoot, "uploads")); err == nil && st.IsDir() {
+		restoreRoot = filepath.Join(restoreRoot, "uploads")
+	}
+	if st, err := os.Stat(filepath.Join(restoreRoot, "app", "uploads")); err == nil && st.IsDir() {
+		restoreRoot = filepath.Join(restoreRoot, "app", "uploads")
+	}
 
 	// Replace uploads content (destructive by design).
 	if err := clearDir(uploadsDir); err != nil {
