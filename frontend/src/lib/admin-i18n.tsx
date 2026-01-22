@@ -159,6 +159,15 @@ const DICT: Record<AdminLocale, Record<string, string>> = {
      'cache.statusIncomplete': 'Incomplete',
      'cache.statusReady': 'Ready',
 
+     'hotlink.title': 'Hotlink Protection',
+     'hotlink.enabled': 'Enable hotlink protection for /uploads',
+     'hotlink.allowSameHost': 'Allow same host',
+     'hotlink.allowEmpty': 'Allow empty Referer/Origin',
+     'hotlink.allowedHosts': 'Allowed hosts (comma-separated)',
+     'hotlink.hint': 'Tip: include your main domain and any CDN/custom domains that should embed images.',
+     'hotlink.saved': 'Saved',
+     'hotlink.saveFailed': 'Failed to save',
+
 
     'categories.title': 'Categories',
     'categories.subtitle': 'Manage product categories, images and sort order',
@@ -362,6 +371,15 @@ const DICT: Record<AdminLocale, Record<string, string>> = {
     'cache.statusDisabled': '未启用',
     'cache.statusIncomplete': '配置不完整',
     'cache.statusReady': '可用',
+
+    'hotlink.title': '防盗链',
+    'hotlink.enabled': '启用 /uploads 防盗链',
+    'hotlink.allowSameHost': '允许本站域名',
+    'hotlink.allowEmpty': '允许空 Referer/Origin',
+    'hotlink.allowedHosts': '允许的域名（逗号分隔）',
+    'hotlink.hint': '提示：把你的主域名、CDN 域名、以及任何需要引用图片的域名都加进去。',
+    'hotlink.saved': '保存成功',
+    'hotlink.saveFailed': '保存失败',
     'categories.title': '分类管理',
     'categories.subtitle': '管理产品分类、图片与排序',
     'categories.add': '新增分类',

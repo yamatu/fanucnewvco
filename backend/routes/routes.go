@@ -35,6 +35,7 @@ func SetupRoutes(r *gin.Engine) {
 	mediaController := &controllers.MediaController{}
 	backupController := &controllers.BackupController{}
 	cacheController := &controllers.CacheController{}
+	hotlinkController := &controllers.HotlinkController{}
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -220,6 +221,14 @@ func SetupRoutes(r *gin.Engine) {
 				cache.POST("/test", cacheController.Test)
 			}
 
+			// Hotlink protection (admin only)
+			hotlink := admin.Group("/hotlink")
+			hotlink.Use(middleware.AdminOnly())
+			{
+				hotlink.GET("/settings", hotlinkController.GetSettings)
+				hotlink.PUT("/settings", hotlinkController.UpdateSettings)
+			}
+
 			// Homepage Content management (admin and editor access)
 			homepageContent := admin.Group("/homepage-content")
 			homepageContent.Use(middleware.EditorOrAdmin())
@@ -326,5 +335,7 @@ func SetupRoutes(r *gin.Engine) {
 	}
 
 	// Serve static files (uploaded images)
-	r.Static("/uploads", "./uploads")
+	uploads := r.Group("/uploads")
+	uploads.Use(middleware.HotlinkProtectionMiddleware())
+	uploads.StaticFS("/", http.Dir("./uploads"))
 }

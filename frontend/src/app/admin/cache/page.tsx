@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { CacheService } from '@/services';
+import { CacheService, HotlinkService } from '@/services';
 import type { CloudflareCacheSettingResponse } from '@/services/cache.service';
+import type { HotlinkProtectionSettingResponse } from '@/services/hotlink.service';
 import { useAdminI18n } from '@/lib/admin-i18n';
 
 function splitUrls(input: string): string[] {
@@ -20,6 +21,7 @@ export default function AdminCachePage() {
 
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<CloudflareCacheSettingResponse | null>(null);
+  const [, setHotlink] = useState<HotlinkProtectionSettingResponse | null>(null);
 
   const [email, setEmail] = useState('');
   const [zoneId, setZoneId] = useState('');
@@ -34,13 +36,20 @@ export default function AdminCachePage() {
   const [purgeEverythingNow, setPurgeEverythingNow] = useState(false);
   const [clearRedis, setClearRedis] = useState(true);
   const [clearRedisOnly, setClearRedisOnly] = useState(false);
+
+  const [hotlinkEnabled, setHotlinkEnabled] = useState(false);
+  const [hotlinkAllowedHosts, setHotlinkAllowedHosts] = useState('');
+  const [hotlinkAllowEmpty, setHotlinkAllowEmpty] = useState(true);
+  const [hotlinkAllowSameHost, setHotlinkAllowSameHost] = useState(true);
   const [customUrls, setCustomUrls] = useState('');
 
   const load = async () => {
     try {
       setLoading(true);
       const s = await CacheService.getSettings();
+      const h = await HotlinkService.getSettings();
       setSettings(s);
+      setHotlink(h);
       setEmail(s.email || '');
       setZoneId(s.zone_id || '');
       setEnabled(!!s.enabled);
@@ -48,6 +57,11 @@ export default function AdminCachePage() {
       setAutoClearRedisOnMutation(!!s.auto_clear_redis_on_mutation);
       setIntervalMin(Number(s.auto_purge_interval_minutes || 0));
       setPurgeEverythingDefault(!!s.purge_everything);
+
+      setHotlinkEnabled(!!h.enabled);
+      setHotlinkAllowedHosts(h.allowed_hosts || '');
+      setHotlinkAllowEmpty(!!h.allow_empty_referer);
+      setHotlinkAllowSameHost(!!h.allow_same_host);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '';
       toast.error(msg || t('cache.loadFailed', 'Failed to load cache settings'));
@@ -81,6 +95,24 @@ export default function AdminCachePage() {
     onError: (e: unknown) => {
       const msg = e instanceof Error ? e.message : '';
       toast.error(msg || t('cache.saveFailed', 'Failed to save'));
+    },
+  });
+
+  const hotlinkSaveMutation = useMutation({
+    mutationFn: () =>
+      HotlinkService.updateSettings({
+        enabled: hotlinkEnabled,
+        allowed_hosts: hotlinkAllowedHosts,
+        allow_empty_referer: hotlinkAllowEmpty,
+        allow_same_host: hotlinkAllowSameHost,
+      }),
+    onSuccess: (h) => {
+      toast.success(t('hotlink.saved', 'Saved'));
+      setHotlink(h);
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : '';
+      toast.error(msg || t('hotlink.saveFailed', 'Failed to save'));
     },
   });
 
@@ -118,7 +150,12 @@ export default function AdminCachePage() {
     },
   });
 
-  const busy = saveMutation.isPending || testMutation.isPending || purgeMutation.isPending || loading;
+  const busy =
+    saveMutation.isPending ||
+    hotlinkSaveMutation.isPending ||
+    testMutation.isPending ||
+    purgeMutation.isPending ||
+    loading;
 
   const hasApiKey = !!settings?.has_api_key;
   const lastPurgeAt = settings?.last_purge_at ? String(settings.last_purge_at) : '';
@@ -265,6 +302,47 @@ export default function AdminCachePage() {
           <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
             {t('cache.siteUrlHint', 'Tip: set backend env SITE_URL so targeted URL purges match your real domain.')}
           </div>
+        </div>
+
+        {/* Hotlink protection */}
+        <div className="bg-white rounded-lg shadow p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900">{t('hotlink.title', 'Hotlink Protection')}</h2>
+
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" checked={hotlinkEnabled} onChange={(e) => setHotlinkEnabled(e.target.checked)} />
+            {t('hotlink.enabled', 'Enable hotlink protection for /uploads')}
+          </label>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={hotlinkAllowSameHost} onChange={(e) => setHotlinkAllowSameHost(e.target.checked)} />
+              {t('hotlink.allowSameHost', 'Allow same host')}
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={hotlinkAllowEmpty} onChange={(e) => setHotlinkAllowEmpty(e.target.checked)} />
+              {t('hotlink.allowEmpty', 'Allow empty Referer/Origin')}
+            </label>
+          </div>
+
+          <label className="block">
+            <div className="text-sm font-medium text-gray-700">{t('hotlink.allowedHosts', 'Allowed hosts (comma-separated)')}</div>
+            <textarea
+              value={hotlinkAllowedHosts}
+              onChange={(e) => setHotlinkAllowedHosts(e.target.value)}
+              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm min-h-[96px]"
+              placeholder="www.vcocncspare.com,vcocncspare.com"
+              disabled={!hotlinkEnabled}
+            />
+            <div className="mt-1 text-xs text-gray-500">{t('hotlink.hint', 'Tip: include your main domain and any CDN/custom domains that should embed images.')}</div>
+          </label>
+
+          <button
+            disabled={busy}
+            onClick={() => hotlinkSaveMutation.mutate()}
+            className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
+          >
+            {t('common.save', 'Save')}
+          </button>
         </div>
 
         {/* Manual purge */}

@@ -115,6 +115,7 @@ func ConnectDatabase() {
 			&models.TicketAttachment{},
 			&models.MediaAsset{},
 			&models.CloudflareCacheSetting{},
+			&models.HotlinkProtectionSetting{},
 		}
 		for _, m := range modelsToMigrate {
 			// GORM may try to "DROP FOREIGN KEY <uni_xxx>" on existing tables (a known benign issue when

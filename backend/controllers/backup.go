@@ -16,7 +16,9 @@ import (
 	"sync"
 	"time"
 
+	"fanuc-backend/config"
 	"fanuc-backend/models"
+	"fanuc-backend/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -628,6 +630,11 @@ func (bc *BackupController) RestoreMediaBackup(c *gin.Context) {
 	if err := copyDir(restoreRoot, uploadsDir); err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to restore uploads", Error: err.Error()})
 		return
+	}
+
+	// Re-index media files into media_assets so the admin media library shows restored files.
+	if db := config.GetDB(); db != nil {
+		_, _ = services.SyncMediaAssetsFromDisk(db, uploadsDir)
 	}
 
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Media library restored successfully"})
