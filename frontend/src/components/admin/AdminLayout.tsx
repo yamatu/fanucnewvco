@@ -99,6 +99,8 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    // Admin pages are auth-gated; avoid Next prefetch noise (503 from prefetch cache).
+                    prefetch={false}
                     className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                       isActive
                         ? 'bg-blue-100 text-blue-700'
@@ -171,7 +173,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
                   <span className="hidden md:block text-sm text-gray-500">{t('action.language', 'Language')}</span>
                   <select
                     value={locale}
-                    onChange={(e) => setLocale(e.target.value as any)}
+                    onChange={(e) => setLocale(e.target.value as 'en' | 'zh')}
                     className="block px-2 py-1 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     aria-label="Language"
                   >
