@@ -11,7 +11,7 @@ import {
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { useCart } from '@/store/cart.store';
-import { formatCurrency, getProductImageUrl } from '@/lib/utils';
+import { formatCurrency, getProductImageUrl, toProductPathId } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
