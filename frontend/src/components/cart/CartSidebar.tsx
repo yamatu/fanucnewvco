@@ -6,7 +6,7 @@ import { XMarkIcon, MinusIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/o
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/store/cart.store';
-import { formatCurrency, getProductImageUrl } from '@/lib/utils';
+import { formatCurrency, getProductImageUrl, toProductPathId } from '@/lib/utils';
 
 export function CartSidebar() {
   const { 
@@ -117,7 +117,8 @@ export function CartSidebar() {
                                       <div className="flex justify-between text-base font-medium text-gray-900">
                                         <h3>
                                           <Link
-                                            href={`/products/${encodeURIComponent(item.product.sku)}`}
+                                             href={`/products/${toProductPathId(item.product.sku)}`}
+
                                             onClick={closeCart}
                                             className="hover:text-yellow-600"
                                           >

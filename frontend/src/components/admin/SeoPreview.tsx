@@ -1,6 +1,7 @@
 "use client";
 
 import { getSiteUrl } from "@/lib/url";
+import { toProductPathId } from "@/lib/utils";
 import React from "react";
 import { useAdminI18n } from "@/lib/admin-i18n";
 
@@ -13,13 +14,6 @@ interface SeoPreviewProps {
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
-function slugify(input: string | undefined): string {
-  if (!input) return "";
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 function rangeClass(value: number, idealMin: number, idealMax: number, softMin: number, softMax: number) {
   if (value >= idealMin && value <= idealMax) return "text-green-600";
@@ -30,7 +24,7 @@ function rangeClass(value: number, idealMin: number, idealMax: number, softMin: 
 export default function SeoPreview({ title, description, sku, name }: SeoPreviewProps) {
   const { t } = useAdminI18n();
   const site = getSiteUrl();
-  const path = `/products/${(sku || "SKU").trim()}${name ? `-${slugify(name)}` : ""}`;
+  const path = `/products/${toProductPathId((sku || "SKU").trim())}`;
 
   const displayTitle = (title || "").trim() || [name, sku].filter(Boolean).join(" - ") || "SEO 标题预览";
   const displayDescription = (description || "").trim() ||

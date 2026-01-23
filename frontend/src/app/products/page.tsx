@@ -168,7 +168,8 @@ export default async function ProductsPage({
             "image": product.image_urls && product.image_urls.length > 0
               ? product.image_urls[0]
               : `${baseUrl}/images/default-product.svg`,
-            "url": product.slug ? `${baseUrl}/products/${product.slug}` : `${baseUrl}/products/${toProductPathId(product.sku)}`,
+             "url": `${baseUrl}/products/${toProductPathId(product.sku)}`,
+
             "offers": {
               "@type": "Offer",
               "price": product.price || 0,

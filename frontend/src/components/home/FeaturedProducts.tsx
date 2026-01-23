@@ -145,7 +145,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                   hoveredProduct === product.id ? 'opacity-100' : 'opacity-0'
                 }`}>
                   <Link
-                    href={`/products/${encodeURIComponent(product.sku)}`}
+                    href={`/products/${toProductPathId(product.sku)}`}
                     className="bg-white text-gray-900 p-3 rounded-full hover:bg-gray-100 transition-colors"
                   >
                     <EyeIcon className="h-5 w-5" />

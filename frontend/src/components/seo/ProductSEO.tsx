@@ -2,6 +2,7 @@
 
 import { Product, Category } from '@/types';
 import Head from 'next/head';
+import { toProductPathId } from '@/lib/utils';
 
 interface ProductSEOProps {
   product: Product;
@@ -95,7 +96,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb }: ProductSEO
         "@type": "ListItem",
         "position": (categoryBreadcrumb?.length || 0) + 3,
         "name": product.name,
-        "item": `https://www.vcocncspare.com/products/${product.sku}`
+        "item": `https://www.vcocncspare.com/products/${toProductPathId(product.sku)}`
       }
     ]
   };

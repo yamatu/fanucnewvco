@@ -340,7 +340,7 @@ export default function ProductDetailPage() {
                 </button>
 
                 <button
-                  onClick={() => window.open(`/products/${productId}`, '_blank')}
+                  onClick={() => window.open(`/products/${toProductPathId(product?.sku || String(productId))}`, '_blank')}
                   className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                 >
                   <EyeIcon className="h-4 w-4 mr-2" />

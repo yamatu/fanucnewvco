@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { ProductService } from '@/services';
 import { getProductBySkuCached } from '@/services/product.server';
 import { getSiteUrl } from '@/lib/url';
+import { toProductPathId } from '@/lib/utils';
 import ProductDetailClient from './ProductDetailClient';
 import { redirect, notFound } from 'next/navigation';
 
@@ -44,7 +45,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     }
 
     const baseUrl = getSiteUrl();
-    const canonicalUrl = `${baseUrl}/products/${product.slug || slug}`;
+    const canonicalUrl = `${baseUrl}/products/${toProductPathId(product.sku || slug)}`;
 
     const productImages = (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []);
     const images = (Array.isArray(productImages) ? productImages : []).map((img: any) => ({
@@ -121,9 +122,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     notFound();
   }
 
-  // Canonical redirect to slug URL
-  if (initialProduct?.slug && initialProduct.slug !== slug) {
-    redirect(`/products/${initialProduct.slug}`);
+  // Canonical redirect to SKU-only URL (keep product URLs short)
+  const canonicalId = toProductPathId(initialProduct?.sku || sku || '');
+  if (canonicalId && canonicalId !== slug) {
+    redirect(`/products/${canonicalId}`);
   }
 
   return (

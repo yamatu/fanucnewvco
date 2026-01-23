@@ -280,7 +280,7 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
                     </div>
                     <div className="mt-2">
                       <Link
-                        href={`/products/${relatedProduct.slug || toProductPathId(relatedProduct.sku)}`}
+                        href={`/products/${toProductPathId(relatedProduct.sku)}`}
                         className="text-sm font-medium text-gray-900 hover:text-yellow-600"
                       >
                         {relatedProduct.name}

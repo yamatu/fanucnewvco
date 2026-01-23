@@ -9,7 +9,7 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
-import { formatCurrency, getProductImageUrl } from '@/lib/utils';
+import { formatCurrency, getProductImageUrl, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 
 interface Product {
@@ -77,7 +77,7 @@ export default function ProductCard({
     <div className={`bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-200 ${className}`}>
       <div className="relative">
         {/* Product Image */}
-        <Link href={`/products/${encodeURIComponent(product.sku)}`} className="block">
+        <Link href={`/products/${toProductPathId(product.sku)}`} className="block">
           <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-t-lg bg-gray-200">
             {imageUrl && imageUrl !== '/images/placeholder.svg' ? (
               <Image
@@ -126,7 +126,7 @@ export default function ProductCard({
 
       {/* Product Info */}
       <div className="p-4">
-        <Link href={`/products/${encodeURIComponent(product.sku)}`}>
+        <Link href={`/products/${toProductPathId(product.sku)}`}>
           <h3 className="text-lg font-medium text-gray-900 mb-2 line-clamp-2 hover:text-yellow-600 transition-colors cursor-pointer">
             {product.name}
           </h3>
@@ -165,7 +165,8 @@ export default function ProductCard({
         {/* Actions */}
         <div className="flex items-center justify-between">
           <Link
-            href={`/products/${encodeURIComponent(product.sku)}`}
+             href={`/products/${toProductPathId(product.sku)}`}
+
             className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
           >
             <EyeIcon className="h-4 w-4 mr-1" />

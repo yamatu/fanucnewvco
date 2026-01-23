@@ -336,7 +336,9 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
 
                       <div className="p-4">
                         <h3 className="text-lg font-medium text-gray-900 mb-2">
-                          <Link href={`/products/${product.slug || toProductPathId(product.sku)}`} className="hover:text-yellow-600">
+                          <Link href={`/products/${toProductPathId(product.sku)}`} className="hover:text-yellow-600">
+
+
                             {product.name}
                           </Link>
                         </h3>
@@ -354,7 +356,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
 
                           <div className="flex items-center space-x-2">
                             <Link
-                              href={`/products/${product.slug || toProductPathId(product.sku)}`}
+                              href={`/products/${toProductPathId(product.sku)}`}
                               className="p-2 text-gray-400 hover:text-yellow-600 transition-colors"
                               title={`View ${product.name} details`}
                             >
@@ -394,7 +396,8 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
 
                         <div className="flex-1 min-w-0">
                           <h3 className="text-lg font-medium text-gray-900 mb-1">
-                            <Link href={`/products/${product.slug || toProductPathId(product.sku)}`} className="hover:text-yellow-600">
+                            <Link href={`/products/${toProductPathId(product.sku)}`} className="hover:text-yellow-600">
+
                               {product.name}
                             </Link>
                           </h3>
@@ -422,7 +425,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                               )}
                             </button>
                             <Link
-                              href={`/products/${product.slug || toProductPathId(product.sku)}`}
+                              href={`/products/${toProductPathId(product.sku)}`}
                               className="p-2 text-gray-400 hover:text-yellow-600 transition-colors"
                               title={`View ${product.name} details`}
                             >
