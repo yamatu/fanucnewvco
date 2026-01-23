@@ -1,14 +1,13 @@
 package controllers
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fanuc-backend/config"
 	"fanuc-backend/models"
+	"fanuc-backend/services"
 	"fanuc-backend/utils"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -194,39 +193,31 @@ func (mc *MediaController) Upload(c *gin.Context) {
 			continue
 		}
 
-		// Read a sniff buffer for content-type detection, then stream everything to disk while hashing.
-		sniff := make([]byte, 512)
-		n, _ := io.ReadFull(src, sniff)
-		combined := io.MultiReader(bytes.NewReader(sniff[:n]), src)
-
-		tmpFile, err := os.CreateTemp(mediaDir, "upload-*"+ext)
-		if err != nil {
-			_ = src.Close()
-			r.Error = "Failed to create temp file: " + err.Error()
+		// Optimize + hash in one pass.
+		// Note: GIF is stored as-is to preserve animations.
+		optBytes, mimeType, optErr := services.OptimizeImage(src, ext)
+		_ = src.Close()
+		if optErr != nil {
+			r.Error = "Failed to optimize image: " + optErr.Error()
+			results = append(results, r)
+			errorCount++
+			continue
+		}
+		if len(optBytes) == 0 {
+			r.Error = "Failed to optimize image: empty output"
 			results = append(results, r)
 			errorCount++
 			continue
 		}
 
 		hasher := sha256.New()
-		w := io.MultiWriter(tmpFile, hasher)
-		written, copyErr := io.Copy(w, combined)
-		_ = src.Close()
-		_ = tmpFile.Close()
-		if copyErr != nil {
-			_ = os.Remove(tmpFile.Name())
-			r.Error = "Failed to save file: " + copyErr.Error()
-			results = append(results, r)
-			errorCount++
-			continue
-		}
-
+		_, _ = hasher.Write(optBytes)
+		written := int64(len(optBytes))
 		hashHex := hex.EncodeToString(hasher.Sum(nil))
 		r.SHA256 = hashHex
 
 		var existing models.MediaAsset
 		if e := db.Where("sha256 = ?", hashHex).First(&existing).Error; e == nil {
-			_ = os.Remove(tmpFile.Name())
 			resp := existing.ToResponse()
 			r.Duplicate = true
 			r.Asset = &resp
@@ -234,7 +225,6 @@ func (mc *MediaController) Upload(c *gin.Context) {
 			successCount++
 			continue
 		} else if e != nil && !errors.Is(e, gorm.ErrRecordNotFound) {
-			_ = os.Remove(tmpFile.Name())
 			r.Error = "Database error: " + e.Error()
 			results = append(results, r)
 			errorCount++
@@ -245,20 +235,16 @@ func (mc *MediaController) Upload(c *gin.Context) {
 		finalPath := filepath.Join(mediaDir, finalName)
 		relPath := filepath.ToSlash(filepath.Join("media", finalName))
 
-		// In the unlikely event it already exists on disk, remove temp and continue to create DB record.
-		if _, statErr := os.Stat(finalPath); statErr == nil {
-			_ = os.Remove(tmpFile.Name())
-		} else {
-			if err := os.Rename(tmpFile.Name(), finalPath); err != nil {
-				_ = os.Remove(tmpFile.Name())
-				r.Error = "Failed to finalize file: " + err.Error()
+		// Write optimized bytes to final path.
+		// If it already exists (same SHA), we skip writing.
+		if _, statErr := os.Stat(finalPath); statErr != nil {
+			if err := os.WriteFile(finalPath, optBytes, 0o644); err != nil {
+				r.Error = "Failed to write optimized file: " + err.Error()
 				results = append(results, r)
 				errorCount++
 				continue
 			}
 		}
-
-		mimeType := http.DetectContentType(sniff[:n])
 		asset := models.MediaAsset{
 			OriginalName: fh.Filename,
 			FileName:     finalName,
