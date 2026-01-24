@@ -91,7 +91,7 @@ export default function FAQPage() {
                   How can I get technical support?
                 </h2>
                 <p className="text-gray-700 leading-relaxed">
-                  Our technical support team is available via email at support@vcocnc.com or phone. We provide installation guidance, troubleshooting, compatibility assistance, and replacement recommendations.
+                  Our technical support team is available via email at 13348028050@139.com or phone. We provide installation guidance, troubleshooting, compatibility assistance, and replacement recommendations.
                 </p>
               </div>
 
@@ -157,7 +157,7 @@ export default function FAQPage() {
                   Contact Us
                 </a>
                 <a
-                  href="mailto:support@vcocnc.com"
+                  href="mailto:13348028050@139.com"
                   className="bg-white text-amber-600 border border-amber-600 px-6 py-3 rounded-lg hover:bg-amber-50 transition-colors"
                 >
                   Email Support

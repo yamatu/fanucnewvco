@@ -22,15 +22,17 @@ export default function ContactPage() {
     {
       icon: EnvelopeIcon,
       label: 'Email',
-      value: 'sales@vcocnc.com',
-      link: 'mailto:sales@vcocnc.com',
+      value: '13348028050@139.com',
+      link: 'mailto:13348028050@139.com',
+
       description: 'Send us an email anytime',
     },
     {
       icon: PhoneIcon,
       label: 'Phone',
-      value: '+86 512 5512 5799',
-      link: 'tel:+865125512579',
+      value: '+86 13348028050',
+      link: 'tel:+8613348028050',
+
       description: 'Monday to Friday, 9:00 AM - 6:00 PM (China Time)',
     },
     {

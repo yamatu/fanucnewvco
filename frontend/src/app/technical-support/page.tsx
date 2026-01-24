@@ -25,7 +25,7 @@ export default function TechnicalSupportPage() {
 
         <section className="space-y-2 mt-8">
           <h2 className="text-xl font-semibold">Contact</h2>
-          <p className="text-gray-700">Email: sales@vcocnc.com • Phone: +86-18691666648</p>
+          <p className="text-gray-700">Email: 13348028050@139.com • Phone: +86-13348028050</p>
           <p className="text-gray-500">24/7 priority support available for urgent production issues</p>
         </section>
       </main>

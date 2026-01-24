@@ -184,12 +184,13 @@ export function ProductSEO({ product, category, categoryBreadcrumb }: ProductSEO
               "addressRegion": "Jiangsu",
               "addressLocality": "Kunshan"
             },
-            "contactPoint": {
-              "@type": "ContactPoint",
-              "telephone": "+86-18691666648",
-              "contactType": "sales",
-              "email": "sales@vcocnc.com"
-            },
+             "contactPoint": {
+               "@type": "ContactPoint",
+               "telephone": "+86-13348028050",
+               "contactType": "sales",
+               "email": "13348028050@139.com"
+             },
+
             "sameAs": [
               "https://www.vcocnc.com"
             ]

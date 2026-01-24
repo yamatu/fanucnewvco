@@ -101,8 +101,10 @@ export default function RootLayout({
               },
               "contactPoint": {
                 "@type": "ContactPoint",
-                "contactType": "sales",
-                "email": "sales@vcocnc.com"
+              "contactType": "sales",
+              "email": "13348028050@139.com",
+              "telephone": "+86-13348028050"
+
               },
               "sameAs": [
                 "https://www.linkedin.com/company/vcocnc",

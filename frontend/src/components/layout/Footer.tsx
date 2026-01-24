@@ -103,12 +103,12 @@ export function Footer() {
 
               <div className="flex items-center space-x-3">
                 <PhoneIcon className="h-5 w-5 text-yellow-400 flex-shrink-0" />
-                <span className="text-gray-300">+86 18691666648</span>
+                <span className="text-gray-300">+86 13348028050</span>
               </div>
 
               <div className="flex items-center space-x-3">
                 <EnvelopeIcon className="h-5 w-5 text-yellow-400 flex-shrink-0" />
-                <span className="text-gray-300">sales@vcocnc.com</span>
+                <span className="text-gray-300">13348028050@139.com</span>
               </div>
 
               <div className="flex items-center space-x-3">

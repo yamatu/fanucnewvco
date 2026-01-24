@@ -45,16 +45,18 @@ export function generateOrganizationSchema() {
       {
         "@type": "ContactPoint",
         "contactType": "sales",
-        "telephone": "+86-512-57826888",
-        "email": "sales@vcocnc.com",
+        "telephone": "+86-13348028050",
+        "email": "13348028050@139.com",
+
         "availableLanguage": ["en", "zh"],
         "areaServed": "Worldwide"
       },
       {
         "@type": "ContactPoint",
         "contactType": "technical support",
-        "telephone": "+86-512-57826888",
-        "email": "support@vcocnc.com",
+        "telephone": "+86-13348028050",
+        "email": "13348028050@139.com",
+
         "availableLanguage": ["en", "zh"],
         "areaServed": "Worldwide"
       }
@@ -233,7 +235,8 @@ export function generateFAQSchema() {
         "name": "How can I get technical support?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Our technical support team is available via email at support@vcocnc.com or phone. We provide installation guidance, troubleshooting, and compatibility assistance."
+          "text": "Our technical support team is available via email at 13348028050@139.com or phone. We provide installation guidance, troubleshooting, and compatibility assistance."
+
         }
       }
     ]
@@ -252,8 +255,9 @@ export function generateLocalBusinessSchema() {
       `${baseUrl}/images/company-banner.jpg`,
       `${baseUrl}/android-chrome-512x512.png`
     ],
-    "telephone": "+86-512-57826888",
-    "email": "sales@vcocnc.com",
+    "telephone": "+86-13348028050",
+    "email": "13348028050@139.com",
+
     "address": {
       "@type": "PostalAddress",
       "streetAddress": process.env.NEXT_PUBLIC_COMPANY_STREET || "Industrial Park Road",

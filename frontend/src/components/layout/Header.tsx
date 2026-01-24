@@ -62,11 +62,13 @@ export function Header() {
             <div className="flex items-center space-x-6">
               <div className="flex items-center space-x-2">
                 <PhoneIcon className="h-4 w-4" />
-                <span suppressHydrationWarning>+86 18691666648</span>
+                <span suppressHydrationWarning>+86 13348028050</span>
+
               </div>
               <div className="flex items-center space-x-2">
                 <EnvelopeIcon className="h-4 w-4" />
-                <span suppressHydrationWarning>sales@vcocnc.com</span>
+                <span suppressHydrationWarning>13348028050@139.com</span>
+
               </div>
             </div>
             <div className="hidden md:flex items-center space-x-4">
