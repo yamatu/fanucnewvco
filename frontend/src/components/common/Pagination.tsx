@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -14,6 +15,7 @@ interface PaginationProps {
   showFirstLast?: boolean;
   showPageNumbers?: boolean;
   maxVisiblePages?: number;
+  showJump?: boolean;
   className?: string;
 }
 
@@ -24,9 +26,16 @@ export default function Pagination({
   showFirstLast = true,
   showPageNumbers = true,
   maxVisiblePages = 5,
+  showJump = false,
   className = ''
 }: PaginationProps) {
   if (totalPages <= 1) return null;
+
+  const [jumpValue, setJumpValue] = useState(String(currentPage));
+
+  useEffect(() => {
+    setJumpValue(String(currentPage));
+  }, [currentPage]);
 
   const getVisiblePages = () => {
     const pages: (number | string)[] = [];
@@ -93,9 +102,35 @@ export default function Pagination({
         >
           Previous
         </button>
-        <span className="relative inline-flex items-center px-4 py-2 text-sm text-gray-700">
-          Page {currentPage} of {totalPages}
-        </span>
+        {showJump ? (
+          <div className="relative inline-flex items-center gap-2 px-2 py-2 text-sm text-gray-700">
+            <span className="text-xs text-gray-600">Page</span>
+            <input
+              inputMode="numeric"
+              type="number"
+              min={1}
+              max={totalPages}
+              value={jumpValue}
+              onChange={(e) => setJumpValue(e.target.value)}
+              className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm"
+            />
+            <span className="text-xs text-gray-600">/ {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => {
+                const n = Number(jumpValue);
+                if (Number.isFinite(n)) onPageChange(Math.min(totalPages, Math.max(1, n)));
+              }}
+              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm"
+            >
+              Go
+            </button>
+          </div>
+        ) : (
+          <span className="relative inline-flex items-center px-4 py-2 text-sm text-gray-700">
+            Page {currentPage} of {totalPages}
+          </span>
+        )}
         <button
           onClick={() => handlePageClick(currentPage + 1)}
           disabled={!canGoNext}
@@ -113,7 +148,33 @@ export default function Pagination({
           </p>
         </div>
         <div>
-          <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+          <div className="flex items-center gap-3">
+            {showJump ? (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Go to</span>
+                <input
+                  inputMode="numeric"
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={jumpValue}
+                  onChange={(e) => setJumpValue(e.target.value)}
+                  className="w-20 rounded-md border border-gray-300 px-2 py-1 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const n = Number(jumpValue);
+                    if (Number.isFinite(n)) onPageChange(Math.min(totalPages, Math.max(1, n)));
+                  }}
+                  className="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Go
+                </button>
+              </div>
+            ) : null}
+
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
             {/* First page button */}
             {showFirstLast && (
               <button
@@ -180,6 +241,7 @@ export default function Pagination({
               </button>
             )}
           </nav>
+          </div>
         </div>
       </div>
     </nav>

@@ -186,10 +186,10 @@ export function CompanyStats({ content }: Props) {
                 {data.ctaPrimary?.text || 'Contact Our Experts'}
               </a>
               <a
-                href={data.ctaSecondary?.href || '/categories'}
+                href={data.ctaSecondary?.href || '/products'}
                 className="border-2 border-yellow-500 text-yellow-600 hover:bg-yellow-500 hover:text-black px-8 py-3 rounded-lg font-semibold transition-colors duration-300"
               >
-                {data.ctaSecondary?.text || 'Browse Categories'}
+                {data.ctaSecondary?.text || 'Browse Products'}
               </a>
             </div>
           </div>

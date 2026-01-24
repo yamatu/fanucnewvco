@@ -56,6 +56,7 @@ func SetupRoutes(r *gin.Engine) {
 		{
 			// Categories (public read access) - cached
 			public.GET("/categories", middleware.CachePublicGET(middleware.CacheTTLCategories(), "cache:public:categories:"), categoryController.GetCategories)
+			public.GET("/categories/path/*path", categoryController.GetCategoryByPath)
 
 			public.GET("/categories/:id", categoryController.GetCategory)
 			public.GET("/categories/slug/:slug", categoryController.GetCategoryBySlug)
@@ -121,6 +122,7 @@ func SetupRoutes(r *gin.Engine) {
 				categories.GET("", categoryController.GetCategories)
 				categories.GET("/:id", categoryController.GetCategory)
 				categories.POST("", categoryController.CreateCategory)
+				categories.PUT("/reorder", categoryController.ReorderCategories)
 				categories.PUT("/:id", categoryController.UpdateCategory)
 				categories.DELETE("/:id", middleware.AdminOnly(), categoryController.DeleteCategory)
 			}

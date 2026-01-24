@@ -10,6 +10,7 @@ export interface ProductFilters {
   page?: number;
   page_size?: number;
   category_id?: string;
+  include_descendants?: string;
   brand?: string;
   search?: string;
   is_active?: string;

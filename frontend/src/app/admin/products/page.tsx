@@ -151,13 +151,13 @@ function AdminProductsContent() {
     }
   }, [isLoading, productsData]);
 
-  // Fetch categories for filter dropdown
-  const { data: categoriesData } = useQuery({
+  // Fetch categories for filter dropdown (admin sees full list)
+  const { data: categoriesData = [] } = useQuery({
     queryKey: queryKeys.categories.lists(),
-    queryFn: () => CategoryService.getCategories(),
+    queryFn: () => CategoryService.getAdminCategories(),
   });
 
-  const categories = categoriesData?.data || [];
+  const categories = Array.isArray(categoriesData) ? categoriesData : [];
 
   // Bulk update mutation
   const bulkUpdateMutation = useMutation({

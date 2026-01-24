@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	neturl "net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -180,6 +181,7 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 
 	// Parse filters
 	categoryID := c.Query("category_id")
+	includeDesc := c.Query("include_descendants") == "true"
 	brand := c.Query("brand")
 	search := c.Query("search")
 	isActive := c.Query("is_active")
@@ -199,7 +201,21 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 
 	// Apply filters
 	if categoryID != "" {
-		query = query.Where("category_id = ?", categoryID)
+		if includeDesc {
+			rootID, err := strconv.ParseUint(categoryID, 10, 32)
+			if err == nil && rootID > 0 {
+				ids, derr := getDescendantCategoryIDs(db, uint(rootID))
+				if derr == nil && len(ids) > 0 {
+					query = query.Where("category_id IN ?", ids)
+				} else {
+					query = query.Where("category_id = ?", categoryID)
+				}
+			} else {
+				query = query.Where("category_id = ?", categoryID)
+			}
+		} else {
+			query = query.Where("category_id = ?", categoryID)
+		}
 	}
 
 	if brand != "" {
@@ -257,6 +273,45 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 		Message: "Products retrieved successfully",
 		Data:    response,
 	})
+}
+
+// getDescendantCategoryIDs returns a slice containing rootID and all its descendants' IDs.
+// It uses an in-memory walk to avoid DB-specific recursion requirements.
+func getDescendantCategoryIDs(db *gorm.DB, rootID uint) ([]uint, error) {
+	// Load only what we need.
+	type row struct {
+		ID       uint
+		ParentID *uint
+	}
+	var rows []row
+	if err := db.Model(&models.Category{}).Select("id,parent_id").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	children := make(map[uint][]uint)
+	for _, r := range rows {
+		if r.ParentID == nil {
+			continue
+		}
+		children[*r.ParentID] = append(children[*r.ParentID], r.ID)
+	}
+
+	// DFS with cycle protection.
+	visited := make(map[uint]bool)
+	out := make([]uint, 0)
+	var walk func(id uint)
+	walk = func(id uint) {
+		if visited[id] {
+			return
+		}
+		visited[id] = true
+		out = append(out, id)
+		for _, kid := range children[id] {
+			walk(kid)
+		}
+	}
+	walk(rootID)
+	return out, nil
 }
 
 // LookupSEO fetches SEO/content suggestion by SKU without requiring an existing product

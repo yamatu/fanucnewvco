@@ -146,6 +146,9 @@ export interface Category {
   id: number;
   name: string;
   slug: string;
+  // Computed full path for nested categories, e.g. "fanuc-controls/fanuc-power-mate".
+  // Present on tree/list endpoints.
+  path?: string;
   description: string;
   image_url: string;
   parent_id?: number;

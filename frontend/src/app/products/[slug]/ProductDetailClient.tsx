@@ -85,6 +85,26 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
     staleTime: 600000,
   });
 
+  const resolveCategoryHref = () => {
+    const tree: any[] = Array.isArray(allCategories) ? (allCategories as any) : [];
+    const targetId = product?.category_id;
+    if (!targetId) return null;
+    const findById = (nodes: any[]): any => {
+      for (const n of nodes) {
+        if (Number(n.id) === Number(targetId)) return n;
+        if (Array.isArray(n.children) && n.children.length > 0) {
+          const hit = findById(n.children);
+          if (hit) return hit;
+        }
+      }
+      return null;
+    };
+    const node = findById(tree);
+    if (node?.path) return `/${node.path}`;
+    if (product?.category?.slug) return `/${product.category.slug}`;
+    return null;
+  };
+
   const handleAddToCart = () => {
     if (product) {
       addItem(product, quantity);
@@ -201,9 +221,15 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
               <span>/</span>
               {product.category && (
                 <>
-                  <Link href={`/categories/${product.category.slug}`} className="hover:text-yellow-600">
-                    {product.category.name}
-                  </Link>
+                  {(() => {
+                    const href = resolveCategoryHref();
+                    if (!href) return <span>{product.category.name}</span>;
+                    return (
+                      <Link href={href} className="hover:text-yellow-600">
+                        {product.category.name}
+                      </Link>
+                    );
+                  })()}
                   <span>/</span>
                 </>
               )}

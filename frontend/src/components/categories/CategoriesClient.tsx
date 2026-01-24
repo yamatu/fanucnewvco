@@ -31,6 +31,7 @@ interface Category {
   id: number;
   name: string;
   slug: string;
+  path?: string;
   description: string;
   image_url?: string;
   icon_name?: string;
@@ -155,7 +156,7 @@ export default function CategoriesClient({ initialCategories = [] }: CategoriesC
         return (
           <Link
             key={category.id}
-            href={`/categories/${category.slug}`}
+            href={`/categories/${category.path || category.slug}`}
             className="group bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
           >
             <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">

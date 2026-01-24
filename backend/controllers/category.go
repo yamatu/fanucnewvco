@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"fanuc-backend/config"
 	"fanuc-backend/models"
@@ -19,44 +20,125 @@ type CategoryController struct{}
 func (cc *CategoryController) GetCategories(c *gin.Context) {
 	db := config.GetDB()
 
-	// Parse query parameters
 	flat := c.Query("flat") == "true"
-	includeProducts := c.Query("include_products") == "true"
+	includeInactive := c.Query("include_inactive") == "true"
 
-	var categories []models.Category
-	query := db.Model(&models.Category{}).Where("is_active = ?", true).Order("sort_order ASC, name ASC")
-
-	if includeProducts {
-		query = query.Preload("Products", "is_active = ?", true)
+	query := db.Model(&models.Category{}).Order("sort_order ASC, name ASC")
+	if !includeInactive {
+		query = query.Where("is_active = ?", true)
 	}
 
+	var cats []models.Category
+	if err := query.Find(&cats).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database error", Error: err.Error()})
+		return
+	}
+
+	tree := services.BuildCategoryTree(cats)
 	if flat {
-		// Return flat list of categories
-		if err := query.Find(&categories).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, models.APIResponse{
-				Success: false,
-				Message: "Database error",
-				Error:   err.Error(),
-			})
-			return
-		}
-	} else {
-		// Return hierarchical structure (root categories with children)
-		if err := query.Where("parent_id IS NULL").Preload("Children", "is_active = ?", true).Find(&categories).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, models.APIResponse{
-				Success: false,
-				Message: "Database error",
-				Error:   err.Error(),
-			})
-			return
-		}
+		c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Categories retrieved successfully", Data: services.FlattenCategoryTree(tree)})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Categories retrieved successfully", Data: tree})
+}
+
+// GetCategoryByPath resolves a category by nested slug path, e.g. "fanuc-controls/fanuc-power-mate".
+// GET /api/v1/public/categories/path/*path
+func (cc *CategoryController) GetCategoryByPath(c *gin.Context) {
+	path := strings.Trim(c.Param("path"), "/")
+	if path == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid path", Error: "empty_path"})
+		return
 	}
 
-	c.JSON(http.StatusOK, models.APIResponse{
-		Success: true,
-		Message: "Categories retrieved successfully",
-		Data:    categories,
+	// Compute paths using one scan of active categories.
+	db := config.GetDB()
+	var all []models.Category
+	if err := db.Model(&models.Category{}).Where("is_active = ?", true).Order("sort_order ASC, name ASC").Find(&all).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database error", Error: err.Error()})
+		return
+	}
+	tree := services.BuildCategoryTree(all)
+	flat := services.FlattenCategoryTree(tree)
+
+	byID := make(map[uint]services.CategoryNode, len(flat))
+	for _, n := range flat {
+		byID[n.ID] = n
+	}
+
+	var node *services.CategoryNode
+	for i := range flat {
+		if flat[i].Path == path {
+			node = &flat[i]
+			break
+		}
+	}
+	if node == nil {
+		c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Category not found", Error: "category_not_found"})
+		return
+	}
+
+	// Build breadcrumb by following parent_id chain.
+	breadcrumbNodes := make([]services.CategoryNode, 0, 8)
+	cur := *node
+	for {
+		breadcrumbNodes = append(breadcrumbNodes, cur)
+		if cur.ParentID == nil {
+			break
+		}
+		p, ok := byID[*cur.ParentID]
+		if !ok {
+			break
+		}
+		cur = p
+	}
+	// reverse
+	for i, j := 0, len(breadcrumbNodes)-1; i < j; i, j = i+1, j-1 {
+		breadcrumbNodes[i], breadcrumbNodes[j] = breadcrumbNodes[j], breadcrumbNodes[i]
+	}
+
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Category retrieved successfully", Data: gin.H{"category": node, "breadcrumb": breadcrumbNodes}})
+}
+
+type reorderCategoryItem struct {
+	ID        uint  `json:"id"`
+	ParentID  *uint `json:"parent_id"`
+	SortOrder int   `json:"sort_order"`
+}
+
+// ReorderCategories updates parent_id + sort_order for categories in bulk.
+// PUT /api/v1/admin/categories/reorder
+func (cc *CategoryController) ReorderCategories(c *gin.Context) {
+	var items []reorderCategoryItem
+	if err := c.ShouldBindJSON(&items); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request data", Error: err.Error()})
+		return
+	}
+	if len(items) == 0 {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request data", Error: "empty_items"})
+		return
+	}
+
+	db := config.GetDB()
+	err := db.Transaction(func(tx *gorm.DB) error {
+		for _, it := range items {
+			if it.ID == 0 {
+				continue
+			}
+			updates := map[string]any{"sort_order": it.SortOrder, "parent_id": it.ParentID}
+			if e := tx.Model(&models.Category{}).Where("id = ?", it.ID).Updates(updates).Error; e != nil {
+				return e
+			}
+		}
+		return nil
 	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to reorder categories", Error: err.Error()})
+		return
+	}
+
+	services.InvalidatePublicCaches(c.Request.Context(), "category:reorder", nil)
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Categories reordered successfully"})
 }
 
 // GetCategory returns a single category by ID

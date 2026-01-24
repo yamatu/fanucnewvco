@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
-import { getSiteUrl } from '@/lib/url'
+import { getRequestBaseUrl } from '@/lib/request-url'
 import { CategoryService } from '@/services/category.service'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 3600 // 1 hour
 
 export async function GET() {
-  const baseUrl = getSiteUrl()
+  const baseUrl = await getRequestBaseUrl()
   
   let categories: any[] = []
   try {
@@ -16,12 +16,23 @@ export async function GET() {
     return new NextResponse('Error generating sitemap', { status: 500 })
   }
 
-  const categoryPages = categories.map((category) => ({
-    url: `${baseUrl}/categories/${category.slug}`,
-    lastModified: category.updated_at ? new Date(category.updated_at).toISOString() : new Date().toISOString(),
-    changeFrequency: 'weekly',
-    priority: '0.8',
-  }))
+  const flat: any[] = []
+  const walk = (nodes: any[]) => {
+    for (const n of nodes) {
+      flat.push(n)
+      if (Array.isArray(n.children) && n.children.length > 0) walk(n.children)
+    }
+  }
+  walk(categories)
+
+  const categoryPages = flat
+    .filter((c) => c && (c.path || c.slug))
+    .map((category) => ({
+      url: `${baseUrl}/categories/${category.path || category.slug}`,
+      lastModified: category.updated_at ? new Date(category.updated_at).toISOString() : new Date().toISOString(),
+      changeFrequency: 'weekly',
+      priority: '0.8',
+    }))
 
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

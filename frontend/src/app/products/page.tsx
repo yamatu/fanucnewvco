@@ -4,6 +4,7 @@ import { ProductService, CategoryService } from '@/services';
 import { getSiteUrl } from '@/lib/url';
 import { toProductPathId } from '@/lib/utils';
 import ProductsPageClient from './ProductsPageClient';
+import ScrollRestorer from '@/components/common/ScrollRestorer';
 
 // Generate dynamic metadata for products page
 export async function generateMetadata({ searchParams }: {
@@ -20,14 +21,26 @@ export async function generateMetadata({ searchParams }: {
   if (categoryId) {
     try {
       const categories = await CategoryService.getCategories();
-      const category = categories.find(c => c.id.toString() === categoryId);
+      const findById = (nodes: any[], id: string): any => {
+        for (const n of nodes) {
+          if (String(n.id) === id) return n;
+          if (Array.isArray(n.children) && n.children.length > 0) {
+            const hit = findById(n.children, id);
+            if (hit) return hit;
+          }
+        }
+        return null;
+      };
+      const category: any = findById(categories as any, String(categoryId));
       if (category) {
         title = `${category.name} - FANUC Parts | Vcocnc`;
         description = `Professional ${category.name} for FANUC CNC systems. High-quality industrial automation components with worldwide shipping.`;
+        const catUrl = `${getSiteUrl()}/categories/${category.path || category.slug}`;
         // Prefer canonical to dedicated category page
         return {
           title,
           description,
+          robots: { index: false, follow: true },
           keywords: [
             'FANUC parts', 'CNC parts', 'industrial automation', 'servo motors', 'PCB boards',
             'I/O modules', 'control units', category.name
@@ -36,10 +49,10 @@ export async function generateMetadata({ searchParams }: {
             title,
             description,
             type: 'website',
-            url: `${getSiteUrl()}/categories/${category.slug}`,
+            url: catUrl,
           },
           alternates: {
-            canonical: `${getSiteUrl()}/categories/${category.slug}`,
+            canonical: catUrl,
           },
         };
       }
@@ -96,6 +109,7 @@ async function getServerSideData(searchParams: { [key: string]: string | string[
       ProductService.getProducts({
         search: searchStr,
         category_id: categoryIdStr,
+        include_descendants: categoryIdStr ? 'true' : undefined,
         is_active: 'true',
         page,
         page_size: 12,
@@ -209,6 +223,7 @@ export default async function ProductsPage({
 
   return (
     <>
+      <ScrollRestorer storageKey="products-scroll-y" />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

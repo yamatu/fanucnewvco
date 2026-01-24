@@ -78,17 +78,17 @@ export default function ProductCard({
       <div className="relative">
         {/* Product Image */}
         <Link href={`/products/${toProductPathId(product.sku)}`} className="block">
-          <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-t-lg bg-gray-200">
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-lg bg-gray-200">
             {imageUrl && imageUrl !== '/images/placeholder.svg' ? (
               <Image
                 src={imageUrl}
                 alt={product.name}
-                width={300}
-                height={300}
-                className="h-48 w-full object-cover object-center group-hover:opacity-75 transition-opacity"
+                fill
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="object-cover object-center"
               />
             ) : (
-              <div className="h-48 w-full bg-gray-200 flex items-center justify-center">
+              <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
                 <span className="text-gray-400 text-sm">No Image</span>
               </div>
             )}
@@ -186,4 +186,3 @@ export default function ProductCard({
     </div>
   );
 }
-

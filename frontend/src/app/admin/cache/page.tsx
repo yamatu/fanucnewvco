@@ -404,7 +404,7 @@ export default function AdminCachePage() {
               placeholder={`https://www.example.com/\nhttps://www.example.com/products`}
             />
             <div className="mt-1 text-xs text-gray-500">
-              {t('cache.customUrlsHint', 'Leave empty to purge a safe default set: /, /products, /categories.')}
+              {t('cache.customUrlsHint', 'Leave empty to purge a safe default set: /, /products.')}
             </div>
           </label>
 

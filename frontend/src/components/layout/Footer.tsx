@@ -11,11 +11,11 @@ import {
 
 const footerNavigation = {
   products: [
-    { name: 'FANUC Amplifiers', href: '/categories/amplifiers' },
-    { name: 'Servo Motors', href: '/categories/motors' },
-    { name: 'Encoders', href: '/categories/encoders' },
-    { name: 'PLC Modules', href: '/categories/plc-modules' },
-    { name: 'CNC Inverters', href: '/categories/inverters' },
+    { name: 'FANUC Amplifiers', href: '/products?search=amplifier' },
+    { name: 'Servo Motors', href: '/products?search=servo%20motor' },
+    { name: 'Encoders', href: '/products?search=encoder' },
+    { name: 'PLC Modules', href: '/products?search=plc' },
+    { name: 'CNC Inverters', href: '/products?search=inverter' },
   ],
   services: [
     { name: 'FANUC Parts Sales', href: '/about' },
@@ -26,8 +26,8 @@ const footerNavigation = {
   ],
   company: [
     { name: 'About Vcocnc', href: '/about' },
-    { name: 'Product Categories', href: '/categories' },
-    { name: 'FANUC Partners', href: '/categories' },
+    { name: 'Product Categories', href: '/products' },
+    { name: 'FANUC Partners', href: '/about' },
     { name: 'Our Workshop', href: '/about' },
     { name: 'Company Profile', href: '/about' },
   ],
@@ -260,10 +260,10 @@ export function Footer() {
                 </svg>
               </Link>
               <Link
-                href="/categories"
+                href="/products"
                 className="text-gray-400 hover:text-white text-sm transition-colors duration-200"
               >
-                FANUC Categories
+                Product Categories
               </Link>
               <Link
                 href="/products"

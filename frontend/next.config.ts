@@ -20,6 +20,12 @@ const nextConfig: NextConfig = {
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
 
     return [
+      // Serve /sitemap-products/:page.xml from an internal route without the ".xml" segment.
+      // This avoids Next route segment edge cases and keeps the public URL stable.
+      {
+        source: '/sitemap-products/:page.xml',
+        destination: '/sitemap-products/:page',
+      },
       // When you run without an external Nginx (directly hitting Next on :3000),
       // proxy /uploads/* to the backend so uploaded images keep working.
       {
@@ -116,7 +122,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: '/sitemap-products-:page.xml',
+        source: '/sitemap-products/:page.xml',
         headers: [
           { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, proxy-revalidate' },
           { key: 'Pragma', value: 'no-cache' },

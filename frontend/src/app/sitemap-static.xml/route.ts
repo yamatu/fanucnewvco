@@ -1,11 +1,11 @@
-import { getSiteUrl } from '@/lib/url'
+import { getRequestBaseUrl } from '@/lib/request-url'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 86400 // 24 hours
 
 export async function GET() {
-  const baseUrl = getSiteUrl()
+  const baseUrl = await getRequestBaseUrl()
   
   const staticPages = [
     {
@@ -18,12 +18,6 @@ export async function GET() {
       url: `${baseUrl}/products`,
       lastModified: new Date().toISOString(),
       changeFrequency: 'hourly',
-      priority: '0.9',
-    },
-    {
-      url: `${baseUrl}/categories`,
-      lastModified: new Date().toISOString(),
-      changeFrequency: 'daily',
       priority: '0.9',
     },
     {

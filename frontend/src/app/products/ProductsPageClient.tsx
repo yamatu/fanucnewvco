@@ -15,6 +15,7 @@ import {
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import Layout from '@/components/layout/Layout';
 import SmartPagination from '@/components/ui/SmartPagination';
+import CategoryFilterTree from '@/components/categories/CategoryFilterTree';
 import { formatCurrency, getProductImageUrl, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 
@@ -100,11 +101,14 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
     const timer = setTimeout(() => {
       const params = new URLSearchParams();
       if (searchQuery) params.set('search', searchQuery);
-      if (selectedCategory) params.set('category_id', selectedCategory);
+      if (selectedCategory) {
+        params.set('category_id', selectedCategory);
+        params.set('include_descendants', 'true');
+      }
 
       const newUrl = `/products${params.toString() ? '?' + params.toString() : ''}`;
       if (newUrl !== window.location.pathname + window.location.search) {
-        router.push(newUrl);
+        router.push(newUrl, { scroll: false });
       }
     }, 500); // Increased debounce time
 
@@ -115,6 +119,11 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
 
   // Handle category change
   const handleCategoryChange = (categoryId: string) => {
+    try {
+      window.sessionStorage.setItem('products-scroll-y', String(window.scrollY || 0));
+    } catch {
+      // ignore
+    }
     setSelectedCategory(categoryId);
     // The useEffect above will handle the URL update
   };
@@ -124,10 +133,13 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
     setCurrentPage(page);
     const params = new URLSearchParams();
     if (searchQuery) params.set('search', searchQuery);
-    if (selectedCategory) params.set('category_id', selectedCategory);
+    if (selectedCategory) {
+      params.set('category_id', selectedCategory);
+      params.set('include_descendants', 'true');
+    }
     if (page > 1) params.set('page', page.toString());
 
-    router.push(`/products?${params.toString()}`);
+    router.push(`/products?${params.toString()}`, { scroll: false });
   };
 
 
@@ -192,32 +204,13 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
               {/* Categories */}
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Categories</h3>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="category"
-                      value=""
-                      checked={selectedCategory === ''}
-                      onChange={(e) => handleCategoryChange(e.target.value)}
-                      className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">All Categories</span>
-                  </label>
-                  {initialData.categories.map((category) => (
-                    <label key={category.id} className="flex items-center">
-                      <input
-                        type="radio"
-                        name="category"
-                        value={category.id.toString()}
-                        checked={selectedCategory === category.id.toString()}
-                        onChange={(e) => handleCategoryChange(e.target.value)}
-                        className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">{category.name}</span>
-                    </label>
-                  ))}
-                </div>
+                <CategoryFilterTree
+                  tree={initialData.categories as any}
+                  selectedCategoryId={selectedCategory ? Number(selectedCategory) : null}
+                  onSelectCategory={(id) => handleCategoryChange(id ? String(id) : '')}
+                  storageKey="products-category-open-ids"
+                  allLabel="All Products"
+                />
               </div>
 
 

@@ -52,7 +52,7 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
       image: 'https://s2.loli.net/2025/08/26/17MRNhXEcrKTdDY.png',
       cta: {
         primary: { text: 'Get Support', href: '/contact' },
-        secondary: { text: 'View Categories', href: '/categories' },
+        secondary: { text: 'Browse Products', href: '/products' },
       },
     },
   ],
@@ -160,7 +160,7 @@ export const DEFAULT_COMPANY_STATS_DATA: CompanyStatsData = {
   ctaDescription:
     'We have a professional team to provide services including sales, testing and maintenance. Join thousands of satisfied customers worldwide.',
   ctaPrimary: { text: 'Contact Our Experts', href: '/contact' },
-  ctaSecondary: { text: 'Browse Categories', href: '/categories' },
+  ctaSecondary: { text: 'Browse Products', href: '/products' },
 };
 
 export type WorkshopFacilityItem = {
@@ -428,4 +428,3 @@ export function getDefaultDataBySectionKey(key: string): any | null {
   if (key === 'featured_products') return DEFAULT_FEATURED_PRODUCTS_SECTION_DATA;
   return null;
 }
-

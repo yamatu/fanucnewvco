@@ -75,32 +75,27 @@ export function formatFileSize(bytes: number): string {
 export function getImageUrl(imagePath: string, fallback: string = '/images/placeholder.svg'): string {
   if (!imagePath) return fallback;
   
-  // If it's already a full URL, return as is
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
-  }
-  
   // If it's a full URL that points to /uploads/*, normalize to a relative path.
-  // This avoids mixed-content issues when the site is behind HTTPS.
+  // This avoids broken internal hostnames like http://backend:8080 on SSR/refresh.
   if ((imagePath.startsWith('http://') || imagePath.startsWith('https://')) && imagePath.includes('/uploads/')) {
     try {
       const u = new URL(imagePath);
       if (u.pathname.startsWith('/uploads/')) return u.pathname;
     } catch {
-      // ignore
+      // fall through
     }
   }
 
-  // If it starts with /uploads, prefer relative path in the browser.
-  // If you run without external Nginx, Next rewrites /uploads/* -> backend.
+  // If it's already a full URL (non-uploads), return as is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+
+  // If it starts with /uploads, always return the relative path.
+  // - Dev: next.config rewrites /uploads/* -> backend
+  // - Prod: reverse-proxy should forward /uploads/* -> backend
   if (imagePath.startsWith('/uploads')) {
-    const isBrowser = typeof window !== 'undefined';
-    if (isBrowser) {
-      return imagePath;
-    }
-    // Server (SSR): use API base from env
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8080';
-    return `${apiBaseUrl}${imagePath}`;
+    return imagePath;
   }
   
   // Otherwise, treat as relative path and ensure it starts with /
@@ -127,16 +122,16 @@ export function getProductImageUrl(imageUrls: string[] | any[] | any, fallback: 
           const parsed = JSON.parse(s);
           if (Array.isArray(parsed) && parsed.length > 0) {
             const first = parsed[0];
-            if (typeof first === 'string') return first || fallback;
-            if (first && typeof first === 'object' && first.url) return first.url || fallback;
+            if (typeof first === 'string') return getImageUrl(first, fallback);
+            if (first && typeof first === 'object' && first.url) return getImageUrl(String(first.url || ''), fallback);
           }
         } catch {/* fall through */}
       }
       // Otherwise treat as direct URL
-      return s || fallback;
+      return getImageUrl(s, fallback);
     }
     if (imageUrls && typeof imageUrls === 'object' && imageUrls.url) {
-      return imageUrls.url || fallback;
+      return getImageUrl(String(imageUrls.url || ''), fallback);
     }
     return fallback;
   }
@@ -174,15 +169,15 @@ export function getProductImageUrlByIndex(imageUrls: string[] | any[] | any, ind
             const parsed = JSON.parse(s);
             if (Array.isArray(parsed) && parsed.length > 0) {
               const first = parsed[0];
-              if (typeof first === 'string') return first || fallback;
-              if (first && typeof first === 'object' && first.url) return first.url || fallback;
+              if (typeof first === 'string') return getImageUrl(first, fallback);
+              if (first && typeof first === 'object' && first.url) return getImageUrl(String(first.url || ''), fallback);
             }
           } catch {/* ignore */}
         }
-        return s || fallback;
+        return getImageUrl(s, fallback);
       }
       if (imageUrls && typeof imageUrls === 'object' && imageUrls.url) {
-        return imageUrls.url || fallback;
+        return getImageUrl(String(imageUrls.url || ''), fallback);
       }
     }
     return fallback;
@@ -196,11 +191,11 @@ export function getProductImageUrlByIndex(imageUrls: string[] | any[] | any, ind
 
   // If it's a string (from image_urls array), return it directly
   if (typeof image === 'string') {
-    return image || fallback;
+    return getImageUrl(image, fallback);
   }
 
   // If it's an object (ProductImage), return the url property
-  return image.url || fallback;
+  return getImageUrl(String(image.url || ''), fallback);
 }
 
 // Debounce function

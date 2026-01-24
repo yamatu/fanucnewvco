@@ -90,7 +90,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb }: ProductSEO
         "@type": "ListItem",
         "position": index + 3,
         "name": cat.name,
-        "item": `https://www.vcocncspare.com/categories/${cat.slug}`
+         "item": `https://www.vcocncspare.com/${(cat as any).path || cat.slug}`
       })) || []),
       {
         "@type": "ListItem",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -11,7 +11,9 @@ import {
   MagnifyingGlassIcon,
   PhoneIcon,
   EnvelopeIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  ChevronDownIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import { useCart } from '@/store/cart.store';
 import { useCustomer } from '@/store/customer.store';
@@ -243,16 +245,21 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="lg:hidden border-t border-gray-200">
           <div className="px-4 py-4 space-y-4">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="block text-gray-700 hover:text-yellow-600 font-medium py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {item.name}
-              </Link>
-            ))}
+            {navigation.map((item) => {
+              if (item.name === 'Categories') {
+                return <MobileCategoriesMenu key={item.name} onNavigate={() => setMobileMenuOpen(false)} />;
+              }
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="block text-gray-700 hover:text-yellow-600 font-medium py-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.name}
+                </Link>
+              );
+            })}
             
             {/* Mobile Search */}
             <div className="pt-4 border-t border-gray-200">
@@ -295,75 +302,184 @@ export default Header;
 // --- Categories Dropdown (desktop) ---
 function CategoriesDropdown() {
   const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: queryKeys.categories.lists(),
+    queryKey: queryKeys.categories.tree(),
     queryFn: () => CategoryService.getCategories(),
   });
 
+  const [hoverPath, setHoverPath] = useState<number[]>([]);
+
+  const byId = useMemo(() => {
+    const m = new Map<number, Category>();
+    const walk = (nodes: Category[]) => {
+      for (const n of nodes) {
+        m.set(n.id, n);
+        if (Array.isArray(n.children) && n.children.length > 0) walk(n.children);
+      }
+    };
+    walk(categories);
+    return m;
+  }, [categories]);
+
+  const columns = useMemo(() => {
+    const out: Category[][] = [];
+    if (Array.isArray(categories) && categories.length > 0) out.push(categories);
+    for (const id of hoverPath) {
+      const node = byId.get(id);
+      if (!node || !Array.isArray(node.children) || node.children.length === 0) break;
+      out.push(node.children);
+    }
+    return out;
+  }, [categories, byId, hoverPath]);
+
+  const setHoverAtLevel = (level: number, id: number) => {
+    setHoverPath((prev) => [...prev.slice(0, level), id]);
+  };
+
   return (
     <div className="relative group">
-      <Link
+      <a
         href="/categories"
         className="text-gray-700 hover:text-yellow-600 font-medium transition-colors duration-200 py-2 px-1 block"
       >
         Categories
-      </Link>
+      </a>
       {/* Invisible bridge to prevent hover gap */}
       <div className="absolute top-full left-0 w-full h-2 bg-transparent"></div>
       {/* Dropdown Panel */}
       {Array.isArray(categories) && categories.length > 0 && (
-        <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 ease-in-out transform group-hover:translate-y-0 translate-y-1 absolute left-0 top-full mt-1 w-[480px] max-h-[80vh] overflow-auto rounded-xl border border-gray-100 bg-white shadow-2xl z-50 p-4 backdrop-blur-sm">
+        <div
+          className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 ease-in-out transform group-hover:translate-y-0 translate-y-1 absolute left-0 top-full mt-1 w-[720px] max-h-[80vh] overflow-auto rounded-xl border border-gray-100 bg-white shadow-2xl z-50 p-4 backdrop-blur-sm"
+          onMouseLeave={() => setHoverPath([])}
+        >
           <div className="mb-3 pb-2 border-b border-gray-100">
             <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">Product Categories</h3>
           </div>
-          <CategoryTree categories={categories} level={0} />
+          <div className="flex gap-3">
+            {columns.map((col, level) => (
+              <div key={level} className="min-w-[220px]">
+                <ul className="space-y-0.5">
+                  {col.map((cat) => {
+                    const hasChildren = Array.isArray(cat.children) && cat.children.length > 0;
+                    const isActive = hoverPath[level] === cat.id;
+                    return (
+                      <li key={cat.id}>
+                        <Link
+                          href={`/categories/${cat.path || cat.slug}`}
+                          onMouseEnter={() => setHoverAtLevel(level, cat.id)}
+                          scroll={false}
+                          className={cn(
+                            'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                            isActive ? 'bg-yellow-100 text-yellow-900' : 'text-gray-800 hover:bg-yellow-50 hover:text-yellow-800'
+                          )}
+                        >
+                          <span className="min-w-0 flex-1 truncate">{cat.name}</span>
+                          {hasChildren ? <ChevronRightIcon className="h-4 w-4 text-gray-400" /> : null}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function CategoryTree({ categories, level = 0 }: { categories: Category[]; level?: number }) {
-  if (!categories || categories.length === 0) return null;
+function MobileCategoriesMenu({ onNavigate }: { onNavigate: () => void }) {
+  const [open, setOpen] = useState(false);
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: queryKeys.categories.tree(),
+    queryFn: () => CategoryService.getCategories(),
+  });
+
+  const [openIds, setOpenIds] = useState<Set<number>>(new Set());
+  const toggle = (id: number) => {
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
-    <ul className="space-y-0.5">
+    <div>
+      <button
+        type="button"
+        className="w-full flex items-center justify-between text-gray-700 hover:text-yellow-600 font-medium py-2"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span>Categories</span>
+        <span className="text-gray-400">{open ? '–' : '+'}</span>
+      </button>
+      {open && Array.isArray(categories) && categories.length > 0 && (
+        <div className="mt-2 pl-2 border-l border-gray-200 space-y-1">
+          <MobileCategoryTree categories={categories} level={0} onNavigate={onNavigate} openIds={openIds} onToggle={toggle} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MobileCategoryTree({
+  categories,
+  level,
+  onNavigate,
+  openIds,
+  onToggle,
+}: {
+  categories: Category[];
+  level: number;
+  onNavigate: () => void;
+  openIds: Set<number>;
+  onToggle: (id: number) => void;
+}) {
+  return (
+    <div className="space-y-1">
       {categories.map((cat) => (
-        <li key={cat.id}>
-          <div className="flex flex-col">
-            <Link
-              href={`/products?category_id=${cat.id}`}
-              className={cn(
-                "block py-2 px-3 rounded-lg transition-all duration-150 text-sm font-medium hover:bg-gradient-to-r hover:from-yellow-50 hover:to-yellow-100 hover:text-yellow-800 hover:shadow-sm text-gray-700 group/item",
-                level === 0 && "text-gray-900 font-semibold",
-                level === 1 && "text-gray-700 ml-4",
-                level >= 2 && "text-gray-600 ml-8"
-              )}
-            >
-              <div className="flex items-center">
-                {level === 0 && (
-                  <div className="w-2 h-2 rounded-full bg-yellow-400 mr-3 group-hover/item:bg-yellow-500 transition-colors"></div>
+        <div key={cat.id}>
+          <div className="flex items-center gap-2 py-1" style={{ paddingLeft: level * 12 }}>
+            {Array.isArray(cat.children) && cat.children.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => onToggle(cat.id)}
+                className="p-0.5 rounded hover:bg-gray-100 text-gray-500"
+                aria-label={openIds.has(cat.id) ? 'Collapse' : 'Expand'}
+              >
+                {openIds.has(cat.id) ? (
+                  <ChevronDownIcon className="h-4 w-4" />
+                ) : (
+                  <ChevronRightIcon className="h-4 w-4" />
                 )}
-                {level === 1 && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-3 group-hover/item:bg-yellow-500 transition-colors"></div>
-                )}
-                {level >= 2 && (
-                  <div className="w-1 h-1 rounded-full bg-gray-300 mr-3 group-hover/item:bg-yellow-400 transition-colors"></div>
-                )}
-                <span className="truncate">{cat.name}</span>
-                {Array.isArray(cat.children) && cat.children.length > 0 && (
-                  <span className="ml-auto text-xs text-gray-400 group-hover/item:text-yellow-600">
-                    ({cat.children.length})
-                  </span>
-                )}
-              </div>
-            </Link>
-            {Array.isArray(cat.children) && cat.children.length > 0 && (
-              <div className="mt-1 border-l-2 border-gray-100 ml-6 pl-2">
-                <CategoryTree categories={cat.children} level={level + 1} />
-              </div>
+              </button>
+            ) : (
+              <span className="w-5" />
             )}
+
+            <Link
+              href={`/categories/${cat.path || cat.slug}`}
+              className="block text-sm text-gray-700 hover:text-yellow-600 py-0.5"
+              onClick={onNavigate}
+              scroll={false}
+            >
+              {cat.name}
+            </Link>
           </div>
-        </li>
+
+          {Array.isArray(cat.children) && cat.children.length > 0 && openIds.has(cat.id) && (
+            <MobileCategoryTree
+              categories={cat.children}
+              level={level + 1}
+              onNavigate={onNavigate}
+              openIds={openIds}
+              onToggle={onToggle}
+            />
+          )}
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }

@@ -10,6 +10,7 @@ import (
 
 	"fanuc-backend/config"
 	"fanuc-backend/models"
+	"fanuc-backend/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -107,7 +108,6 @@ func (sc *SitemapController) GetXMLSitemap(c *gin.Context) {
 		}{
 			{Loc: fmt.Sprintf("%s/", baseURL), Changefreq: "daily", Priority: "1.0", Lastmod: time.Now().UTC().Format(time.RFC3339)},
 			{Loc: fmt.Sprintf("%s/products", baseURL), Changefreq: "hourly", Priority: "0.9", Lastmod: time.Now().UTC().Format(time.RFC3339)},
-			{Loc: fmt.Sprintf("%s/categories", baseURL), Changefreq: "daily", Priority: "0.9", Lastmod: time.Now().UTC().Format(time.RFC3339)},
 			{Loc: fmt.Sprintf("%s/about", baseURL), Changefreq: "monthly", Priority: "0.8", Lastmod: time.Now().AddDate(0, 0, -7).UTC().Format(time.RFC3339)},
 			{Loc: fmt.Sprintf("%s/contact", baseURL), Changefreq: "monthly", Priority: "0.8", Lastmod: time.Now().AddDate(0, 0, -7).UTC().Format(time.RFC3339)},
 			{Loc: fmt.Sprintf("%s/faq", baseURL), Changefreq: "monthly", Priority: "0.7", Lastmod: time.Now().AddDate(0, 0, -14).UTC().Format(time.RFC3339)},
@@ -176,18 +176,20 @@ func (sc *SitemapController) GetXMLSitemap(c *gin.Context) {
 			c.String(http.StatusOK, emptyURLSet())
 			return
 		}
+		// Compute nested paths
+		tree := services.BuildCategoryTree(categories)
+		flat := services.FlattenCategoryTree(tree)
 		xml := "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
 		xml += "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
-		for _, cat := range categories {
+		for _, cat := range flat {
 			lastmod := ""
 			if !cat.UpdatedAt.IsZero() {
 				lastmod = fmt.Sprintf("    <lastmod>%s</lastmod>\n", cat.UpdatedAt.UTC().Format(time.RFC3339))
 			}
-			slug := cat.Slug
-			if slug == "" {
-				slug = fmt.Sprintf("%d", cat.ID)
+			if strings.TrimSpace(cat.Path) == "" {
+				continue
 			}
-			loc := fmt.Sprintf("%s/categories/%s", baseURL, slug)
+			loc := fmt.Sprintf("%s/categories/%s", strings.TrimRight(baseURL, "/"), cat.Path)
 			xml += fmt.Sprintf("  <url>\n    <loc>%s</loc>\n%s    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n",
 				loc, lastmod)
 		}

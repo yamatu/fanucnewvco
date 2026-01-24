@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ProductService, CategoryService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
-import ProductCard from '@/components/products/ProductCard';
+// Category pages use a horizontal card layout.
+import ProductCardHorizontal from '@/components/products/ProductCardHorizontal';
 import ProductFilters from '@/components/products/ProductFilters';
 import ProductSort from '@/components/products/ProductSort';
 import Pagination from '@/components/common/Pagination';
@@ -34,6 +35,7 @@ export default function CategoryProductsClient({
     page: 1,
     page_size: 12,
     category_id: category.id,
+    include_descendants: 'true',
     sort_by: 'created_at',
     sort_order: 'desc',
     min_price: '',
@@ -48,6 +50,7 @@ export default function CategoryProductsClient({
       page: parseInt(searchParams.get('page') || '1'),
       page_size: parseInt(searchParams.get('page_size') || '12'),
       category_id: category.id,
+      include_descendants: 'true',
       sort_by: searchParams.get('sort_by') || 'created_at',
       sort_order: searchParams.get('sort_order') || 'desc',
       min_price: searchParams.get('min_price') || '',
@@ -87,13 +90,14 @@ export default function CategoryProductsClient({
     const params = new URLSearchParams();
     
     Object.entries(newFilters).forEach(([key, value]) => {
-      if (value && value !== '' && key !== 'category_id' && key !== 'is_active') {
+      if (value && value !== '' && key !== 'category_id' && key !== 'is_active' && key !== 'include_descendants') {
         if (key === 'page' && value === 1) return; // Don't include page=1 in URL
         params.set(key, value.toString());
       }
     });
 
-    const newURL = `/categories/${category.slug}${params.toString() ? `?${params.toString()}` : ''}`;
+    const base = `/categories/${category.path || category.slug}`;
+    const newURL = `${base}${params.toString() ? `?${params.toString()}` : ''}`;
     router.push(newURL, { scroll: false });
   };
 
@@ -126,6 +130,7 @@ export default function CategoryProductsClient({
       page: 1,
       page_size: 12,
       category_id: category.id,
+      include_descendants: 'true',
       sort_by: 'created_at',
       sort_order: 'desc',
       min_price: '',
@@ -134,7 +139,8 @@ export default function CategoryProductsClient({
       is_active: 'true'
     };
     setFilters(clearedFilters);
-    router.push(`/categories/${category.slug}`, { scroll: false });
+    const base = `/categories/${category.path || category.slug}`;
+    router.push(base, { scroll: false });
   };
 
   if (error) {
@@ -212,11 +218,11 @@ export default function CategoryProductsClient({
         <div className="flex justify-center py-12">
           <LoadingSpinner size="lg" />
         </div>
-      ) : products.length > 0 ? (
+       ) : products.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 mb-8">
             {products.map((product: any) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCardHorizontal key={product.id} product={product} />
             ))}
           </div>
 
@@ -227,6 +233,7 @@ export default function CategoryProductsClient({
                 currentPage={pagination.page}
                 totalPages={pagination.total_pages}
                 onPageChange={handlePageChange}
+                showJump
               />
             </div>
           )}

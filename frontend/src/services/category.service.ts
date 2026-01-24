@@ -94,7 +94,7 @@ export class CategoryService {
   // Admin: Get categories
   static async getAdminCategories(): Promise<Category[]> {
     const response = await apiClient.get<APIResponse<Category[]>>(
-      '/admin/categories'
+      '/admin/categories?include_inactive=true&flat=true'
     );
     
     if (response.data.success && response.data.data) {
@@ -102,6 +102,31 @@ export class CategoryService {
     }
     
     throw new Error(response.data.message || 'Failed to fetch categories');
+  }
+
+  // Public: Resolve category by nested path (no /categories prefix)
+  // Example path: "fanuc-controls/fanuc-power-mate"
+  static async getCategoryByPath(path: string): Promise<{ category: Category; breadcrumb: Category[] }> {
+    const safe = (path || '').replace(/^\/+|\/+$/g, '');
+    const encoded = safe
+      .split('/')
+      .map((p) => encodeURIComponent(p))
+      .join('/');
+    const response = await apiClient.get<APIResponse<{ category: Category; breadcrumb: Category[] }>>(
+      `/public/categories/path/${encoded}`
+    );
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    throw new Error(response.data.message || 'Category not found');
+  }
+
+  // Admin: Bulk reorder/nest categories
+  static async reorderCategories(items: Array<{ id: number; parent_id?: number; sort_order: number }>): Promise<void> {
+    const response = await apiClient.put<APIResponse<void>>('/admin/categories/reorder', items);
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to reorder categories');
+    }
   }
 
   // Public: Get category by slug

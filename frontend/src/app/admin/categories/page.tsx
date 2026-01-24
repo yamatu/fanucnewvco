@@ -9,12 +9,11 @@ import {
   PencilIcon,
   TrashIcon,
   TagIcon,
-  PhotoIcon,
   ArrowsUpDownIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
-import MediaPickerModal from '@/components/admin/MediaPickerModal';
+import CategoryHierarchyEditor from '@/components/admin/CategoryHierarchyEditor';
 import { CategoryService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { useAdminI18n } from '@/lib/admin-i18n';
@@ -27,13 +26,12 @@ export default function AdminCategoriesPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [editingCategory, setEditingCategory] = useState<any>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [showMediaPicker, setShowMediaPicker] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    image_url: '',
+    parent_id: '',
     sort_order: 0,
     is_active: true
   });
@@ -56,8 +54,9 @@ export default function AdminCategoriesPage() {
     onSuccess: () => {
       toast.success(t('categories.toast.created', 'Category created successfully!'));
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.tree() });
       closeDrawer();
-      setFormData({ name: '', description: '', image_url: '', sort_order: 0, is_active: true });
+      setFormData({ name: '', description: '', parent_id: '', sort_order: 0, is_active: true });
     },
     onError: (error: any) => {
       toast.error(error.message || t('categories.toast.createFailed', 'Failed to create category'));
@@ -70,8 +69,9 @@ export default function AdminCategoriesPage() {
     onSuccess: () => {
       toast.success(t('categories.toast.updated', 'Category updated successfully!'));
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.tree() });
       closeDrawer();
-      setFormData({ name: '', description: '', image_url: '', sort_order: 0, is_active: true });
+      setFormData({ name: '', description: '', parent_id: '', sort_order: 0, is_active: true });
     },
     onError: (error: any) => {
       toast.error(error.message || t('categories.toast.updateFailed', 'Failed to update category'));
@@ -84,6 +84,7 @@ export default function AdminCategoriesPage() {
     onSuccess: () => {
       toast.success(t('categories.toast.deleted', 'Category deleted successfully!'));
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.tree() });
     },
     onError: (error: any) => {
       toast.error(error.message || t('categories.toast.deleteFailed', 'Failed to delete category'));
@@ -95,7 +96,7 @@ export default function AdminCategoriesPage() {
       setFormData({
         name: editingCategory.name || '',
         description: editingCategory.description || '',
-        image_url: editingCategory.image_url || '',
+        parent_id: editingCategory.parent_id ? String(editingCategory.parent_id) : '',
         sort_order: editingCategory.sort_order ?? 0,
         is_active: Boolean(editingCategory.is_active),
       });
@@ -104,7 +105,7 @@ export default function AdminCategoriesPage() {
 
   const openCreate = () => {
     setEditingCategory(null);
-    setFormData({ name: '', description: '', image_url: '', sort_order: 0, is_active: true });
+    setFormData({ name: '', description: '', parent_id: '', sort_order: 0, is_active: true });
     setDrawerOpen(true);
   };
 
@@ -116,8 +117,13 @@ export default function AdminCategoriesPage() {
   const closeDrawer = () => {
     setDrawerOpen(false);
     setEditingCategory(null);
-    setShowMediaPicker(false);
   };
+
+  const categoryById = useMemo(() => {
+    const m = new Map<number, any>();
+    for (const c of categoriesData as any[]) m.set(Number(c.id), c);
+    return m;
+  }, [categoriesData]);
 
   const sortedCategories = useMemo(() => {
     const list = Array.isArray(categoriesData) ? [...categoriesData] : [];
@@ -145,6 +151,42 @@ export default function AdminCategoriesPage() {
     });
   }, [sortedCategories, searchQuery, statusFilter]);
 
+  const parentOptions = useMemo(() => {
+    const list = Array.isArray(categoriesData) ? [...categoriesData] : [];
+    // Build tree for select labels
+    const byParent = new Map<number | null, any[]>();
+    for (const c of list) {
+      const pid = (c as any).parent_id ?? null;
+      if (!byParent.has(pid)) byParent.set(pid, []);
+      byParent.get(pid)!.push(c);
+    }
+
+    const sort = (a: any, b: any) => {
+      const ao = Number(a.sort_order ?? 0);
+      const bo = Number(b.sort_order ?? 0);
+      if (ao !== bo) return ao - bo;
+      return String(a.name || '').localeCompare(String(b.name || ''), locale === 'zh' ? 'zh' : 'en');
+    };
+
+    for (const arr of byParent.values()) arr.sort(sort);
+
+    const out: Array<{ value: string; label: string }> = [{ value: '', label: locale === 'zh' ? '（顶级分类）' : '(Root category)' }];
+    const editingId = editingCategory?.id ? Number(editingCategory.id) : 0;
+
+    const walk = (pid: number | null, depth: number) => {
+      const arr = byParent.get(pid) || [];
+      for (const c of arr) {
+        if (editingId && Number(c.id) === editingId) continue;
+        const prefix = depth > 0 ? `${'—'.repeat(depth)} ` : '';
+        out.push({ value: String(c.id), label: `${prefix}${c.name}` });
+        walk(Number(c.id), depth + 1);
+      }
+    };
+
+    walk(null, 0);
+    return out;
+  }, [categoriesData, locale, editingCategory]);
+
   const normalizeSortMutation = useMutation({
     mutationFn: async () => {
       for (let i = 0; i < sortedCategories.length; i++) {
@@ -158,6 +200,7 @@ export default function AdminCategoriesPage() {
     onSuccess: () => {
       toast.success(locale === 'zh' ? '已重置排序' : 'Sort order normalized');
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.tree() });
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to normalize sort order');
@@ -187,18 +230,24 @@ export default function AdminCategoriesPage() {
         data: {
           name: formData.name,
           description: formData.description,
-          image_url: formData.image_url,
+          parent_id: formData.parent_id ? Number(formData.parent_id) : null,
           sort_order: Number(formData.sort_order) || 0,
           is_active: formData.is_active,
         },
       });
     } else {
       // Create new category
-      createCategoryMutation.mutate(formData);
+      createCategoryMutation.mutate({
+        name: formData.name,
+        description: formData.description,
+        parent_id: formData.parent_id ? Number(formData.parent_id) : null,
+        sort_order: Number(formData.sort_order) || 0,
+        is_active: formData.is_active,
+      } as any);
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const newValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
     setFormData(prev => ({ ...prev, [name]: newValue }));
@@ -310,99 +359,108 @@ export default function AdminCategoriesPage() {
           </div>
         </div>
 
-        {/* Categories Grid */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredCategories.map((category) => (
-            <div key={category.id} className="bg-white shadow rounded-lg overflow-hidden">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      {category.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={category.image_url}
-                          alt={category.name}
-                          className="h-10 w-10 rounded-lg object-cover border border-gray-200"
-                          onError={(e) => {
-                            const img = e.target as HTMLImageElement;
-                            img.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <TagIcon className="h-6 w-6 text-blue-600" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="ml-3">
-                      <h3 className="text-lg font-medium text-gray-900">{category.name}</h3>
-                      <div className="mt-1 flex items-center gap-2">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          category.is_active
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {category.is_active ? t('categories.active', 'Active') : t('categories.inactive', 'Inactive')}
-                        </span>
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
-                          sort {Number((category as any).sort_order ?? 0)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => openEdit(category)}
-                      className="text-gray-400 hover:text-gray-500"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(category)}
-                      className="text-gray-400 hover:text-red-500"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {category.description && (
-                    <p className="text-sm text-gray-600">{category.description}</p>
-                  )}
-
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">{t('categories.products', 'Products')}</span>
-                    <span className="font-medium text-gray-900">{(category as any).product_count || 0}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">{t('categories.created', 'Created')}</span>
-                    <span className="text-gray-900">
-                      {new Date(category.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 px-6 py-3">
-                <div className="flex justify-between items-center">
-                  <button
-                    onClick={() => openEdit(category)}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-500"
-                  >
-                    {t('categories.edit', 'Edit')}
-                  </button>
-                  <span className="text-xs text-gray-500">
-                    ID: {category.id}
-                  </span>
-                </div>
-              </div>
+        {/* Hierarchy (drag & drop) */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">{t('categories.hierarchy', 'Category Hierarchy')}</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                {t('categories.hierarchy.hint', 'Drag a category onto another to make it a child. Drop onto the top area to make it a root category.')}
+              </p>
             </div>
-          ))}
+          </div>
+          <div className="mt-4">
+            <CategoryHierarchyEditor
+              categories={categoriesData as any}
+              onUpdated={() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() });
+                queryClient.invalidateQueries({ queryKey: queryKeys.categories.tree() });
+              }}
+            />
+          </div>
         </div>
+
+        {/* Categories List */}
+        {filteredCategories.length > 0 ? (
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      {t('categories.field.name', 'Category Name')}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">URL</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      {t('categories.field.parent', 'Parent Category')}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      {t('categories.status', 'Status')}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      {t('categories.field.sortOrder', 'Sort Order')}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      {t('common.actions', 'Actions')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredCategories.map((category) => {
+                    const pid = (category as any).parent_id ? Number((category as any).parent_id) : null;
+                    const parent = pid ? categoryById.get(pid) : null;
+                    return (
+                      <tr key={category.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-medium text-gray-900">{category.name}</div>
+                          {category.description ? (
+                            <div className="text-xs text-gray-500 line-clamp-1">{category.description}</div>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-xs font-mono text-gray-700">/{(category as any).path || category.slug}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm text-gray-700">{parent?.name || '—'}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
+                              category.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {category.is_active ? t('categories.active', 'Active') : t('categories.inactive', 'Hidden')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm text-gray-700">{Number((category as any).sort_order ?? 0)}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => openEdit(category)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-white"
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                              {t('categories.edit', 'Edit')}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(category)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-200 text-sm text-red-600 hover:bg-white"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                              {t('common.delete', 'Delete')}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
 
         {filteredCategories.length === 0 && (
           <div className="text-center py-12">
@@ -428,38 +486,6 @@ export default function AdminCategoriesPage() {
           </div>
         )}
 
-        {/* Statistics */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">{t('categories.stats.title', 'Category Statistics')}</h3>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{categoriesData.length}</div>
-              <div className="text-sm text-gray-500">{t('categories.stats.total', 'Total Categories')}</div>
-            </div>
-
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {categoriesData.filter(c => c.is_active).length}
-              </div>
-              <div className="text-sm text-gray-500">{t('categories.stats.active', 'Active Categories')}</div>
-            </div>
-
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-600">
-                {categoriesData.reduce((sum, c) => sum + ((c as any).product_count || 0), 0)}
-              </div>
-              <div className="text-sm text-gray-500">{t('categories.stats.totalProducts', 'Total Products')}</div>
-            </div>
-
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {categoriesData.length > 0 ? Math.round(categoriesData.reduce((sum, c) => sum + ((c as any).product_count || 0), 0) / categoriesData.length) : 0}
-              </div>
-              <div className="text-sm text-gray-500">{t('categories.stats.avgProducts', 'Avg Products/Category')}</div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Create/Edit Drawer (no navigation) */}
@@ -500,6 +526,27 @@ export default function AdminCategoriesPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('categories.field.parent', 'Parent Category')}
+                  </label>
+                  <select
+                    name="parent_id"
+                    value={String((formData as any).parent_id || '')}
+                    onChange={handleInputChange}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {parentOptions.map((opt) => (
+                      <option key={opt.value || 'root'} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {t('categories.field.parentHint', 'Set a parent to create nested URLs like /parent/child.')}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     {t('categories.field.description', 'Description')}
                   </label>
                   <textarea
@@ -510,43 +557,6 @@ export default function AdminCategoriesPage() {
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={locale === 'zh' ? '分类描述…' : 'Category description...'}
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('categories.field.image', 'Category Image')}
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      name="image_url"
-                      value={formData.image_url}
-                      onChange={handleInputChange}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder={locale === 'zh' ? '外链或 /uploads/...' : 'External URL or /uploads/...'}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowMediaPicker(true)}
-                      className="inline-flex items-center px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                      <PhotoIcon className="h-4 w-4 mr-1" />
-                      {t('categories.image.choose', 'Choose')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData((p) => ({ ...p, image_url: '' }))}
-                      className="px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                      {t('categories.image.clear', 'Clear')}
-                    </button>
-                  </div>
-                  {formData.image_url ? (
-                    <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={formData.image_url} alt="preview" className="w-full h-auto" />
-                    </div>
-                  ) : null}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -606,19 +616,6 @@ export default function AdminCategoriesPage() {
           </div>
         </div>
       ) : null}
-
-      <MediaPickerModal
-        open={showMediaPicker}
-        onClose={() => setShowMediaPicker(false)}
-        multiple={false}
-        title={locale === 'zh' ? '从图库选择分类图片' : 'Select category image'}
-        onSelect={(assets) => {
-          if (assets[0]) {
-            setFormData((p) => ({ ...p, image_url: assets[0].url }));
-            toast.success(locale === 'zh' ? '已选择图片' : 'Image selected');
-          }
-        }}
-      />
     </AdminLayout>
   );
 }

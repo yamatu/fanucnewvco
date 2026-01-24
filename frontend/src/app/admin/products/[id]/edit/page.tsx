@@ -66,8 +66,8 @@ export default function EditProductPage() {
 
   // Fetch categories for dropdown
   const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
-    queryFn: () => CategoryService.getCategories(),
+    queryKey: queryKeys.categories.lists(),
+    queryFn: () => CategoryService.getAdminCategories(),
   });
 
   // Update product mutation

@@ -30,6 +30,24 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   const userAgent = request.headers.get('user-agent') || '';
 
+  // Redirect legacy product sitemap URLs:
+  // /sitemap-products-1.xml -> /sitemap-products/1.xml
+  const legacySitemapMatch = pathname.match(/^\/sitemap-products-(\d+)\.xml$/);
+  if (legacySitemapMatch) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/sitemap-products/${legacySitemapMatch[1]}.xml`;
+    return NextResponse.redirect(url, 301);
+  }
+
+  // Serve /sitemap-products/:page.xml by rewriting to an internal route
+  // /sitemap-products/1.xml -> /sitemap-products/1 (keeps .xml in the URL)
+  const productsSitemapMatch = pathname.match(/^\/sitemap-products\/(\d+)\.xml$/);
+  if (productsSitemapMatch) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/sitemap-products/${productsSitemapMatch[1]}`;
+    return NextResponse.rewrite(url);
+  }
+
   // Handle product URL redirects for SEO-friendly URLs
   // Redirect old format /products/[sku] to new format /products/[sku]-[slug]
   if (pathname.match(/^\/products\/[A-Z0-9][A-Z0-9\-._]*$/i) && !pathname.includes('-')) {
