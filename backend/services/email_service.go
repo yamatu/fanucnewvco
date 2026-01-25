@@ -8,6 +8,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -86,6 +88,48 @@ func decryptString(val string) (string, error) {
 	return string(plain), nil
 }
 
+func normalizeSMTPHostAndPort(host string, port int) (string, int) {
+	h := strings.TrimSpace(host)
+	if h == "" {
+		return "", port
+	}
+
+	// If the admin pasted a web URL like https://mail.example.com:8443/, extract the host part.
+	if strings.Contains(h, "://") {
+		if u, err := url.Parse(h); err == nil {
+			if u.Host != "" {
+				h = u.Host
+			}
+		}
+	}
+	// Strip any remaining path.
+	if i := strings.IndexByte(h, '/'); i >= 0 {
+		h = h[:i]
+	}
+
+	// Split host:port if present.
+	if strings.Contains(h, ":") {
+		if hostOnly, portStr, err := net.SplitHostPort(h); err == nil {
+			p := 0
+			fmt.Sscanf(portStr, "%d", &p)
+			if p > 0 && port <= 0 {
+				port = p
+			}
+			h = hostOnly
+		}
+	}
+
+	return strings.TrimSpace(h), port
+}
+
+// NormalizeSMTPHostInput parses user input for SMTP host.
+// Accepts inputs like "mail.example.com", "mail.example.com:587", or "https://mail.example.com:8443/".
+// Returns host without port/path and the port found in the input (0 if none).
+func NormalizeSMTPHostInput(input string) (string, int) {
+	h, p := normalizeSMTPHostAndPort(input, 0)
+	return h, p
+}
+
 func GetOrCreateEmailSetting(db *gorm.DB) (*models.EmailSetting, error) {
 	var s models.EmailSetting
 	if err := db.First(&s, 1).Error; err != nil {
@@ -131,7 +175,8 @@ func SendEmail(db *gorm.DB, opts EmailSendOptions) error {
 	if strings.ToLower(s.Provider) != "smtp" {
 		return fmt.Errorf("unsupported email provider: %s", s.Provider)
 	}
-	if s.SMTPHost == "" || s.SMTPPort == 0 {
+	host, port := normalizeSMTPHostAndPort(s.SMTPHost, s.SMTPPort)
+	if host == "" || port == 0 {
 		return errors.New("smtp is not configured")
 	}
 	if s.FromEmail == "" {
@@ -167,7 +212,7 @@ func SendEmail(db *gorm.DB, opts EmailSendOptions) error {
 		msg.SetBody("text/plain", text)
 	}
 
-	d := gomail.NewDialer(s.SMTPHost, s.SMTPPort, s.SMTPUsername, pass)
+	d := gomail.NewDialer(host, port, s.SMTPUsername, pass)
 	tlsMode := strings.ToLower(strings.TrimSpace(s.SMTPTLSMode))
 	if tlsMode == "ssl" {
 		d.SSL = true

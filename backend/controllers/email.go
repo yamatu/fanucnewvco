@@ -126,10 +126,26 @@ func (ec *EmailController) UpdateSettings(c *gin.Context) {
 		s.ReplyTo = strings.TrimSpace(*req.ReplyTo)
 	}
 	if req.SMTPHost != nil {
-		s.SMTPHost = strings.TrimSpace(*req.SMTPHost)
+		h := strings.TrimSpace(*req.SMTPHost)
+		// If host includes scheme/port/path, sanitize it.
+		hostOnly, parsedPort := services.NormalizeSMTPHostInput(h)
+		s.SMTPHost = hostOnly
+		if req.SMTPPort == nil && parsedPort > 0 {
+			s.SMTPPort = parsedPort
+		}
 	}
 	if req.SMTPPort != nil {
 		s.SMTPPort = *req.SMTPPort
+	}
+	// If host still contains a port (legacy stored values), normalize it.
+	if strings.TrimSpace(s.SMTPHost) != "" {
+		if hostOnly, parsedPort := services.NormalizeSMTPHostInput(s.SMTPHost); hostOnly != "" {
+			// If NormalizeSMTPHostInput only stripped path/scheme, keep existing port unless missing.
+			s.SMTPHost = hostOnly
+			if s.SMTPPort <= 0 && parsedPort > 0 {
+				s.SMTPPort = parsedPort
+			}
+		}
 	}
 	if req.SMTPUsername != nil {
 		s.SMTPUsername = strings.TrimSpace(*req.SMTPUsername)

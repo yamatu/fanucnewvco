@@ -190,8 +190,11 @@ export default function AdminEmailPage() {
                     value={form.smtp_host || ''}
                     onChange={(e) => setForm((p: any) => ({ ...p, smtp_host: e.target.value }))}
                     className="block w-full rounded-md border border-gray-300 px-3 py-2"
-                    placeholder="mail.yourdomain.com"
+                    placeholder="mail.vcocncspare.com"
                   />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Use hostname only (no https:// and no /). If you paste a URL, it will be sanitized server-side.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Port</label>
