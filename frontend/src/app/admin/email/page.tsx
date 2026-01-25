@@ -6,7 +6,61 @@ import { EmailService } from '@/services';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 
-type Tab = 'settings' | 'marketing';
+type Tab = 'settings' | 'send' | 'marketing' | 'webhooks';
+
+const DEFAULT_MARKETING_HTML = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{subject}}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f6f7fb;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7fb;">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">
+            <tr>
+              <td style="padding:22px 24px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#111827;">
+                <div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:800;">Vcocnc Spare Parts</div>
+                <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;opacity:0.85;margin-top:4px;">FANUC CNC Parts • Repair • Exchange</div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:22px 24px;">
+                <div style="font-family:Arial,Helvetica,sans-serif;color:#111827;font-size:13px;">Hello {{full_name}},</div>
+                <h1 style="font-family:Arial,Helvetica,sans-serif;color:#111827;font-size:22px;line-height:1.25;margin:12px 0 10px 0;">{{headline}}</h1>
+                <div style="font-family:Arial,Helvetica,sans-serif;color:#374151;font-size:15px;line-height:1.6;">
+                  {{content_html}}
+                </div>
+
+                <div style="margin-top:18px;">
+                  <a href="{{cta_url}}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:14px;padding:12px 16px;border-radius:10px;">{{cta_label}}</a>
+                </div>
+
+                <div style="margin-top:18px;font-family:Arial,Helvetica,sans-serif;color:#6b7280;font-size:12px;line-height:1.5;">
+                  If you have questions, reply to this email.
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:16px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;">
+                <div style="font-family:Arial,Helvetica,sans-serif;color:#6b7280;font-size:12px;line-height:1.5;">
+                  Vcocnc • sales@vcocncspare.com • +86 13348028050
+                </div>
+                <div style="font-family:Arial,Helvetica,sans-serif;color:#9ca3af;font-size:11px;margin-top:6px;">
+                  You received this email because you are a customer of Vcocnc.
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
 
 export default function AdminEmailPage() {
   const qc = useQueryClient();
@@ -28,11 +82,14 @@ export default function AdminEmailPage() {
     smtp_username: '',
     smtp_password: '',
     smtp_tls_mode: 'starttls',
+    resend_api_key: '',
+    resend_webhook_secret: '',
     verification_enabled: false,
     marketing_enabled: false,
     code_expiry_minutes: 10,
     code_resend_seconds: 60,
     has_smtp_password: false,
+    has_resend_api_key: false,
   });
 
   useEffect(() => {
@@ -85,10 +142,37 @@ export default function AdminEmailPage() {
 
   const [mk, setMk] = useState({
     subject: '',
-    html: '',
+    html: DEFAULT_MARKETING_HTML,
     text: '',
     test_to: '',
     limit: 0,
+  });
+
+  const [single, setSingle] = useState({ to: '', subject: '', html: DEFAULT_MARKETING_HTML, text: '' });
+
+  const singleSendMutation = useMutation({
+    mutationFn: async () => EmailService.send(single),
+    onSuccess: () => toast.success('Email sent'),
+    onError: (e: any) => toast.error(e?.message || 'Failed to send'),
+  });
+
+  const webhooksQuery = useQuery({
+    queryKey: ['email', 'resend', 'webhooks'],
+    queryFn: () => EmailService.resendWebhooksList(),
+    enabled: Boolean((form.provider || 'smtp') === 'resend'),
+  });
+
+  const [whCreate, setWhCreate] = useState({ endpoint: '', events: 'email.sent,email.delivered' });
+  const createWebhookMutation = useMutation({
+    mutationFn: async () => EmailService.resendWebhooksCreate({
+      endpoint: whCreate.endpoint,
+      events: whCreate.events.split(',').map((s) => s.trim()).filter(Boolean),
+    }),
+    onSuccess: async () => {
+      toast.success('Webhook created');
+      await webhooksQuery.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to create webhook'),
   });
 
   const canSendMarketing = useMemo(() => Boolean(form.enabled && form.marketing_enabled), [form.enabled, form.marketing_enabled]);
@@ -128,10 +212,24 @@ export default function AdminEmailPage() {
           </button>
           <button
             type="button"
+            onClick={() => setTab('send')}
+            className={`px-3 py-2 text-sm rounded-md ${tab === 'send' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+          >
+            Send
+          </button>
+          <button
+            type="button"
             onClick={() => setTab('marketing')}
             className={`px-3 py-2 text-sm rounded-md ${tab === 'marketing' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
           >
             Marketing
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('webhooks')}
+            className={`px-3 py-2 text-sm rounded-md ${tab === 'webhooks' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+          >
+            Webhooks
           </button>
         </div>
 
@@ -182,7 +280,47 @@ export default function AdminEmailPage() {
             </div>
 
             <div className="border-t pt-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                  <select
+                    value={form.provider || 'smtp'}
+                    onChange={(e) => setForm((p: any) => ({ ...p, provider: e.target.value }))}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2"
+                  >
+                    <option value="smtp">SMTP (Poste.io / AliMail)</option>
+                    <option value="resend">Resend API</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="text-sm font-semibold text-gray-900 mb-3">SMTP (Poste.io / AliMail / Custom)</div>
+              {String(form.provider || 'smtp') === 'resend' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Resend API Key</label>
+                    <input
+                      type="password"
+                      value={form.resend_api_key || ''}
+                      onChange={(e) => setForm((p: any) => ({ ...p, resend_api_key: e.target.value }))}
+                      className="block w-full rounded-md border border-gray-300 px-3 py-2"
+                      placeholder={form.has_resend_api_key ? 'Saved (leave blank to keep)' : 're_xxxxxxxxx'}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Stored encrypted if SETTINGS_ENCRYPTION_KEY is set.</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Webhook Secret (optional)</label>
+                    <input
+                      type="password"
+                      value={form.resend_webhook_secret || ''}
+                      onChange={(e) => setForm((p: any) => ({ ...p, resend_webhook_secret: e.target.value }))}
+                      className="block w-full rounded-md border border-gray-300 px-3 py-2"
+                      placeholder="(optional)"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Used to verify inbound events (future).</p>
+                  </div>
+                </div>
+              ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
@@ -237,6 +375,7 @@ export default function AdminEmailPage() {
                   </select>
                 </div>
               </div>
+              )}
             </div>
 
             <div className="border-t pt-6">
@@ -318,7 +457,39 @@ export default function AdminEmailPage() {
               </button>
             </div>
           </div>
-        ) : (
+        ) : tab === 'send' ? (
+          <div className="bg-white rounded-lg shadow p-6 space-y-4">
+            <div className="text-sm text-gray-600">Send a single email (use this as your mail panel).</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">To</label>
+                <input value={single.to} onChange={(e) => setSingle((p) => ({ ...p, to: e.target.value }))} className="block w-full rounded-md border border-gray-300 px-3 py-2" placeholder="customer@example.com" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <input value={single.subject} onChange={(e) => setSingle((p) => ({ ...p, subject: e.target.value }))} className="block w-full rounded-md border border-gray-300 px-3 py-2" placeholder="Your subject" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">HTML</label>
+              <textarea value={single.html} onChange={(e) => setSingle((p) => ({ ...p, html: e.target.value }))} rows={14} className="block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-xs" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Text (optional)</label>
+              <textarea value={single.text} onChange={(e) => setSingle((p) => ({ ...p, text: e.target.value }))} rows={6} className="block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-xs" />
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => singleSendMutation.mutate()}
+                disabled={singleSendMutation.isPending}
+                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black disabled:opacity-60"
+              >
+                {singleSendMutation.isPending ? 'Sending...' : 'Send email'}
+              </button>
+            </div>
+          </div>
+        ) : tab === 'marketing' ? (
           <div className="bg-white rounded-lg shadow p-6 space-y-4">
             <div className="text-sm text-gray-600">
               {canSendMarketing ? (
@@ -392,6 +563,70 @@ export default function AdminEmailPage() {
                 >
                   {broadcastMutation.isPending ? 'Sending...' : mk.test_to ? 'Send test' : 'Send broadcast'}
                 </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow p-6 space-y-4">
+            <div className="text-sm text-gray-600">
+              Resend webhooks (requires Provider=Resend and API key saved).
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Endpoint</label>
+                <input value={whCreate.endpoint} onChange={(e) => setWhCreate((p) => ({ ...p, endpoint: e.target.value }))} className="block w-full rounded-md border border-gray-300 px-3 py-2" placeholder="https://yourdomain.com/api/resend/webhook" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Events (comma)</label>
+                <input value={whCreate.events} onChange={(e) => setWhCreate((p) => ({ ...p, events: e.target.value }))} className="block w-full rounded-md border border-gray-300 px-3 py-2" placeholder="email.sent,email.delivered" />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => createWebhookMutation.mutate()}
+                disabled={createWebhookMutation.isPending}
+                className="rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+              >
+                {createWebhookMutation.isPending ? 'Creating...' : 'Create webhook'}
+              </button>
+            </div>
+
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-gray-900">Existing webhooks</div>
+                <button type="button" onClick={() => webhooksQuery.refetch()} className="text-sm text-gray-700 hover:underline">
+                  Refresh
+                </button>
+              </div>
+              <div className="mt-3 space-y-2">
+                {(webhooksQuery.data?.data || webhooksQuery.data || []).map((wh: any) => (
+                  <div key={wh.id} className="rounded-md border border-gray-200 p-3 text-sm">
+                    <div className="font-mono text-xs text-gray-700">{wh.id}</div>
+                    <div className="mt-1 text-gray-800">{wh.endpoint}</div>
+                    <div className="mt-1 text-xs text-gray-500">Events: {(wh.events || []).join(', ')}</div>
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await EmailService.resendWebhooksRemove(wh.id);
+                            toast.success('Deleted');
+                            webhooksQuery.refetch();
+                          } catch (e: any) {
+                            toast.error(e?.message || 'Failed');
+                          }
+                        }}
+                        className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-red-600 hover:bg-gray-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {Array.isArray(webhooksQuery.data?.data || webhooksQuery.data) && (webhooksQuery.data?.data || webhooksQuery.data).length === 0 ? (
+                  <div className="text-sm text-gray-500">No webhooks</div>
+                ) : null}
               </div>
             </div>
           </div>

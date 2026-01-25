@@ -1,6 +1,6 @@
 module fanuc-backend
 
-go 1.21
+go 1.23
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
@@ -10,8 +10,10 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/joho/godotenv v1.4.0
 	github.com/redis/go-redis/v9 v9.7.0
+	github.com/resend/resend-go/v3 v3.1.0
 	golang.org/x/crypto v0.31.0
 	golang.org/x/text v0.21.0
+	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 	gorm.io/datatypes v1.2.7
 	gorm.io/driver/mysql v1.5.6
 	gorm.io/driver/postgres v1.6.0
@@ -53,6 +55,5 @@ require (
 	golang.org/x/sys v0.28.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
-	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

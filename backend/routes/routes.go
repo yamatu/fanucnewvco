@@ -32,6 +32,7 @@ func SetupRoutes(r *gin.Engine) {
 	couponController := &controllers.CouponController{}
 	customerController := &controllers.CustomerController{}
 	emailController := &controllers.EmailController{}
+	resendWebhookController := &controllers.ResendWebhookController{}
 	ticketController := &controllers.TicketController{}
 	mediaController := &controllers.MediaController{}
 	backupController := &controllers.BackupController{}
@@ -255,7 +256,18 @@ func SetupRoutes(r *gin.Engine) {
 				email.GET("/settings", emailController.GetSettings)
 				email.PUT("/settings", emailController.UpdateSettings)
 				email.POST("/test", emailController.SendTest)
+				email.POST("/send", emailController.Send)
 				email.POST("/broadcast", emailController.Broadcast)
+
+				// Resend webhook management (proxy to Resend API)
+				resend := email.Group("/resend")
+				{
+					resend.GET("/webhooks", resendWebhookController.List)
+					resend.POST("/webhooks", resendWebhookController.Create)
+					resend.GET("/webhooks/:id", resendWebhookController.Get)
+					resend.PUT("/webhooks/:id", resendWebhookController.Update)
+					resend.DELETE("/webhooks/:id", resendWebhookController.Remove)
+				}
 			}
 
 			// Homepage Content management (admin and editor access)

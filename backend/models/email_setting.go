@@ -26,6 +26,11 @@ type EmailSetting struct {
 	// SMTPTLSMode: "starttls" (default) | "ssl" | "none"
 	SMTPTLSMode string `json:"smtp_tls_mode" gorm:"size:16;default:'starttls'"`
 
+	// Resend provider
+	ResendAPIKey string `json:"resend_api_key" gorm:"type:text"`
+	// Optional: used to verify inbound webhook signatures.
+	ResendWebhookSecret string `json:"resend_webhook_secret" gorm:"type:text"`
+
 	VerificationEnabled bool `json:"verification_enabled" gorm:"default:false"`
 	MarketingEnabled    bool `json:"marketing_enabled" gorm:"default:false"`
 

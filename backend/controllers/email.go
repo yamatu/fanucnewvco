@@ -58,6 +58,7 @@ func (ec *EmailController) SendCode(c *gin.Context) {
 type EmailSettingsResponse struct {
 	models.EmailSetting
 	HasSMTPPassword bool `json:"has_smtp_password"`
+	HasResendAPIKey bool `json:"has_resend_api_key"`
 }
 
 // Admin: GET /api/v1/admin/email/settings
@@ -69,9 +70,12 @@ func (ec *EmailController) GetSettings(c *gin.Context) {
 		return
 	}
 	hasPass := strings.TrimSpace(s.SMTPPassword) != ""
+	hasResend := strings.TrimSpace(s.ResendAPIKey) != ""
 	// Do not return the password.
 	s.SMTPPassword = ""
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: EmailSettingsResponse{EmailSetting: *s, HasSMTPPassword: hasPass}})
+	s.ResendAPIKey = ""
+	s.ResendWebhookSecret = ""
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: EmailSettingsResponse{EmailSetting: *s, HasSMTPPassword: hasPass, HasResendAPIKey: hasResend}})
 }
 
 type updateEmailSettingsRequest struct {
@@ -85,6 +89,8 @@ type updateEmailSettingsRequest struct {
 	SMTPUsername        *string `json:"smtp_username"`
 	SMTPPassword        *string `json:"smtp_password"`
 	SMTPTLSMode         *string `json:"smtp_tls_mode"`
+	ResendAPIKey        *string `json:"resend_api_key"`
+	ResendWebhookSecret *string `json:"resend_webhook_secret"`
 	VerificationEnabled *bool   `json:"verification_enabled"`
 	MarketingEnabled    *bool   `json:"marketing_enabled"`
 	CodeExpiryMinutes   *int    `json:"code_expiry_minutes"`
@@ -173,6 +179,30 @@ func (ec *EmailController) UpdateSettings(c *gin.Context) {
 			}
 		}
 	}
+	if req.ResendAPIKey != nil {
+		if *req.ResendAPIKey == "" {
+			if c.Query("allow_clear") == "1" {
+				s.ResendAPIKey = ""
+			}
+		} else {
+			if err := services.UpdateResendAPIKey(db, s, strings.TrimSpace(*req.ResendAPIKey)); err != nil {
+				c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to save Resend API key", Error: err.Error()})
+				return
+			}
+		}
+	}
+	if req.ResendWebhookSecret != nil {
+		if *req.ResendWebhookSecret == "" {
+			if c.Query("allow_clear") == "1" {
+				s.ResendWebhookSecret = ""
+			}
+		} else {
+			if err := services.UpdateResendWebhookSecret(db, s, strings.TrimSpace(*req.ResendWebhookSecret)); err != nil {
+				c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to save webhook secret", Error: err.Error()})
+				return
+			}
+		}
+	}
 	if req.VerificationEnabled != nil {
 		s.VerificationEnabled = *req.VerificationEnabled
 	}
@@ -192,12 +222,22 @@ func (ec *EmailController) UpdateSettings(c *gin.Context) {
 	}
 
 	hasPass := strings.TrimSpace(s.SMTPPassword) != ""
+	hasResend := strings.TrimSpace(s.ResendAPIKey) != ""
 	s.SMTPPassword = ""
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Saved", Data: EmailSettingsResponse{EmailSetting: *s, HasSMTPPassword: hasPass}})
+	s.ResendAPIKey = ""
+	s.ResendWebhookSecret = ""
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Saved", Data: EmailSettingsResponse{EmailSetting: *s, HasSMTPPassword: hasPass, HasResendAPIKey: hasResend}})
 }
 
 type sendTestEmailRequest struct {
 	To string `json:"to" binding:"required,email"`
+}
+
+type sendEmailRequest struct {
+	To      string `json:"to" binding:"required,email"`
+	Subject string `json:"subject" binding:"required"`
+	HTML    string `json:"html"`
+	Text    string `json:"text"`
 }
 
 // Admin: POST /api/v1/admin/email/test
@@ -221,6 +261,28 @@ func (ec *EmailController) SendTest(c *gin.Context) {
 		return
 	}
 
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Sent"})
+}
+
+// Admin: POST /api/v1/admin/email/send
+func (ec *EmailController) Send(c *gin.Context) {
+	var req sendEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request", Error: err.Error()})
+		return
+	}
+	db := config.GetDB()
+	err := services.SendEmail(db, services.EmailSendOptions{
+		To:      req.To,
+		Subject: req.Subject,
+		Text:    req.Text,
+		HTML:    req.HTML,
+		Headers: map[string]string{"X-Entity-Ref-ID": "admin-send"},
+	})
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to send", Error: err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Sent"})
 }
 

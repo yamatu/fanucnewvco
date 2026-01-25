@@ -22,11 +22,15 @@ export interface EmailSettings {
   smtp_username: string;
   smtp_password: string;
   smtp_tls_mode: string;
+
+  resend_api_key?: string;
+  resend_webhook_secret?: string;
   verification_enabled: boolean;
   marketing_enabled: boolean;
   code_expiry_minutes: number;
   code_resend_seconds: number;
   has_smtp_password?: boolean;
+  has_resend_api_key?: boolean;
 }
 
 export class EmailService {
@@ -67,6 +71,35 @@ export class EmailService {
   static async sendTest(to: string): Promise<void> {
     const res = await apiClient.post<APIResponse<void>>('/admin/email/test', { to });
     if (!res.data.success) throw new Error(res.data.message || res.data.error || 'Failed to send test');
+  }
+
+  static async send(payload: { to: string; subject: string; html?: string; text?: string }): Promise<void> {
+    const res = await apiClient.post<APIResponse<void>>('/admin/email/send', payload);
+    if (!res.data.success) throw new Error(res.data.message || res.data.error || 'Failed to send');
+  }
+
+  static async resendWebhooksList(): Promise<any> {
+    const res = await apiClient.get<APIResponse<any>>('/admin/email/resend/webhooks');
+    if (res.data.success) return res.data.data;
+    throw new Error(res.data.message || res.data.error || 'Failed to list webhooks');
+  }
+
+  static async resendWebhooksCreate(payload: { endpoint: string; events: string[] }): Promise<any> {
+    const res = await apiClient.post<APIResponse<any>>('/admin/email/resend/webhooks', payload);
+    if (res.data.success) return res.data.data;
+    throw new Error(res.data.message || res.data.error || 'Failed to create webhook');
+  }
+
+  static async resendWebhooksUpdate(id: string, payload: { endpoint?: string; events?: string[]; status?: string }): Promise<any> {
+    const res = await apiClient.put<APIResponse<any>>(`/admin/email/resend/webhooks/${id}`, payload);
+    if (res.data.success) return res.data.data;
+    throw new Error(res.data.message || res.data.error || 'Failed to update webhook');
+  }
+
+  static async resendWebhooksRemove(id: string): Promise<any> {
+    const res = await apiClient.delete<APIResponse<any>>(`/admin/email/resend/webhooks/${id}`);
+    if (res.data.success) return res.data.data;
+    throw new Error(res.data.message || res.data.error || 'Failed to delete webhook');
   }
 
   static async broadcast(payload: {

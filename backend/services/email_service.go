@@ -16,6 +16,7 @@ import (
 
 	"fanuc-backend/models"
 
+	resend "github.com/resend/resend-go/v3"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gomail.v2"
 	"gorm.io/gorm"
@@ -173,7 +174,14 @@ func SendEmail(db *gorm.DB, opts EmailSendOptions) error {
 	if !s.Enabled {
 		return errors.New("email is disabled")
 	}
-	if strings.ToLower(s.Provider) != "smtp" {
+	provider := strings.ToLower(strings.TrimSpace(s.Provider))
+	if provider == "" {
+		provider = "smtp"
+	}
+	if provider == "resend" {
+		return sendResendEmail(db, s, opts)
+	}
+	if provider != "smtp" {
 		return fmt.Errorf("unsupported email provider: %s", s.Provider)
 	}
 	host, port := normalizeSMTPHostAndPort(s.SMTPHost, s.SMTPPort)
@@ -223,6 +231,53 @@ func SendEmail(db *gorm.DB, opts EmailSendOptions) error {
 	// We keep gomail default behavior; users can set port/tls mode accordingly.
 
 	return d.DialAndSend(msg)
+}
+
+func sendResendEmail(db *gorm.DB, s *models.EmailSetting, opts EmailSendOptions) error {
+	apiKey, err := decryptString(s.ResendAPIKey)
+	if err != nil {
+		return err
+	}
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		return errors.New("resend api key is not configured")
+	}
+	if s.FromEmail == "" {
+		return errors.New("from_email is required")
+	}
+	client := resend.NewClient(apiKey)
+
+	from := s.FromEmail
+	if s.FromName != "" {
+		from = fmt.Sprintf("%s <%s>", s.FromName, s.FromEmail)
+	}
+
+	params := &resend.SendEmailRequest{
+		From:    from,
+		To:      []string{opts.To},
+		Subject: opts.Subject,
+	}
+	if strings.TrimSpace(opts.HTML) != "" {
+		params.Html = opts.HTML
+	}
+	if strings.TrimSpace(opts.Text) != "" {
+		params.Text = opts.Text
+	}
+	if s.ReplyTo != "" {
+		params.ReplyTo = s.ReplyTo
+	}
+
+	// Map custom headers if needed.
+	if len(opts.Headers) > 0 {
+		h := make(map[string]string, len(opts.Headers))
+		for k, v := range opts.Headers {
+			h[k] = v
+		}
+		params.Headers = h
+	}
+
+	_, err = client.Emails.Send(params)
+	return err
 }
 
 type VerificationPurpose string
@@ -337,4 +392,37 @@ func UpdateSMTPPassword(db *gorm.DB, setting *models.EmailSetting, newPassword s
 	}
 	setting.SMTPPassword = enc
 	return nil
+}
+
+func UpdateResendAPIKey(db *gorm.DB, setting *models.EmailSetting, apiKey string) error {
+	enc, err := encryptString(apiKey)
+	if err != nil {
+		return err
+	}
+	setting.ResendAPIKey = enc
+	return nil
+}
+
+func UpdateResendWebhookSecret(db *gorm.DB, setting *models.EmailSetting, secret string) error {
+	enc, err := encryptString(secret)
+	if err != nil {
+		return err
+	}
+	setting.ResendWebhookSecret = enc
+	return nil
+}
+
+func GetDecryptedResendAPIKey(setting *models.EmailSetting) (string, error) {
+	if setting == nil {
+		return "", errors.New("missing settings")
+	}
+	apiKey, err := decryptString(setting.ResendAPIKey)
+	if err != nil {
+		return "", err
+	}
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		return "", errors.New("resend api key is not configured")
+	}
+	return apiKey, nil
 }
