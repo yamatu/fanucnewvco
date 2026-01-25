@@ -121,6 +121,14 @@ export default function AdminEmailPage() {
       if (String(form.smtp_password || '').trim() !== '') {
         payload.smtp_password = String(form.smtp_password);
       }
+
+      // only send Resend credentials if user typed something
+      if (String(form.resend_api_key || '').trim() !== '') {
+        payload.resend_api_key = String(form.resend_api_key);
+      }
+      if (String(form.resend_webhook_secret || '').trim() !== '') {
+        payload.resend_webhook_secret = String(form.resend_webhook_secret);
+      }
       return EmailService.updateSettings(payload);
     },
     onSuccess: async () => {
@@ -128,7 +136,7 @@ export default function AdminEmailPage() {
       await qc.invalidateQueries({ queryKey: ['email'] });
       await qc.invalidateQueries({ queryKey: ['public', 'email'] });
       refetch();
-      setForm((p: any) => ({ ...p, smtp_password: '' }));
+      setForm((p: any) => ({ ...p, smtp_password: '', resend_api_key: '', resend_webhook_secret: '' }));
     },
     onError: (e: any) => toast.error(e?.message || 'Failed to save'),
   });
