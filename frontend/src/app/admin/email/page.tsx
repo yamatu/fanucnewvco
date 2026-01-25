@@ -5,62 +5,9 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import { EmailService } from '@/services';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
+import { buildEmailHtml, defaultModule, type EmailModule, type EmailModuleType } from '@/lib/email-templates';
 
 type Tab = 'settings' | 'send' | 'marketing' | 'webhooks';
-
-const DEFAULT_MARKETING_HTML = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{subject}}</title>
-  </head>
-  <body style="margin:0;padding:0;background:#f6f7fb;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7fb;">
-      <tr>
-        <td align="center" style="padding:24px 12px;">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">
-            <tr>
-              <td style="padding:22px 24px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#111827;">
-                <div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:800;">Vcocnc Spare Parts</div>
-                <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;opacity:0.85;margin-top:4px;">FANUC CNC Parts • Repair • Exchange</div>
-              </td>
-            </tr>
-
-            <tr>
-              <td style="padding:22px 24px;">
-                <div style="font-family:Arial,Helvetica,sans-serif;color:#111827;font-size:13px;">Hello {{full_name}},</div>
-                <h1 style="font-family:Arial,Helvetica,sans-serif;color:#111827;font-size:22px;line-height:1.25;margin:12px 0 10px 0;">{{headline}}</h1>
-                <div style="font-family:Arial,Helvetica,sans-serif;color:#374151;font-size:15px;line-height:1.6;">
-                  {{content_html}}
-                </div>
-
-                <div style="margin-top:18px;">
-                  <a href="{{cta_url}}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:14px;padding:12px 16px;border-radius:10px;">{{cta_label}}</a>
-                </div>
-
-                <div style="margin-top:18px;font-family:Arial,Helvetica,sans-serif;color:#6b7280;font-size:12px;line-height:1.5;">
-                  If you have questions, reply to this email.
-                </div>
-              </td>
-            </tr>
-
-            <tr>
-              <td style="padding:16px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;">
-                <div style="font-family:Arial,Helvetica,sans-serif;color:#6b7280;font-size:12px;line-height:1.5;">
-                  Vcocnc • sales@vcocncspare.com • +86 13348028050
-                </div>
-                <div style="font-family:Arial,Helvetica,sans-serif;color:#9ca3af;font-size:11px;margin-top:6px;">
-                  You received this email because you are a customer of Vcocnc.
-                </div>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
 
 export default function AdminEmailPage() {
   const qc = useQueryClient();
@@ -148,15 +95,29 @@ export default function AdminEmailPage() {
     onError: (e: any) => toast.error(e?.message || 'Failed to send test'),
   });
 
-  const [mk, setMk] = useState({
-    subject: '',
-    html: DEFAULT_MARKETING_HTML,
-    text: '',
-    test_to: '',
-    limit: 0,
+  const [modules, setModules] = useState<EmailModule[]>(() => {
+    const mk1 = { ...defaultModule('new_arrivals'), id: 'm1' } as EmailModule;
+    const mk2 = { ...defaultModule('promotion'), id: 'm2' } as EmailModule;
+    return [mk1, mk2];
   });
 
-  const [single, setSingle] = useState({ to: '', subject: '', html: DEFAULT_MARKETING_HTML, text: '' });
+  const [mk, setMk] = useState({ subject: '', html: '', text: '', test_to: '', limit: 0 });
+  const [single, setSingle] = useState({ to: '', subject: '', html: '', text: '' });
+
+  useEffect(() => {
+    const subject = mk.subject || 'Vcocnc Updates';
+    const built = buildEmailHtml(subject, modules);
+    setMk((p) => ({ ...p, html: built.html, text: built.text }));
+    setSingle((p) => ({ ...p, html: built.html, text: built.text }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const subject = mk.subject || 'Vcocnc Updates';
+    const built = buildEmailHtml(subject, modules);
+    setMk((p) => ({ ...p, html: built.html, text: p.text ? p.text : built.text }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modules, mk.subject]);
 
   const singleSendMutation = useMutation({
     mutationFn: async () => EmailService.send(single),
@@ -468,6 +429,13 @@ export default function AdminEmailPage() {
         ) : tab === 'send' ? (
           <div className="bg-white rounded-lg shadow p-6 space-y-4">
             <div className="text-sm text-gray-600">Send a single email (use this as your mail panel).</div>
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+              <div className="text-sm font-semibold text-gray-900 mb-3">Modules (edit text here)</div>
+              <ModuleEditor modules={modules} setModules={setModules} />
+              <div className="mt-3 text-xs text-gray-500">
+                Editing modules regenerates HTML automatically. You can still edit HTML below after generation.
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">To</label>
@@ -496,6 +464,16 @@ export default function AdminEmailPage() {
                 {singleSendMutation.isPending ? 'Sending...' : 'Send email'}
               </button>
             </div>
+
+            <div className="border-t pt-4">
+              <div className="text-sm font-semibold text-gray-900 mb-2">Preview</div>
+              <iframe
+                title="email-preview"
+                sandbox=""
+                style={{ width: '100%', height: 520, border: '1px solid #e5e7eb', borderRadius: 10, background: '#fff' }}
+                srcDoc={single.html}
+              />
+            </div>
           </div>
         ) : tab === 'marketing' ? (
           <div className="bg-white rounded-lg shadow p-6 space-y-4">
@@ -510,6 +488,14 @@ export default function AdminEmailPage() {
                   Enable Email + Marketing in Settings first.
                 </div>
               )}
+            </div>
+
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+              <div className="text-sm font-semibold text-gray-900 mb-3">Modules (edit text here)</div>
+              <ModuleEditor modules={modules} setModules={setModules} />
+              <div className="mt-3 text-xs text-gray-500">
+                Editing modules regenerates HTML automatically. Use the HTML field below for final tweaks.
+              </div>
             </div>
 
             <div>
@@ -572,6 +558,16 @@ export default function AdminEmailPage() {
                   {broadcastMutation.isPending ? 'Sending...' : mk.test_to ? 'Send test' : 'Send broadcast'}
                 </button>
               </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <div className="text-sm font-semibold text-gray-900 mb-2">Preview</div>
+              <iframe
+                title="email-preview"
+                sandbox=""
+                style={{ width: '100%', height: 520, border: '1px solid #e5e7eb', borderRadius: 10, background: '#fff' }}
+                srcDoc={mk.html}
+              />
             </div>
           </div>
         ) : (
@@ -641,5 +637,139 @@ export default function AdminEmailPage() {
         )}
       </div>
     </AdminLayout>
+  );
+}
+
+function ModuleEditor({
+  modules,
+  setModules,
+}: {
+  modules: EmailModule[];
+  setModules: (updater: (prev: EmailModule[]) => EmailModule[]) => void;
+}) {
+  const add = (type: EmailModuleType) => {
+    setModules((prev) => {
+      const id = `m${Date.now()}`;
+      return [...prev, { ...(defaultModule(type) as any), id }];
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={() => add('new_arrivals')} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm hover:bg-gray-50">
+          + New arrivals
+        </button>
+        <button type="button" onClick={() => add('promotion')} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm hover:bg-gray-50">
+          + Promotion
+        </button>
+        <button type="button" onClick={() => add('replacement')} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm hover:bg-gray-50">
+          + Out-of-stock replacement
+        </button>
+        <button type="button" onClick={() => add('repair_quote')} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm hover:bg-gray-50">
+          + Repair quote
+        </button>
+      </div>
+
+      {modules.map((m) => (
+        <div key={m.id} className="rounded-md border border-gray-200 bg-white p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-semibold text-gray-900">
+              {m.type.replace(/_/g, ' ')}
+            </div>
+            <button
+              type="button"
+              onClick={() => setModules((prev) => prev.filter((x) => x.id !== m.id))}
+              className="rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-red-600 hover:bg-gray-50"
+            >
+              Remove
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
+              <input
+                value={m.title}
+                onChange={(e) =>
+                  setModules((prev) => prev.map((x) => (x.id === m.id ? { ...x, title: e.target.value } : x)))
+                }
+                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Badge (optional)</label>
+              <input
+                value={m.badge || ''}
+                onChange={(e) =>
+                  setModules((prev) => prev.map((x) => (x.id === m.id ? { ...x, badge: e.target.value } : x)))
+                }
+                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                placeholder="NEW / SALE / ALT"
+              />
+            </div>
+          </div>
+
+          <div className="mt-3">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Body</label>
+            <textarea
+              value={m.body}
+              onChange={(e) => setModules((prev) => prev.map((x) => (x.id === m.id ? { ...x, body: e.target.value } : x)))}
+              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              rows={3}
+            />
+          </div>
+
+          <div className="mt-3">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Bullets (one per line)</label>
+            <textarea
+              value={(m.bullets || []).join('\n')}
+              onChange={(e) =>
+                setModules((prev) =>
+                  prev.map((x) => (x.id === m.id ? { ...x, bullets: e.target.value.split('\n') } : x))
+                )
+              }
+              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
+              rows={4}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">CTA Label</label>
+              <input
+                value={m.ctaLabel}
+                onChange={(e) =>
+                  setModules((prev) => prev.map((x) => (x.id === m.id ? { ...x, ctaLabel: e.target.value } : x)))
+                }
+                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">CTA URL</label>
+              <input
+                value={m.ctaUrl}
+                onChange={(e) =>
+                  setModules((prev) => prev.map((x) => (x.id === m.id ? { ...x, ctaUrl: e.target.value } : x)))
+                }
+                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="mt-3">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Highlight (optional)</label>
+            <input
+              value={m.highlight || ''}
+              onChange={(e) =>
+                setModules((prev) => prev.map((x) => (x.id === m.id ? { ...x, highlight: e.target.value } : x)))
+              }
+              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              placeholder="Coupon code / lead time / special note"
+            />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
