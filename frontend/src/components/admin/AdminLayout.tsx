@@ -20,7 +20,8 @@ import {
   TicketIcon,
   ChatBubbleLeftRightIcon,
   ArrowDownTrayIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  CreditCardIcon
 } from '@heroicons/react/24/outline';
 import { useAuth, useLogout } from '@/hooks/useAuth';
 import AuthGuard from '@/components/auth/AuthGuard';
@@ -39,6 +40,7 @@ const navigation = [
   { key: 'nav.media', name: 'Media Library', href: '/admin/media', icon: PhotoIcon },
   { key: 'nav.backup', name: 'Backup & Restore', href: '/admin/backup', icon: ArrowDownTrayIcon },
   { key: 'nav.cache', name: 'Cache & CDN', href: '/admin/cache', icon: ArrowPathIcon },
+  { key: 'nav.paypal', name: 'PayPal', href: '/admin/paypal', icon: CreditCardIcon },
   { key: 'nav.homepage', name: 'Homepage Content', href: '/admin/homepage', icon: DocumentTextIcon },
 ];
 

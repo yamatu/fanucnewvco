@@ -13,6 +13,7 @@ import { MediaService as MediaServiceDefault } from './media.service';
 import { BackupService as BackupServiceDefault } from './backup.service';
 import { CacheService as CacheServiceDefault } from './cache.service';
 import { HotlinkService as HotlinkServiceDefault } from './hotlink.service';
+import { PayPalService as PayPalServiceDefault } from './paypal.service';
 
 // Export all services
 export const AuthService = AuthServiceDefault;
@@ -29,6 +30,7 @@ export const MediaService = MediaServiceDefault;
 export const BackupService = BackupServiceDefault;
 export const CacheService = CacheServiceDefault;
 export const HotlinkService = HotlinkServiceDefault;
+export const PayPalService = PayPalServiceDefault;
 
 // Export types
 export type { ProductFilters } from './product.service';

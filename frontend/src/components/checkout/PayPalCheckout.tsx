@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { toast } from 'react-hot-toast';
+import { PayPalService } from '@/services';
 
 interface PayPalCheckoutProps {
   amount: number;
@@ -12,15 +13,11 @@ interface PayPalCheckoutProps {
   disabled?: boolean;
 }
 
-// PayPal configuration
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'test';
-const PAYPAL_OPTIONS = {
-  'client-id': PAYPAL_CLIENT_ID,
-  currency: 'USD',
-  intent: 'capture',
-  components: 'buttons',
-  'enable-funding': 'venmo,paylater',
-  'disable-funding': 'credit,card'
+type PayPalPublicConfig = {
+  enabled: boolean;
+  mode: 'sandbox' | 'live';
+  client_id: string;
+  currency: string;
 };
 
 function PayPalButtonsWrapper({ amount, currency = 'USD', onSuccess, onError, disabled }: PayPalCheckoutProps) {
@@ -100,6 +97,9 @@ function PayPalButtonsWrapper({ amount, currency = 'USD', onSuccess, onError, di
 export default function PayPalCheckout(props: PayPalCheckoutProps) {
   const { amount, currency = 'USD' } = props;
 
+  const [config, setConfig] = useState<PayPalPublicConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+
   // Validate amount
   if (!amount || amount <= 0) {
     return (
@@ -111,14 +111,55 @@ export default function PayPalCheckout(props: PayPalCheckoutProps) {
     );
   }
 
-  // Check if PayPal client ID is configured
-  if (!PAYPAL_CLIENT_ID || PAYPAL_CLIENT_ID === 'test') {
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const cfg = await PayPalService.getPublicConfig();
+        if (!alive) return;
+        setConfig(cfg as any);
+      } catch (e: any) {
+        if (!alive) return;
+        console.error('Failed to load PayPal config:', e);
+        setConfig({ enabled: false, mode: 'sandbox', client_id: '', currency: 'USD' });
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const options = useMemo(() => {
+    const clientId = config?.client_id || '';
+    const cur = (currency || config?.currency || 'USD').toUpperCase();
+    return {
+      'client-id': clientId,
+      currency: cur,
+      intent: 'capture',
+      components: 'buttons',
+      'enable-funding': 'venmo,paylater',
+      'disable-funding': 'credit,card',
+    } as any;
+  }, [config?.client_id, config?.currency, currency]);
+
+  if (loading) {
+    return (
+      <div className="p-4 bg-gray-50 border border-gray-200 rounded-md">
+        <div className="text-gray-700 text-sm">Loading PayPal...</div>
+      </div>
+    );
+  }
+
+  // Check if PayPal is configured
+  if (!config?.enabled || !config.client_id) {
     return (
       <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
         <div className="text-yellow-800 text-sm">
-          <strong>PayPal Configuration Required</strong>
+          <strong>PayPal is not configured</strong>
           <br />
-          Please configure NEXT_PUBLIC_PAYPAL_CLIENT_ID in your environment variables.
+          Please configure PayPal in Admin → PayPal.
         </div>
       </div>
     );
@@ -135,7 +176,7 @@ export default function PayPalCheckout(props: PayPalCheckoutProps) {
         </p>
       </div>
 
-      <PayPalScriptProvider options={PAYPAL_OPTIONS}>
+      <PayPalScriptProvider options={options}>
         <div className="paypal-button-container">
           <PayPalButtonsWrapper {...props} />
         </div>

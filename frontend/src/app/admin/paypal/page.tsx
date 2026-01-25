@@ -1,0 +1,182 @@
+'use client';
+
+import AdminLayout from '@/components/admin/AdminLayout';
+import { useAdminI18n } from '@/lib/admin-i18n';
+import { PayPalService } from '@/services';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-hot-toast';
+
+type FormState = {
+  enabled: boolean;
+  mode: 'sandbox' | 'live';
+  currency: string;
+  client_id_sandbox: string;
+  client_id_live: string;
+};
+
+export default function AdminPayPalPage() {
+  const { t } = useAdminI18n();
+  const qc = useQueryClient();
+
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['paypal', 'settings'],
+    queryFn: () => PayPalService.getSettings(),
+  });
+
+  const [form, setForm] = useState<FormState>({
+    enabled: false,
+    mode: 'sandbox',
+    currency: 'USD',
+    client_id_sandbox: '',
+    client_id_live: '',
+  });
+
+  useEffect(() => {
+    if (!data) return;
+    setForm({
+      enabled: Boolean((data as any).enabled),
+      mode: ((data as any).mode === 'live' ? 'live' : 'sandbox') as any,
+      currency: String((data as any).currency || 'USD'),
+      client_id_sandbox: String((data as any).client_id_sandbox || ''),
+      client_id_live: String((data as any).client_id_live || ''),
+    });
+  }, [data]);
+
+  const effectiveClientId = useMemo(() => {
+    return form.mode === 'live' ? form.client_id_live.trim() : form.client_id_sandbox.trim();
+  }, [form.mode, form.client_id_live, form.client_id_sandbox]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        enabled: form.enabled,
+        mode: form.mode,
+        currency: form.currency.trim() || 'USD',
+        client_id_sandbox: form.client_id_sandbox.trim(),
+        client_id_live: form.client_id_live.trim(),
+      };
+      return PayPalService.updateSettings(payload);
+    },
+    onSuccess: async () => {
+      toast.success(t('paypal.saved', 'Saved'));
+      await qc.invalidateQueries({ queryKey: ['paypal'] });
+      await qc.invalidateQueries({ queryKey: ['public', 'paypal'] });
+      refetch();
+    },
+    onError: (e: any) => toast.error(e?.message || t('paypal.saveFailed', 'Failed to save')),
+  });
+
+  return (
+    <AdminLayout>
+      <div className="max-w-4xl">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">{t('paypal.title', 'PayPal Settings')}</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            {t('paypal.subtitle', 'Configure PayPal Client ID (Sandbox/Live). No .env is required.')}
+          </p>
+        </div>
+
+        {isLoading ? (
+          <div className="bg-white rounded-lg shadow p-6">{t('common.loading', 'Loading...')}</div>
+        ) : isError ? (
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="text-sm text-red-600">{String((error as any)?.message || 'Failed to load')}</div>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="mt-4 inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              {t('common.retry', 'Retry')}
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-gray-900">{t('paypal.enable', 'Enable PayPal')}</div>
+                <div className="text-xs text-gray-500">{t('paypal.enableHint', 'Show PayPal on checkout')}</div>
+              </div>
+              <label className="inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.enabled}
+                  onChange={(e) => setForm((p) => ({ ...p, enabled: e.target.checked }))}
+                  className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded"
+                />
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('paypal.mode', 'Mode')}</label>
+                <select
+                  value={form.mode}
+                  onChange={(e) => setForm((p) => ({ ...p, mode: e.target.value === 'live' ? 'live' : 'sandbox' }))}
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                >
+                  <option value="sandbox">Sandbox</option>
+                  <option value="live">Live</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">{t('paypal.modeHint', 'Sandbox for testing, Live for real payments')}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('paypal.currency', 'Currency')}</label>
+                <input
+                  value={form.currency}
+                  onChange={(e) => setForm((p) => ({ ...p, currency: e.target.value.toUpperCase() }))}
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                  placeholder="USD"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('paypal.sandboxId', 'Sandbox Client ID')}</label>
+                <input
+                  value={form.client_id_sandbox}
+                  onChange={(e) => setForm((p) => ({ ...p, client_id_sandbox: e.target.value }))}
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                  placeholder="AQ... (Sandbox Client ID)"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('paypal.liveId', 'Live Client ID')}</label>
+                <input
+                  value={form.client_id_live}
+                  onChange={(e) => setForm((p) => ({ ...p, client_id_live: e.target.value }))}
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                  placeholder="AQ... (Live Client ID)"
+                />
+              </div>
+              <div className="rounded-md bg-gray-50 border border-gray-200 p-3 text-xs text-gray-600">
+                <div className="font-semibold text-gray-800">{t('paypal.activeId', 'Active Client ID')}</div>
+                <div className="mt-1 font-mono break-all">{effectiveClientId || '—'}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="inline-flex items-center rounded-md border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                {t('common.refresh', 'Refresh')}
+              </button>
+              <button
+                type="button"
+                disabled={saveMutation.isPending}
+                onClick={() => saveMutation.mutate()}
+                className="inline-flex items-center rounded-md bg-yellow-500 px-4 py-2 text-sm font-semibold text-black hover:bg-yellow-600 disabled:opacity-60"
+              >
+                {saveMutation.isPending ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </AdminLayout>
+  );
+}

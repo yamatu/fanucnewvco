@@ -36,6 +36,7 @@ func SetupRoutes(r *gin.Engine) {
 	backupController := &controllers.BackupController{}
 	cacheController := &controllers.CacheController{}
 	hotlinkController := &controllers.HotlinkController{}
+	payPalController := &controllers.PayPalController{}
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -84,6 +85,9 @@ func SetupRoutes(r *gin.Engine) {
 
 			// Coupon validation (public access)
 			public.POST("/coupons/validate", couponController.ValidateCoupon)
+
+			// PayPal (public config)
+			public.GET("/paypal/config", payPalController.GetPublicConfig)
 		}
 
 		// Authentication routes
@@ -229,6 +233,14 @@ func SetupRoutes(r *gin.Engine) {
 			{
 				hotlink.GET("/settings", hotlinkController.GetSettings)
 				hotlink.PUT("/settings", hotlinkController.UpdateSettings)
+			}
+
+			// PayPal (admin only)
+			paypal := admin.Group("/paypal")
+			paypal.Use(middleware.AdminOnly())
+			{
+				paypal.GET("/settings", payPalController.GetSettings)
+				paypal.PUT("/settings", payPalController.UpdateSettings)
 			}
 
 			// Homepage Content management (admin and editor access)
