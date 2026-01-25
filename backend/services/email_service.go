@@ -16,7 +16,6 @@ import (
 
 	"fanuc-backend/models"
 
-	resend "github.com/resend/resend-go/v3"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gomail.v2"
 	"gorm.io/gorm"
@@ -234,49 +233,30 @@ func SendEmail(db *gorm.DB, opts EmailSendOptions) error {
 }
 
 func sendResendEmail(db *gorm.DB, s *models.EmailSetting, opts EmailSendOptions) error {
-	apiKey, err := decryptString(s.ResendAPIKey)
+	apiKey, err := GetDecryptedResendAPIKey(s)
 	if err != nil {
 		return err
-	}
-	apiKey = strings.TrimSpace(apiKey)
-	if apiKey == "" {
-		return errors.New("resend api key is not configured")
 	}
 	if s.FromEmail == "" {
 		return errors.New("from_email is required")
 	}
-	client := resend.NewClient(apiKey)
+	client := NewResendClient(apiKey)
 
 	from := s.FromEmail
 	if s.FromName != "" {
 		from = fmt.Sprintf("%s <%s>", s.FromName, s.FromEmail)
 	}
 
-	params := &resend.SendEmailRequest{
+	req := ResendSendEmailRequest{
 		From:    from,
 		To:      []string{opts.To},
 		Subject: opts.Subject,
+		HTML:    opts.HTML,
+		Text:    opts.Text,
+		ReplyTo: s.ReplyTo,
+		Headers: opts.Headers,
 	}
-	if strings.TrimSpace(opts.HTML) != "" {
-		params.Html = opts.HTML
-	}
-	if strings.TrimSpace(opts.Text) != "" {
-		params.Text = opts.Text
-	}
-	if s.ReplyTo != "" {
-		params.ReplyTo = s.ReplyTo
-	}
-
-	// Map custom headers if needed.
-	if len(opts.Headers) > 0 {
-		h := make(map[string]string, len(opts.Headers))
-		for k, v := range opts.Headers {
-			h[k] = v
-		}
-		params.Headers = h
-	}
-
-	_, err = client.Emails.Send(params)
+	_, err = client.SendEmail(req)
 	return err
 }
 

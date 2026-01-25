@@ -9,12 +9,11 @@ import (
 	"fanuc-backend/services"
 
 	"github.com/gin-gonic/gin"
-	resend "github.com/resend/resend-go/v3"
 )
 
 type ResendWebhookController struct{}
 
-func (rc *ResendWebhookController) clientOrError(c *gin.Context) (*resend.Client, bool) {
+func (rc *ResendWebhookController) clientOrError(c *gin.Context) (*services.ResendClient, bool) {
 	db := config.GetDB()
 	s, err := services.GetOrCreateEmailSetting(db)
 	if err != nil {
@@ -26,7 +25,7 @@ func (rc *ResendWebhookController) clientOrError(c *gin.Context) (*resend.Client
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Resend API key not configured", Error: err.Error()})
 		return nil, false
 	}
-	client := resend.NewClient(apiKey)
+	client := services.NewResendClient(apiKey)
 	return client, true
 }
 
@@ -36,7 +35,7 @@ func (rc *ResendWebhookController) List(c *gin.Context) {
 	if !ok {
 		return
 	}
-	whs, err := client.Webhooks.List()
+	whs, err := client.WebhooksList()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to list webhooks", Error: err.Error()})
 		return
@@ -51,7 +50,7 @@ func (rc *ResendWebhookController) Get(c *gin.Context) {
 		return
 	}
 	id := c.Param("id")
-	wh, err := client.Webhooks.Get(id)
+	wh, err := client.WebhooksGet(id)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to get webhook", Error: err.Error()})
 		return
@@ -75,8 +74,8 @@ func (rc *ResendWebhookController) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request", Error: err.Error()})
 		return
 	}
-	params := &resend.CreateWebhookRequest{Endpoint: strings.TrimSpace(req.Endpoint), Events: req.Events}
-	wh, err := client.Webhooks.Create(params)
+	params := services.ResendCreateWebhookRequest{Endpoint: strings.TrimSpace(req.Endpoint), Events: req.Events}
+	wh, err := client.WebhooksCreate(params)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to create webhook", Error: err.Error()})
 		return
@@ -102,7 +101,7 @@ func (rc *ResendWebhookController) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request", Error: err.Error()})
 		return
 	}
-	params := &resend.UpdateWebhookRequest{Events: req.Events}
+	params := services.ResendUpdateWebhookRequest{Events: req.Events}
 	if req.Endpoint != nil {
 		e := strings.TrimSpace(*req.Endpoint)
 		params.Endpoint = &e
@@ -111,7 +110,7 @@ func (rc *ResendWebhookController) Update(c *gin.Context) {
 		st := strings.TrimSpace(*req.Status)
 		params.Status = &st
 	}
-	wh, err := client.Webhooks.Update(id, params)
+	wh, err := client.WebhooksUpdate(id, params)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to update webhook", Error: err.Error()})
 		return
@@ -126,7 +125,7 @@ func (rc *ResendWebhookController) Remove(c *gin.Context) {
 		return
 	}
 	id := c.Param("id")
-	wh, err := client.Webhooks.Remove(id)
+	wh, err := client.WebhooksRemove(id)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to delete webhook", Error: err.Error()})
 		return
