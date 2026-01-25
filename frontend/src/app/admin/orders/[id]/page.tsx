@@ -304,6 +304,27 @@ export default function OrderDetailPage() {
             <div className="bg-white shadow rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Addresses</h3>
               <div className="space-y-4">
+                {(order as any).tracking_number || (order as any).shipping_carrier ? (
+                  <div>
+                    <h4 className="flex items-center font-medium text-gray-900 mb-2">
+                      <TruckIcon className="h-4 w-4 mr-2" />
+                      Shipping Tracking
+                    </h4>
+                    <div className="text-sm text-gray-700 space-y-1">
+                      {(order as any).shipping_carrier ? (
+                        <div>
+                          <span className="text-gray-500">Carrier:</span> {(order as any).shipping_carrier}
+                        </div>
+                      ) : null}
+                      {(order as any).tracking_number ? (
+                        <div>
+                          <span className="text-gray-500">Tracking #:</span>{' '}
+                          <span className="font-mono">{(order as any).tracking_number}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
                 <div>
                   <h4 className="flex items-center font-medium text-gray-900 mb-2">
                     <MapPinIcon className="h-4 w-4 mr-2" />

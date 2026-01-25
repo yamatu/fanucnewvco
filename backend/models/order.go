@@ -5,32 +5,37 @@ import (
 )
 
 type Order struct {
-	ID              uint        `json:"id" gorm:"primaryKey"`
-	OrderNumber     string      `json:"order_number" gorm:"type:varchar(100);uniqueIndex;not null"`
+	ID          uint   `json:"id" gorm:"primaryKey"`
+	OrderNumber string `json:"order_number" gorm:"type:varchar(100);uniqueIndex;not null"`
 
 	// Customer reference (for registered customers)
-	CustomerID      *uint       `json:"customer_id" gorm:"index"`
-	Customer        *Customer   `json:"customer,omitempty" gorm:"foreignKey:CustomerID"`
+	CustomerID *uint     `json:"customer_id" gorm:"index"`
+	Customer   *Customer `json:"customer,omitempty" gorm:"foreignKey:CustomerID"`
 
 	// Admin user (for manual orders)
-	UserID          *uint       `json:"user_id" gorm:"index"`
-	User            *AdminUser  `json:"user,omitempty" gorm:"foreignKey:UserID"`
+	UserID *uint      `json:"user_id" gorm:"index"`
+	User   *AdminUser `json:"user,omitempty" gorm:"foreignKey:UserID"`
 
-	CustomerEmail   string      `json:"customer_email" gorm:"type:varchar(255);not null"`
-	CustomerName    string      `json:"customer_name" gorm:"type:varchar(255);not null"`
-	CustomerPhone   string      `json:"customer_phone" gorm:"type:varchar(50)"`
-	ShippingAddress string      `json:"shipping_address" gorm:"type:text"`
-	BillingAddress  string      `json:"billing_address" gorm:"type:text"`
-	Status          string      `json:"status" gorm:"type:varchar(50);default:'pending'"`         // pending, paid, shipped, delivered, cancelled
-	PaymentStatus   string      `json:"payment_status" gorm:"type:varchar(50);default:'pending'"` // pending, paid, failed, refunded
-	PaymentMethod   string      `json:"payment_method" gorm:"type:varchar(50)"`                   // paypal, stripe, etc.
-	PaymentID       string      `json:"payment_id" gorm:"type:varchar(255)"`                      // External payment ID
-	SubtotalAmount  float64     `json:"subtotal_amount" gorm:"not null"`                          // Amount before discounts
-	DiscountAmount  float64     `json:"discount_amount" gorm:"default:0"`                         // Total discount applied
-	TotalAmount     float64     `json:"total_amount" gorm:"not null"`                             // Final amount after discounts
-	CouponCode      string      `json:"coupon_code" gorm:"type:varchar(50)"`                      // Applied coupon code
-	CouponID        *uint       `json:"coupon_id" gorm:"index"`                                   // Applied coupon ID
-	Coupon          *Coupon     `json:"coupon,omitempty" gorm:"foreignKey:CouponID"`              // Applied coupon details
+	CustomerEmail   string `json:"customer_email" gorm:"type:varchar(255);not null"`
+	CustomerName    string `json:"customer_name" gorm:"type:varchar(255);not null"`
+	CustomerPhone   string `json:"customer_phone" gorm:"type:varchar(50)"`
+	ShippingAddress string `json:"shipping_address" gorm:"type:text"`
+	BillingAddress  string `json:"billing_address" gorm:"type:text"`
+	Status          string `json:"status" gorm:"type:varchar(50);default:'pending'"`         // pending, paid, shipped, delivered, cancelled
+	PaymentStatus   string `json:"payment_status" gorm:"type:varchar(50);default:'pending'"` // pending, paid, failed, refunded
+	PaymentMethod   string `json:"payment_method" gorm:"type:varchar(50)"`                   // paypal, stripe, etc.
+	PaymentID       string `json:"payment_id" gorm:"type:varchar(255)"`                      // External payment ID
+
+	// Shipping
+	TrackingNumber  string      `json:"tracking_number" gorm:"type:varchar(255)"`
+	ShippingCarrier string      `json:"shipping_carrier" gorm:"type:varchar(100)"`
+	ShippedAt       *time.Time  `json:"shipped_at"`
+	SubtotalAmount  float64     `json:"subtotal_amount" gorm:"not null"`             // Amount before discounts
+	DiscountAmount  float64     `json:"discount_amount" gorm:"default:0"`            // Total discount applied
+	TotalAmount     float64     `json:"total_amount" gorm:"not null"`                // Final amount after discounts
+	CouponCode      string      `json:"coupon_code" gorm:"type:varchar(50)"`         // Applied coupon code
+	CouponID        *uint       `json:"coupon_id" gorm:"index"`                      // Applied coupon ID
+	Coupon          *Coupon     `json:"coupon,omitempty" gorm:"foreignKey:CouponID"` // Applied coupon details
 	Currency        string      `json:"currency" gorm:"type:varchar(10);default:'USD'"`
 	Notes           string      `json:"notes" gorm:"type:text"`
 	Items           []OrderItem `json:"items,omitempty" gorm:"foreignKey:OrderID"`

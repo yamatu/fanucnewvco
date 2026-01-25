@@ -188,6 +188,10 @@ export interface Order {
   payment_status: string;
   payment_method: string;
   payment_id: string;
+
+  tracking_number?: string;
+  shipping_carrier?: string;
+  shipped_at?: string;
   subtotal_amount: number;
   discount_amount: number;
   total_amount: number;

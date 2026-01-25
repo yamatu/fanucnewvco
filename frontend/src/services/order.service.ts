@@ -121,12 +121,14 @@ export class OrderService {
     customer_phone?: string;
     shipping_address?: string;
     billing_address?: string;
+    tracking_number?: string;
+    shipping_carrier?: string;
     status?: string;
     payment_status?: string;
     notes?: string;
   }): Promise<Order> {
     const response = await apiClient.put<APIResponse<Order>>(
-      `/admin/orders/${id}`,
+      `/admin/orders/${id}?allow_clear=1`,
       orderData
     );
 

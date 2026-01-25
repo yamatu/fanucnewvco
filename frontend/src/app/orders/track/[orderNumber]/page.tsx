@@ -245,6 +245,18 @@ export default function OrderTrackingPage() {
                   <span className="text-gray-600">Payment Method:</span>
                   <span className="font-medium capitalize">{order.payment_method}</span>
                 </div>
+
+                {(order.tracking_number || order.shipping_carrier) && (
+                  <div className="pt-3 mt-3 border-t border-gray-100">
+                    <div className="text-gray-600">Tracking:</div>
+                    {order.shipping_carrier ? (
+                      <div className="mt-1 font-medium">Carrier: {order.shipping_carrier}</div>
+                    ) : null}
+                    {order.tracking_number ? (
+                      <div className="mt-1 font-mono break-all">{order.tracking_number}</div>
+                    ) : null}
+                  </div>
+                )}
               </div>
             </div>
 

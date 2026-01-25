@@ -45,6 +45,9 @@ interface Order {
   payment_status: string;
   payment_method: string;
   payment_id?: string;
+  tracking_number?: string;
+  shipping_carrier?: string;
+  shipped_at?: string;
   status: string;
   notes?: string;
   coupon_code?: string;
@@ -296,6 +299,20 @@ export default function OrderDetailPage() {
                         {order.payment_method || 'N/A'}
                       </dd>
                     </div>
+
+                    {(order.tracking_number || order.shipping_carrier) && (
+                      <div>
+                        <dt className="text-xs font-medium text-gray-500 uppercase">Tracking</dt>
+                        <dd className="mt-1 text-sm text-gray-900">
+                          {order.shipping_carrier ? (
+                            <div className="text-gray-700">Carrier: {order.shipping_carrier}</div>
+                          ) : null}
+                          {order.tracking_number ? (
+                            <div className="font-mono break-all">{order.tracking_number}</div>
+                          ) : null}
+                        </dd>
+                      </div>
+                    )}
                     <div>
                       <dt className="text-xs font-medium text-gray-500 uppercase">Payment Status</dt>
                       <dd className="mt-1">

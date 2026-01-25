@@ -573,6 +573,8 @@ func (oc *OrderController) UpdateOrder(c *gin.Context) {
 		CustomerPhone   string `json:"customer_phone"`
 		ShippingAddress string `json:"shipping_address"`
 		BillingAddress  string `json:"billing_address"`
+		TrackingNumber  string `json:"tracking_number"`
+		ShippingCarrier string `json:"shipping_carrier"`
 		Status          string `json:"status"`
 		PaymentStatus   string `json:"payment_status"`
 		Notes           string `json:"notes"`
@@ -611,6 +613,19 @@ func (oc *OrderController) UpdateOrder(c *gin.Context) {
 	}
 	if req.BillingAddress != "" {
 		order.BillingAddress = req.BillingAddress
+	}
+	if req.TrackingNumber != "" || c.Query("allow_clear") == "1" {
+		// allow_clear=1 supports clearing the field from admin UI
+		order.TrackingNumber = req.TrackingNumber
+		if req.TrackingNumber != "" {
+			now := time.Now()
+			order.ShippedAt = &now
+		} else {
+			order.ShippedAt = nil
+		}
+	}
+	if req.ShippingCarrier != "" || c.Query("allow_clear") == "1" {
+		order.ShippingCarrier = req.ShippingCarrier
 	}
 	if req.Status != "" {
 		// Validate status

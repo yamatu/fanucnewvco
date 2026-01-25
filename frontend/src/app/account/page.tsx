@@ -224,6 +224,11 @@ export default function AccountPage() {
                                     day: 'numeric',
                                   })}
                                 </p>
+                                {order.tracking_number ? (
+                                  <p className="mt-1 text-xs text-gray-500">
+                                    Tracking: <span className="font-mono text-gray-700">{order.tracking_number}</span>
+                                  </p>
+                                ) : null}
                               </div>
                               <Link
                                 href={`/account/orders/${order.id}`}

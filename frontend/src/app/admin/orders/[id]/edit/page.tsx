@@ -25,6 +25,8 @@ const orderSchema = yup.object().shape({
   billing_address: yup.string().required('Billing address is required'),
   status: yup.string().required('Order status is required'),
   payment_status: yup.string().required('Payment status is required'),
+  tracking_number: yup.string(),
+  shipping_carrier: yup.string(),
   notes: yup.string(),
 });
 
@@ -59,6 +61,8 @@ export default function OrderEditPage() {
         customer_phone: order.customer_phone || '',
         shipping_address: order.shipping_address,
         billing_address: order.billing_address,
+        tracking_number: (order as any).tracking_number || '',
+        shipping_carrier: (order as any).shipping_carrier || '',
         status: order.status,
         payment_status: order.payment_status || 'pending',
         notes: order.notes || '',
@@ -257,6 +261,33 @@ export default function OrderEditPage() {
                   {errors.payment_status && (
                     <p className="mt-1 text-sm text-red-600">{errors.payment_status.message}</p>
                   )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="shipping_carrier" className="block text-sm font-medium text-gray-700 mb-1">
+                      Shipping Carrier
+                    </label>
+                    <input
+                      type="text"
+                      id="shipping_carrier"
+                      {...register('shipping_carrier')}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="DHL / FedEx / UPS..."
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="tracking_number" className="block text-sm font-medium text-gray-700 mb-1">
+                      Tracking Number
+                    </label>
+                    <input
+                      type="text"
+                      id="tracking_number"
+                      {...register('tracking_number')}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="物流单号"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
