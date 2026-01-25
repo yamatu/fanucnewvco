@@ -47,14 +47,78 @@ func BuildShipmentNotificationEmail(siteURL string, order models.Order) (subject
 	}
 
 	subject = fmt.Sprintf("Your order %s has shipped", orderNo)
+
+	// Build items list
+	itemLines := make([]string, 0)
+	if len(order.Items) > 0 {
+		for _, it := range order.Items {
+			sku := ""
+			name := ""
+			if it.Product != nil {
+				sku = it.Product.SKU
+				name = it.Product.Name
+			}
+			if strings.TrimSpace(sku) == "" {
+				sku = fmt.Sprintf("PID-%d", it.ProductID)
+			}
+			if strings.TrimSpace(name) == "" {
+				name = "Product"
+			}
+			itemLines = append(itemLines, fmt.Sprintf("- %s | %s x%d", sku, name, it.Quantity))
+		}
+	}
+
+	itemsText := ""
+	if len(itemLines) > 0 {
+		itemsText = "\nItems:\n" + strings.Join(itemLines, "\n") + "\n"
+	}
+
 	text = fmt.Sprintf(
-		"Vcocnc\n\nGood news - your order %s has shipped.\n\nCarrier: %s\nTracking number: %s\n\nTrack your order: %s\n%s\n\nIf you have any questions, reply to this email.\n\n--\nVcocnc Spare Parts\n",
+		"Vcocnc\n\nGood news - your order %s has shipped.\n\nCarrier: %s\nTracking number: %s\n%s\nTrack your order: %s\n%s\n\nIf you have any questions, reply to this email.\n\n--\nVcocnc Spare Parts\n",
 		orderNo,
 		fallbackStr(carrier, "(not specified)"),
 		fallbackStr(tracking, "(not specified)"),
+		itemsText,
 		fallbackStr(trackPage, ""),
 		optionalLine("Carrier tracking", carrierURL),
 	)
+
+	itemsHTML := ""
+	if len(order.Items) > 0 {
+		rows := make([]string, 0, len(order.Items))
+		for _, it := range order.Items {
+			sku := ""
+			name := ""
+			if it.Product != nil {
+				sku = it.Product.SKU
+				name = it.Product.Name
+			}
+			if strings.TrimSpace(sku) == "" {
+				sku = fmt.Sprintf("PID-%d", it.ProductID)
+			}
+			if strings.TrimSpace(name) == "" {
+				name = "Product"
+			}
+			rows = append(rows,
+				"<tr>"+
+					"<td style=\"padding:8px 10px;border-top:1px solid #e5e7eb;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;color:#111827;\">"+escapeHTML(sku)+"</td>"+
+					"<td style=\"padding:8px 10px;border-top:1px solid #e5e7eb;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111827;\">"+escapeHTML(name)+"</td>"+
+					fmt.Sprintf("<td style=\"padding:8px 10px;border-top:1px solid #e5e7eb;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111827;text-align:right;\">%d</td>", it.Quantity)+
+					"</tr>")
+		}
+
+		itemsHTML = "<div style=\"margin-top:14px\">" +
+			"<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:800;color:#111827;margin:0 0 8px 0\">Items in this shipment</div>" +
+			"<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" style=\"width:100%;border:1px solid #e5e7eb;border-radius:10px;border-collapse:separate;border-spacing:0;overflow:hidden\">" +
+			"<tr>" +
+			"<th align=\"left\" style=\"padding:8px 10px;background:#f9fafb;border-bottom:1px solid #e5e7eb;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em\">SKU</th>" +
+			"<th align=\"left\" style=\"padding:8px 10px;background:#f9fafb;border-bottom:1px solid #e5e7eb;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em\">Item</th>" +
+			"<th align=\"right\" style=\"padding:8px 10px;background:#f9fafb;border-bottom:1px solid #e5e7eb;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em\">Qty</th>" +
+			"</tr>" +
+			strings.Join(rows, "") +
+			"</table>" +
+			"</div>"
+	}
 
 	html = "<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;line-height:1.6;color:#111827\">" +
 		"<div style=\"padding:18px 20px;background:linear-gradient(135deg,#f59e0b,#fbbf24);border-radius:14px 14px 0 0;\">" +
@@ -84,6 +148,7 @@ func BuildShipmentNotificationEmail(siteURL string, order models.Order) (subject
 	html = html +
 		shippedRow +
 		"</table>" +
+		itemsHTML +
 		trackBtn +
 		carrierLink +
 		"<p style=\"margin:14px 0 0 0;font-size:12px;color:#6b7280\">If you have any questions, reply to this email.</p>" +

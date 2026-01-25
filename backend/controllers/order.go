@@ -713,7 +713,10 @@ func (oc *OrderController) UpdateOrder(c *gin.Context) {
 						}
 					}
 
-					subj, txt, html := services.BuildShipmentNotificationEmail(siteURL, order)
+					// Load items/products so the email includes what was shipped.
+					sendOrder := order
+					_ = config.DB.Preload("Items.Product").First(&sendOrder, order.ID).Error
+					subj, txt, html := services.BuildShipmentNotificationEmail(siteURL, sendOrder)
 					err := services.SendEmail(config.DB, services.EmailSendOptions{To: order.CustomerEmail, Subject: subj, Text: txt, HTML: html, Headers: map[string]string{"X-Entity-Ref-ID": "shipment:" + order.OrderNumber}})
 					if err == nil {
 						now := time.Now()
