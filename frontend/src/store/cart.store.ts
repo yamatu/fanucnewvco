@@ -97,7 +97,6 @@ export const useCartStore = create<CartState & CartActions>()(
           total: 0, 
           itemCount: 0 
         });
-        toast.success('Cart cleared');
       },
 
       toggleCart: () => {

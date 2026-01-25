@@ -117,11 +117,11 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 		return
 	}
 
-	// Get total delivered orders count
+	// Get total paid orders count
 	var totalOrders int64
 	if err := db.Model(&models.Order{}).
 		Where("payment_status = ?", "paid").
-		Where("status IN ?", []string{"delivered", "completed"}).
+		Where("status <> ?", "cancelled").
 		Count(&totalOrders).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
@@ -145,11 +145,11 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 		return
 	}
 
-	// Get completed orders count (delivered orders)
+	// Get completed orders count (paid orders)
 	var completedOrders int64
 	if err := db.Model(&models.Order{}).
 		Where("payment_status = ?", "paid").
-		Where("status IN ?", []string{"delivered", "completed"}).
+		Where("status <> ?", "cancelled").
 		Count(&completedOrders).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
@@ -159,13 +159,13 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 		return
 	}
 
-	// Get monthly delivered orders count (current month)
+	// Get monthly paid orders count (current month)
 	now := time.Now()
 	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	var monthlyOrders int64
 	if err := db.Model(&models.Order{}).
 		Where("payment_status = ?", "paid").
-		Where("status IN ?", []string{"delivered", "completed"}).
+		Where("status <> ?", "cancelled").
 		Where("created_at >= ? AND created_at <= ?", startOfMonth, now).
 		Count(&monthlyOrders).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.APIResponse{
@@ -176,11 +176,11 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 		return
 	}
 
-	// Get total revenue (delivered orders)
+	// Get total revenue (paid orders)
 	var totalRevenue float64
 	if err := db.Model(&models.Order{}).
 		Where("payment_status = ?", "paid").
-		Where("status IN ?", []string{"delivered", "completed"}).
+		Where("status <> ?", "cancelled").
 		Select("COALESCE(SUM(total_amount), 0)").
 		Scan(&totalRevenue).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, models.APIResponse{
@@ -191,11 +191,11 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 		return
 	}
 
-	// Get monthly revenue (delivered orders)
+	// Get monthly revenue (paid orders)
 	var monthlyRevenue float64
 	if err := db.Model(&models.Order{}).
 		Where("payment_status = ?", "paid").
-		Where("status IN ?", []string{"delivered", "completed"}).
+		Where("status <> ?", "cancelled").
 		Where("created_at >= ? AND created_at <= ?", startOfMonth, now).
 		Select("COALESCE(SUM(total_amount), 0)").
 		Scan(&monthlyRevenue).Error; err != nil {
@@ -284,7 +284,7 @@ func (c *DashboardController) GetDashboardStats(ctx *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param limit query int false "Number of orders to return" default(5)
-// @Param include_pending query int false "Include non-paid / non-delivered orders" default(0)
+// @Param include_pending query int false "Include non-paid orders" default(0)
 // @Success 200 {object} models.APIResponse{data=[]RecentOrder}
 // @Failure 401 {object} models.APIResponse
 // @Failure 500 {object} models.APIResponse
@@ -304,12 +304,12 @@ func (c *DashboardController) GetRecentOrders(ctx *gin.Context) {
 		Order("created_at DESC").
 		Limit(limit)
 
-	// Default: only show meaningful orders on the dashboard.
+	// Default: show paid orders on the dashboard.
 	// You can override this by passing ?include_pending=1.
-	// Note: we treat both "delivered" and legacy "completed" as successful.
+	// Note: paid orders can be in confirmed/processing/shipped/delivered.
 	includePending := ctx.Query("include_pending") == "1"
 	if !includePending {
-		query = query.Where("payment_status = ?", "paid").Where("status IN ?", []string{"delivered", "completed"})
+		query = query.Where("payment_status = ?", "paid").Where("status <> ?", "cancelled")
 	}
 
 	var orders []models.Order
@@ -391,7 +391,7 @@ func (c *DashboardController) GetTopProducts(ctx *gin.Context) {
 		Joins("JOIN orders ON orders.id = order_items.order_id").
 		Joins("JOIN products ON products.id = order_items.product_id").
 		Where("orders.payment_status = ?", "paid").
-		Where("orders.status IN ?", []string{"delivered", "completed"})
+		Where("orders.status <> ?", "cancelled")
 	if days > 0 {
 		query = query.Where("orders.created_at >= ?", since)
 	}
@@ -452,13 +452,13 @@ func (c *DashboardController) GetRevenueData(ctx *gin.Context) {
 
 			db.Model(&models.Order{}).
 				Where("payment_status = ?", "paid").
-				Where("status IN ?", []string{"delivered", "completed"}).
+				Where("status <> ?", "cancelled").
 				Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
 				Select("COALESCE(SUM(total_amount), 0)").Scan(&revenue)
 
 			db.Model(&models.Order{}).
 				Where("payment_status = ?", "paid").
-				Where("status IN ?", []string{"delivered", "completed"}).
+				Where("status <> ?", "cancelled").
 				Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
 				Count(&orders)
 
@@ -480,13 +480,13 @@ func (c *DashboardController) GetRevenueData(ctx *gin.Context) {
 
 			db.Model(&models.Order{}).
 				Where("payment_status = ?", "paid").
-				Where("status IN ?", []string{"delivered", "completed"}).
+				Where("status <> ?", "cancelled").
 				Where("created_at >= ? AND created_at < ?", startOfMonth, endOfMonth).
 				Select("COALESCE(SUM(total_amount), 0)").Scan(&revenue)
 
 			db.Model(&models.Order{}).
 				Where("payment_status = ?", "paid").
-				Where("status IN ?", []string{"delivered", "completed"}).
+				Where("status <> ?", "cancelled").
 				Where("created_at >= ? AND created_at < ?", startOfMonth, endOfMonth).
 				Count(&orders)
 
@@ -508,13 +508,13 @@ func (c *DashboardController) GetRevenueData(ctx *gin.Context) {
 
 			db.Model(&models.Order{}).
 				Where("payment_status = ?", "paid").
-				Where("status IN ?", []string{"delivered", "completed"}).
+				Where("status <> ?", "cancelled").
 				Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
 				Select("COALESCE(SUM(total_amount), 0)").Scan(&revenue)
 
 			db.Model(&models.Order{}).
 				Where("payment_status = ?", "paid").
-				Where("status IN ?", []string{"delivered", "completed"}).
+				Where("status <> ?", "cancelled").
 				Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
 				Count(&orders)
 

@@ -38,6 +38,7 @@ func (oc *OrderController) GetMyOrders(c *gin.Context) {
 	query := db.Where("customer_id = ? OR customer_email = ?", customerID, customer.Email).
 		Preload("Items").
 		Preload("Items.Product").
+		Preload("Items.Product.Images").
 		Order("created_at DESC")
 
 	// Optional status filter
@@ -98,6 +99,7 @@ func (oc *OrderController) GetMyOrderDetails(c *gin.Context) {
 	if err := db.Where("id = ? AND (customer_id = ? OR customer_email = ?)", orderID, customerID, customer.Email).
 		Preload("Items").
 		Preload("Items.Product").
+		Preload("Items.Product.Images").
 		Preload("Customer").
 		First(&order).Error; err != nil {
 		c.JSON(http.StatusNotFound, models.APIResponse{

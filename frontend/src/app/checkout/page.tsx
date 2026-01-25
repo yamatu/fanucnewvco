@@ -88,11 +88,11 @@ export default function CheckoutPage() {
   }, [isAuthenticated, customer, router, setValue]);
 
   useEffect(() => {
-    if (items.length === 0) {
+    if (items.length === 0 && step !== 'success') {
       router.push('/');
       toast.error('Your cart is empty');
     }
-  }, [items, router]);
+  }, [items, router, step]);
 
   // Auto-fill billing address when "Same as shipping" is checked
   useEffect(() => {
@@ -152,9 +152,12 @@ export default function CheckoutPage() {
         payment_data: paymentData,
       });
 
-      clearCart();
+      // Mark success first to avoid empty-cart redirect effect.
       setStep('success');
-      toast.success('Payment completed successfully!');
+      clearCart();
+
+      toast.success('Payment completed. Redirecting to your orders...');
+      router.replace('/account/orders');
     } catch (error: any) {
       toast.error(error.message || 'Payment processing failed');
     } finally {
@@ -307,7 +310,7 @@ export default function CheckoutPage() {
 
                 <div className="space-y-3">
                   <button
-                    onClick={() => router.push('/account')}
+                    onClick={() => router.push('/account/orders')}
                     className="w-full bg-amber-600 text-white py-2 px-4 rounded-md hover:bg-amber-700 transition duration-200"
                   >
                     View My Orders

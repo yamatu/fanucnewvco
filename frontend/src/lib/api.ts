@@ -148,11 +148,10 @@ api.interceptors.response.use(
       // Let the components handle navigation based on their context
       if (typeof window !== 'undefined') {
         try {
-          const customerToken = Cookies.get('customer_token');
-          const adminToken = Cookies.get('auth_token');
-          if (customerToken) {
+          const reqUrl = String(error?.config?.url || '');
+          if (reqUrl.includes('/customer/')) {
             Cookies.remove('customer_token');
-          } else if (adminToken) {
+          } else if (reqUrl.includes('/admin/') || reqUrl.includes('/auth/')) {
             Cookies.remove('auth_token');
           }
         } catch (_) {
