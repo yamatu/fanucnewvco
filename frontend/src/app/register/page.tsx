@@ -8,6 +8,7 @@ import * as yup from 'yup';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { useCustomer } from '@/store/customer.store';
+import { EmailService } from '@/services';
 import Layout from '@/components/layout/Layout';
 import {
   UserIcon,
@@ -20,6 +21,7 @@ import {
 const registerSchema = yup.object({
   full_name: yup.string().required('Full name is required'),
   email: yup.string().email('Invalid email').required('Email is required'),
+  email_code: yup.string(),
   password: yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
   confirmPassword: yup.string()
     .oneOf([yup.ref('password')], 'Passwords must match')
@@ -34,13 +36,42 @@ export default function RegisterPage() {
   const router = useRouter();
   const { register: registerUser, isLoading, isAuthenticated } = useCustomer();
 
+  const [emailCfg, setEmailCfg] = useState<{ enabled: boolean; verification_enabled: boolean; code_resend_seconds: number } | null>(null);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<RegisterFormData>({
     resolver: yupResolver(registerSchema),
   });
+
+  const emailValue = watch('email');
+  const verificationRequired = Boolean(emailCfg?.enabled && emailCfg?.verification_enabled);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = await EmailService.getPublicConfig();
+        setEmailCfg({
+          enabled: cfg.enabled,
+          verification_enabled: cfg.verification_enabled,
+          code_resend_seconds: cfg.code_resend_seconds || 60,
+        });
+      } catch {
+        setEmailCfg({ enabled: false, verification_enabled: false, code_resend_seconds: 60 });
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown((v) => Math.max(0, v - 1)), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -51,11 +82,40 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       const { confirmPassword, ...registerData } = data;
+
+      if (verificationRequired && !String((registerData as any).email_code || '').trim()) {
+        toast.error('Email verification code is required');
+        return;
+      }
+
       await registerUser(registerData);
       toast.success('Registration successful! Welcome!');
       router.push('/account');
     } catch (error: any) {
       toast.error(error.message || 'Registration failed');
+    }
+  };
+
+  const sendCode = async () => {
+    const email = String(emailValue || '').trim();
+    if (!email) {
+      toast.error('Please enter your email first');
+      return;
+    }
+    if (!emailCfg?.enabled || !emailCfg.verification_enabled) {
+      toast.error('Email verification is currently disabled');
+      return;
+    }
+    if (cooldown > 0) return;
+    setSendingCode(true);
+    try {
+      await EmailService.sendCode({ email, purpose: 'register' });
+      toast.success('Verification code sent');
+      setCooldown(emailCfg.code_resend_seconds || 60);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to send code');
+    } finally {
+      setSendingCode(false);
     }
   };
 
@@ -116,6 +176,34 @@ export default function RegisterPage() {
                 </div>
                 {errors.email && (
                   <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>
+                )}
+              </div>
+
+              {/* Email Code */}
+              <div>
+                <label htmlFor="email_code" className="block text-sm font-medium text-gray-700">
+                  Email verification code {verificationRequired ? '*' : ''}
+                </label>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    {...register('email_code')}
+                    type="text"
+                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-amber-500 sm:text-sm"
+                    placeholder="123456"
+                  />
+                  <button
+                    type="button"
+                    onClick={sendCode}
+                    disabled={sendingCode || cooldown > 0 || !verificationRequired}
+                    className="shrink-0 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {cooldown > 0 ? `${cooldown}s` : sendingCode ? 'Sending...' : 'Send'}
+                  </button>
+                </div>
+                {verificationRequired ? (
+                  <p className="mt-1 text-xs text-gray-500">We will send a 6-digit code to your email.</p>
+                ) : (
+                  <p className="mt-1 text-xs text-gray-500">Email verification is currently disabled.</p>
                 )}
               </div>
 

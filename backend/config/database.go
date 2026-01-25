@@ -117,6 +117,8 @@ func ConnectDatabase() {
 			&models.CloudflareCacheSetting{},
 			&models.HotlinkProtectionSetting{},
 			&models.PayPalSetting{},
+			&models.EmailSetting{},
+			&models.EmailVerificationCode{},
 		}
 		for _, m := range modelsToMigrate {
 			// GORM may try to "DROP FOREIGN KEY <uni_xxx>" on existing tables (a known benign issue when

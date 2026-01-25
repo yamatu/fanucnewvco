@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, ReactNode } from 'react';
+import { useEffect, useRef, useState, ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -17,6 +17,7 @@ import {
   BellIcon,
   UserCircleIcon,
   EnvelopeIcon,
+  PaperAirplaneIcon,
   TicketIcon,
   ChatBubbleLeftRightIcon,
   ArrowDownTrayIcon,
@@ -37,6 +38,7 @@ const navigation = [
   { key: 'nav.coupons', name: 'Coupon Management', href: '/admin/coupons', icon: TicketIcon },
   { key: 'nav.users', name: 'All Users', href: '/admin/users', icon: UsersIcon },
   { key: 'nav.contacts', name: 'Contact Messages', href: '/admin/contacts', icon: EnvelopeIcon },
+  { key: 'nav.email', name: 'Email', href: '/admin/email', icon: PaperAirplaneIcon },
   { key: 'nav.media', name: 'Media Library', href: '/admin/media', icon: PhotoIcon },
   { key: 'nav.backup', name: 'Backup & Restore', href: '/admin/backup', icon: ArrowDownTrayIcon },
   { key: 'nav.cache', name: 'Cache & CDN', href: '/admin/cache', icon: ArrowPathIcon },
@@ -55,12 +57,53 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
   const logoutMutation = useLogout();
   const { locale, setLocale, t } = useAdminI18n();
 
+  const mainRef = useRef<HTMLElement | null>(null);
+
   const handleLogout = () => {
     logoutMutation.mutate();
   };
 
   // Make nested routes (e.g. /admin/products/new, /admin/products/[id]/edit) still show the parent title.
   const activeNav = navigation.find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
+
+  // Persist and restore scroll position for admin pages.
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+
+    const key = `admin-scroll:${pathname}`;
+
+    // Restore
+    try {
+      const raw = window.sessionStorage.getItem(key);
+      const y = raw ? Number(raw) : 0;
+      if (Number.isFinite(y) && y > 0) {
+        requestAnimationFrame(() => {
+          el.scrollTop = y;
+        });
+      }
+    } catch {
+      // ignore
+    }
+
+    // Persist
+    const onScroll = () => {
+      try {
+        window.sessionStorage.setItem(key, String(el.scrollTop || 0));
+      } catch {
+        // ignore
+      }
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      try {
+        window.sessionStorage.setItem(key, String(el.scrollTop || 0));
+      } catch {
+        // ignore
+      }
+    };
+  }, [pathname]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -211,7 +254,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
           </header>
 
 	        {/* Page content */}
-	        <main className="flex-1 overflow-y-auto">
+	        <main ref={mainRef} className="flex-1 overflow-y-auto">
 	            <div className="p-4 sm:p-6 lg:p-8">
 	              {children}
 	            </div>

@@ -1,0 +1,83 @@
+import { apiClient } from '@/lib/api';
+import type { APIResponse } from '@/types';
+
+export interface EmailPublicConfig {
+  enabled: boolean;
+  provider: string;
+  verification_enabled: boolean;
+  marketing_enabled: boolean;
+  code_expiry_minutes: number;
+  code_resend_seconds: number;
+}
+
+export interface EmailSettings {
+  id: number;
+  enabled: boolean;
+  provider: string;
+  from_name: string;
+  from_email: string;
+  reply_to: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_username: string;
+  smtp_password: string;
+  smtp_tls_mode: string;
+  verification_enabled: boolean;
+  marketing_enabled: boolean;
+  code_expiry_minutes: number;
+  code_resend_seconds: number;
+  has_smtp_password?: boolean;
+}
+
+export class EmailService {
+  static async getPublicConfig(): Promise<EmailPublicConfig> {
+    const res = await apiClient.get<APIResponse<EmailPublicConfig>>('/public/email/config');
+    if (res.data.success && res.data.data) return res.data.data;
+    throw new Error(res.data.message || res.data.error || 'Failed to load email config');
+  }
+
+  static async sendCode(payload: { email: string; purpose: 'register' | 'reset' }): Promise<void> {
+    const res = await apiClient.post<APIResponse<void>>('/public/email/send-code', payload);
+    if (!res.data.success) throw new Error(res.data.message || res.data.error || 'Failed to send code');
+  }
+
+  static async requestPasswordReset(email: string): Promise<void> {
+    const res = await apiClient.post<APIResponse<void>>('/customer/password-reset/request', { email });
+    if (!res.data.success) throw new Error(res.data.message || res.data.error || 'Failed to request reset');
+  }
+
+  static async confirmPasswordReset(payload: { email: string; code: string; new_password: string }): Promise<void> {
+    const res = await apiClient.post<APIResponse<void>>('/customer/password-reset/confirm', payload);
+    if (!res.data.success) throw new Error(res.data.message || res.data.error || 'Failed to reset password');
+  }
+
+  // Admin
+  static async getSettings(): Promise<EmailSettings> {
+    const res = await apiClient.get<APIResponse<EmailSettings>>('/admin/email/settings');
+    if (res.data.success && res.data.data) return res.data.data;
+    throw new Error(res.data.message || res.data.error || 'Failed to load email settings');
+  }
+
+  static async updateSettings(payload: Partial<EmailSettings>): Promise<EmailSettings> {
+    const res = await apiClient.put<APIResponse<EmailSettings>>('/admin/email/settings?allow_clear=1', payload);
+    if (res.data.success && res.data.data) return res.data.data;
+    throw new Error(res.data.message || res.data.error || 'Failed to save email settings');
+  }
+
+  static async sendTest(to: string): Promise<void> {
+    const res = await apiClient.post<APIResponse<void>>('/admin/email/test', { to });
+    if (!res.data.success) throw new Error(res.data.message || res.data.error || 'Failed to send test');
+  }
+
+  static async broadcast(payload: {
+    subject: string;
+    html: string;
+    text?: string;
+    test_to?: string;
+    limit?: number;
+  }): Promise<{ sent?: number; failed?: number; total?: number }> {
+    const res = await apiClient.post<APIResponse<any>>('/admin/email/broadcast', payload);
+    if (res.data.success) return res.data.data || {};
+    throw new Error(res.data.message || res.data.error || 'Failed to send broadcast');
+  }
+}

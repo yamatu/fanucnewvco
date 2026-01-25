@@ -21,6 +21,7 @@ export interface Customer {
 
 export interface RegisterRequest {
   email: string;
+  email_code?: string;
   password: string;
   full_name: string;
   phone?: string;

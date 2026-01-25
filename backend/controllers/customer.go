@@ -3,9 +3,11 @@ package controllers
 import (
 	"fanuc-backend/config"
 	"fanuc-backend/models"
+	"fanuc-backend/services"
 	"fanuc-backend/utils"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +15,78 @@ import (
 )
 
 type CustomerController struct{}
+
+type passwordResetRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+// RequestPasswordReset sends a reset code to the email (public)
+func (cc *CustomerController) RequestPasswordReset(c *gin.Context) {
+	var req passwordResetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request", Error: err.Error()})
+		return
+	}
+
+	db := config.GetDB()
+	setting, err := services.GetOrCreateEmailSetting(db)
+	if err != nil || !setting.Enabled {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Email service is not configured"})
+		return
+	}
+
+	// Do not leak existence; only send if the user exists.
+	var customer models.Customer
+	if err := db.Where("email = ?", req.Email).First(&customer).Error; err == nil {
+		_ = services.CreateAndSendVerificationCode(db, req.Email, services.PurposeReset)
+	}
+
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "If the email exists, a reset code has been sent"})
+}
+
+type passwordResetConfirmRequest struct {
+	Email       string `json:"email" binding:"required,email"`
+	Code        string `json:"code" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=6"`
+}
+
+// ConfirmPasswordReset verifies code and updates password (public)
+func (cc *CustomerController) ConfirmPasswordReset(c *gin.Context) {
+	var req passwordResetConfirmRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request", Error: err.Error()})
+		return
+	}
+
+	db := config.GetDB()
+	if err := services.VerifyEmailCode(db, req.Email, services.PurposeReset, strings.TrimSpace(req.Code)); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid or expired verification code", Error: "invalid_code"})
+		return
+	}
+
+	var customer models.Customer
+	if err := db.Where("email = ?", req.Email).First(&customer).Error; err != nil {
+		c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Account not found"})
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to process password", Error: err.Error()})
+		return
+	}
+
+	customer.Password = string(hashedPassword)
+	if customer.IsVerified == false {
+		customer.IsVerified = true
+	}
+	if err := db.Save(&customer).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to update password", Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Password updated"})
+}
 
 // Register creates a new customer account
 func (cc *CustomerController) Register(c *gin.Context) {
@@ -27,6 +101,20 @@ func (cc *CustomerController) Register(c *gin.Context) {
 	}
 
 	db := config.GetDB()
+
+	// Email verification (optional, controlled by admin settings)
+	if setting, err := services.GetOrCreateEmailSetting(db); err == nil {
+		if setting.Enabled && setting.VerificationEnabled {
+			if strings.TrimSpace(req.EmailCode) == "" {
+				c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Email verification code is required", Error: "email_code_required"})
+				return
+			}
+			if err := services.VerifyEmailCode(db, req.Email, services.PurposeRegister, strings.TrimSpace(req.EmailCode)); err != nil {
+				c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid or expired verification code", Error: "invalid_email_code"})
+				return
+			}
+		}
+	}
 
 	// Check if email already exists
 	var existingCustomer models.Customer
@@ -58,6 +146,8 @@ func (cc *CustomerController) Register(c *gin.Context) {
 		Phone:    req.Phone,
 		Company:  req.Company,
 		IsActive: true,
+		// If verification is enabled, code above was validated.
+		IsVerified: true,
 	}
 
 	if err := db.Create(&customer).Error; err != nil {

@@ -31,6 +31,7 @@ func SetupRoutes(r *gin.Engine) {
 	sitemapController := &controllers.SitemapController{}
 	couponController := &controllers.CouponController{}
 	customerController := &controllers.CustomerController{}
+	emailController := &controllers.EmailController{}
 	ticketController := &controllers.TicketController{}
 	mediaController := &controllers.MediaController{}
 	backupController := &controllers.BackupController{}
@@ -88,6 +89,10 @@ func SetupRoutes(r *gin.Engine) {
 
 			// PayPal (public config)
 			public.GET("/paypal/config", payPalController.GetPublicConfig)
+
+			// Email (public)
+			public.GET("/email/config", emailController.GetPublicConfig)
+			public.POST("/email/send-code", emailController.SendCode)
 		}
 
 		// Authentication routes
@@ -243,6 +248,16 @@ func SetupRoutes(r *gin.Engine) {
 				paypal.PUT("/settings", payPalController.UpdateSettings)
 			}
 
+			// Email settings + marketing (admin only)
+			email := admin.Group("/email")
+			email.Use(middleware.AdminOnly())
+			{
+				email.GET("/settings", emailController.GetSettings)
+				email.PUT("/settings", emailController.UpdateSettings)
+				email.POST("/test", emailController.SendTest)
+				email.POST("/broadcast", emailController.Broadcast)
+			}
+
 			// Homepage Content management (admin and editor access)
 			homepageContent := admin.Group("/homepage-content")
 			homepageContent.Use(middleware.EditorOrAdmin())
@@ -315,6 +330,8 @@ func SetupRoutes(r *gin.Engine) {
 		{
 			customer.POST("/register", customerController.Register)
 			customer.POST("/login", customerController.Login)
+			customer.POST("/password-reset/request", customerController.RequestPasswordReset)
+			customer.POST("/password-reset/confirm", customerController.ConfirmPasswordReset)
 
 			// Protected customer routes
 			customerProtected := customer.Group("")

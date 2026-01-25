@@ -14,6 +14,7 @@ import { BackupService as BackupServiceDefault } from './backup.service';
 import { CacheService as CacheServiceDefault } from './cache.service';
 import { HotlinkService as HotlinkServiceDefault } from './hotlink.service';
 import { PayPalService as PayPalServiceDefault } from './paypal.service';
+import { EmailService as EmailServiceDefault } from './email.service';
 
 // Export all services
 export const AuthService = AuthServiceDefault;
@@ -31,6 +32,7 @@ export const BackupService = BackupServiceDefault;
 export const CacheService = CacheServiceDefault;
 export const HotlinkService = HotlinkServiceDefault;
 export const PayPalService = PayPalServiceDefault;
+export const EmailService = EmailServiceDefault;
 
 // Export types
 export type { ProductFilters } from './product.service';
@@ -71,6 +73,7 @@ export class ApiService {
   static backup = BackupService;
   static cache = CacheService;
   static hotlink = HotlinkService;
+  static email = EmailService;
 }
 
 export default ApiService;

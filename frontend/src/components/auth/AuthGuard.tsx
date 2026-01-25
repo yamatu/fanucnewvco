@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, ReactNode } from 'react';
+import { useEffect, ReactNode, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { usePermissions } from '@/hooks/useAuth';
@@ -16,13 +16,21 @@ export function AuthGuard({ children, requiredRole, fallback }: AuthGuardProps) 
   const router = useRouter();
   const { isAuthenticated, user, checkAuth, isLoading } = useAuthStore();
   const { hasRole } = usePermissions();
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     // Check authentication status on mount
+    setInitialized(true);
     checkAuth();
   }, [checkAuth]);
 
   useEffect(() => {
+    // Avoid redirects on the very first effect flush.
+    // Without this, a page refresh on a deep admin route can briefly see
+    // isAuthenticated=false before checkAuth flips isLoading=true, causing
+    // a client redirect to /admin/login and then middleware bounces back to /admin.
+    if (!initialized) return;
+
     // Only redirect after auth check is complete and we're not loading
     if (!isLoading) {
       if (!isAuthenticated) {
@@ -36,7 +44,7 @@ export function AuthGuard({ children, requiredRole, fallback }: AuthGuardProps) 
         return;
       }
     }
-  }, [isAuthenticated, user, requiredRole, router, hasRole, isLoading]);
+  }, [initialized, isAuthenticated, user, requiredRole, router, hasRole, isLoading]);
 
   // Show loading while checking auth or if not authenticated
   if (isLoading || !isAuthenticated || (requiredRole && !hasRole(requiredRole))) {
