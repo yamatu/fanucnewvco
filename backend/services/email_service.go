@@ -107,16 +107,17 @@ func normalizeSMTPHostAndPort(host string, port int) (string, int) {
 		h = h[:i]
 	}
 
-	// Split host:port if present.
+	// If host includes an explicit port, that port always wins.
 	if strings.Contains(h, ":") {
 		if hostOnly, portStr, err := net.SplitHostPort(h); err == nil {
 			p := 0
 			fmt.Sscanf(portStr, "%d", &p)
-			if p > 0 && port <= 0 {
-				port = p
+			if p > 0 {
+				return strings.TrimSpace(hostOnly), p
 			}
-			h = hostOnly
+			return strings.TrimSpace(hostOnly), port
 		}
+		// If SplitHostPort fails (e.g. missing port), fall through and use provided port.
 	}
 
 	return strings.TrimSpace(h), port

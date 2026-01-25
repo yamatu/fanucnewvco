@@ -127,26 +127,29 @@ func (ec *EmailController) UpdateSettings(c *gin.Context) {
 	}
 	if req.SMTPHost != nil {
 		h := strings.TrimSpace(*req.SMTPHost)
-		// If host includes scheme/port/path, sanitize it.
-		hostOnly, parsedPort := services.NormalizeSMTPHostInput(h)
-		s.SMTPHost = hostOnly
-		if req.SMTPPort == nil && parsedPort > 0 {
-			s.SMTPPort = parsedPort
+		// If host includes scheme/path, sanitize it. Keep host:port if provided.
+		// Port inside SMTP host will override smtp_port when sending.
+		if strings.Contains(h, "://") {
+			if hostOnly, _ := services.NormalizeSMTPHostInput(h); hostOnly != "" {
+				// NormalizeSMTPHostInput strips port; so instead keep the original host:port by extracting URL host.
+				// As a simple approach: strip scheme and path manually.
+				u := strings.SplitN(h, "://", 2)
+				h = u[len(u)-1]
+				if i := strings.IndexByte(h, '/'); i >= 0 {
+					h = h[:i]
+				}
+			}
+		} else {
+			if i := strings.IndexByte(h, '/'); i >= 0 {
+				h = h[:i]
+			}
 		}
+		s.SMTPHost = strings.TrimSpace(h)
 	}
 	if req.SMTPPort != nil {
 		s.SMTPPort = *req.SMTPPort
 	}
-	// If host still contains a port (legacy stored values), normalize it.
-	if strings.TrimSpace(s.SMTPHost) != "" {
-		if hostOnly, parsedPort := services.NormalizeSMTPHostInput(s.SMTPHost); hostOnly != "" {
-			// If NormalizeSMTPHostInput only stripped path/scheme, keep existing port unless missing.
-			s.SMTPHost = hostOnly
-			if s.SMTPPort <= 0 && parsedPort > 0 {
-				s.SMTPPort = parsedPort
-			}
-		}
-	}
+	// Note: if SMTPHost contains an explicit port (host:port), SendEmail will use it.
 	if req.SMTPUsername != nil {
 		s.SMTPUsername = strings.TrimSpace(*req.SMTPUsername)
 	}

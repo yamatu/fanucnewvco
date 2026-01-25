@@ -193,7 +193,8 @@ export default function AdminEmailPage() {
                     placeholder="mail.vcocncspare.com"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Use hostname only (no https:// and no /). If you paste a URL, it will be sanitized server-side.
+                    You can use hostname only (recommended) or hostname with port (e.g. mail.vcocncspare.com:8443).
+                    If you paste a URL, it will be sanitized server-side.
                   </p>
                 </div>
                 <div>
