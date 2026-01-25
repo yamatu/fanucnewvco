@@ -22,8 +22,8 @@ export default function ContactPage() {
     {
       icon: EnvelopeIcon,
       label: 'Email',
-      value: '13348028050@139.com',
-      link: 'mailto:13348028050@139.com',
+      value: 'sales@vcocncspare.com',
+      link: 'mailto:sales@vcocncspare.com',
 
       description: 'Send us an email anytime',
     },

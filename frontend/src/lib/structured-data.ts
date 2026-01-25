@@ -46,7 +46,7 @@ export function generateOrganizationSchema() {
         "@type": "ContactPoint",
         "contactType": "sales",
         "telephone": "+86-13348028050",
-        "email": "13348028050@139.com",
+        "email": "sales@vcocncspare.com",
 
         "availableLanguage": ["en", "zh"],
         "areaServed": "Worldwide"
@@ -55,7 +55,7 @@ export function generateOrganizationSchema() {
         "@type": "ContactPoint",
         "contactType": "technical support",
         "telephone": "+86-13348028050",
-        "email": "13348028050@139.com",
+        "email": "sales@vcocncspare.com",
 
         "availableLanguage": ["en", "zh"],
         "areaServed": "Worldwide"
@@ -235,7 +235,7 @@ export function generateFAQSchema() {
         "name": "How can I get technical support?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Our technical support team is available via email at 13348028050@139.com or phone. We provide installation guidance, troubleshooting, and compatibility assistance."
+          "text": "Our technical support team is available via email at sales@vcocncspare.com or phone. We provide installation guidance, troubleshooting, and compatibility assistance."
 
         }
       }
@@ -256,7 +256,7 @@ export function generateLocalBusinessSchema() {
       `${baseUrl}/android-chrome-512x512.png`
     ],
     "telephone": "+86-13348028050",
-    "email": "13348028050@139.com",
+    "email": "sales@vcocncspare.com",
 
     "address": {
       "@type": "PostalAddress",

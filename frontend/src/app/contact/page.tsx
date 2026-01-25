@@ -115,7 +115,7 @@ function ContactContent() {
                   <EnvelopeIcon className="h-6 w-6 text-yellow-600 mt-1 flex-shrink-0" />
                   <div>
                     <h3 className="font-semibold text-gray-900">Email</h3>
-                    <p className="text-gray-600">13348028050@139.com</p>
+                    <p className="text-gray-600">sales@vcocncspare.com</p>
                   </div>
                 </div>
 
@@ -341,4 +341,3 @@ export default function Contact() {
     </Suspense>
   );
 }
-

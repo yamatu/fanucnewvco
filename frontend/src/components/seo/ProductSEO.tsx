@@ -188,7 +188,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb }: ProductSEO
                "@type": "ContactPoint",
                "telephone": "+86-13348028050",
                "contactType": "sales",
-               "email": "13348028050@139.com"
+               "email": "sales@vcocncspare.com"
              },
 
             "sameAs": [

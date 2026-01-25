@@ -69,7 +69,7 @@ export function Header() {
               </div>
               <div className="flex items-center space-x-2">
                 <EnvelopeIcon className="h-4 w-4" />
-                <span suppressHydrationWarning>13348028050@139.com</span>
+                <span suppressHydrationWarning>sales@vcocncspare.com</span>
 
               </div>
             </div>

@@ -153,7 +153,7 @@ export default function AccountPage() {
                 <div className="px-4 py-5 sm:p-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Need Help?</h3>
                   <div className="text-sm text-gray-600 space-y-2">
-                    <p>13348028050@139.com</p>
+                    <p>sales@vcocncspare.com</p>
                     <p>Phone: +86 13348028050</p>
 
                     <p>Hours: 8AM-19PM</p>

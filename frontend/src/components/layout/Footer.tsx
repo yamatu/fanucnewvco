@@ -108,7 +108,7 @@ export function Footer() {
 
               <div className="flex items-center space-x-3">
                 <EnvelopeIcon className="h-5 w-5 text-yellow-400 flex-shrink-0" />
-                <span className="text-gray-300">13348028050@139.com</span>
+                <span className="text-gray-300">sales@vcocncspare.com</span>
               </div>
 
               <div className="flex items-center space-x-3">

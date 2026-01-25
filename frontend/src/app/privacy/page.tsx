@@ -123,7 +123,7 @@ export default function PrivacyPage() {
                   If you have any questions about this Privacy Policy or our data practices, please contact us:
                 </p>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-700"><strong>Email:</strong> 13348028050@139.com</p>
+                  <p className="text-gray-700"><strong>Email:</strong> sales@vcocncspare.com</p>
                   <p className="text-gray-700"><strong>Phone:</strong> +86 13348028050</p>
                   <p className="text-gray-700"><strong>Address:</strong> Kunshan, Jiangsu Province, China</p>
                 </div>

@@ -117,7 +117,7 @@ export default async function RootLayout({
               "contactPoint": {
                 "@type": "ContactPoint",
               "contactType": "sales",
-              "email": "13348028050@139.com",
+              "email": "sales@vcocncspare.com",
               "telephone": "+86-13348028050"
 
               },

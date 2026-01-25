@@ -154,7 +154,7 @@ export default function TermsPage() {
                   For questions about these Terms of Service or our FANUC parts and services:
                 </p>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-700"><strong>Email:</strong> 13348028050@139.com</p>
+                  <p className="text-gray-700"><strong>Email:</strong> sales@vcocncspare.com</p>
                   <p className="text-gray-700"><strong>Phone:</strong> +86 13348028050</p>
                   <p className="text-gray-700"><strong>Address:</strong> Kunshan, Jiangsu Province, China</p>
                   <p className="text-gray-700"><strong>Business Hours:</strong> Mon-Fri: 8:00 AM - 6:00 PM (CST)</p>
