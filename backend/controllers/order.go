@@ -3,11 +3,13 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"fanuc-backend/config"
 	"fanuc-backend/models"
+	"fanuc-backend/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -575,6 +577,7 @@ func (oc *OrderController) UpdateOrder(c *gin.Context) {
 		BillingAddress  string `json:"billing_address"`
 		TrackingNumber  string `json:"tracking_number"`
 		ShippingCarrier string `json:"shipping_carrier"`
+		NotifyShipped   bool   `json:"notify_shipped"`
 		Status          string `json:"status"`
 		PaymentStatus   string `json:"payment_status"`
 		Notes           string `json:"notes"`
@@ -597,6 +600,10 @@ func (oc *OrderController) UpdateOrder(c *gin.Context) {
 		})
 		return
 	}
+
+	prevTracking := order.TrackingNumber
+	prevCarrier := order.ShippingCarrier
+	prevEmailSent := order.ShippedEmailSentAt
 
 	// Update order fields if provided
 	if req.CustomerEmail != "" {
@@ -675,6 +682,50 @@ func (oc *OrderController) UpdateOrder(c *gin.Context) {
 			"message": "Failed to update order",
 		})
 		return
+	}
+
+	// Send shipping notification email (optional)
+	if req.NotifyShipped {
+		// reload setting and check
+		setting, err := services.GetOrCreateEmailSetting(config.DB)
+		if err == nil && setting.Enabled && setting.ShippingNotificationsEnabled {
+			if order.CustomerEmail != "" && order.TrackingNumber != "" {
+				shouldSend := false
+				if prevEmailSent == nil {
+					shouldSend = true
+				} else if prevTracking != order.TrackingNumber || prevCarrier != order.ShippingCarrier {
+					shouldSend = true
+				}
+				if shouldSend {
+					siteURL := os.Getenv("SITE_URL")
+					if siteURL == "" {
+						// best effort from request headers
+						proto := c.GetHeader("X-Forwarded-Proto")
+						if proto == "" {
+							proto = "https"
+						}
+						host := c.GetHeader("X-Forwarded-Host")
+						if host == "" {
+							host = c.Request.Host
+						}
+						if host != "" {
+							siteURL = fmt.Sprintf("%s://%s", proto, host)
+						}
+					}
+
+					subj, txt, html := services.BuildShipmentNotificationEmail(siteURL, order)
+					err := services.SendEmail(config.DB, services.EmailSendOptions{To: order.CustomerEmail, Subject: subj, Text: txt, HTML: html, Headers: map[string]string{"X-Entity-Ref-ID": "shipment:" + order.OrderNumber}})
+					if err == nil {
+						now := time.Now()
+						order.ShippedEmailSentAt = &now
+						config.DB.Model(&models.Order{}).Where("id = ?", order.ID).Update("shipped_email_sent_at", &now)
+					} else {
+						// Keep order saved; just include a warning in response.
+						c.Header("X-Email-Warn", err.Error())
+					}
+				}
+			}
+		}
 	}
 
 	// Load updated order with relationships

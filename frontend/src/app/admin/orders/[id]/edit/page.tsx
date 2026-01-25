@@ -27,6 +27,7 @@ const orderSchema = yup.object().shape({
   payment_status: yup.string().required('Payment status is required'),
   tracking_number: yup.string(),
   shipping_carrier: yup.string(),
+  notify_shipped: yup.boolean(),
   notes: yup.string(),
 });
 
@@ -47,10 +48,20 @@ export default function OrderEditPage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isDirty }
   } = useForm({
     resolver: yupResolver(orderSchema),
   });
+
+  const trackingValue = watch('tracking_number');
+  useEffect(() => {
+    // When tracking becomes non-empty, default to notify customer.
+    if (typeof trackingValue === 'string' && trackingValue.trim() !== '') {
+      setValue('notify_shipped', true, { shouldDirty: true });
+    }
+  }, [trackingValue, setValue]);
 
   // Reset form when order data is loaded
   useEffect(() => {
@@ -63,6 +74,7 @@ export default function OrderEditPage() {
         billing_address: order.billing_address,
         tracking_number: (order as any).tracking_number || '',
         shipping_carrier: (order as any).shipping_carrier || '',
+        notify_shipped: false,
         status: order.status,
         payment_status: order.payment_status || 'pending',
         notes: order.notes || '',
@@ -289,6 +301,11 @@ export default function OrderEditPage() {
                     />
                   </div>
                 </div>
+
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" {...register('notify_shipped')} className="h-4 w-4" />
+                  Email customer a shipping notification
+                </label>
               </div>
             </div>
           </div>

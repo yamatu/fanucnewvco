@@ -31,8 +31,9 @@ type EmailSetting struct {
 	// Optional: used to verify inbound webhook signatures.
 	ResendWebhookSecret string `json:"resend_webhook_secret" gorm:"type:text"`
 
-	VerificationEnabled bool `json:"verification_enabled" gorm:"default:false"`
-	MarketingEnabled    bool `json:"marketing_enabled" gorm:"default:false"`
+	VerificationEnabled          bool `json:"verification_enabled" gorm:"default:false"`
+	MarketingEnabled             bool `json:"marketing_enabled" gorm:"default:false"`
+	ShippingNotificationsEnabled bool `json:"shipping_notifications_enabled" gorm:"default:true"`
 
 	CodeExpiryMinutes int `json:"code_expiry_minutes" gorm:"default:10"`
 	CodeResendSeconds int `json:"code_resend_seconds" gorm:"default:60"`
@@ -42,12 +43,13 @@ type EmailSetting struct {
 }
 
 type EmailPublicConfig struct {
-	Enabled             bool   `json:"enabled"`
-	Provider            string `json:"provider"`
-	VerificationEnabled bool   `json:"verification_enabled"`
-	MarketingEnabled    bool   `json:"marketing_enabled"`
-	CodeExpiryMinutes   int    `json:"code_expiry_minutes"`
-	CodeResendSeconds   int    `json:"code_resend_seconds"`
+	Enabled                      bool   `json:"enabled"`
+	Provider                     string `json:"provider"`
+	VerificationEnabled          bool   `json:"verification_enabled"`
+	MarketingEnabled             bool   `json:"marketing_enabled"`
+	ShippingNotificationsEnabled bool   `json:"shipping_notifications_enabled"`
+	CodeExpiryMinutes            int    `json:"code_expiry_minutes"`
+	CodeResendSeconds            int    `json:"code_resend_seconds"`
 }
 
 func (s *EmailSetting) ToPublicConfig() EmailPublicConfig {
@@ -64,11 +66,12 @@ func (s *EmailSetting) ToPublicConfig() EmailPublicConfig {
 		resend = 60
 	}
 	return EmailPublicConfig{
-		Enabled:             s.Enabled,
-		Provider:            provider,
-		VerificationEnabled: s.VerificationEnabled,
-		MarketingEnabled:    s.MarketingEnabled,
-		CodeExpiryMinutes:   exp,
-		CodeResendSeconds:   resend,
+		Enabled:                      s.Enabled,
+		Provider:                     provider,
+		VerificationEnabled:          s.VerificationEnabled,
+		MarketingEnabled:             s.MarketingEnabled,
+		ShippingNotificationsEnabled: s.ShippingNotificationsEnabled,
+		CodeExpiryMinutes:            exp,
+		CodeResendSeconds:            resend,
 	}
 }

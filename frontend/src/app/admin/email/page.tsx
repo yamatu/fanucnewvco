@@ -33,6 +33,7 @@ export default function AdminEmailPage() {
     resend_webhook_secret: '',
     verification_enabled: false,
     marketing_enabled: false,
+    shipping_notifications_enabled: true,
     code_expiry_minutes: 10,
     code_resend_seconds: 60,
     has_smtp_password: false,
@@ -63,6 +64,7 @@ export default function AdminEmailPage() {
         marketing_enabled: Boolean(form.marketing_enabled),
         code_expiry_minutes: Number(form.code_expiry_minutes || 10),
         code_resend_seconds: Number(form.code_resend_seconds || 60),
+        shipping_notifications_enabled: Boolean(form.shipping_notifications_enabled),
       };
       // only send password if user typed something
       if (String(form.smtp_password || '').trim() !== '') {
@@ -371,6 +373,19 @@ export default function AdminEmailPage() {
                     type="checkbox"
                     checked={Boolean(form.marketing_enabled)}
                     onChange={(e) => setForm((p: any) => ({ ...p, marketing_enabled: e.target.checked }))}
+                    className="h-4 w-4"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Shipping Notifications</div>
+                    <div className="text-xs text-gray-500">Send an email when you add tracking number</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.shipping_notifications_enabled)}
+                    onChange={(e) => setForm((p: any) => ({ ...p, shipping_notifications_enabled: e.target.checked }))}
                     className="h-4 w-4"
                   />
                 </div>

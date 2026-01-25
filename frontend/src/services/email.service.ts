@@ -27,6 +27,7 @@ export interface EmailSettings {
   resend_webhook_secret?: string;
   verification_enabled: boolean;
   marketing_enabled: boolean;
+  shipping_notifications_enabled?: boolean;
   code_expiry_minutes: number;
   code_resend_seconds: number;
   has_smtp_password?: boolean;

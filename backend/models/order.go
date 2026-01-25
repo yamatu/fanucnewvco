@@ -27,20 +27,21 @@ type Order struct {
 	PaymentID       string `json:"payment_id" gorm:"type:varchar(255)"`                      // External payment ID
 
 	// Shipping
-	TrackingNumber  string      `json:"tracking_number" gorm:"type:varchar(255)"`
-	ShippingCarrier string      `json:"shipping_carrier" gorm:"type:varchar(100)"`
-	ShippedAt       *time.Time  `json:"shipped_at"`
-	SubtotalAmount  float64     `json:"subtotal_amount" gorm:"not null"`             // Amount before discounts
-	DiscountAmount  float64     `json:"discount_amount" gorm:"default:0"`            // Total discount applied
-	TotalAmount     float64     `json:"total_amount" gorm:"not null"`                // Final amount after discounts
-	CouponCode      string      `json:"coupon_code" gorm:"type:varchar(50)"`         // Applied coupon code
-	CouponID        *uint       `json:"coupon_id" gorm:"index"`                      // Applied coupon ID
-	Coupon          *Coupon     `json:"coupon,omitempty" gorm:"foreignKey:CouponID"` // Applied coupon details
-	Currency        string      `json:"currency" gorm:"type:varchar(10);default:'USD'"`
-	Notes           string      `json:"notes" gorm:"type:text"`
-	Items           []OrderItem `json:"items,omitempty" gorm:"foreignKey:OrderID"`
-	CreatedAt       time.Time   `json:"created_at"`
-	UpdatedAt       time.Time   `json:"updated_at"`
+	TrackingNumber     string      `json:"tracking_number" gorm:"type:varchar(255)"`
+	ShippingCarrier    string      `json:"shipping_carrier" gorm:"type:varchar(100)"`
+	ShippedAt          *time.Time  `json:"shipped_at"`
+	ShippedEmailSentAt *time.Time  `json:"shipped_email_sent_at"`
+	SubtotalAmount     float64     `json:"subtotal_amount" gorm:"not null"`             // Amount before discounts
+	DiscountAmount     float64     `json:"discount_amount" gorm:"default:0"`            // Total discount applied
+	TotalAmount        float64     `json:"total_amount" gorm:"not null"`                // Final amount after discounts
+	CouponCode         string      `json:"coupon_code" gorm:"type:varchar(50)"`         // Applied coupon code
+	CouponID           *uint       `json:"coupon_id" gorm:"index"`                      // Applied coupon ID
+	Coupon             *Coupon     `json:"coupon,omitempty" gorm:"foreignKey:CouponID"` // Applied coupon details
+	Currency           string      `json:"currency" gorm:"type:varchar(10);default:'USD'"`
+	Notes              string      `json:"notes" gorm:"type:text"`
+	Items              []OrderItem `json:"items,omitempty" gorm:"foreignKey:OrderID"`
+	CreatedAt          time.Time   `json:"created_at"`
+	UpdatedAt          time.Time   `json:"updated_at"`
 }
 
 type OrderItem struct {

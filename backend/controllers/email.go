@@ -79,22 +79,23 @@ func (ec *EmailController) GetSettings(c *gin.Context) {
 }
 
 type updateEmailSettingsRequest struct {
-	Enabled             *bool   `json:"enabled"`
-	Provider            *string `json:"provider"`
-	FromName            *string `json:"from_name"`
-	FromEmail           *string `json:"from_email"`
-	ReplyTo             *string `json:"reply_to"`
-	SMTPHost            *string `json:"smtp_host"`
-	SMTPPort            *int    `json:"smtp_port"`
-	SMTPUsername        *string `json:"smtp_username"`
-	SMTPPassword        *string `json:"smtp_password"`
-	SMTPTLSMode         *string `json:"smtp_tls_mode"`
-	ResendAPIKey        *string `json:"resend_api_key"`
-	ResendWebhookSecret *string `json:"resend_webhook_secret"`
-	VerificationEnabled *bool   `json:"verification_enabled"`
-	MarketingEnabled    *bool   `json:"marketing_enabled"`
-	CodeExpiryMinutes   *int    `json:"code_expiry_minutes"`
-	CodeResendSeconds   *int    `json:"code_resend_seconds"`
+	Enabled                      *bool   `json:"enabled"`
+	Provider                     *string `json:"provider"`
+	FromName                     *string `json:"from_name"`
+	FromEmail                    *string `json:"from_email"`
+	ReplyTo                      *string `json:"reply_to"`
+	SMTPHost                     *string `json:"smtp_host"`
+	SMTPPort                     *int    `json:"smtp_port"`
+	SMTPUsername                 *string `json:"smtp_username"`
+	SMTPPassword                 *string `json:"smtp_password"`
+	SMTPTLSMode                  *string `json:"smtp_tls_mode"`
+	ResendAPIKey                 *string `json:"resend_api_key"`
+	ResendWebhookSecret          *string `json:"resend_webhook_secret"`
+	VerificationEnabled          *bool   `json:"verification_enabled"`
+	MarketingEnabled             *bool   `json:"marketing_enabled"`
+	ShippingNotificationsEnabled *bool   `json:"shipping_notifications_enabled"`
+	CodeExpiryMinutes            *int    `json:"code_expiry_minutes"`
+	CodeResendSeconds            *int    `json:"code_resend_seconds"`
 }
 
 // Admin: PUT /api/v1/admin/email/settings
@@ -208,6 +209,9 @@ func (ec *EmailController) UpdateSettings(c *gin.Context) {
 	}
 	if req.MarketingEnabled != nil {
 		s.MarketingEnabled = *req.MarketingEnabled
+	}
+	if req.ShippingNotificationsEnabled != nil {
+		s.ShippingNotificationsEnabled = *req.ShippingNotificationsEnabled
 	}
 	if req.CodeExpiryMinutes != nil {
 		s.CodeExpiryMinutes = *req.CodeExpiryMinutes

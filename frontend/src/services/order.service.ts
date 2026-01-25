@@ -123,6 +123,7 @@ export class OrderService {
     billing_address?: string;
     tracking_number?: string;
     shipping_carrier?: string;
+    notify_shipped?: boolean;
     status?: string;
     payment_status?: string;
     notes?: string;

@@ -136,16 +136,17 @@ func GetOrCreateEmailSetting(db *gorm.DB) (*models.EmailSetting, error) {
 	if err := db.First(&s, 1).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			s = models.EmailSetting{
-				ID:                  1,
-				Enabled:             false,
-				Provider:            "smtp",
-				SMTPTLSMode:         "starttls",
-				SMTPPort:            587,
-				FromName:            "Vcocnc",
-				CodeExpiryMinutes:   10,
-				CodeResendSeconds:   60,
-				VerificationEnabled: false,
-				MarketingEnabled:    false,
+				ID:                           1,
+				Enabled:                      false,
+				Provider:                     "smtp",
+				SMTPTLSMode:                  "starttls",
+				SMTPPort:                     587,
+				FromName:                     "Vcocnc",
+				CodeExpiryMinutes:            10,
+				CodeResendSeconds:            60,
+				VerificationEnabled:          false,
+				MarketingEnabled:             false,
+				ShippingNotificationsEnabled: true,
 			}
 			if e := db.Create(&s).Error; e != nil {
 				return nil, e
