@@ -156,6 +156,10 @@ func SetupRoutes(r *gin.Engine) {
 				// Bulk update is_active / is_featured
 				products.PUT("/bulk-update", productController.BulkUpdateProducts)
 
+				// Bulk: apply/remove default watermark image URL
+				products.PUT("/bulk-default-image/apply", productController.BulkApplyDefaultImage)
+				products.PUT("/bulk-default-image/remove", productController.BulkRemoveDefaultImage)
+
 				// Product image management
 				products.POST("/:id/images", productController.AddImage)
 				products.GET("/:id/images", productController.GetProductImages)

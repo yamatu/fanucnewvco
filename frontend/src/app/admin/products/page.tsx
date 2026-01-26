@@ -16,6 +16,7 @@ import {
   PhotoIcon,
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
+  SparklesIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -184,6 +185,52 @@ function AdminProductsContent() {
       toast.error(error.message || t('products.toast.bulkFailed', 'Bulk update failed'));
     },
   });
+
+  const bulkApplyDefaultImageMutation = useMutation({
+    mutationFn: (payload: any) => ProductService.bulkApplyDefaultImage(payload),
+    onSuccess: (data: any) => {
+      toast.success(`Default images applied: ${data?.updated || 0} updated`);
+      setSelectedIds([]);
+      setSelectAllResults(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to apply default images');
+    },
+  });
+
+  const bulkRemoveDefaultImageMutation = useMutation({
+    mutationFn: (payload: any) => ProductService.bulkRemoveDefaultImage(payload),
+    onSuccess: (data: any) => {
+      toast.success(`Default images removed: ${data?.updated || 0} updated`);
+      setSelectedIds([]);
+      setSelectAllResults(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to remove default images');
+    },
+  });
+
+  const buildSelectAllPayload = () => ({
+    batch_size: 500,
+    search: searchQuery || undefined,
+    category_id: selectedCategory || undefined,
+    status: (statusFilter === 'all' || statusFilter === 'featured') ? 'all' : (statusFilter as 'active' | 'inactive'),
+    featured: (statusFilter === 'featured') ? 'true' : undefined,
+  });
+
+  const bulkApplyDefaultImages = () => {
+    if (!selectAllResults && selectedIds.length === 0) { toast.error('Select at least one product'); return; }
+    const payload = selectAllResults ? buildSelectAllPayload() : { ids: selectedIds };
+    bulkApplyDefaultImageMutation.mutate(payload);
+  };
+
+  const bulkRemoveDefaultImages = () => {
+    if (!selectAllResults && selectedIds.length === 0) { toast.error('Select at least one product'); return; }
+    const payload = selectAllResults ? buildSelectAllPayload() : { ids: selectedIds };
+    bulkRemoveDefaultImageMutation.mutate(payload);
+  };
 
   // (Removed) Auto Import from Site feature
 
@@ -592,6 +639,32 @@ function AdminProductsContent() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
                 </svg>
                 Unmark Featured
+              </button>
+
+              <button
+                onClick={bulkApplyDefaultImages}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={
+                  bulkApplyDefaultImageMutation.isPending ||
+                  (!selectAllResults && selectedIds.length === 0)
+                }
+                title="Apply default SKU-watermarked image to products that currently have no images"
+              >
+                <SparklesIcon className="h-4 w-4 mr-2" />
+                Apply Default Image
+              </button>
+
+              <button
+                onClick={bulkRemoveDefaultImages}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={
+                  bulkRemoveDefaultImageMutation.isPending ||
+                  (!selectAllResults && selectedIds.length === 0)
+                }
+                title="Remove the default watermark image URL (keeps other images)"
+              >
+                <XMarkIcon className="h-4 w-4 mr-2" />
+                Remove Default Image
               </button>
 
               {(selectedIds.length > 0 || selectAllResults) && (

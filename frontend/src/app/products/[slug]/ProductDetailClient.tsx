@@ -248,6 +248,7 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
               productName={product.name}
               selectedImageIndex={selectedImageIndex}
               onImageChange={handleImageIndexChange}
+				  fallbackImage={getDefaultProductImageWithSku(product.sku, '/images/default-product.jpg')}
             />
 
             {/* Product Info */}

@@ -365,6 +365,35 @@ export class ProductService {
     }
   }
 
+  // Admin: bulk apply/remove default watermark image
+  static async bulkApplyDefaultImage(payload: {
+    ids?: number[];
+    skus?: string[];
+    search?: string;
+    category_id?: string;
+    status?: 'active' | 'inactive' | 'all' | '';
+    featured?: 'true' | 'false' | '';
+    batch_size?: number;
+  }): Promise<{ updated: number; skipped: number }> {
+    const response = await apiClient.put<APIResponse<any>>('/admin/products/bulk-default-image/apply', payload);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to apply default images');
+  }
+
+  static async bulkRemoveDefaultImage(payload: {
+    ids?: number[];
+    skus?: string[];
+    search?: string;
+    category_id?: string;
+    status?: 'active' | 'inactive' | 'all' | '';
+    featured?: 'true' | 'false' | '';
+    batch_size?: number;
+  }): Promise<{ updated: number; removed: number; skipped: number }> {
+    const response = await apiClient.put<APIResponse<any>>('/admin/products/bulk-default-image/remove', payload);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to remove default images');
+  }
+
   // Admin: Download XLSX import template
   static async downloadImportTemplate(brand: string = 'fanuc'): Promise<Blob> {
     const response = await apiClient.get(

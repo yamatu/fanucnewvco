@@ -10,19 +10,23 @@ interface ProductImageViewerProps {
   productName: string;
   selectedImageIndex: number;
   onImageChange: (index: number) => void;
+  fallbackImage?: string;
 }
 
 export default function ProductImageViewer({
   images,
   productName,
   selectedImageIndex,
-  onImageChange
+  onImageChange,
+  fallbackImage
 }: ProductImageViewerProps) {
   const [isHovering, setIsHovering] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const imageRef = useRef<HTMLDivElement>(null);
 
-  const currentImage = images.length > 0 ? getProductImageUrlByIndex(images, selectedImageIndex) : '/images/default-product.jpg';
+  const currentImage = images.length > 0
+    ? getProductImageUrlByIndex(images, selectedImageIndex)
+    : (fallbackImage || '/images/default-product.jpg');
 
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
     if (!imageRef.current) return;
