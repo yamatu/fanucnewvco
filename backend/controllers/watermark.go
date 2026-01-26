@@ -17,10 +17,11 @@ import (
 type WatermarkController struct{}
 
 type watermarkSettingsResponse struct {
-	ID               uint                       `json:"id"`
-	Enabled          bool                       `json:"enabled"`
-	BaseMediaAssetID *uint                      `json:"base_media_asset_id"`
-	BaseMediaAsset   *models.MediaAssetResponse `json:"base_media_asset,omitempty"`
+	ID                uint                       `json:"id"`
+	Enabled           bool                       `json:"enabled"`
+	WatermarkPosition string                     `json:"watermark_position"`
+	BaseMediaAssetID  *uint                      `json:"base_media_asset_id"`
+	BaseMediaAsset    *models.MediaAssetResponse `json:"base_media_asset,omitempty"`
 }
 
 // Admin: GET /api/v1/admin/media/watermark/settings
@@ -42,16 +43,18 @@ func (wc *WatermarkController) GetSettings(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: watermarkSettingsResponse{
-		ID:               s.ID,
-		Enabled:          s.Enabled,
-		BaseMediaAssetID: s.BaseMediaAssetID,
-		BaseMediaAsset:   baseAsset,
+		ID:                s.ID,
+		Enabled:           s.Enabled,
+		WatermarkPosition: s.WatermarkPosition,
+		BaseMediaAssetID:  s.BaseMediaAssetID,
+		BaseMediaAsset:    baseAsset,
 	}})
 }
 
 type updateWatermarkSettingsRequest struct {
-	Enabled          *bool `json:"enabled"`
-	BaseMediaAssetID *uint `json:"base_media_asset_id"`
+	Enabled           *bool   `json:"enabled"`
+	WatermarkPosition *string `json:"watermark_position"`
+	BaseMediaAssetID  *uint   `json:"base_media_asset_id"`
 }
 
 // Admin: PUT /api/v1/admin/media/watermark/settings
@@ -72,6 +75,13 @@ func (wc *WatermarkController) UpdateSettings(c *gin.Context) {
 	updates := map[string]any{}
 	if req.Enabled != nil {
 		updates["enabled"] = *req.Enabled
+	}
+	if req.WatermarkPosition != nil {
+		pos := strings.TrimSpace(*req.WatermarkPosition)
+		if pos == "" {
+			pos = "bottom-right"
+		}
+		updates["watermark_position"] = pos
 	}
 	if req.BaseMediaAssetID != nil {
 		if *req.BaseMediaAssetID == 0 {
@@ -101,10 +111,11 @@ func (wc *WatermarkController) UpdateSettings(c *gin.Context) {
 }
 
 type watermarkGenerateRequest struct {
-	AssetID    uint   `json:"asset_id" binding:"required"`
-	TextSource string `json:"text_source"` // sku | custom
-	SKU        string `json:"sku"`
-	Text       string `json:"text"`
+	AssetID           uint   `json:"asset_id" binding:"required"`
+	TextSource        string `json:"text_source"` // sku | custom
+	SKU               string `json:"sku"`
+	Text              string `json:"text"`
+	WatermarkPosition string `json:"watermark_position"`
 }
 
 // Admin: POST /api/v1/admin/media/watermark
@@ -127,7 +138,14 @@ func (wc *WatermarkController) GenerateFromMedia(c *gin.Context) {
 
 	db := config.GetDB()
 	assetID := req.AssetID
-	res, err := services.GenerateWatermarkedMediaAsset(db, services.WatermarkRequest{BaseAssetID: &assetID, Text: text, Folder: "watermarked"})
+	// Use custom position if provided; otherwise follow settings.
+	pos := strings.TrimSpace(req.WatermarkPosition)
+	if pos == "" {
+		if s, e := services.GetOrCreateWatermarkSetting(db); e == nil {
+			pos = s.WatermarkPosition
+		}
+	}
+	res, err := services.GenerateWatermarkedMediaAsset(db, services.WatermarkRequest{BaseAssetID: &assetID, Text: text, Folder: "watermarked", Position: pos})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to watermark", Error: err.Error()})
 		return
@@ -140,6 +158,9 @@ func (wc *WatermarkController) GenerateFromMedia(c *gin.Context) {
 // Returns a PNG for products with no images (watermarked with SKU if enabled).
 func (wc *WatermarkController) DefaultProductImage(c *gin.Context) {
 	sku := strings.TrimSpace(c.Param("sku"))
+	if sku == "" {
+		sku = strings.TrimSpace(c.Query("sku"))
+	}
 	// prevent path traversal / super long
 	if len(sku) > 80 {
 		sku = sku[:80]
@@ -159,11 +180,11 @@ func (wc *WatermarkController) DefaultProductImage(c *gin.Context) {
 	if s.Enabled {
 		baseID = s.BaseMediaAssetID
 	}
-	wm, err := services.GenerateWatermarkedMediaAsset(db, services.WatermarkRequest{BaseAssetID: baseID, Text: sku, Folder: "watermarked-default"})
+	wm, err := services.GenerateWatermarkedMediaAsset(db, services.WatermarkRequest{BaseAssetID: baseID, Text: sku, Folder: "watermarked-default", Position: s.WatermarkPosition})
 	if err != nil {
 		// If base image is not decodable (e.g., SVG), fallback to built-in base.
 		if baseID != nil {
-			wm, err = services.GenerateWatermarkedMediaAsset(db, services.WatermarkRequest{BaseAssetID: nil, Text: sku, Folder: "watermarked-default"})
+			wm, err = services.GenerateWatermarkedMediaAsset(db, services.WatermarkRequest{BaseAssetID: nil, Text: sku, Folder: "watermarked-default", Position: s.WatermarkPosition})
 		}
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to generate image", Error: err.Error()})

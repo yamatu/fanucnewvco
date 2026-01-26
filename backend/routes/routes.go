@@ -67,6 +67,7 @@ func SetupRoutes(r *gin.Engine) {
 
 			// Products (public read access) - cached
 			public.GET("/products", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:products:"), productController.GetProducts)
+			public.GET("/products/default-image", watermarkController.DefaultProductImage)
 			public.GET("/products/default-image/:sku", watermarkController.DefaultProductImage)
 
 			public.GET("/products/:id", productController.GetProduct)

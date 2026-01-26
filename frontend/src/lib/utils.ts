@@ -97,6 +97,18 @@ export function getImageUrl(imagePath: string, fallback: string = '/images/place
   if (imagePath.startsWith('/uploads')) {
     return imagePath;
   }
+
+  // Legacy default-image path form can break for SKUs containing '/'.
+  // Normalize to query form: /api/v1/public/products/default-image?sku=...
+  if (imagePath.startsWith('/api/v1/public/products/default-image/')) {
+    const tail = imagePath.replace('/api/v1/public/products/default-image/', '');
+    try {
+      const decoded = decodeURIComponent(tail);
+      return `/api/v1/public/products/default-image?sku=${encodeURIComponent(decoded)}`;
+    } catch {
+      return `/api/v1/public/products/default-image?sku=${encodeURIComponent(tail)}`;
+    }
+  }
   
   // Otherwise, treat as relative path and ensure it starts with /
   if (imagePath.startsWith('/')) {
@@ -158,7 +170,8 @@ export function getProductImageUrl(imageUrls: string[] | any[] | any, fallback: 
 export function getDefaultProductImageWithSku(sku?: string, fallback: string = '/images/placeholder.svg'): string {
   const s = String(sku || '').trim();
   if (!s) return fallback;
-  return `/api/v1/public/products/default-image/${encodeURIComponent(s)}`;
+  // Use query param so SKUs containing '/' still work.
+  return `/api/v1/public/products/default-image?sku=${encodeURIComponent(s)}`;
 }
 
 // Get specific product image URL by index

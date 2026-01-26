@@ -33,6 +33,8 @@ npm run start
 3) 在媒体网格里点选该图片（只选 1 张）
 4) 在页面上方的 `Default Product Image (Watermark)` 卡片里点击：`Set Selected As Base`
 
+你也可以在同一张卡片里设置 `Watermark position`（例如选择 `Center` 把 SKU 水印放到图片中间）。
+
 说明：
 
 - 这个底图只用于“产品无图时”的默认占位图生成

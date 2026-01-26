@@ -49,6 +49,7 @@ export default function AdminMediaPage() {
   const [watermarkTextSource, setWatermarkTextSource] = useState<'sku' | 'custom'>('sku');
   const [watermarkSku, setWatermarkSku] = useState('');
   const [watermarkText, setWatermarkText] = useState('');
+  const [watermarkPosition, setWatermarkPosition] = useState<string>('bottom-right');
 
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -157,7 +158,8 @@ export default function AdminMediaPage() {
   });
 
   const watermarkSettingsMutation = useMutation({
-    mutationFn: (payload: { enabled?: boolean; base_media_asset_id?: number | null }) => MediaService.updateWatermarkSettings(payload),
+    mutationFn: (payload: { enabled?: boolean; watermark_position?: string; base_media_asset_id?: number | null }) =>
+      MediaService.updateWatermarkSettings(payload),
     onSuccess: () => {
       toast.success('Watermark settings updated');
       queryClient.invalidateQueries({ queryKey: queryKeys.media.watermarkSettings() });
@@ -323,6 +325,24 @@ export default function AdminMediaPage() {
               <div className="text-xs text-gray-500">Tip: select an image in the grid, then click “Set Selected As Base”.</div>
             </div>
           </div>
+
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="w-full sm:w-72">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Watermark position</label>
+              <select
+                value={watermarkSettings?.watermark_position || 'bottom-right'}
+                onChange={(e) => watermarkSettingsMutation.mutate({ watermark_position: e.target.value })}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+              >
+                <option value="bottom-right">Bottom right</option>
+                <option value="center">Center</option>
+                <option value="bottom-left">Bottom left</option>
+                <option value="top-left">Top left</option>
+                <option value="top-right">Top right</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">This affects both default images and generated watermark copies.</p>
+            </div>
+          </div>
         </div>
 
         {/* Filters */}
@@ -397,6 +417,7 @@ export default function AdminMediaPage() {
 							setWatermarkTextSource('sku');
 							setWatermarkSku('');
 							setWatermarkText('');
+							setWatermarkPosition(watermarkSettings?.watermark_position || 'bottom-right');
 							setShowWatermarkModal(true);
 						}}
 						className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-white border border-gray-200 hover:bg-gray-50"
@@ -561,6 +582,21 @@ export default function AdminMediaPage() {
                   </select>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                  <select
+                    value={watermarkPosition}
+                    onChange={(e) => setWatermarkPosition(e.target.value)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="bottom-right">Bottom right</option>
+                    <option value="center">Center</option>
+                    <option value="bottom-left">Bottom left</option>
+                    <option value="top-left">Top left</option>
+                    <option value="top-right">Top right</option>
+                  </select>
+                </div>
+
                 {watermarkTextSource === 'sku' ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
@@ -600,6 +636,7 @@ export default function AdminMediaPage() {
                         text_source: watermarkTextSource,
                         sku: watermarkSku,
                         text: watermarkText,
+                        watermark_position: watermarkPosition,
                       });
                     }}
                     disabled={

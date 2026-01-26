@@ -29,8 +29,8 @@ func defaultImageURLForSKU(sku string) string {
 	if s == "" {
 		s = "PRODUCT"
 	}
-	// Use PathEscape so SKUs containing "/" won't break the route.
-	return "/api/v1/public/products/default-image/" + url.PathEscape(s)
+	// Query param avoids issues with encoded slashes.
+	return "/api/v1/public/products/default-image?sku=" + url.QueryEscape(s)
 }
 
 func parseImageURLsJSON(s string) []string {
@@ -183,6 +183,13 @@ func (pc *ProductController) BulkRemoveDefaultImage(c *gin.Context) {
 			changed := false
 			for _, u := range urls {
 				if strings.TrimSpace(u) == defURL {
+					changed = true
+					removed++
+					continue
+				}
+				// legacy path-based URL
+				legacy := "/api/v1/public/products/default-image/" + url.PathEscape(strings.TrimSpace(p.SKU))
+				if strings.TrimSpace(u) == legacy {
 					changed = true
 					removed++
 					continue

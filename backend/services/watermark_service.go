@@ -34,13 +34,17 @@ func GetOrCreateWatermarkSetting(db *gorm.DB) (*models.WatermarkSetting, error) 
 	var s models.WatermarkSetting
 	if err := db.First(&s, 1).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			s = models.WatermarkSetting{ID: 1, Enabled: true}
+			s = models.WatermarkSetting{ID: 1, Enabled: true, WatermarkPosition: "bottom-right"}
 			if e := db.Create(&s).Error; e != nil {
 				return nil, e
 			}
 			return &s, nil
 		}
 		return nil, err
+	}
+	if strings.TrimSpace(s.WatermarkPosition) == "" {
+		_ = db.Model(&models.WatermarkSetting{}).Where("id = ?", s.ID).Update("watermark_position", "bottom-right").Error
+		s.WatermarkPosition = "bottom-right"
 	}
 	return &s, nil
 }
@@ -51,6 +55,7 @@ type WatermarkRequest struct {
 	Folder      string
 	Title       string
 	AltText     string
+	Position    string
 }
 
 type WatermarkResult struct {
@@ -90,8 +95,10 @@ func GenerateWatermarkedMediaAsset(db *gorm.DB, req WatermarkRequest) (*Watermar
 		baseImg = generateDefaultBaseImage(1000, 1000)
 	}
 
+	pos := normalizeWatermarkPosition(req.Position)
+
 	// Render PNG bytes.
-	outBytes, err := renderWatermarkPNG(baseImg, text)
+	outBytes, err := renderWatermarkPNG(baseImg, text, pos)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +218,7 @@ func getGoRegularFont() (*opentype.Font, error) {
 	return fontParsed, fontParseErr
 }
 
-func renderWatermarkPNG(base image.Image, text string) ([]byte, error) {
+func renderWatermarkPNG(base image.Image, text string, position string) ([]byte, error) {
 	b := base.Bounds()
 	w, h := b.Dx(), b.Dy()
 	if w <= 0 || h <= 0 {
@@ -257,16 +264,7 @@ func renderWatermarkPNG(base image.Image, text string) ([]byte, error) {
 	boxW := textW + boxPadX*2
 	boxH := textH + boxPadY*2
 
-	x2 := w - pad
-	y2 := h - pad
-	boxX1 := x2 - boxW
-	boxY1 := y2 - boxH
-	if boxX1 < pad {
-		boxX1 = pad
-	}
-	if boxY1 < pad {
-		boxY1 = pad
-	}
+	boxX1, boxY1 := watermarkBoxOrigin(w, h, boxW, boxH, pad, position)
 
 	// background box
 	draw.Draw(canvas, image.Rect(boxX1, boxY1, boxX1+boxW, boxY1+boxH), &image.Uniform{C: color.RGBA{0, 0, 0, 90}}, image.Point{}, draw.Over)
@@ -288,6 +286,66 @@ func renderWatermarkPNG(base image.Image, text string) ([]byte, error) {
 		return nil, err
 	}
 	return out.Bytes(), nil
+}
+
+func normalizeWatermarkPosition(pos string) string {
+	p := strings.ToLower(strings.TrimSpace(pos))
+	switch p {
+	case "center", "centre":
+		return "center"
+	case "bottom-left", "bottom_left", "bl":
+		return "bottom-left"
+	case "top-left", "top_left", "tl":
+		return "top-left"
+	case "top-right", "top_right", "tr":
+		return "top-right"
+	case "bottom-right", "bottom_right", "br", "":
+		return "bottom-right"
+	default:
+		return "bottom-right"
+	}
+}
+
+func watermarkBoxOrigin(imgW, imgH, boxW, boxH, pad int, pos string) (x1 int, y1 int) {
+	pos = normalizeWatermarkPosition(pos)
+	switch pos {
+	case "center":
+		x1 = (imgW - boxW) / 2
+		y1 = (imgH - boxH) / 2
+	case "top-left":
+		x1 = pad
+		y1 = pad
+	case "top-right":
+		x1 = imgW - pad - boxW
+		y1 = pad
+	case "bottom-left":
+		x1 = pad
+		y1 = imgH - pad - boxH
+	case "bottom-right":
+		fallthrough
+	default:
+		x1 = imgW - pad - boxW
+		y1 = imgH - pad - boxH
+	}
+	if x1 < pad {
+		x1 = pad
+	}
+	if y1 < pad {
+		y1 = pad
+	}
+	if x1+boxW > imgW-pad {
+		x1 = imgW - pad - boxW
+	}
+	if y1+boxH > imgH-pad {
+		y1 = imgH - pad - boxH
+	}
+	if x1 < 0 {
+		x1 = 0
+	}
+	if y1 < 0 {
+		y1 = 0
+	}
+	return x1, y1
 }
 
 func generateDefaultBaseImage(w, h int) image.Image {
