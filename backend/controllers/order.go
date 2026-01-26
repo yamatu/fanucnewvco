@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -179,6 +180,27 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 	// Load order with items, products, and coupon
 	config.DB.Preload("Items.Product").Preload("User").Preload("Coupon").First(&order, order.ID)
 
+	// Admin notification: order created (best-effort, async)
+	siteURL := os.Getenv("SITE_URL")
+	if siteURL == "" {
+		proto := c.GetHeader("X-Forwarded-Proto")
+		if proto == "" {
+			proto = "https"
+		}
+		host := c.GetHeader("X-Forwarded-Host")
+		if host == "" {
+			host = c.Request.Host
+		}
+		if host != "" {
+			siteURL = fmt.Sprintf("%s://%s", proto, host)
+		}
+	}
+	go func(orderID uint, baseURL string) {
+		if err := services.NotifyAdminOrderCreated(config.DB, baseURL, orderID); err != nil {
+			log.Printf("order notification: %v", err)
+		}
+	}(order.ID, siteURL)
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"message": "Order created successfully",
@@ -319,6 +341,27 @@ func (oc *OrderController) ProcessPayment(c *gin.Context) {
 
 	// Load updated order with relationships
 	config.DB.Preload("Items.Product").Preload("User").First(&order, order.ID)
+
+	// Admin notification (best-effort, async)
+	siteURL := os.Getenv("SITE_URL")
+	if siteURL == "" {
+		proto := c.GetHeader("X-Forwarded-Proto")
+		if proto == "" {
+			proto = "https"
+		}
+		host := c.GetHeader("X-Forwarded-Host")
+		if host == "" {
+			host = c.Request.Host
+		}
+		if host != "" {
+			siteURL = fmt.Sprintf("%s://%s", proto, host)
+		}
+	}
+	go func(orderID uint, baseURL string) {
+		if err := services.NotifyAdminOrderPaid(config.DB, baseURL, orderID); err != nil {
+			log.Printf("order notification: %v", err)
+		}
+	}(order.ID, siteURL)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

@@ -34,6 +34,14 @@ type EmailSetting struct {
 	VerificationEnabled          bool `json:"verification_enabled" gorm:"default:false"`
 	MarketingEnabled             bool `json:"marketing_enabled" gorm:"default:false"`
 	ShippingNotificationsEnabled bool `json:"shipping_notifications_enabled" gorm:"default:true"`
+	// Legacy: kept for backward compatibility. If enabled and the new toggles are both false,
+	// the backend will treat both order-created and order-paid notifications as enabled.
+	OrderNotificationsEnabled bool `json:"order_notifications_enabled" gorm:"default:false"`
+
+	OrderCreatedNotificationsEnabled bool `json:"order_created_notifications_enabled" gorm:"default:false"`
+	OrderPaidNotificationsEnabled    bool `json:"order_paid_notifications_enabled" gorm:"default:false"`
+	// Admin notification recipients (comma/newline separated emails)
+	OrderNotificationEmails string `json:"order_notification_emails" gorm:"type:text"`
 
 	CodeExpiryMinutes int `json:"code_expiry_minutes" gorm:"default:10"`
 	CodeResendSeconds int `json:"code_resend_seconds" gorm:"default:60"`

@@ -34,6 +34,10 @@ export default function AdminEmailPage() {
     verification_enabled: false,
     marketing_enabled: false,
     shipping_notifications_enabled: true,
+    order_notifications_enabled: false,
+    order_created_notifications_enabled: false,
+    order_paid_notifications_enabled: false,
+    order_notification_emails: '',
     code_expiry_minutes: 10,
     code_resend_seconds: 60,
     has_smtp_password: false,
@@ -65,6 +69,11 @@ export default function AdminEmailPage() {
         code_expiry_minutes: Number(form.code_expiry_minutes || 10),
         code_resend_seconds: Number(form.code_resend_seconds || 60),
         shipping_notifications_enabled: Boolean(form.shipping_notifications_enabled),
+        // Legacy field for backward compatibility.
+        order_notifications_enabled: Boolean(form.order_created_notifications_enabled || form.order_paid_notifications_enabled),
+        order_created_notifications_enabled: Boolean(form.order_created_notifications_enabled),
+        order_paid_notifications_enabled: Boolean(form.order_paid_notifications_enabled),
+        order_notification_emails: String(form.order_notification_emails || ''),
       };
       // only send password if user typed something
       if (String(form.smtp_password || '').trim() !== '') {
@@ -169,7 +178,7 @@ export default function AdminEmailPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Email</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Configure SMTP (Poste.io / AliMail / etc.), verification codes, and marketing emails.
+            Configure SMTP (Poste.io / AliMail / etc.), order notifications, verification codes, and marketing emails.
           </p>
         </div>
 
@@ -211,7 +220,7 @@ export default function AdminEmailPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold text-gray-900">Enable Email</div>
-                <div className="text-xs text-gray-500">Controls all outbound email (verification + marketing)</div>
+                <div className="text-xs text-gray-500">Controls all outbound email (order notifications + verification + marketing)</div>
               </div>
               <input
                 type="checkbox"
@@ -389,6 +398,55 @@ export default function AdminEmailPage() {
                     className="h-4 w-4"
                   />
                 </div>
+
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Order Notifications</div>
+                  <div className="text-xs text-gray-500">Send notifications when orders are created and/or paid</div>
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Notify on create</div>
+                    <div className="text-xs text-gray-500">When customer submits the order</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.order_created_notifications_enabled)}
+                    onChange={(e) => setForm((p: any) => ({ ...p, order_created_notifications_enabled: e.target.checked }))}
+                    className="h-4 w-4"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Notify on paid</div>
+                    <div className="text-xs text-gray-500">When payment is completed</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.order_paid_notifications_enabled)}
+                    onChange={(e) => setForm((p: any) => ({ ...p, order_paid_notifications_enabled: e.target.checked }))}
+                    className="h-4 w-4"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Order notification emails</label>
+                <textarea
+                  value={form.order_notification_emails || ''}
+                  onChange={(e) => setForm((p: any) => ({ ...p, order_notification_emails: e.target.value }))}
+                  rows={3}
+                  disabled={
+                    !Boolean(form.order_created_notifications_enabled) &&
+                    !Boolean(form.order_paid_notifications_enabled)
+                  }
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
+                  placeholder="owner@yourdomain.com, sales@yourdomain.com"
+                />
+                <p className="mt-1 text-xs text-gray-500">Separate by comma / semicolon / new line. Requires Enable Email = on.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">

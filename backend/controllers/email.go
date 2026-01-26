@@ -79,23 +79,27 @@ func (ec *EmailController) GetSettings(c *gin.Context) {
 }
 
 type updateEmailSettingsRequest struct {
-	Enabled                      *bool   `json:"enabled"`
-	Provider                     *string `json:"provider"`
-	FromName                     *string `json:"from_name"`
-	FromEmail                    *string `json:"from_email"`
-	ReplyTo                      *string `json:"reply_to"`
-	SMTPHost                     *string `json:"smtp_host"`
-	SMTPPort                     *int    `json:"smtp_port"`
-	SMTPUsername                 *string `json:"smtp_username"`
-	SMTPPassword                 *string `json:"smtp_password"`
-	SMTPTLSMode                  *string `json:"smtp_tls_mode"`
-	ResendAPIKey                 *string `json:"resend_api_key"`
-	ResendWebhookSecret          *string `json:"resend_webhook_secret"`
-	VerificationEnabled          *bool   `json:"verification_enabled"`
-	MarketingEnabled             *bool   `json:"marketing_enabled"`
-	ShippingNotificationsEnabled *bool   `json:"shipping_notifications_enabled"`
-	CodeExpiryMinutes            *int    `json:"code_expiry_minutes"`
-	CodeResendSeconds            *int    `json:"code_resend_seconds"`
+	Enabled                          *bool   `json:"enabled"`
+	Provider                         *string `json:"provider"`
+	FromName                         *string `json:"from_name"`
+	FromEmail                        *string `json:"from_email"`
+	ReplyTo                          *string `json:"reply_to"`
+	SMTPHost                         *string `json:"smtp_host"`
+	SMTPPort                         *int    `json:"smtp_port"`
+	SMTPUsername                     *string `json:"smtp_username"`
+	SMTPPassword                     *string `json:"smtp_password"`
+	SMTPTLSMode                      *string `json:"smtp_tls_mode"`
+	ResendAPIKey                     *string `json:"resend_api_key"`
+	ResendWebhookSecret              *string `json:"resend_webhook_secret"`
+	VerificationEnabled              *bool   `json:"verification_enabled"`
+	MarketingEnabled                 *bool   `json:"marketing_enabled"`
+	ShippingNotificationsEnabled     *bool   `json:"shipping_notifications_enabled"`
+	OrderNotificationsEnabled        *bool   `json:"order_notifications_enabled"`
+	OrderCreatedNotificationsEnabled *bool   `json:"order_created_notifications_enabled"`
+	OrderPaidNotificationsEnabled    *bool   `json:"order_paid_notifications_enabled"`
+	OrderNotificationEmails          *string `json:"order_notification_emails"`
+	CodeExpiryMinutes                *int    `json:"code_expiry_minutes"`
+	CodeResendSeconds                *int    `json:"code_resend_seconds"`
 }
 
 // Admin: PUT /api/v1/admin/email/settings
@@ -212,6 +216,36 @@ func (ec *EmailController) UpdateSettings(c *gin.Context) {
 	}
 	if req.ShippingNotificationsEnabled != nil {
 		s.ShippingNotificationsEnabled = *req.ShippingNotificationsEnabled
+	}
+	legacyTouched := false
+	newTouched := false
+	if req.OrderNotificationsEnabled != nil {
+		legacyTouched = true
+		s.OrderNotificationsEnabled = *req.OrderNotificationsEnabled
+	}
+	if req.OrderCreatedNotificationsEnabled != nil {
+		newTouched = true
+		s.OrderCreatedNotificationsEnabled = *req.OrderCreatedNotificationsEnabled
+	}
+	if req.OrderPaidNotificationsEnabled != nil {
+		newTouched = true
+		s.OrderPaidNotificationsEnabled = *req.OrderPaidNotificationsEnabled
+	}
+	// If frontend still uses legacy switch, treat it as "enable both".
+	if legacyTouched && !newTouched {
+		s.OrderCreatedNotificationsEnabled = s.OrderNotificationsEnabled
+		s.OrderPaidNotificationsEnabled = s.OrderNotificationsEnabled
+	}
+	if newTouched {
+		s.OrderNotificationsEnabled = s.OrderCreatedNotificationsEnabled || s.OrderPaidNotificationsEnabled
+	}
+	if req.OrderNotificationEmails != nil {
+		normalized, _, err := services.NormalizeEmailRecipients(*req.OrderNotificationEmails)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid notification emails", Error: err.Error()})
+			return
+		}
+		s.OrderNotificationEmails = normalized
 	}
 	if req.CodeExpiryMinutes != nil {
 		s.CodeExpiryMinutes = *req.CodeExpiryMinutes

@@ -28,6 +28,11 @@ export interface EmailSettings {
   verification_enabled: boolean;
   marketing_enabled: boolean;
   shipping_notifications_enabled?: boolean;
+  // Legacy: kept for compatibility.
+  order_notifications_enabled?: boolean;
+  order_created_notifications_enabled?: boolean;
+  order_paid_notifications_enabled?: boolean;
+  order_notification_emails?: string;
   code_expiry_minutes: number;
   code_resend_seconds: number;
   has_smtp_password?: boolean;
