@@ -46,8 +46,9 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<'form' | 'payment' | 'success'>('form');
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidateResponse | null>(null);
 
-  const [shippingRates, setShippingRates] = useState<Array<{ country_code: string; country_name: string; fee: number; currency: string }>>([]);
+  const [shippingCountries, setShippingCountries] = useState<Array<{ country_code: string; country_name: string; currency: string }>>([]);
   const [shippingRatesLoading, setShippingRatesLoading] = useState(true);
+  const [shippingFee, setShippingFee] = useState<number>(0);
 
   const {
     register,
@@ -74,8 +75,7 @@ export default function CheckoutPage() {
   const shippingCountry = watch('shipping_country');
   const [sameAsShipping, setSameAsShipping] = useState(false);
 
-  const selectedShippingRate = shippingRates.find((r) => r.country_code === shippingCountry);
-  const shippingFee = selectedShippingRate ? Number(selectedShippingRate.fee || 0) : 0;
+  const totalWeightKg = items.reduce((sum, it) => sum + (Number((it.product as any).weight || 0) * Number(it.quantity || 0)), 0);
 
   // Check authentication - redirect to login if not authenticated
   useEffect(() => {
@@ -101,12 +101,12 @@ export default function CheckoutPage() {
     let alive = true;
     (async () => {
       try {
-        const rates = await ShippingRateService.publicList();
+        const countries = await ShippingRateService.publicCountries();
         if (!alive) return;
-        setShippingRates(rates as any);
+        setShippingCountries(countries as any);
       } catch {
         if (!alive) return;
-        setShippingRates([]);
+        setShippingCountries([]);
       } finally {
         if (alive) setShippingRatesLoading(false);
       }
@@ -115,6 +115,27 @@ export default function CheckoutPage() {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!shippingCountry) {
+        setShippingFee(0);
+        return;
+      }
+      try {
+        const q = await ShippingRateService.quote(shippingCountry, totalWeightKg);
+        if (!alive) return;
+        setShippingFee(Number(q.shipping_fee || 0));
+      } catch {
+        if (!alive) return;
+        setShippingFee(0);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [shippingCountry, totalWeightKg]);
 
   useEffect(() => {
     if (items.length === 0 && step !== 'success') {
@@ -245,7 +266,7 @@ export default function CheckoutPage() {
                   isProcessing={isProcessing}
                   sameAsShipping={sameAsShipping}
                   setSameAsShipping={setSameAsShipping}
-					shippingRates={shippingRates}
+					shippingRates={shippingCountries}
                 />
               </div>
 

@@ -15,23 +15,42 @@ export interface ShippingRate {
 export interface ShippingRatePublic {
   country_code: string;
   country_name: string;
-  fee: number;
   currency: string;
 }
 
+export interface ShippingQuote {
+  country_code: string;
+  currency: string;
+  weight_kg: number;
+  rate_per_kg: number;
+  base_quote: number;
+  additional_fee: number;
+  shipping_fee: number;
+}
+
 export interface ShippingRateImportResult {
-  total_rows: number;
+  countries: number;
   created: number;
   updated: number;
+  deleted: number;
   failed: number;
-  items: Array<{ row_number: number; country_code: string; action: string; message?: string }>;
+  errors: string[];
 }
 
 export class ShippingRateService {
-  static async publicList(): Promise<ShippingRatePublic[]> {
-    const res = await apiClient.get<APIResponse<ShippingRatePublic[]>>('/public/shipping/rates');
+  static async publicCountries(): Promise<ShippingRatePublic[]> {
+    const res = await apiClient.get<APIResponse<ShippingRatePublic[]>>('/public/shipping/countries');
     if (res.data.success && res.data.data) return res.data.data;
     throw new Error(res.data.message || 'Failed to fetch shipping rates');
+  }
+
+  static async quote(country: string, weightKg: number): Promise<ShippingQuote> {
+    const qs = new URLSearchParams();
+    qs.set('country', country);
+    qs.set('weight_kg', String(weightKg || 0));
+    const res = await apiClient.get<APIResponse<ShippingQuote>>(`/public/shipping/quote?${qs.toString()}`);
+    if (res.data.success && res.data.data) return res.data.data;
+    throw new Error(res.data.message || res.data.error || 'Failed to calculate shipping');
   }
 
   static async adminList(q?: string): Promise<ShippingRate[]> {
@@ -41,22 +60,11 @@ export class ShippingRateService {
     throw new Error(res.data.message || 'Failed to fetch shipping rates');
   }
 
-  static async create(payload: { country_code: string; country_name: string; fee: number; currency?: string; is_active?: boolean }): Promise<ShippingRate> {
-    const res = await apiClient.post<APIResponse<ShippingRate>>('/admin/shipping-rates', payload);
-    if (res.data.success && res.data.data) return res.data.data;
-    throw new Error(res.data.message || 'Failed to create shipping rate');
-  }
 
-  static async update(id: number, payload: { country_code: string; country_name: string; fee: number; currency?: string; is_active?: boolean }): Promise<ShippingRate> {
-    const res = await apiClient.put<APIResponse<ShippingRate>>(`/admin/shipping-rates/${id}`, payload);
+  static async bulkDelete(payload: { all?: boolean; country_codes?: string[] }): Promise<{ deleted: number }> {
+    const res = await apiClient.post<APIResponse<any>>('/admin/shipping-rates/bulk-delete', payload);
     if (res.data.success && res.data.data) return res.data.data;
-    throw new Error(res.data.message || 'Failed to update shipping rate');
-  }
-
-  static async remove(id: number): Promise<void> {
-    const res = await apiClient.delete<APIResponse<any>>(`/admin/shipping-rates/${id}`);
-    if (res.data.success) return;
-    throw new Error(res.data.message || 'Failed to delete shipping rate');
+    throw new Error(res.data.message || 'Failed to delete shipping templates');
   }
 
   static async downloadTemplate(): Promise<Blob> {
@@ -64,10 +72,11 @@ export class ShippingRateService {
     return res.data as Blob;
   }
 
-  static async importXlsx(file: File): Promise<ShippingRateImportResult> {
+  static async importXlsx(file: File, opts?: { replace?: boolean }): Promise<ShippingRateImportResult> {
     const form = new FormData();
     form.append('file', file);
-    const res = await apiClient.post<APIResponse<ShippingRateImportResult>>('/admin/shipping-rates/import/xlsx', form, {
+    const qs = opts?.replace ? '?replace=1' : '';
+    const res = await apiClient.post<APIResponse<ShippingRateImportResult>>(`/admin/shipping-rates/import/xlsx${qs}`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     if (res.data.success && res.data.data) return res.data.data;

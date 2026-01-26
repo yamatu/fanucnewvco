@@ -59,6 +59,7 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 	// Calculate total amount and validate products
 	var subtotalAmount float64
 	var orderItems []models.OrderItem
+	var totalWeightKg float64
 
 	for _, item := range req.Items {
 		var product models.Product
@@ -87,6 +88,9 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 
 		itemTotal := unitPrice * float64(item.Quantity)
 		subtotalAmount += itemTotal
+		if product.Weight != nil {
+			totalWeightKg += float64(item.Quantity) * float64(*product.Weight)
+		}
 
 		orderItems = append(orderItems, models.OrderItem{
 			ProductID:  item.ProductID,
@@ -98,14 +102,18 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 
 	// Initialize amounts
 	discountAmount := 0.0
-	shippingFee, _, shipErr := services.GetShippingFee(config.DB, req.ShippingCountry)
-	if shipErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "Shipping rate not configured for country",
-			"error":   shipErr.Error(),
-		})
-		return
+	shippingFee := 0.0
+	if totalWeightKg > 0 {
+		quote, shipErr := services.CalculateShippingQuote(config.DB, req.ShippingCountry, totalWeightKg)
+		if shipErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "Shipping template not configured for country/weight",
+				"error":   shipErr.Error(),
+			})
+			return
+		}
+		shippingFee = quote.ShippingFee
 	}
 	totalAmount := subtotalAmount + shippingFee
 	var couponID *uint

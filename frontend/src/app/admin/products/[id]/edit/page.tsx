@@ -24,6 +24,7 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import MediaPickerModal from '@/components/admin/MediaPickerModal';
 import SeoPreview from '@/components/admin/SeoPreview';
 import CategoryCombobox from '@/components/admin/CategoryCombobox';
+import ShippingQuoteCalculator from '@/components/admin/ShippingQuoteCalculator';
 import { ProductService, CategoryService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { ProductCreateRequest } from '@/types';
@@ -57,6 +58,9 @@ export default function EditProductPage() {
     watch,
     formState: { errors, isSubmitting },
   } = useForm<ProductFormData>();
+
+	const watchedWeight = Number(watch('weight') || 0);
+	const watchedPrice = Number(watch('price') || 0);
 
   // Fetch product details
   const { data: product, isLoading } = useQuery({
@@ -103,6 +107,7 @@ export default function EditProductPage() {
       setValue('is_active', product.is_active);
       setValue('is_featured', product.is_featured);
       setValue('stock_quantity', product.stock_quantity);
+		setValue('weight', (product as any).weight ?? undefined);
 
       // Convert image_urls to the expected format for editing
       try {
@@ -328,6 +333,10 @@ export default function EditProductPage() {
         toast.error('Please select a valid category');
         return;
       }
+		if (!product) {
+			toast.error('Product not loaded');
+			return;
+		}
       // Convert images to the format expected by the API
       const imageReqs = images.map((img, index) => ({
         url: img.url,
@@ -336,21 +345,53 @@ export default function EditProductPage() {
         sort_order: img.sort_order || index
       }));
 
-      // Convert form data to ProductCreateRequest
-      const productData: Partial<ProductCreateRequest> = {
-        name: data.name,
-        sku: data.sku,
-        description: data.description,
-        meta_title: data.meta_title || '',
-        meta_description: data.meta_description || '',
-        meta_keywords: data.meta_keywords || '',
-        price: Number(data.price),
-        category_id: catId,
-        is_active: data.is_active,
-        is_featured: data.is_featured,
-        stock_quantity: Number(data.stock_quantity),
-        images: imageReqs,
-      };
+      const weightNum = data.weight ? Number(data.weight) : undefined;
+		const existing = product as any;
+
+		const attrs = Array.isArray(existing.attributes)
+			? existing.attributes.map((a: any, i: number) => ({
+				attribute_name: a.attribute_name,
+				attribute_value: a.attribute_value,
+				sort_order: typeof a.sort_order === 'number' ? a.sort_order : i,
+			}))
+			: [];
+
+		const trans = Array.isArray(existing.translations)
+			? existing.translations.map((t: any) => ({
+				language_code: t.language_code,
+				name: t.name,
+				short_description: t.short_description || '',
+				description: t.description || '',
+				meta_title: t.meta_title || '',
+				meta_description: t.meta_description || '',
+				meta_keywords: t.meta_keywords || '',
+			}))
+			: [];
+
+		// Backend PUT expects a full ProductCreateRequest.
+		const productData: ProductCreateRequest = {
+			name: data.name,
+			sku: data.sku,
+			short_description: existing.short_description || '',
+			description: data.description || '',
+			price: Number(data.price),
+			compare_price: existing.compare_price ?? undefined,
+			stock_quantity: Number(data.stock_quantity),
+			weight: weightNum,
+			dimensions: existing.dimensions || '',
+			brand: (existing.brand || 'FANUC').trim(),
+			model: (existing.model || data.sku).trim(),
+			part_number: (existing.part_number || data.sku).trim(),
+			category_id: catId,
+			is_active: data.is_active,
+			is_featured: data.is_featured,
+			meta_title: data.meta_title || '',
+			meta_description: data.meta_description || '',
+			meta_keywords: data.meta_keywords || '',
+			images: imageReqs,
+			attributes: attrs,
+			translations: trans,
+		};
 
       await updateProductMutation.mutateAsync(productData);
     } catch (error) {
@@ -516,6 +557,22 @@ export default function EditProductPage() {
                     )}
                   </div>
 
+				  <div>
+					<label htmlFor="weight" className="block text-sm font-medium text-gray-700 mb-1">
+						Weight (kg)
+					</label>
+					<input
+						{...register('weight', { min: { value: 0, message: 'Weight must be positive' } })}
+						type="number"
+						step="0.001"
+						className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+						placeholder="e.g., 1.25"
+					/>
+					{errors.weight && (
+						<p className="mt-1 text-sm text-red-600">{String(errors.weight.message)}</p>
+					)}
+				  </div>
+
                   <div className="sm:col-span-2">
                     <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
                       Description
@@ -529,6 +586,15 @@ export default function EditProductPage() {
                   </div>
             </div>
           </div>
+
+		  <ShippingQuoteCalculator
+			weightKg={watchedWeight}
+			price={watchedPrice}
+			onAddShippingToPrice={(fee) => {
+				const next = Number((Number(watchedPrice || 0) + Number(fee || 0)).toFixed(2));
+				setValue('price', next as any, { shouldDirty: true, shouldValidate: true });
+			}}
+		  />
 
           {/* SEO Basic Information */}
           <div className="bg-white shadow rounded-lg p-6">

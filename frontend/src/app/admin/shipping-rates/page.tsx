@@ -6,7 +6,6 @@ import { toast } from 'react-hot-toast';
 import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
-  PlusIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
 
@@ -16,18 +15,18 @@ import { ShippingRateService } from '@/services/shipping-rate.service';
 
 export default function AdminShippingRatesPage() {
   const queryClient = useQueryClient();
-
   const [q, setQ] = useState('');
   const [importFile, setImportFile] = useState<File | null>(null);
-  const [newCode, setNewCode] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newFee, setNewFee] = useState<number>(0);
+  const [replaceMode, setReplaceMode] = useState(true);
+  const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
 
-  const { data: rates = [], isLoading } = useQuery({
+  const { data: templates = [], isLoading } = useQuery({
     queryKey: [...queryKeys.shippingRates.admin(), { q }],
     queryFn: () => ShippingRateService.adminList(q.trim() || undefined),
     retry: 1,
   });
+
+  const rows = useMemo(() => templates || [], [templates]);
 
   const downloadTemplate = async () => {
     try {
@@ -35,11 +34,12 @@ export default function AdminShippingRatesPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'shipping-rates-template.xlsx';
+      a.download = 'shipping-template-template.xlsx';
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      toast.success('Template downloaded');
     } catch (e: any) {
       toast.error(e.message || 'Failed to download template');
     }
@@ -48,72 +48,48 @@ export default function AdminShippingRatesPage() {
   const importMutation = useMutation({
     mutationFn: async () => {
       if (!importFile) throw new Error('Please select an .xlsx file');
-      return ShippingRateService.importXlsx(importFile);
+      return ShippingRateService.importXlsx(importFile, { replace: replaceMode });
     },
     onSuccess: (res: any) => {
-      toast.success(`Imported: ${res.created || 0} created, ${res.updated || 0} updated, ${res.failed || 0} failed`);
+      toast.success(`Imported countries: ${res.countries || 0} (created ${res.created || 0}, updated ${res.updated || 0})`);
       setImportFile(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.shippingRates.admin() });
     },
     onError: (e: any) => toast.error(e.message || 'Import failed'),
   });
 
-  const createMutation = useMutation({
-    mutationFn: () =>
-      ShippingRateService.create({
-        country_code: newCode.trim(),
-        country_name: newName.trim(),
-        fee: Number(newFee || 0),
-        currency: 'USD',
-        is_active: true,
-      }),
-    onSuccess: () => {
-      toast.success('Created');
-      setNewCode('');
-      setNewName('');
-      setNewFee(0);
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (payload: { all?: boolean; country_codes?: string[] }) => ShippingRateService.bulkDelete(payload),
+    onSuccess: (res: any) => {
+      toast.success(`Deleted ${res.deleted || 0} country template(s)`);
+      setSelectedCodes([]);
       queryClient.invalidateQueries({ queryKey: queryKeys.shippingRates.admin() });
     },
-    onError: (e: any) => toast.error(e.message || 'Failed to create'),
+    onError: (e: any) => toast.error(e.message || 'Delete failed'),
   });
 
-  const updateMutation = useMutation({
-    mutationFn: (payload: any) => ShippingRateService.update(payload.id, payload.data),
-    onSuccess: () => {
-      toast.success('Saved');
-      queryClient.invalidateQueries({ queryKey: queryKeys.shippingRates.admin() });
-    },
-    onError: (e: any) => toast.error(e.message || 'Failed to save'),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => ShippingRateService.remove(id),
-    onSuccess: () => {
-      toast.success('Deleted');
-      queryClient.invalidateQueries({ queryKey: queryKeys.shippingRates.admin() });
-    },
-    onError: (e: any) => toast.error(e.message || 'Failed to delete'),
-  });
-
-  const rows = useMemo(() => rates || [], [rates]);
+  const toggleSelected = (code: string) => {
+    setSelectedCodes((prev) => (prev.includes(code) ? prev.filter((x) => x !== code) : [...prev, code]));
+  };
 
   return (
     <AdminLayout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Shipping Rates</h1>
-            <p className="mt-1 text-sm text-gray-500">Flat shipping fee by country (used in checkout, no tax).</p>
+            <h1 className="text-2xl font-bold text-gray-900">Shipping Templates</h1>
+            <p className="mt-1 text-sm text-gray-500">Country + weight brackets + quote surcharge. Used at checkout (no tax).</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={downloadTemplate}
               className="inline-flex items-center px-3 py-2 text-sm rounded-md border border-gray-200 bg-white hover:bg-gray-50"
             >
               <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-              Download Template
+              Download XLSX Template
             </button>
+
             <label className="inline-flex items-center px-3 py-2 text-sm rounded-md border border-gray-200 bg-white hover:bg-gray-50 cursor-pointer">
               <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
               <span>Choose XLSX</span>
@@ -124,12 +100,31 @@ export default function AdminShippingRatesPage() {
                 onChange={(e) => setImportFile(e.target.files?.[0] || null)}
               />
             </label>
+
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={replaceMode} onChange={(e) => setReplaceMode(e.target.checked)} className="h-4 w-4" />
+              Replace existing rules
+            </label>
+
             <button
               onClick={() => importMutation.mutate()}
               disabled={!importFile || importMutation.isPending}
               className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
             >
               Import
+            </button>
+
+            <button
+              onClick={() => {
+                if (!window.confirm('Delete ALL shipping templates? This cannot be undone.')) return;
+                bulkDeleteMutation.mutate({ all: true });
+              }}
+              className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700"
+              disabled={bulkDeleteMutation.isPending}
+              title="Bulk delete all countries"
+            >
+              <TrashIcon className="h-4 w-4 mr-2" />
+              Delete All
             </button>
           </div>
         </div>
@@ -145,42 +140,17 @@ export default function AdminShippingRatesPage() {
                 placeholder="US / United States ..."
               />
             </div>
-            <div className="w-full sm:w-32">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
-              <input
-                value={newCode}
-                onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md font-mono"
-                placeholder="US"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Country name</label>
-              <input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="United States"
-              />
-            </div>
-            <div className="w-full sm:w-40">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fee (USD)</label>
-              <input
-                type="number"
-                value={String(newFee)}
-                onChange={(e) => setNewFee(Number(e.target.value || 0))}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md"
-                min={0}
-                step={0.01}
-              />
-            </div>
             <button
-              onClick={() => createMutation.mutate()}
-              disabled={createMutation.isPending || !newCode.trim() || !newName.trim()}
-              className="inline-flex items-center px-4 py-2 text-sm rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+              onClick={() => {
+                if (selectedCodes.length === 0) { toast.error('Select at least one country'); return; }
+                if (!window.confirm(`Delete templates for: ${selectedCodes.join(', ')} ?`)) return;
+                bulkDeleteMutation.mutate({ country_codes: selectedCodes });
+              }}
+              className="inline-flex items-center px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              disabled={bulkDeleteMutation.isPending || selectedCodes.length === 0}
             >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              Add
+              <TrashIcon className="h-4 w-4 mr-2" />
+              Delete Selected
             </button>
           </div>
 
@@ -188,76 +158,36 @@ export default function AdminShippingRatesPage() {
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Code</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Select</th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700">Country</th>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Fee</th>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Active</th>
-                  <th className="px-3 py-2 text-right font-semibold text-gray-700">Actions</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Currency</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Weight Brackets</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">Quote Surcharges</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr><td colSpan={5} className="px-3 py-10 text-center text-gray-500">Loading...</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={5} className="px-3 py-10 text-center text-gray-500">No rates</td></tr>
+                  <tr><td colSpan={5} className="px-3 py-10 text-center text-gray-500">No templates</td></tr>
                 ) : (
                   rows.map((r: any) => (
-                    <tr key={r.id} className="border-t">
-                      <td className="px-3 py-2 font-mono text-gray-900">{r.country_code}</td>
-                      <td className="px-3 py-2 text-gray-900">{r.country_name}</td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          className="w-28 px-2 py-1 border border-gray-300 rounded"
-                          defaultValue={String(r.fee)}
-                          step={0.01}
-                          min={0}
-                          onBlur={(e) => {
-                            const v = Number(e.target.value || 0);
-                            if (v === Number(r.fee)) return;
-                            updateMutation.mutate({
-                              id: r.id,
-                              data: {
-                                country_code: r.country_code,
-                                country_name: r.country_name,
-                                fee: v,
-                                currency: r.currency || 'USD',
-                                is_active: Boolean(r.is_active),
-                              },
-                            });
-                          }}
-                        />
-                      </td>
+                    <tr key={r.country_code} className="border-t">
                       <td className="px-3 py-2">
                         <input
                           type="checkbox"
-                          defaultChecked={Boolean(r.is_active)}
-                          onChange={(e) =>
-                            updateMutation.mutate({
-                              id: r.id,
-                              data: {
-                                country_code: r.country_code,
-                                country_name: r.country_name,
-                                fee: Number(r.fee || 0),
-                                currency: r.currency || 'USD',
-                                is_active: e.target.checked,
-                              },
-                            })
-                          }
+                          checked={selectedCodes.includes(r.country_code)}
+                          onChange={() => toggleSelected(r.country_code)}
+                          className="h-4 w-4"
                         />
                       </td>
-                      <td className="px-3 py-2 text-right">
-                        <button
-                          onClick={() => {
-                            if (!window.confirm(`Delete rate for ${r.country_code}?`)) return;
-                            deleteMutation.mutate(r.id);
-                          }}
-                          className="inline-flex items-center px-3 py-1.5 text-sm rounded-md bg-red-600 text-white hover:bg-red-700"
-                        >
-                          <TrashIcon className="h-4 w-4 mr-1" />
-                          Delete
-                        </button>
+                      <td className="px-3 py-2">
+                        <div className="font-mono text-gray-900">{r.country_code}</div>
+                        <div className="text-gray-700">{r.country_name}</div>
                       </td>
+                      <td className="px-3 py-2 text-gray-900">{r.currency || 'USD'}</td>
+                      <td className="px-3 py-2 text-gray-900">{r.weight_brackets}</td>
+                      <td className="px-3 py-2 text-gray-900">{r.quote_surcharges}</td>
                     </tr>
                   ))
                 )}

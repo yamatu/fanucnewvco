@@ -16,6 +16,7 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import MediaPickerModal from '@/components/admin/MediaPickerModal';
 import SeoPreview from '@/components/admin/SeoPreview';
 import CategoryCombobox from '@/components/admin/CategoryCombobox';
+import ShippingQuoteCalculator from '@/components/admin/ShippingQuoteCalculator';
 import { ProductService, CategoryService } from '@/services';
 import { ProductCreateRequest } from '@/types';
 import { queryKeys } from '@/lib/react-query';
@@ -45,8 +46,12 @@ export default function NewProductPage() {
       is_active: true,
       is_featured: false,
       stock_quantity: 0,
+		brand: 'FANUC',
     }
   });
+
+	const watchedWeight = Number(watch('weight') || 0);
+	const watchedPrice = Number(watch('price') || 0);
 
   // Fetch categories for dropdown
   const { data: categories = [] } = useQuery({
@@ -120,9 +125,9 @@ export default function NewProductPage() {
         stock_quantity: Number(data.stock_quantity),
         weight: data.weight ? Number(data.weight) : undefined,
         dimensions: data.dimensions || '',
-        brand: data.brand || '',
-        model: data.model || '',
-        part_number: data.part_number || '',
+		brand: (data.brand || 'FANUC').trim(),
+		model: (data.model || data.sku).trim(),
+		part_number: (data.part_number || data.sku).trim(),
         category_id: catId,
         is_active: data.is_active,
         is_featured: data.is_featured,
@@ -266,6 +271,22 @@ export default function NewProductPage() {
                     )}
                   </div>
 
+				  <div>
+					<label htmlFor="weight" className="block text-sm font-medium text-gray-700 mb-1">
+						Weight (kg)
+					</label>
+					<input
+						{...register('weight', { min: { value: 0, message: 'Weight must be positive' } })}
+						type="number"
+						step="0.001"
+						className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+						placeholder="e.g., 1.25"
+					/>
+					{errors.weight && (
+						<p className="mt-1 text-sm text-red-600">{String(errors.weight.message)}</p>
+					)}
+				  </div>
+
                   <div className="sm:col-span-2">
                     <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
                       Description
@@ -279,6 +300,15 @@ export default function NewProductPage() {
                   </div>
                 </div>
               </div>
+
+			  <ShippingQuoteCalculator
+				weightKg={watchedWeight}
+				price={watchedPrice}
+				onAddShippingToPrice={(fee) => {
+					const next = Number((Number(watchedPrice || 0) + Number(fee || 0)).toFixed(2));
+					setValue('price', next as any, { shouldDirty: true, shouldValidate: true });
+				}}
+			  />
 
               {/* SEO Basic Information */}
               <div className="bg-white shadow rounded-lg p-6">

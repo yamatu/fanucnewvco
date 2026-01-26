@@ -27,6 +27,7 @@ type ProductImportRow struct {
 	Model     string
 	Price     float64
 	Quantity  int
+	WeightKg  float64
 }
 
 type ProductImportItem struct {
@@ -65,7 +66,7 @@ func GenerateProductImportTemplateXLSX(brand string) ([]byte, error) {
 	f.SetSheetName("Sheet1", sheet)
 
 	// Headers (Chinese + English helper)
-	headers := []string{"型号(Model)", "价格(Price)", "数量(Quantity)"}
+	headers := []string{"型号(Model)", "价格(Price)", "数量(Quantity)", "重量kg(WeightKg)"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		_ = f.SetCellValue(sheet, cell, h)
@@ -74,10 +75,12 @@ func GenerateProductImportTemplateXLSX(brand string) ([]byte, error) {
 	_ = f.SetCellValue(sheet, "A2", "A02B-0120-C041")
 	_ = f.SetCellValue(sheet, "B2", 1200)
 	_ = f.SetCellValue(sheet, "C2", 5)
+	_ = f.SetCellValue(sheet, "D2", 1.2)
 
 	_ = f.SetColWidth(sheet, "A", "A", 24)
 	_ = f.SetColWidth(sheet, "B", "B", 14)
 	_ = f.SetColWidth(sheet, "C", "C", 14)
+	_ = f.SetColWidth(sheet, "D", "D", 16)
 	_ = f.SetPanes(sheet, &excelize.Panes{Freeze: true, Split: true, YSplit: 1, ActivePane: "bottomLeft"})
 
 	headerStyle, _ := f.NewStyle(&excelize.Style{
@@ -85,7 +88,7 @@ func GenerateProductImportTemplateXLSX(brand string) ([]byte, error) {
 		Fill:   excelize.Fill{Type: "pattern", Color: []string{"#F3F4F6"}, Pattern: 1},
 		Border: []excelize.Border{{Type: "bottom", Color: "#E5E7EB", Style: 1}},
 	})
-	_ = f.SetCellStyle(sheet, "A1", "C1", headerStyle)
+	_ = f.SetCellStyle(sheet, "A1", "D1", headerStyle)
 
 	buf, err := f.WriteToBuffer()
 	if err != nil {
@@ -193,6 +196,9 @@ func ImportProductsFromXLSX(ctx context.Context, db *gorm.DB, r io.Reader, opts 
 				updates := map[string]any{}
 				updates["price"] = row.Price
 				updates["stock_quantity"] = row.Quantity
+				if row.WeightKg > 0 {
+					updates["weight"] = row.WeightKg
+				}
 
 				// Keep existing content by default; only fill missing, unless overwrite=true
 				if opts.Overwrite || strings.TrimSpace(product.Name) == "" {
@@ -254,6 +260,11 @@ func ImportProductsFromXLSX(ctx context.Context, db *gorm.DB, r io.Reader, opts 
 				return count > 0
 			})
 
+			var wPtr *float64
+			if row.WeightKg > 0 {
+				w := row.WeightKg
+				wPtr = &w
+			}
 			p := models.Product{
 				SKU:              model,
 				Name:             enr.Name,
@@ -262,6 +273,7 @@ func ImportProductsFromXLSX(ctx context.Context, db *gorm.DB, r io.Reader, opts 
 				Description:      enr.Description,
 				Price:            row.Price,
 				StockQuantity:    row.Quantity,
+				Weight:           wPtr,
 				Brand:            "FANUC",
 				Model:            model,
 				PartNumber:       model,
@@ -274,7 +286,7 @@ func ImportProductsFromXLSX(ctx context.Context, db *gorm.DB, r io.Reader, opts 
 				ImageURLs:        "[]",
 			}
 
-			if e := tx.Select("SKU", "Name", "Slug", "ShortDescription", "Description", "Price", "StockQuantity", "Brand", "Model", "PartNumber", "CategoryID", "IsActive", "IsFeatured", "MetaTitle", "MetaDescription", "MetaKeywords", "ImageURLs").Create(&p).Error; e != nil {
+			if e := tx.Select("SKU", "Name", "Slug", "ShortDescription", "Description", "Price", "StockQuantity", "Weight", "Brand", "Model", "PartNumber", "CategoryID", "IsActive", "IsFeatured", "MetaTitle", "MetaDescription", "MetaKeywords", "ImageURLs").Create(&p).Error; e != nil {
 				res.Failed++
 				res.Items = append(res.Items, ProductImportItem{RowNumber: row.RowNumber, Model: model, Action: "failed", Message: e.Error()})
 				continue
@@ -363,6 +375,7 @@ func readImportRows(f *excelize.File, sheet string) ([]ProductImportRow, error) 
 	colModel := 0
 	colPrice := 1
 	colQty := 2
+	colWeight := 3
 	for i, h := range header {
 		key := strings.ToLower(strings.TrimSpace(h))
 		key = strings.ReplaceAll(key, " ", "")
@@ -374,6 +387,9 @@ func readImportRows(f *excelize.File, sheet string) ([]ProductImportRow, error) 
 		}
 		if strings.Contains(key, "数量") || strings.Contains(key, "qty") || strings.Contains(key, "quantity") || strings.Contains(key, "stock") {
 			colQty = i
+		}
+		if strings.Contains(key, "weight") || strings.Contains(key, "重量") || strings.Contains(key, "kg") {
+			colWeight = i
 		}
 	}
 
@@ -389,8 +405,9 @@ func readImportRows(f *excelize.File, sheet string) ([]ProductImportRow, error) 
 		model := strings.TrimSpace(get(colModel))
 		priceStr := get(colPrice)
 		qtyStr := get(colQty)
+		weightStr := get(colWeight)
 
-		if model == "" && strings.TrimSpace(priceStr) == "" && strings.TrimSpace(qtyStr) == "" {
+		if model == "" && strings.TrimSpace(priceStr) == "" && strings.TrimSpace(qtyStr) == "" && strings.TrimSpace(weightStr) == "" {
 			continue
 		}
 		price, err := parseFloatCell(priceStr)
@@ -401,7 +418,11 @@ func readImportRows(f *excelize.File, sheet string) ([]ProductImportRow, error) 
 		if err != nil {
 			return nil, fmt.Errorf("row %d: invalid quantity: %v", idx+1, err)
 		}
-		out = append(out, ProductImportRow{RowNumber: idx + 1, Model: model, Price: price, Quantity: qty})
+		wkg, err := parseFloatCell(weightStr)
+		if err != nil {
+			return nil, fmt.Errorf("row %d: invalid weight: %v", idx+1, err)
+		}
+		out = append(out, ProductImportRow{RowNumber: idx + 1, Model: model, Price: price, Quantity: qty, WeightKg: wkg})
 	}
 	return out, nil
 }

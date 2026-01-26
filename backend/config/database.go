@@ -119,6 +119,11 @@ func ConnectDatabase() {
 			&models.PayPalSetting{},
 			&models.EmailSetting{},
 			&models.EmailVerificationCode{},
+			// Shipping (new template-based)
+			&models.ShippingTemplate{},
+			&models.ShippingWeightBracket{},
+			&models.ShippingQuoteSurcharge{},
+			// Legacy flat shipping rate table (kept for compatibility; not used by new flow)
 			&models.ShippingRate{},
 			&models.WatermarkSetting{},
 		}

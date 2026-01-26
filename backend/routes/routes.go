@@ -71,9 +71,9 @@ func SetupRoutes(r *gin.Engine) {
 			public.GET("/products/default-image", watermarkController.DefaultProductImage)
 			public.GET("/products/default-image/:sku", watermarkController.DefaultProductImage)
 
-			// Shipping rates (public)
-			public.GET("/shipping/rates", shippingRateController.PublicList)
-			public.GET("/shipping/rate/:country", shippingRateController.PublicGet)
+			// Shipping (public)
+			public.GET("/shipping/countries", shippingRateController.PublicCountries)
+			public.GET("/shipping/quote", shippingRateController.PublicQuote)
 
 			public.GET("/products/:id", productController.GetProduct)
 			public.GET("/products/sku", productController.GetProductBySKUQuery) // query param: sku=...
@@ -173,17 +173,14 @@ func SetupRoutes(r *gin.Engine) {
 				products.DELETE("/:id/images/:imageIndex", middleware.AdminOnly(), productController.DeleteImage)
 			}
 
-			// Shipping rate management (admin and editor access)
+			// Shipping template management (admin and editor access)
 			shippingRates := admin.Group("/shipping-rates")
 			shippingRates.Use(middleware.EditorOrAdmin())
 			{
 				shippingRates.GET("", shippingRateController.AdminList)
-				shippingRates.POST("", shippingRateController.AdminCreate)
-				shippingRates.PUT("/:id", shippingRateController.AdminUpdate)
-				shippingRates.DELETE("/:id", middleware.AdminOnly(), shippingRateController.AdminDelete)
-
 				shippingRates.GET("/import/template", shippingRateController.DownloadTemplate)
 				shippingRates.POST("/import/xlsx", shippingRateController.ImportXLSX)
+				shippingRates.POST("/bulk-delete", middleware.AdminOnly(), shippingRateController.BulkDelete)
 			}
 
 			// Order management (admin only)

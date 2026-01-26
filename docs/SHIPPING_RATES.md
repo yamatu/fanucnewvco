@@ -1,67 +1,63 @@
-# 运费模板（按国家）+ XLSX 批量导入
+# 运费模板（按国家 + 重量kg）+ XLSX 批量导入
 
-目标：你可以为不同国家设置固定运费；结算时会自动把运费加到订单总价（不再加 10% tax）。
+目标：你可以为不同国家配置“重量区间 + 每公斤费用 + 报价附加费”；结算时系统会根据购物车总重量自动计算运费，并加到订单总价。
 
-## 1) 更新并重启
+## 1) 配置入口
 
-```bash
-git pull
-```
+后台：`Admin -> Shipping Rates`
 
-后端重启（让数据库自动迁移新增表/字段）：
+支持：
 
-```bash
-cd backend
-go run .
-```
+- XLSX 批量导入（推荐）
+- 批量删除（Delete Selected / Delete All）
 
-前端重建/重启（后台新增 Shipping Rates 页面 & 结算页新增 Country）：
+## 2) XLSX 模板
 
-```bash
-cd frontend
-npm run build
-npm run start
-```
+点击 `Download XLSX Template` 下载模板。
 
-## 2) 在后台配置运费
+模板包含 2 个 sheet：
 
-后台入口：`Admin -> Shipping Rates`
+### Sheet: `WeightKg`
 
-你有两种方式：
+必填（每个国家至少要有 1 行）：
 
-### A. 手动新增/修改
+- `国家代码(Country Code)`：ISO2，例如 `US`
+- `国家(Country Name)`：例如 `United States`
+- `最小公斤(Min Kg)`
+- `最大公斤(Max Kg)`：填 `0` 或留空表示“无上限”
+- `每公斤费用(Rate Per Kg)`
+- `币种(Currency)`：默认 `USD`
 
-- Code：国家二字码（ISO2），例如 `US` / `CN`
-- Country name：国家名称
-- Fee：运费（默认 USD）
+`Min/Max` 也支持直接写区间：
 
-### B. XLSX 批量导入
+- `21.0 - 44.0`
 
-1) 点击 `Download Template` 下载模板
-2) 填写后保存为 `.xlsx`
-3) 点击 `Choose XLSX` 选择文件
-4) 点击 `Import`
+### Sheet: `QuoteSurcharge`（可选）
 
-模板列：
+用于配置“报价 -> 附加费”的阶梯表（可不填）。
 
-- `Country Code (ISO2)`
-- `Country Name`
-- `Shipping Fee`
-- `Currency`（默认 USD）
+- `国家代码(Country Code)`
+- `国家(Country Name)`
+- `报价(Quote)`
+- `附加费(Additional Fee)`
+- `币种(Currency)`
 
-导入规则：
+## 3) 运费计算逻辑
 
-- 相同 `Country Code` 会自动更新（upsert）
-- 没有则创建
+下单时系统会统计购物车总重量：
 
-## 3) 结算页如何计算
+`total_weight_kg = Σ(商品重量kg × 数量)`
 
-结算页新增 `Shipping Country` 下拉，选国家后：
+然后根据国家模板计算：
 
-`订单总价 = 商品小计 - 优惠 + 运费`
+1) 先用 `WeightKg` 匹配重量区间，拿到 `rate_per_kg`
+2) `base_quote = total_weight_kg × rate_per_kg`
+3) （可选）从 `QuoteSurcharge` 里匹配 `base_quote` 对应的 `additional_fee`
+4) `shipping_fee = base_quote + additional_fee`
 
-说明：优惠券只按商品小计计算，不参与运费。
+## 4) 重新上传/替换
 
-## 4) 重要说明：已移除 10% tax
+如果你每次调整运费都要重新上传：
 
-之前结算页有固定 `10% tax`（仅展示用），现在已删除，不再参与任何展示/支付金额。
+- 勾选 `Replace existing rules` 后再导入，会先删除该国家旧规则，再写入新规则
+- 或者用 `Delete Selected / Delete All` 先批量删除

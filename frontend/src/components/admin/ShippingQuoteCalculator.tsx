@@ -1,0 +1,153 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-hot-toast';
+
+import { ShippingRateService, type ShippingQuote } from '@/services/shipping-rate.service';
+
+type Country = { country_code: string; country_name: string; currency: string };
+
+export default function ShippingQuoteCalculator(props: {
+	weightKg?: number;
+	price?: number;
+	defaultCountryCode?: string;
+	onAddShippingToPrice?: (shippingFee: number) => void;
+}) {
+	const { weightKg = 0, price = 0, defaultCountryCode = 'US', onAddShippingToPrice } = props;
+	const w = Number(weightKg || 0);
+
+	const [countries, setCountries] = useState<Country[]>([]);
+	const [loadingCountries, setLoadingCountries] = useState(false);
+	const [countryCode, setCountryCode] = useState('');
+	const [quote, setQuote] = useState<ShippingQuote | null>(null);
+	const [loadingQuote, setLoadingQuote] = useState(false);
+	const [quoteError, setQuoteError] = useState<string>('');
+
+	useEffect(() => {
+		let alive = true;
+		(async () => {
+			setLoadingCountries(true);
+			try {
+				const list = (await ShippingRateService.publicCountries()) as any as Country[];
+				if (!alive) return;
+				setCountries(Array.isArray(list) ? list : []);
+			} catch (e: any) {
+				if (!alive) return;
+				setCountries([]);
+				console.warn('Failed to load shipping countries', e);
+			} finally {
+				if (alive) setLoadingCountries(false);
+			}
+		})();
+		return () => {
+			alive = false;
+		};
+	}, []);
+
+	useEffect(() => {
+		if (countryCode) return;
+		if (!countries.length) return;
+		const preferred = (defaultCountryCode || '').toUpperCase();
+		const found = countries.find((c) => c.country_code === preferred);
+		setCountryCode(found?.country_code || countries[0].country_code);
+	}, [countries, countryCode, defaultCountryCode]);
+
+	useEffect(() => {
+		let alive = true;
+		(async () => {
+			setQuote(null);
+			setQuoteError('');
+			if (!countryCode || !w || w <= 0) return;
+			setLoadingQuote(true);
+			try {
+				const q = await ShippingRateService.quote(countryCode, w);
+				if (!alive) return;
+				setQuote(q);
+			} catch (e: any) {
+				if (!alive) return;
+				setQuoteError(e?.message || 'Failed to calculate shipping');
+			} finally {
+				if (alive) setLoadingQuote(false);
+			}
+		})();
+		return () => {
+			alive = false;
+		};
+	}, [countryCode, w]);
+
+	const shippingFee = Number(quote?.shipping_fee || 0);
+	const priceWithShipping = useMemo(() => {
+		return Number((Number(price || 0) + shippingFee).toFixed(2));
+	}, [price, shippingFee]);
+
+	return (
+		<div className="bg-white shadow rounded-lg p-6">
+			<div className="flex items-center justify-between gap-3">
+				<div>
+					<h3 className="text-lg font-medium text-gray-900">Shipping (By Weight)</h3>
+					<p className="mt-1 text-sm text-gray-500">Preview shipping fee from configured templates.</p>
+				</div>
+			</div>
+
+			<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+				<div>
+					<label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+					<select
+						value={countryCode}
+						onChange={(e) => setCountryCode(e.target.value)}
+						className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+						disabled={loadingCountries || countries.length === 0}
+					>
+						<option value="">{loadingCountries ? 'Loading...' : 'Select country'}</option>
+						{countries.map((c) => (
+							<option key={c.country_code} value={c.country_code}>
+								{c.country_name} ({c.country_code})
+							</option>
+						))}
+					</select>
+				</div>
+
+				<div>
+					<label className="block text-sm font-medium text-gray-700 mb-1">Weight (kg)</label>
+					<div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900">{w > 0 ? w : '-'}</div>
+				</div>
+
+				<div>
+					<label className="block text-sm font-medium text-gray-700 mb-1">Shipping Fee</label>
+					<div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900">
+						{loadingQuote ? 'Calculating...' : quote ? `${quote.currency || 'USD'} ${shippingFee.toFixed(2)}` : '-'}
+					</div>
+				</div>
+			</div>
+
+			{quoteError && (
+				<div className="mt-3 text-sm text-red-600">{quoteError}</div>
+			)}
+
+			{quote && (
+				<div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 grid grid-cols-1 gap-2 sm:grid-cols-2">
+					<div>Rate / kg: {Number(quote.rate_per_kg || 0).toFixed(3)}</div>
+					<div>Base quote: {Number(quote.base_quote || 0).toFixed(2)}</div>
+					<div>Additional fee: {Number(quote.additional_fee || 0).toFixed(2)}</div>
+					<div>Price + shipping: {priceWithShipping.toFixed(2)}</div>
+				</div>
+			)}
+
+			<div className="mt-4 flex items-center gap-2">
+				<button
+					type="button"
+					disabled={!quote || shippingFee <= 0 || !onAddShippingToPrice}
+					onClick={() => {
+						if (!quote || shippingFee <= 0 || !onAddShippingToPrice) return;
+						onAddShippingToPrice(shippingFee);
+						toast.success(`Added shipping (${shippingFee.toFixed(2)}) to product price`);
+					}}
+					className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+				>
+					Add Shipping To Price
+				</button>
+				<span className="text-xs text-gray-500">This updates only the product price field (admin helper).</span>
+			</div>
+		</div>
+	);
+}
