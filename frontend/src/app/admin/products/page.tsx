@@ -22,7 +22,7 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import Pagination from '@/components/common/Pagination';
 import { ProductService, CategoryService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
-import { formatCurrency, getProductImageUrl } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl } from '@/lib/utils';
 import { useAdminI18n } from '@/lib/admin-i18n';
 
 function AdminProductsContent() {
@@ -738,21 +738,15 @@ function AdminProductsContent() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-12 w-12">
-                          {product.image_urls && Array.isArray(product.image_urls) && product.image_urls.length > 0 ? (
-                            <Image
-                              src={getProductImageUrl(product.image_urls)}
-                              alt={product.name}
-                              width={48}
-                              height={48}
-                              className="h-12 w-12 rounded-lg object-cover"
-                              // /uploads is served by nginx -> backend; skip Next image optimizer.
-                              unoptimized={String(getProductImageUrl(product.image_urls)).startsWith('/uploads/')}
-                            />
-                          ) : (
-                            <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
-                              <PhotoIcon className="h-6 w-6 text-gray-400" />
-                            </div>
-                          )}
+                          <Image
+                            src={getProductImageUrl(product.image_urls, getDefaultProductImageWithSku(product.sku))}
+                            alt={product.name}
+                            width={48}
+                            height={48}
+                            className="h-12 w-12 rounded-lg object-cover"
+                            // /uploads is served by nginx -> backend; skip Next image optimizer.
+                            unoptimized={String(getProductImageUrl(product.image_urls, getDefaultProductImageWithSku(product.sku))).startsWith('/uploads/')}
+                          />
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">

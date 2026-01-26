@@ -16,7 +16,7 @@ import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import Layout from '@/components/layout/Layout';
 import SmartPagination from '@/components/ui/SmartPagination';
 import CategoryFilterTree from '@/components/categories/CategoryFilterTree';
-import { formatCurrency, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 
 interface ProductsPageClientProps {
@@ -303,7 +303,10 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                       <div className="relative">
                         <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-t-lg bg-gray-200">
                           <Image
-                            src={getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []))}
+                            src={getProductImageUrl(
+                              (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
+                              getDefaultProductImageWithSku(product.sku)
+                            )}
                             alt={`${product.name} - ${product.sku} | Professional FANUC ${product.category?.name || 'Industrial'} Part | In Stock at Vcocnc`}
                             width={300}
                             height={300}
@@ -376,7 +379,10 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                       <div className="flex items-center space-x-6">
                         <div className="flex-shrink-0">
                           <Image
-                            src={getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []))}
+                            src={getProductImageUrl(
+                              (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
+                              getDefaultProductImageWithSku(product.sku)
+                            )}
                             alt={`${product.name} - ${product.sku} | Professional FANUC ${product.category?.name || 'Industrial'} Part | In Stock at Vcocnc`}
                             width={120}
                             height={120}

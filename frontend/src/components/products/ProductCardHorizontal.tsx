@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ShoppingCartIcon, EyeIcon } from '@heroicons/react/24/outline';
-import { formatCurrency, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 
 type Product = {
@@ -28,7 +28,7 @@ export default function ProductCardHorizontal({ product }: { product: Product })
   const [isLoading, setIsLoading] = useState(false);
   const { addItem } = useCartStore();
 
-  const imageUrl = getProductImageUrl(product.image_urls || product.images || []);
+  const imageUrl = getProductImageUrl(product.image_urls || product.images || [], getDefaultProductImageWithSku(product.sku));
   const href = `/products/${toProductPathId(product.sku)}`;
 
   const handleAddToCart = (e: React.MouseEvent) => {

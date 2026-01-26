@@ -119,6 +119,7 @@ func ConnectDatabase() {
 			&models.PayPalSetting{},
 			&models.EmailSetting{},
 			&models.EmailVerificationCode{},
+			&models.WatermarkSetting{},
 		}
 		for _, m := range modelsToMigrate {
 			// GORM may try to "DROP FOREIGN KEY <uni_xxx>" on existing tables (a known benign issue when

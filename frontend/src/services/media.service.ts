@@ -40,6 +40,13 @@ export interface MediaUploadResponse {
   results: MediaUploadItemResult[];
 }
 
+export interface WatermarkSettings {
+  id: number;
+  enabled: boolean;
+  base_media_asset_id?: number;
+  base_media_asset?: MediaAsset;
+}
+
 export class MediaService {
   static async list(params?: { page?: number; page_size?: number; q?: string; folder?: string }): Promise<MediaListResponse> {
     const qs = new URLSearchParams();
@@ -93,5 +100,22 @@ export class MediaService {
     if (response.data.success && response.data.data) return response.data.data;
     throw new Error(response.data.message || 'Failed to update media');
   }
-}
 
+  static async getWatermarkSettings(): Promise<WatermarkSettings> {
+    const response = await apiClient.get<APIResponse<WatermarkSettings>>('/admin/media/watermark/settings');
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to load watermark settings');
+  }
+
+  static async updateWatermarkSettings(payload: { enabled?: boolean; base_media_asset_id?: number | null }): Promise<WatermarkSettings> {
+    const response = await apiClient.put<APIResponse<WatermarkSettings>>('/admin/media/watermark/settings', payload);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to update watermark settings');
+  }
+
+  static async watermarkAsset(payload: { asset_id: number; text_source: 'sku' | 'custom'; sku?: string; text?: string }): Promise<MediaAsset> {
+    const response = await apiClient.post<APIResponse<MediaAsset>>('/admin/media/watermark', payload);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to watermark image');
+  }
+}

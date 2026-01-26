@@ -1,0 +1,316 @@
+package services
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/jpeg"
+	"image/png"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+
+	"fanuc-backend/models"
+	"fanuc-backend/utils"
+
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/gofont/goregular"
+	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/math/fixed"
+	"golang.org/x/image/webp"
+	"gorm.io/gorm"
+)
+
+func GetOrCreateWatermarkSetting(db *gorm.DB) (*models.WatermarkSetting, error) {
+	if db == nil {
+		return nil, errors.New("db is nil")
+	}
+	var s models.WatermarkSetting
+	if err := db.First(&s, 1).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			s = models.WatermarkSetting{ID: 1, Enabled: true}
+			if e := db.Create(&s).Error; e != nil {
+				return nil, e
+			}
+			return &s, nil
+		}
+		return nil, err
+	}
+	return &s, nil
+}
+
+type WatermarkRequest struct {
+	BaseAssetID *uint
+	Text        string
+	Folder      string
+	Title       string
+	AltText     string
+}
+
+type WatermarkResult struct {
+	Asset      models.MediaAsset
+	CreatedNew bool
+	SHA256     string
+}
+
+func GenerateWatermarkedMediaAsset(db *gorm.DB, req WatermarkRequest) (*WatermarkResult, error) {
+	if db == nil {
+		return nil, errors.New("db is nil")
+	}
+	text := strings.TrimSpace(req.Text)
+	if text == "" {
+		return nil, errors.New("watermark text is empty")
+	}
+	if len(text) > 80 {
+		text = text[:80]
+	}
+
+	var baseImg image.Image
+
+	if req.BaseAssetID != nil && *req.BaseAssetID > 0 {
+		var base models.MediaAsset
+		if err := db.First(&base, *req.BaseAssetID).Error; err != nil {
+			return nil, err
+		}
+		img, err := loadMediaAssetImage(&base)
+		if err != nil {
+			return nil, err
+		}
+		baseImg = img
+	}
+
+	if baseImg == nil {
+		// Generate a simple placeholder base when no default image is configured.
+		baseImg = generateDefaultBaseImage(1000, 1000)
+	}
+
+	// Render PNG bytes.
+	outBytes, err := renderWatermarkPNG(baseImg, text)
+	if err != nil {
+		return nil, err
+	}
+	h := sha256.Sum256(outBytes)
+	sha := hex.EncodeToString(h[:])
+
+	// If we already have the exact bytes, return it.
+	var existing models.MediaAsset
+	if err := db.Where("sha256 = ?", sha).First(&existing).Error; err == nil {
+		return &WatermarkResult{Asset: existing, CreatedNew: false, SHA256: existing.SHA256}, nil
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	fileName := sha + ".png"
+
+	uploadRoot := getUploadRootForServices()
+	mediaDir := filepath.Join(uploadRoot, "media")
+	if err := os.MkdirAll(mediaDir, 0o755); err != nil {
+		return nil, err
+	}
+	finalPath := filepath.Join(mediaDir, fileName)
+	relPath := filepath.ToSlash(filepath.Join("media", fileName))
+
+	// Write file if missing.
+	if _, statErr := os.Stat(finalPath); statErr != nil {
+		if err := os.WriteFile(finalPath, outBytes, 0o644); err != nil {
+			return nil, err
+		}
+	}
+
+	folder := strings.TrimSpace(req.Folder)
+	if folder == "" {
+		folder = "watermarked"
+	}
+
+	origName := strings.TrimSpace(req.Title)
+	if origName == "" {
+		origName = "watermark-" + utils.GenerateSlug(text)
+	}
+	origName = utils.CleanFilename(origName)
+	if origName == "" {
+		origName = "watermark"
+	}
+	origName = origName + ".png"
+
+	asset := models.MediaAsset{
+		OriginalName: origName,
+		FileName:     fileName,
+		RelativePath: relPath,
+		SHA256:       sha,
+		MimeType:     "image/png",
+		SizeBytes:    int64(len(outBytes)),
+		Title:        strings.TrimSpace(req.Title),
+		AltText:      strings.TrimSpace(req.AltText),
+		Folder:       folder,
+		Tags:         "watermark",
+	}
+
+	if err := db.Create(&asset).Error; err != nil {
+		// If created concurrently, fallback to reading.
+		var again models.MediaAsset
+		if e2 := db.Where("sha256 = ?", sha).First(&again).Error; e2 == nil {
+			return &WatermarkResult{Asset: again, CreatedNew: false, SHA256: again.SHA256}, nil
+		}
+		return nil, err
+	}
+
+	return &WatermarkResult{Asset: asset, CreatedNew: true, SHA256: sha}, nil
+}
+
+func getUploadRootForServices() string {
+	p := os.Getenv("UPLOAD_PATH")
+	if strings.TrimSpace(p) == "" {
+		return "./uploads"
+	}
+	return p
+}
+
+func loadMediaAssetImage(asset *models.MediaAsset) (image.Image, error) {
+	if asset == nil {
+		return nil, errors.New("asset is nil")
+	}
+	root := getUploadRootForServices()
+	full := filepath.Join(root, filepath.FromSlash(asset.RelativePath))
+	b, err := os.ReadFile(full)
+	if err != nil {
+		return nil, err
+	}
+	return decodeImageByExt(bytes.NewReader(b), strings.ToLower(filepath.Ext(asset.FileName)))
+}
+
+func decodeImageByExt(r io.Reader, ext string) (image.Image, error) {
+	switch strings.ToLower(strings.TrimSpace(ext)) {
+	case ".jpg", ".jpeg":
+		return jpeg.Decode(r)
+	case ".png":
+		return png.Decode(r)
+	case ".webp":
+		return webp.Decode(r)
+	default:
+		img, _, err := image.Decode(r)
+		return img, err
+	}
+}
+
+var (
+	fontOnce     sync.Once
+	fontParsed   *opentype.Font
+	fontParseErr error
+)
+
+func getGoRegularFont() (*opentype.Font, error) {
+	fontOnce.Do(func() {
+		fontParsed, fontParseErr = opentype.Parse(goregular.TTF)
+	})
+	return fontParsed, fontParseErr
+}
+
+func renderWatermarkPNG(base image.Image, text string) ([]byte, error) {
+	b := base.Bounds()
+	w, h := b.Dx(), b.Dy()
+	if w <= 0 || h <= 0 {
+		return nil, errors.New("invalid base image")
+	}
+
+	canvas := image.NewRGBA(image.Rect(0, 0, w, h))
+	draw.Draw(canvas, canvas.Bounds(), base, b.Min, draw.Src)
+
+	fontTTF, err := getGoRegularFont()
+	if err != nil {
+		return nil, err
+	}
+	// size relative to width
+	size := float64(w) / 14.0
+	if size < 22 {
+		size = 22
+	}
+	if size > 72 {
+		size = 72
+	}
+	face, err := opentype.NewFace(fontTTF, &opentype.FaceOptions{Size: size, DPI: 72, Hinting: font.HintingFull})
+	if err != nil {
+		return nil, err
+	}
+	defer face.Close()
+
+	pad := int(float64(w) * 0.04)
+	if pad < 20 {
+		pad = 20
+	}
+
+	d := &font.Drawer{Face: face}
+	text = strings.TrimSpace(text)
+	text = strings.ToUpper(text)
+	adv := d.MeasureString(text)
+	textW := adv.Ceil()
+	metrics := face.Metrics()
+	textH := (metrics.Ascent + metrics.Descent).Ceil()
+
+	boxPadX := 14
+	boxPadY := 10
+	boxW := textW + boxPadX*2
+	boxH := textH + boxPadY*2
+
+	x2 := w - pad
+	y2 := h - pad
+	boxX1 := x2 - boxW
+	boxY1 := y2 - boxH
+	if boxX1 < pad {
+		boxX1 = pad
+	}
+	if boxY1 < pad {
+		boxY1 = pad
+	}
+
+	// background box
+	draw.Draw(canvas, image.Rect(boxX1, boxY1, boxX1+boxW, boxY1+boxH), &image.Uniform{C: color.RGBA{0, 0, 0, 90}}, image.Point{}, draw.Over)
+
+	// shadow
+	d.Dst = canvas
+	d.Src = image.NewUniform(color.RGBA{0, 0, 0, 120})
+	d.Dot = fixed.P(boxX1+boxPadX+2, boxY1+boxPadY+metrics.Ascent.Ceil()+2)
+	d.DrawString(text)
+
+	// text
+	d.Src = image.NewUniform(color.RGBA{255, 255, 255, 215})
+	d.Dot = fixed.P(boxX1+boxPadX, boxY1+boxPadY+metrics.Ascent.Ceil())
+	d.DrawString(text)
+
+	var out bytes.Buffer
+	enc := png.Encoder{CompressionLevel: png.DefaultCompression}
+	if err := enc.Encode(&out, canvas); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
+func generateDefaultBaseImage(w, h int) image.Image {
+	if w <= 0 {
+		w = 1000
+	}
+	if h <= 0 {
+		h = 1000
+	}
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	// Simple two-tone background
+	draw.Draw(img, image.Rect(0, 0, w, h), &image.Uniform{C: color.RGBA{245, 247, 250, 255}}, image.Point{}, draw.Src)
+	// Diagonal band
+	band := image.NewRGBA(image.Rect(0, 0, w, h))
+	draw.Draw(band, band.Bounds(), &image.Uniform{C: color.RGBA{232, 237, 244, 255}}, image.Point{}, draw.Src)
+	// Very cheap pattern
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			if (x+y)%19 == 0 {
+				img.Set(x, y, color.RGBA{226, 232, 240, 255})
+			}
+		}
+	}
+	_ = band
+	return img
+}

@@ -35,6 +35,7 @@ func SetupRoutes(r *gin.Engine) {
 	resendWebhookController := &controllers.ResendWebhookController{}
 	ticketController := &controllers.TicketController{}
 	mediaController := &controllers.MediaController{}
+	watermarkController := &controllers.WatermarkController{}
 	backupController := &controllers.BackupController{}
 	cacheController := &controllers.CacheController{}
 	hotlinkController := &controllers.HotlinkController{}
@@ -66,6 +67,7 @@ func SetupRoutes(r *gin.Engine) {
 
 			// Products (public read access) - cached
 			public.GET("/products", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:products:"), productController.GetProducts)
+			public.GET("/products/default-image/:sku", watermarkController.DefaultProductImage)
 
 			public.GET("/products/:id", productController.GetProduct)
 			public.GET("/products/sku", productController.GetProductBySKUQuery) // query param: sku=...
@@ -215,6 +217,9 @@ func SetupRoutes(r *gin.Engine) {
 				media.PUT("/batch", mediaController.BatchUpdate)
 				media.DELETE("/batch", mediaController.BatchDelete)
 				media.PUT("/:id", mediaController.Update)
+				media.GET("/watermark/settings", watermarkController.GetSettings)
+				media.PUT("/watermark/settings", watermarkController.UpdateSettings)
+				media.POST("/watermark", watermarkController.GenerateFromMedia)
 			}
 
 			// Backup & restore (admin only)

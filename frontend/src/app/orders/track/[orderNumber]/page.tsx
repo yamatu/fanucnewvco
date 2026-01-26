@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import { getProductImageUrl } from '@/lib/utils';
+import { getDefaultProductImageWithSku, getProductImageUrl } from '@/lib/utils';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 
@@ -298,7 +298,10 @@ export default function OrderTrackingPage() {
                   <div className="flex-shrink-0">
                     <div className="w-16 h-16 bg-gray-200 rounded-md overflow-hidden">
                       <Image
-                        src={getProductImageUrl(item.product?.image_urls || item.product?.images || [], '/images/placeholder-image.png')}
+                        src={getProductImageUrl(
+                          item.product?.image_urls || item.product?.images || [],
+                          getDefaultProductImageWithSku(item.product?.sku, '/images/placeholder-image.png')
+                        )}
                         alt={item.product?.name || 'Product'}
                         width={64}
                         height={64}

@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { toast } from 'react-hot-toast';
 import { useCustomer } from '@/store/customer.store';
 import { CustomerService } from '@/services/customer.service';
-import { getProductImageUrl } from '@/lib/utils';
+import { getDefaultProductImageWithSku, getProductImageUrl } from '@/lib/utils';
 import Layout from '@/components/layout/Layout';
 import {
   ChevronLeftIcon,
@@ -185,23 +185,24 @@ export default function OrderDetailPage() {
                     {order.items.map((item) => (
                       <div key={item.id} className="flex items-start space-x-4 py-4 border-b border-gray-200 last:border-0">
                         {(() => {
+                          const sku = (item.product as any)?.sku;
                           const img = item.product
-                            ? getProductImageUrl((item.product as any).image_urls || (item.product as any).images || [])
+                            ? getProductImageUrl(
+                                (item.product as any).image_urls || (item.product as any).images || [],
+                                getDefaultProductImageWithSku(sku)
+                              )
                             : '';
-                          return img && img !== '/images/placeholder.svg' ? (
-                          <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border border-gray-200">
-                            <Image
-                              src={img}
-                              alt={item.product.name || 'Product'}
-                              fill
-                              sizes="80px"
-                              className="object-cover"
-                            />
-                          </div>
-                          ) : (
-                          <div className="h-20 w-20 flex-shrink-0 bg-gray-200 rounded-lg flex items-center justify-center">
-                            <span className="text-gray-400 text-xs">No image</span>
-                          </div>
+                          return (
+                            <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border border-gray-200">
+                              <Image
+                                src={img}
+                                alt={item.product?.name || 'Product'}
+                                fill
+                                sizes="80px"
+                                className="object-cover"
+                                unoptimized={String(img).startsWith('/uploads/')}
+                              />
+                            </div>
                           );
                         })()}
                         <div className="flex-1 min-w-0">

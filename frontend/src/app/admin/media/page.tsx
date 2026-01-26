@@ -7,6 +7,8 @@ import {
   ArrowUpTrayIcon,
   MagnifyingGlassIcon,
   PencilIcon,
+  SparklesIcon,
+  StarIcon,
   TrashIcon,
   XMarkIcon,
   PhotoIcon,
@@ -40,6 +42,13 @@ export default function AdminMediaPage() {
   const [pageSize, setPageSize] = useState(24);
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // Watermark
+  const [showWatermarkModal, setShowWatermarkModal] = useState(false);
+  const [watermarkAssetId, setWatermarkAssetId] = useState<number | null>(null);
+  const [watermarkTextSource, setWatermarkTextSource] = useState<'sku' | 'custom'>('sku');
+  const [watermarkSku, setWatermarkSku] = useState('');
+  const [watermarkText, setWatermarkText] = useState('');
 
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -75,6 +84,14 @@ export default function AdminMediaPage() {
   const items = data?.items || [];
   const total = data?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : null;
+
+  const { data: watermarkSettings } = useQuery({
+    queryKey: queryKeys.media.watermarkSettings(),
+    queryFn: () => MediaService.getWatermarkSettings(),
+    retry: 1,
+  });
 
   useEffect(() => {
     // If filters changed and current page is out of range, reset.
@@ -137,6 +154,31 @@ export default function AdminMediaPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.media.lists() });
     },
     onError: (e: any) => toast.error(e?.message || 'Failed to save'),
+  });
+
+  const watermarkSettingsMutation = useMutation({
+    mutationFn: (payload: { enabled?: boolean; base_media_asset_id?: number | null }) => MediaService.updateWatermarkSettings(payload),
+    onSuccess: () => {
+      toast.success('Watermark settings updated');
+      queryClient.invalidateQueries({ queryKey: queryKeys.media.watermarkSettings() });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to update watermark settings'),
+  });
+
+  const watermarkMutation = useMutation({
+    mutationFn: (payload: { asset_id: number; text_source: 'sku' | 'custom'; sku?: string; text?: string }) =>
+      MediaService.watermarkAsset(payload),
+    onSuccess: (asset) => {
+      toast.success('Watermarked image created');
+      setShowWatermarkModal(false);
+      setWatermarkAssetId(null);
+      setWatermarkSku('');
+      setWatermarkText('');
+      queryClient.invalidateQueries({ queryKey: queryKeys.media.lists() });
+      // Optional: auto-select the new asset
+      setSelectedIds([asset.id]);
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to watermark image'),
   });
 
   const toggleSelected = (id: number) => {
@@ -220,6 +262,69 @@ export default function AdminMediaPage() {
           </button>
         </div>
 
+        {/* Watermark Settings */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">Default Product Image (Watermark)</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Used when a product has no images. The system generates a watermarked fallback image using the product SKU.
+              </p>
+            </div>
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={Boolean(watermarkSettings?.enabled)}
+                onChange={(e) => watermarkSettingsMutation.mutate({ enabled: e.target.checked })}
+                className="h-4 w-4"
+              />
+              Enable
+            </label>
+          </div>
+
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-16 w-16 rounded-md border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
+                {watermarkSettings?.base_media_asset?.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={watermarkSettings.base_media_asset.url} alt="Base" className="h-full w-full object-cover" />
+                ) : (
+                  <PhotoIcon className="h-8 w-8 text-gray-300" />
+                )}
+              </div>
+              <div>
+                <div className="text-sm font-medium text-gray-900">Base image</div>
+                <div className="text-xs text-gray-500">
+                  {watermarkSettings?.base_media_asset?.original_name || 'Not set'}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={!singleSelectedId || watermarkSettingsMutation.isPending}
+                onClick={() => watermarkSettingsMutation.mutate({ base_media_asset_id: singleSelectedId })}
+                className="inline-flex items-center px-3 py-2 text-sm rounded-md border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
+                title={singleSelectedId ? 'Use the selected media item as base image' : 'Select exactly 1 media item to set as base'}
+              >
+                <StarIcon className="h-4 w-4 mr-2" />
+                Set Selected As Base
+              </button>
+              <button
+                type="button"
+                disabled={!watermarkSettings?.base_media_asset_id || watermarkSettingsMutation.isPending}
+                onClick={() => watermarkSettingsMutation.mutate({ base_media_asset_id: 0 })}
+                className="inline-flex items-center px-3 py-2 text-sm rounded-md border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                <XMarkIcon className="h-4 w-4 mr-2" />
+                Clear Base
+              </button>
+              <div className="text-xs text-gray-500">Tip: select an image in the grid, then click “Set Selected As Base”.</div>
+            </div>
+          </div>
+        </div>
+
         {/* Filters */}
         <div className="bg-white shadow rounded-lg p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
@@ -285,6 +390,22 @@ export default function AdminMediaPage() {
                 <PencilIcon className="h-4 w-4 mr-1" />
                 Batch Edit
               </button>
+				{selectedIds.length === 1 && (
+					<button
+						onClick={() => {
+							setWatermarkAssetId(selectedIds[0]);
+							setWatermarkTextSource('sku');
+							setWatermarkSku('');
+							setWatermarkText('');
+							setShowWatermarkModal(true);
+						}}
+						className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-white border border-gray-200 hover:bg-gray-50"
+						title="Create a watermarked copy"
+					>
+						<SparklesIcon className="h-4 w-4 mr-1" />
+						Watermark
+					</button>
+				)}
               <button
                 onClick={() => {
                   if (!window.confirm(`Delete ${selectedIds.length} item(s)? This cannot be undone.`)) return;
@@ -405,6 +526,97 @@ export default function AdminMediaPage() {
           )}
         </div>
       </div>
+
+      {/* Watermark Modal */}
+      {showWatermarkModal && watermarkAssetId && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4">
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => !watermarkMutation.isPending && setShowWatermarkModal(false)} />
+            <div className="relative bg-white rounded-lg shadow-xl max-w-xl w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Create Watermarked Copy</h3>
+                <button
+                  onClick={() => setShowWatermarkModal(false)}
+                  disabled={watermarkMutation.isPending}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="text-sm text-gray-600">
+                  Selected asset ID: <span className="font-mono">{watermarkAssetId}</span>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Text source</label>
+                  <select
+                    value={watermarkTextSource}
+                    onChange={(e) => setWatermarkTextSource(e.target.value as any)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="sku">From SKU</option>
+                    <option value="custom">Custom text</option>
+                  </select>
+                </div>
+
+                {watermarkTextSource === 'sku' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+                    <input
+                      value={watermarkSku}
+                      onChange={(e) => setWatermarkSku(e.target.value)}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      placeholder="e.g. A02B-0120-C041"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">We will use this SKU as watermark text.</p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Text</label>
+                    <input
+                      value={watermarkText}
+                      onChange={(e) => setWatermarkText(e.target.value)}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      placeholder="e.g. Vcocnc"
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    onClick={() => setShowWatermarkModal(false)}
+                    disabled={watermarkMutation.isPending}
+                    className="px-4 py-2 text-sm rounded-md border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!watermarkAssetId) return;
+                      watermarkMutation.mutate({
+                        asset_id: watermarkAssetId,
+                        text_source: watermarkTextSource,
+                        sku: watermarkSku,
+                        text: watermarkText,
+                      });
+                    }}
+                    disabled={
+                      watermarkMutation.isPending ||
+                      (watermarkTextSource === 'sku' ? !watermarkSku.trim() : !watermarkText.trim())
+                    }
+                    className="inline-flex items-center px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    <SparklesIcon className="h-4 w-4 mr-2" />
+                    {watermarkMutation.isPending ? 'Generating...' : 'Generate'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Upload Modal */}
       {showUploadModal && (

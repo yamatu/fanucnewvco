@@ -6,7 +6,7 @@ import { XMarkIcon, MinusIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/o
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/store/cart.store';
-import { formatCurrency, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
 
 export function CartSidebar() {
   const { 
@@ -103,7 +103,7 @@ export function CartSidebar() {
                                 <li key={item.product.id} className="flex py-6">
                                   <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
                                     <Image
-                                      src={getProductImageUrl(item.product.image_urls || [], '/images/default-product.svg')}
+                                      src={getProductImageUrl(item.product.image_urls || [], getDefaultProductImageWithSku(item.product.sku, '/images/default-product.svg'))}
                                       alt={`${item.product.name} - ${item.product.sku} FANUC Part`}
                                       width={96}
                                       height={96}

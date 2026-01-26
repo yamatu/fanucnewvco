@@ -151,6 +151,7 @@ export const queryKeys = {
     list: (filters: any) => [...queryKeys.media.lists(), filters] as const,
     details: () => [...queryKeys.media.all(), 'detail'] as const,
     detail: (id: number) => [...queryKeys.media.details(), id] as const,
+    watermarkSettings: () => [...queryKeys.media.all(), 'watermark', 'settings'] as const,
   },
 };
 

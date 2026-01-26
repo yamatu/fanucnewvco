@@ -9,7 +9,7 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
-import { formatCurrency, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 
 interface Product {
@@ -71,7 +71,7 @@ export default function ProductCard({
   };
 
   // Use image_urls array directly from API response
-  const imageUrl = getProductImageUrl(product.image_urls || []);
+  const imageUrl = getProductImageUrl(product.image_urls || [], getDefaultProductImageWithSku(product.sku));
 
   return (
     <div className={`bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-200 ${className}`}>

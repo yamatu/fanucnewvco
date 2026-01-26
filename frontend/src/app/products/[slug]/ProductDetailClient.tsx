@@ -24,7 +24,7 @@ import ProductImageViewer from '@/components/product/ProductImageViewer';
 import ProductSEO from '@/components/seo/ProductSEO';
 import { ProductService, CategoryService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
-import { formatCurrency, getProductImageUrl, getProductImageUrlByIndex, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, getProductImageUrlByIndex, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 
 interface ProductDetailClientProps {
@@ -176,7 +176,9 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
         : (rawImages && typeof rawImages === 'object'
             ? [rawImages]
             : []));
-  const currentImage = images.length > 0 ? getProductImageUrlByIndex(images, selectedImageIndex) : '/images/default-product.jpg';
+  const currentImage = images.length > 0
+    ? getProductImageUrlByIndex(images, selectedImageIndex)
+    : getDefaultProductImageWithSku(product.sku, '/images/default-product.jpg');
 
   const categoryName = product.category?.name || 'Part';
   const brandName = product.brand || 'FANUC';
@@ -316,7 +318,10 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
                   <div key={relatedProduct.id} className="bg-white rounded-lg shadow p-4">
                     <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-md bg-gray-200">
                       <Image
-                        src={getProductImageUrl((relatedProduct.image_urls && relatedProduct.image_urls.length > 0) ? relatedProduct.image_urls : (relatedProduct.images || []))}
+                        src={getProductImageUrl(
+                          (relatedProduct.image_urls && relatedProduct.image_urls.length > 0) ? relatedProduct.image_urls : (relatedProduct.images || []),
+                          getDefaultProductImageWithSku(relatedProduct.sku)
+                        )}
                         alt={relatedProduct.name}
                         width={200}
                         height={200}

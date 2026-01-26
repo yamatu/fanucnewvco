@@ -11,7 +11,7 @@ import {
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { useCart } from '@/store/cart.store';
-import { formatCurrency, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
@@ -126,7 +126,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
               {/* Product Image */}
               <div className="relative h-64 overflow-hidden">
                 {(() => {
-                  const src = getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []));
+                  const src = getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []), getDefaultProductImageWithSku(product.sku));
                   const unoptimized = typeof src === 'string' && src.startsWith('/uploads/');
                   return (
                 <Image

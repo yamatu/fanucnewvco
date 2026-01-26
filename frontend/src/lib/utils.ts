@@ -154,6 +154,13 @@ export function getProductImageUrl(imageUrls: string[] | any[] | any, fallback: 
   return getImageUrl(String(imageToUse.url || ''), fallback);
 }
 
+// Default image for products without images (watermarked with SKU when backend is configured)
+export function getDefaultProductImageWithSku(sku?: string, fallback: string = '/images/placeholder.svg'): string {
+  const s = String(sku || '').trim();
+  if (!s) return fallback;
+  return `/api/v1/public/products/default-image/${encodeURIComponent(s)}`;
+}
+
 // Get specific product image URL by index
 export function getProductImageUrlByIndex(imageUrls: string[] | any[] | any, index: number, fallback: string = '/images/placeholder.svg'): string {
   // Handle null, undefined, or non-array values
