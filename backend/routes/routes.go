@@ -147,6 +147,10 @@ func SetupRoutes(r *gin.Engine) {
 				products.PUT("/:id", productController.UpdateProduct)
 				products.DELETE("/:id", middleware.AdminOnly(), productController.DeleteProduct)
 
+				// Bulk import (XLSX)
+				products.GET("/import/template", productController.DownloadImportTemplate)
+				products.POST("/import/xlsx", productController.ImportProductsXLSX)
+
 				// Bulk update is_active / is_featured
 				products.PUT("/bulk-update", productController.BulkUpdateProducts)
 

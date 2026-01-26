@@ -265,9 +265,29 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
                 )}
               </div>
 
+              {/* Key specs */}
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-white p-4">
+                <div className="text-sm">
+                  <div className="text-xs text-gray-500">Brand</div>
+                  <div className="font-medium text-gray-900">{product.brand || brandName}</div>
+                </div>
+                <div className="text-sm">
+                  <div className="text-xs text-gray-500">Part No.</div>
+                  <div className="font-mono text-gray-900">{product.part_number || product.model || product.sku}</div>
+                </div>
+                <div className="text-sm">
+                  <div className="text-xs text-gray-500">Warranty</div>
+                  <div className="font-medium text-gray-900">{product.warranty_period || '12 months'}</div>
+                </div>
+                <div className="text-sm">
+                  <div className="text-xs text-gray-500">Lead time</div>
+                  <div className="font-medium text-gray-900">{product.lead_time || '3-7 days'}</div>
+                </div>
+              </div>
+
               {/* Description */}
               <div className="mt-6">
-                <p className="text-base text-gray-700 whitespace-pre-line">{descriptionToShow}</p>
+                <div className="text-base text-gray-700 whitespace-pre-line leading-relaxed">{descriptionToShow}</div>
               </div>
 
               {/* Actions */}

@@ -365,6 +365,30 @@ export class ProductService {
     }
   }
 
+  // Admin: Download XLSX import template
+  static async downloadImportTemplate(brand: string = 'fanuc'): Promise<Blob> {
+    const response = await apiClient.get(
+      `/admin/products/import/template?brand=${encodeURIComponent(brand)}`,
+      { responseType: 'blob' }
+    );
+    return response.data as Blob;
+  }
+
+  // Admin: Import products via XLSX (model/price/quantity)
+  static async importProductsXlsx(file: File, opts?: { brand?: string; overwrite?: boolean; create_missing?: boolean }): Promise<any> {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('brand', String(opts?.brand || 'fanuc'));
+    if (typeof opts?.overwrite === 'boolean') form.append('overwrite', String(opts.overwrite));
+    if (typeof opts?.create_missing === 'boolean') form.append('create_missing', String(opts.create_missing));
+
+    const response = await apiClient.post<APIResponse<any>>('/admin/products/import/xlsx', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || response.data.error || 'Failed to import products');
+  }
+
   // Get featured products (public)
   static async getFeaturedProducts(limit: number = 8): Promise<Product[]> {
     try {

@@ -13,7 +13,10 @@ import {
   EyeIcon,
   PencilIcon,
   TrashIcon,
-  PhotoIcon
+  PhotoIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import Pagination from '@/components/common/Pagination';
@@ -33,6 +36,14 @@ function AdminProductsContent() {
   const [pageSize, setPageSize] = useState(20); // Dynamic page size
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectAllResults, setSelectAllResults] = useState<boolean>(false);
+
+  // XLSX import modal
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importBrand, setImportBrand] = useState<string>('fanuc');
+  const [importOverwrite, setImportOverwrite] = useState<boolean>(false);
+  const [importCreateMissing, setImportCreateMissing] = useState<boolean>(true);
+  const [importResult, setImportResult] = useState<any>(null);
 
   const queryClient = useQueryClient();
 
@@ -195,6 +206,42 @@ function AdminProductsContent() {
     }
   };
 
+  const importMutation = useMutation({
+    mutationFn: async () => {
+      if (!importFile) throw new Error('Please select an .xlsx file');
+      return ProductService.importProductsXlsx(importFile, {
+        brand: importBrand,
+        overwrite: importOverwrite,
+        create_missing: importCreateMissing,
+      });
+    },
+    onSuccess: (data: any) => {
+      setImportResult(data);
+      toast.success(`Import completed: ${data?.created || 0} created, ${data?.updated || 0} updated`);
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Import failed');
+    },
+  });
+
+  const downloadTemplate = async () => {
+    try {
+      const blob = await ProductService.downloadImportTemplate(importBrand);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `product-import-template-${importBrand}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Template downloaded');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to download template');
+    }
+  };
+
   // Reset page to 1 when filters change
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -292,14 +339,156 @@ function AdminProductsContent() {
               Manage your FANUC product inventory
             </p>
           </div>
-          <Link
-            href="/admin/products/new"
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Add Product
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setShowImportModal(true);
+                setImportResult(null);
+                setImportFile(null);
+              }}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
+              Bulk Import
+            </button>
+            <Link
+              href="/admin/products/new"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Add Product
+            </Link>
+          </div>
         </div>
+
+        {showImportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b px-4 py-3">
+                <div>
+                  <div className="text-lg font-semibold text-gray-900">Bulk Import Products (XLSX)</div>
+                  <div className="text-xs text-gray-500">Template columns: Model, Price, Quantity</div>
+                </div>
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-4 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                  <div className="w-full sm:w-auto">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                    <select
+                      value={importBrand}
+                      onChange={(e) => setImportBrand(e.target.value)}
+                      className="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    >
+                      <option value="fanuc">FANUC</option>
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">More brands can be added later.</p>
+                  </div>
+                  <button
+                    onClick={downloadTemplate}
+                    className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                    Download Template
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Upload .xlsx</label>
+                  <input
+                    type="file"
+                    accept=".xlsx"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      setImportFile(f);
+                      setImportResult(null);
+                    }}
+                    className="block w-full text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">We will match by SKU/model/part number; then update price/stock, and fill missing SEO fields.</p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={importCreateMissing}
+                      onChange={(e) => setImportCreateMissing(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    Create missing products
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={importOverwrite}
+                      onChange={(e) => setImportOverwrite(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    Overwrite name/description/SEO
+                  </label>
+                </div>
+
+                {importResult && (
+                  <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+                    <div className="text-sm font-semibold text-gray-900">Result</div>
+                    <div className="mt-1 text-sm text-gray-700">
+                      Total rows: {importResult.total_rows} | Created: {importResult.created} | Updated: {importResult.updated} | Failed: {importResult.failed}
+                    </div>
+
+                    {Array.isArray(importResult.items) && importResult.items.length > 0 && (
+                      <div className="mt-3 max-h-56 overflow-auto rounded border border-gray-200 bg-white">
+                        <table className="min-w-full text-sm">
+                          <thead className="sticky top-0 bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-semibold text-gray-700">Row</th>
+                              <th className="px-3 py-2 text-left font-semibold text-gray-700">Model</th>
+                              <th className="px-3 py-2 text-left font-semibold text-gray-700">Action</th>
+                              <th className="px-3 py-2 text-left font-semibold text-gray-700">Message</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {importResult.items.slice(0, 200).map((it: any, i: number) => (
+                              <tr key={`${it.row_number || i}-${it.model || i}`} className="border-t">
+                                <td className="px-3 py-2 text-gray-700">{it.row_number}</td>
+                                <td className="px-3 py-2 font-mono text-gray-900">{it.model}</td>
+                                <td className="px-3 py-2 text-gray-700">{it.action}</td>
+                                <td className="px-3 py-2 text-gray-600">{it.message}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => importMutation.mutate()}
+                  disabled={!importFile || importMutation.isPending}
+                  className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
+                >
+                  <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
+                  {importMutation.isPending ? 'Importing...' : 'Import'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Bulk actions and Page Size Selector */}
         <div className="bg-white shadow rounded-lg border border-gray-200">
