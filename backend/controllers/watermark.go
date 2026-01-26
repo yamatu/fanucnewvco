@@ -161,8 +161,14 @@ func (wc *WatermarkController) DefaultProductImage(c *gin.Context) {
 	}
 	wm, err := services.GenerateWatermarkedMediaAsset(db, services.WatermarkRequest{BaseAssetID: baseID, Text: sku, Folder: "watermarked-default"})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to generate image", Error: err.Error()})
-		return
+		// If base image is not decodable (e.g., SVG), fallback to built-in base.
+		if baseID != nil {
+			wm, err = services.GenerateWatermarkedMediaAsset(db, services.WatermarkRequest{BaseAssetID: nil, Text: sku, Folder: "watermarked-default"})
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to generate image", Error: err.Error()})
+			return
+		}
 	}
 
 	uploadRoot := os.Getenv("UPLOAD_PATH")
