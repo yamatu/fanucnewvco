@@ -22,7 +22,8 @@ import {
   ChatBubbleLeftRightIcon,
   ArrowDownTrayIcon,
   ArrowPathIcon,
-  CreditCardIcon
+  CreditCardIcon,
+  TruckIcon
 } from '@heroicons/react/24/outline';
 import { useAuth, useLogout } from '@/hooks/useAuth';
 import AuthGuard from '@/components/auth/AuthGuard';
@@ -40,6 +41,7 @@ const navigation = [
   { key: 'nav.contacts', name: 'Contact Messages', href: '/admin/contacts', icon: EnvelopeIcon },
   { key: 'nav.email', name: 'Email', href: '/admin/email', icon: PaperAirplaneIcon },
   { key: 'nav.media', name: 'Media Library', href: '/admin/media', icon: PhotoIcon },
+  { key: 'nav.shipping', name: 'Shipping Rates', href: '/admin/shipping-rates', icon: TruckIcon },
   { key: 'nav.backup', name: 'Backup & Restore', href: '/admin/backup', icon: ArrowDownTrayIcon },
   { key: 'nav.cache', name: 'Cache & CDN', href: '/admin/cache', icon: ArrowPathIcon },
   { key: 'nav.paypal', name: 'PayPal', href: '/admin/paypal', icon: CreditCardIcon },

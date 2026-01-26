@@ -11,6 +11,7 @@ export interface OrderCreateRequest {
   customer_name: string;
   customer_phone: string;
   shipping_address: string;
+  shipping_country: string;
   billing_address: string;
   notes?: string;
   coupon_code?: string; // Optional coupon code

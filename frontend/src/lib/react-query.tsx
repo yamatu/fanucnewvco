@@ -153,6 +153,13 @@ export const queryKeys = {
     detail: (id: number) => [...queryKeys.media.details(), id] as const,
     watermarkSettings: () => [...queryKeys.media.all(), 'watermark', 'settings'] as const,
   },
+
+  // Shipping Rates
+  shippingRates: {
+    all: () => ['shippingRates'] as const,
+    public: () => [...queryKeys.shippingRates.all(), 'public'] as const,
+    admin: () => [...queryKeys.shippingRates.all(), 'admin'] as const,
+  },
 };
 
 export default ReactQueryProvider;

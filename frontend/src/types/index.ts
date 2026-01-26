@@ -191,6 +191,8 @@ export interface Order {
 
   tracking_number?: string;
   shipping_carrier?: string;
+  shipping_country?: string;
+  shipping_fee?: number;
   shipped_at?: string;
   subtotal_amount: number;
   discount_amount: number;

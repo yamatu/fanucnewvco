@@ -119,6 +119,7 @@ func ConnectDatabase() {
 			&models.PayPalSetting{},
 			&models.EmailSetting{},
 			&models.EmailVerificationCode{},
+			&models.ShippingRate{},
 			&models.WatermarkSetting{},
 		}
 		for _, m := range modelsToMigrate {

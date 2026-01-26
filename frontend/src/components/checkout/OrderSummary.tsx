@@ -12,6 +12,7 @@ import { toast } from 'react-hot-toast';
 interface OrderSummaryProps {
   items: CartItem[];
   total: number;
+  shippingFee?: number;
   readonly?: boolean;
   onCouponApplied?: (couponResponse: CouponValidateResponse) => void;
   appliedCoupon?: CouponValidateResponse | null;
@@ -21,6 +22,7 @@ interface OrderSummaryProps {
 export default function OrderSummary({
   items,
   total,
+  shippingFee = 0,
   readonly = false,
   onCouponApplied,
   appliedCoupon,
@@ -30,10 +32,8 @@ export default function OrderSummary({
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
   const subtotal = total;
-  const tax = subtotal * 0.1; // 10% tax
-  const shipping = 0; // Free shipping by default
   const discount = appliedCoupon?.discount_amount || 0;
-  const finalTotal = subtotal + tax + shipping - discount;
+  const finalTotal = subtotal + Number(shippingFee || 0) - discount;
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -182,13 +182,8 @@ export default function OrderSummary({
           </div>
 
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Tax (10%)</span>
-            <span className="text-gray-900">${tax.toFixed(2)}</span>
-          </div>
-
-          <div className="flex justify-between text-sm">
             <span className="text-gray-600">Shipping</span>
-            <span className="text-green-600 font-medium">Free</span>
+            <span className="text-gray-900">${Number(shippingFee || 0).toFixed(2)}</span>
           </div>
 
           {discount > 0 && (

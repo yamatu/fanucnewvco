@@ -17,6 +17,7 @@ interface CheckoutFormProps {
   isProcessing: boolean;
   sameAsShipping: boolean;
   setSameAsShipping: (value: boolean) => void;
+	shippingRates?: Array<{ country_code: string; country_name: string }>;
 }
 
 export default function CheckoutForm({
@@ -25,7 +26,8 @@ export default function CheckoutForm({
   onSubmit,
   isProcessing,
   sameAsShipping,
-  setSameAsShipping
+  setSameAsShipping,
+	shippingRates = []
 }: CheckoutFormProps) {
   return (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -121,6 +123,30 @@ export default function CheckoutForm({
           <p className="mt-1 text-sm text-red-600">{errors.shipping_address.message}</p>
         )}
       </div>
+
+	  {/* Shipping Country */}
+	  <div>
+		<label htmlFor="shipping_country" className="block text-sm font-medium text-gray-700 mb-2">
+		  Shipping Country *
+		</label>
+		<select
+		  id="shipping_country"
+		  {...register('shipping_country')}
+		  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 ${
+			errors.shipping_country ? 'border-red-300' : 'border-gray-300'
+		  }`}
+		>
+		  <option value="">Select country</option>
+		  {shippingRates.map((r) => (
+			<option key={r.country_code} value={r.country_code}>
+			  {r.country_name} ({r.country_code})
+			</option>
+		  ))}
+		</select>
+		{errors.shipping_country && (
+		  <p className="mt-1 text-sm text-red-600">{String(errors.shipping_country.message || 'Country is required')}</p>
+		)}
+	  </div>
 
       {/* Same as Shipping Checkbox */}
       <div className="flex items-center">

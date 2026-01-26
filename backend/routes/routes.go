@@ -36,6 +36,7 @@ func SetupRoutes(r *gin.Engine) {
 	ticketController := &controllers.TicketController{}
 	mediaController := &controllers.MediaController{}
 	watermarkController := &controllers.WatermarkController{}
+	shippingRateController := &controllers.ShippingRateController{}
 	backupController := &controllers.BackupController{}
 	cacheController := &controllers.CacheController{}
 	hotlinkController := &controllers.HotlinkController{}
@@ -69,6 +70,10 @@ func SetupRoutes(r *gin.Engine) {
 			public.GET("/products", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:products:"), productController.GetProducts)
 			public.GET("/products/default-image", watermarkController.DefaultProductImage)
 			public.GET("/products/default-image/:sku", watermarkController.DefaultProductImage)
+
+			// Shipping rates (public)
+			public.GET("/shipping/rates", shippingRateController.PublicList)
+			public.GET("/shipping/rate/:country", shippingRateController.PublicGet)
 
 			public.GET("/products/:id", productController.GetProduct)
 			public.GET("/products/sku", productController.GetProductBySKUQuery) // query param: sku=...
@@ -166,6 +171,19 @@ func SetupRoutes(r *gin.Engine) {
 				products.GET("/:id/images", productController.GetProductImages)
 				// Note: controller expects :imageIndex for deletion
 				products.DELETE("/:id/images/:imageIndex", middleware.AdminOnly(), productController.DeleteImage)
+			}
+
+			// Shipping rate management (admin and editor access)
+			shippingRates := admin.Group("/shipping-rates")
+			shippingRates.Use(middleware.EditorOrAdmin())
+			{
+				shippingRates.GET("", shippingRateController.AdminList)
+				shippingRates.POST("", shippingRateController.AdminCreate)
+				shippingRates.PUT("/:id", shippingRateController.AdminUpdate)
+				shippingRates.DELETE("/:id", middleware.AdminOnly(), shippingRateController.AdminDelete)
+
+				shippingRates.GET("/import/template", shippingRateController.DownloadTemplate)
+				shippingRates.POST("/import/xlsx", shippingRateController.ImportXLSX)
 			}
 
 			// Order management (admin only)

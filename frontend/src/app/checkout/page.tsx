@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import { useCart } from '@/store/cart.store';
 import { useCustomer } from '@/store/customer.store';
 import { OrderService, OrderCreateRequest } from '@/services/order.service';
+import { ShippingRateService } from '@/services/shipping-rate.service';
 import type { CouponValidateResponse } from '@/services/coupon.service';
 import Layout from '@/components/layout/Layout';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
@@ -29,6 +30,7 @@ const checkoutSchema = yup.object({
   customer_email: yup.string().email('Invalid email').required('Email is required'),
   customer_phone: yup.string().required('Phone number is required'),
   shipping_address: yup.string().required('Shipping address is required'),
+  shipping_country: yup.string().required('Shipping country is required'),
   billing_address: yup.string().required('Billing address is required'),
   notes: yup.string(),
 });
@@ -44,6 +46,9 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<'form' | 'payment' | 'success'>('form');
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidateResponse | null>(null);
 
+  const [shippingRates, setShippingRates] = useState<Array<{ country_code: string; country_name: string; fee: number; currency: string }>>([]);
+  const [shippingRatesLoading, setShippingRatesLoading] = useState(true);
+
   const {
     register,
     handleSubmit,
@@ -58,6 +63,7 @@ export default function CheckoutPage() {
       customer_email: '',
       customer_phone: '',
       shipping_address: '',
+      shipping_country: '',
       billing_address: '',
       notes: '',
     }
@@ -65,7 +71,11 @@ export default function CheckoutPage() {
 
   // Watch for changes to auto-fill billing address
   const shippingAddress = watch('shipping_address');
+  const shippingCountry = watch('shipping_country');
   const [sameAsShipping, setSameAsShipping] = useState(false);
+
+  const selectedShippingRate = shippingRates.find((r) => r.country_code === shippingCountry);
+  const shippingFee = selectedShippingRate ? Number(selectedShippingRate.fee || 0) : 0;
 
   // Check authentication - redirect to login if not authenticated
   useEffect(() => {
@@ -86,6 +96,25 @@ export default function CheckoutPage() {
       }
     }
   }, [isAuthenticated, customer, router, setValue]);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const rates = await ShippingRateService.publicList();
+        if (!alive) return;
+        setShippingRates(rates as any);
+      } catch {
+        if (!alive) return;
+        setShippingRates([]);
+      } finally {
+        if (alive) setShippingRatesLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (items.length === 0 && step !== 'success') {
@@ -113,6 +142,7 @@ export default function CheckoutPage() {
       customer_email: formData.customer_email,
       customer_phone: formData.customer_phone,
       shipping_address: formData.shipping_address,
+      shipping_country: formData.shipping_country,
       billing_address: formData.billing_address,
       notes: formData.notes || '',
       coupon_code: appliedCoupon?.valid ? appliedCoupon.code : undefined,
@@ -215,6 +245,7 @@ export default function CheckoutPage() {
                   isProcessing={isProcessing}
                   sameAsShipping={sameAsShipping}
                   setSameAsShipping={setSameAsShipping}
+					shippingRates={shippingRates}
                 />
               </div>
 
@@ -223,6 +254,7 @@ export default function CheckoutPage() {
                 <OrderSummary
                   items={items}
                   total={total}
+					shippingFee={shippingFee}
                   onCouponApplied={setAppliedCoupon}
                   appliedCoupon={appliedCoupon}
                   customerEmail={watch('customer_email')}

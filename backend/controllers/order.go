@@ -23,6 +23,7 @@ type OrderCreateRequest struct {
 	CustomerName    string `json:"customer_name" binding:"required"`
 	CustomerPhone   string `json:"customer_phone"`
 	ShippingAddress string `json:"shipping_address" binding:"required"`
+	ShippingCountry string `json:"shipping_country" binding:"required"`
 	BillingAddress  string `json:"billing_address" binding:"required"`
 	Notes           string `json:"notes"`
 	CouponCode      string `json:"coupon_code"` // Optional coupon code
@@ -97,7 +98,16 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 
 	// Initialize amounts
 	discountAmount := 0.0
-	totalAmount := subtotalAmount
+	shippingFee, _, shipErr := services.GetShippingFee(config.DB, req.ShippingCountry)
+	if shipErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Shipping rate not configured for country",
+			"error":   shipErr.Error(),
+		})
+		return
+	}
+	totalAmount := subtotalAmount + shippingFee
 	var couponID *uint
 
 	// Apply coupon if provided
@@ -123,7 +133,7 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 			}
 
 			discountAmount = couponResponse.DiscountAmount
-			totalAmount = couponResponse.FinalAmount
+			totalAmount = couponResponse.FinalAmount + shippingFee
 			couponID = &couponResponse.CouponID
 		}
 	}
@@ -135,6 +145,8 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 		CustomerName:    req.CustomerName,
 		CustomerPhone:   req.CustomerPhone,
 		ShippingAddress: req.ShippingAddress,
+		ShippingCountry: services.NormalizeCountryCode(req.ShippingCountry),
+		ShippingFee:     shippingFee,
 		BillingAddress:  req.BillingAddress,
 		Status:          "pending",
 		PaymentStatus:   "pending",

@@ -29,6 +29,8 @@ type Order struct {
 	// Shipping
 	TrackingNumber     string      `json:"tracking_number" gorm:"type:varchar(255)"`
 	ShippingCarrier    string      `json:"shipping_carrier" gorm:"type:varchar(100)"`
+	ShippingCountry    string      `json:"shipping_country" gorm:"type:varchar(2)"` // ISO 3166-1 alpha-2
+	ShippingFee        float64     `json:"shipping_fee" gorm:"default:0"`
 	ShippedAt          *time.Time  `json:"shipped_at"`
 	ShippedEmailSentAt *time.Time  `json:"shipped_email_sent_at"`
 	SubtotalAmount     float64     `json:"subtotal_amount" gorm:"not null"`             // Amount before discounts
