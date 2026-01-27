@@ -9,6 +9,7 @@ import { SortableList } from '@/components/admin/homepage/SortableList';
 import { IconPreview } from '@/components/admin/homepage/icon-options';
 import { DEFAULT_SERVICES_SECTION_DATA } from '@/lib/homepage-defaults';
 import { newId } from '@/components/admin/homepage/homepage-schema';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 type ServiceForm = {
   id: string;
@@ -126,22 +127,8 @@ function toData(values: FormValues): any {
   };
 }
 
-const SERVICE_ICON_OPTIONS = [
-  { value: 'cog', label: 'Cog' },
-  { value: 'wrench', label: 'Wrench' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'truck', label: 'Truck' },
-  { value: 'shield', label: 'Shield' },
-  { value: 'cap', label: 'Cap' },
-];
-const COLOR_OPTIONS = [
-  { value: 'bg-yellow-500', label: 'Yellow' },
-  { value: 'bg-green-500', label: 'Green' },
-  { value: 'bg-purple-500', label: 'Purple' },
-  { value: 'bg-orange-500', label: 'Orange' },
-  { value: 'bg-red-500', label: 'Red' },
-  { value: 'bg-indigo-500', label: 'Indigo' },
-];
+const SERVICE_ICON_OPTIONS: string[] = ['cog', 'wrench', 'phone', 'truck', 'shield', 'cap'];
+const COLOR_OPTIONS: string[] = ['bg-yellow-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-red-500', 'bg-indigo-500'];
 
 export default function ServicesEditor({
   content,
@@ -150,6 +137,7 @@ export default function ServicesEditor({
   content?: HomepageContent | null;
   onSave: (payload: { data: any; title?: string; description?: string; button_text?: string; button_url?: string; is_active: boolean; sort_order: number }) => Promise<void>;
 }) {
+  const { locale, t } = useAdminI18n();
   const defaults = useMemo(() => fromContent(content), [content]);
   const { register, control, handleSubmit, reset, watch, formState } = useForm<FormValues>({ defaultValues: defaults });
   useEffect(() => reset(defaults), [defaults, reset]);
@@ -161,6 +149,32 @@ export default function ServicesEditor({
   const services = watch('services');
   const steps = watch('processSteps');
   const badges = watch('badges');
+
+  const serviceIconLabel = (value: string) => {
+    const v = String(value || '').toLowerCase();
+    const map: Record<string, string> = {
+      cog: t('homepage.icon.cog', locale === 'zh' ? '齿轮' : 'Cog'),
+      wrench: t('homepage.icon.wrench', locale === 'zh' ? '扳手' : 'Wrench'),
+      phone: t('homepage.icon.phone', locale === 'zh' ? '电话' : 'Phone'),
+      truck: t('homepage.icon.truck', locale === 'zh' ? '卡车' : 'Truck'),
+      shield: t('homepage.icon.shield', locale === 'zh' ? '盾牌' : 'Shield'),
+      cap: t('homepage.icon.cap', locale === 'zh' ? '帽子' : 'Cap'),
+    };
+    return map[v] || value;
+  };
+
+  const colorLabel = (value: string) => {
+    const v = String(value || '');
+    const map: Record<string, string> = {
+      'bg-yellow-500': t('common.color.yellow', locale === 'zh' ? '黄色' : 'Yellow'),
+      'bg-green-500': t('common.color.green', locale === 'zh' ? '绿色' : 'Green'),
+      'bg-purple-500': t('common.color.purple', locale === 'zh' ? '紫色' : 'Purple'),
+      'bg-orange-500': t('common.color.orange', locale === 'zh' ? '橙色' : 'Orange'),
+      'bg-red-500': t('common.color.red', locale === 'zh' ? '红色' : 'Red'),
+      'bg-indigo-500': t('common.color.indigo', locale === 'zh' ? '靛蓝' : 'Indigo'),
+    };
+    return map[v] || value;
+  };
 
   const onSubmit = async (values: FormValues) => {
     const data = toData(values);
@@ -180,37 +194,37 @@ export default function ServicesEditor({
       <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.sortOrder', locale === 'zh' ? '排序' : 'Sort Order')}</label>
             <input type="number" {...register('sort_order', { valueAsNumber: true })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
           </div>
           <div className="flex items-end">
             <label className="inline-flex items-center gap-2 text-sm text-gray-700">
               <input type="checkbox" {...register('is_active')} className="h-4 w-4 rounded border-gray-300" />
-              Active
+              {t('common.active', locale === 'zh' ? '启用' : 'Active')}
             </label>
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Header Title</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.title', locale === 'zh' ? '标题' : 'Header Title')}</label>
           <input {...register('headerTitle')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Header Description</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.description', locale === 'zh' ? '描述' : 'Header Description')}</label>
           <textarea rows={3} {...register('headerDescription')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
         </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <div className="font-medium text-gray-900">Service Cards</div>
+          <div className="font-medium text-gray-900">{t('homepage.services.cards', locale === 'zh' ? '服务卡片' : 'Service Cards')}</div>
           <button
             type="button"
             onClick={() => servicesFA.append({ id: newId('service'), icon: 'cog', title: '', description: '', color: 'bg-yellow-500', href: '/contact', featuresText: '' })}
             className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700"
           >
             <PlusIcon className="h-4 w-4" />
-            Add
+            {t('common.add', locale === 'zh' ? '添加' : 'Add')}
           </button>
         </div>
 
@@ -233,52 +247,59 @@ export default function ServicesEditor({
                     {...drag.attributes}
                     {...drag.listeners}
                     className="p-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing"
-                    title="Drag to reorder"
+                    title={t('common.dragToReorder', locale === 'zh' ? '拖拽排序' : 'Drag to reorder')}
                   >
                     <Bars3Icon className="h-5 w-5" />
                   </button>
                   <IconPreview name={String(s?.icon || 'cog')} />
-                  <div className="flex-1 font-medium text-gray-900 truncate">{s?.title?.trim() ? s.title : `Service ${idx + 1}`}</div>
-                  <button type="button" onClick={() => servicesFA.remove(idx)} className="p-2 rounded-md border border-gray-200 text-red-600 hover:bg-red-50" title="Delete">
+                  <div className="flex-1 font-medium text-gray-900 truncate">
+                    {s?.title?.trim() ? s.title : t('homepage.services.cardN', locale === 'zh' ? '服务 {n}' : 'Service {n}', { n: idx + 1 })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => servicesFA.remove(idx)}
+                    className="p-2 rounded-md border border-gray-200 text-red-600 hover:bg-red-50"
+                    title={t('common.delete', locale === 'zh' ? '删除' : 'Delete')}
+                  >
                     <TrashIcon className="h-5 w-5" />
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Icon</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t('common.icon', locale === 'zh' ? '图标' : 'Icon')}</label>
                     <select {...register(`services.${idx}.icon` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                      {SERVICE_ICON_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
+                      {SERVICE_ICON_OPTIONS.map((value) => (
+                        <option key={value} value={value}>
+                          {serviceIconLabel(value)}
                         </option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Color</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t('common.color', locale === 'zh' ? '颜色' : 'Color')}</label>
                     <select {...register(`services.${idx}.color` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                      {COLOR_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
+                      {COLOR_OPTIONS.map((value) => (
+                        <option key={value} value={value}>
+                          {colorLabel(value)}
                         </option>
                       ))}
                     </select>
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t('common.title', locale === 'zh' ? '标题' : 'Title')}</label>
                     <input {...register(`services.${idx}.title` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t('common.description', locale === 'zh' ? '描述' : 'Description')}</label>
                     <textarea rows={2} {...register(`services.${idx}.description` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Link URL</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t('common.linkUrl', locale === 'zh' ? '链接' : 'Link URL')}</label>
                     <input {...register(`services.${idx}.href` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Features (1 per line)</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t('homepage.featuresPerLine', locale === 'zh' ? '特点（每行一个）' : 'Features (1 per line)')}</label>
                     <textarea rows={4} {...register(`services.${idx}.featuresText` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-xs" />
                   </div>
                 </div>
@@ -289,21 +310,21 @@ export default function ServicesEditor({
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-        <div className="font-medium text-gray-900">Process Steps</div>
+        <div className="font-medium text-gray-900">{t('homepage.processSteps', locale === 'zh' ? '流程步骤' : 'Process Steps')}</div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Process Title</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.process.title', locale === 'zh' ? '流程标题' : 'Process Title')}</label>
           <input {...register('processTitle')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Process Description</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.process.desc', locale === 'zh' ? '流程描述' : 'Process Description')}</label>
           <textarea rows={2} {...register('processDescription')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="text-sm font-medium text-gray-900">Steps</div>
+          <div className="text-sm font-medium text-gray-900">{t('homepage.steps', locale === 'zh' ? '步骤' : 'Steps')}</div>
           <button type="button" onClick={() => stepsFA.append({ id: newId('step'), step: '', title: '', description: '' })} className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50">
             <PlusIcon className="h-4 w-4" />
-            Add
+            {t('common.add', locale === 'zh' ? '添加' : 'Add')}
           </button>
         </div>
 
@@ -328,7 +349,7 @@ export default function ServicesEditor({
                   >
                     <Bars3Icon className="h-5 w-5" />
                   </button>
-                  <div className="font-medium text-gray-900">Step</div>
+                  <div className="font-medium text-gray-900">{t('homepage.step', locale === 'zh' ? '步骤' : 'Step')}</div>
                   <input {...register(`processSteps.${idx}.step` as const)} className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm" placeholder="01" />
                   <div className="flex-1" />
                   <button type="button" onClick={() => stepsFA.remove(idx)} className="p-2 rounded-md border border-gray-200 text-red-600 hover:bg-red-50">
@@ -336,14 +357,14 @@ export default function ServicesEditor({
                   </button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
-                    <input {...register(`processSteps.${idx}.title` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
-                    <textarea rows={2} {...register(`processSteps.${idx}.description` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
-                  </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">{t('common.title', locale === 'zh' ? '标题' : 'Title')}</label>
+                      <input {...register(`processSteps.${idx}.title` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">{t('common.description', locale === 'zh' ? '描述' : 'Description')}</label>
+                      <textarea rows={2} {...register(`processSteps.${idx}.description` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                    </div>
                 </div>
               </div>
             );
@@ -352,39 +373,39 @@ export default function ServicesEditor({
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-        <div className="font-medium text-gray-900">Bottom CTA</div>
+        <div className="font-medium text-gray-900">{t('homepage.stats.bottomCta', locale === 'zh' ? '底部 CTA' : 'Bottom CTA')}</div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">CTA Title</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.cta.title', locale === 'zh' ? 'CTA 标题' : 'CTA Title')}</label>
           <input {...register('ctaTitle')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">CTA Description</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.cta.desc', locale === 'zh' ? 'CTA 描述' : 'CTA Description')}</label>
           <textarea rows={3} {...register('ctaDescription')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Primary Button Text</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.cta.primaryText', locale === 'zh' ? '主按钮文字' : 'Primary Button Text')}</label>
             <input {...register('primaryCtaText')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Primary Button URL</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.cta.primaryUrl', locale === 'zh' ? '主按钮链接' : 'Primary Button URL')}</label>
             <input {...register('primaryCtaHref')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Button Text</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.cta.secondaryText', locale === 'zh' ? '次按钮文字' : 'Secondary Button Text')}</label>
             <input {...register('secondaryCtaText')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Button URL</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.cta.secondaryUrl', locale === 'zh' ? '次按钮链接' : 'Secondary Button URL')}</label>
             <input {...register('secondaryCtaHref')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
           </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="text-sm font-medium text-gray-900">Badges</div>
+          <div className="text-sm font-medium text-gray-900">{t('homepage.badges', locale === 'zh' ? '角标' : 'Badges')}</div>
           <button type="button" onClick={() => badgesFA.append({ id: newId('badge'), text: '' })} className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50">
             <PlusIcon className="h-4 w-4" />
-            Add
+            {t('common.add', locale === 'zh' ? '添加' : 'Add')}
           </button>
         </div>
         <SortableList
@@ -407,7 +428,11 @@ export default function ServicesEditor({
                 >
                   <Bars3Icon className="h-5 w-5" />
                 </button>
-                <input {...register(`badges.${idx}.text` as const)} className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="Badge text" />
+                <input
+                  {...register(`badges.${idx}.text` as const)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder={t('homepage.badgeTextPh', locale === 'zh' ? '角标文字' : 'Badge text')}
+                />
                 <button type="button" onClick={() => badgesFA.remove(idx)} className="p-2 rounded-md border border-gray-200 text-red-600 hover:bg-red-50">
                   <TrashIcon className="h-5 w-5" />
                 </button>
@@ -419,13 +444,12 @@ export default function ServicesEditor({
 
       <div className="flex items-center justify-between">
         <button type="button" onClick={() => reset(defaults)} className="px-4 py-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50" disabled={formState.isSubmitting}>
-          Reset
+          {t('common.reset', locale === 'zh' ? '重置' : 'Reset')}
         </button>
         <button type="submit" className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50" disabled={formState.isSubmitting}>
-          Save
+          {t('common.save', locale === 'zh' ? '保存' : 'Save')}
         </button>
       </div>
     </form>
   );
 }
-

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { CouponService, Coupon } from '@/services/coupon.service';
+import { useAdminI18n } from '@/lib/admin-i18n';
 import {
   TagIcon,
   ArrowLeftIcon,
@@ -17,6 +18,7 @@ import {
 import Link from 'next/link';
 
 export default function CouponDetailPage() {
+  const { locale, t } = useAdminI18n();
   const params = useParams();
   const couponId = parseInt(params.id as string);
 
@@ -35,7 +37,7 @@ export default function CouponDetailPage() {
       setCoupon(couponData);
       setUsage(usageData);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to fetch coupon details');
+      toast.error(error.message || t('coupons.toast.detailLoadFailed', locale === 'zh' ? '加载优惠券详情失败' : 'Failed to fetch coupon details'));
     } finally {
       setLoading(false);
     }
@@ -48,16 +50,16 @@ export default function CouponDetailPage() {
   }, [couponId]);
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this coupon?')) return;
+    if (!confirm(t('coupons.confirm.delete', locale === 'zh' ? '确定要删除这个优惠券吗？' : 'Are you sure you want to delete this coupon?'))) return;
 
     setDeleting(true);
     try {
       await CouponService.deleteCoupon(couponId);
-      toast.success('Coupon deleted successfully');
+      toast.success(t('coupons.toast.deleted', locale === 'zh' ? '优惠券已删除' : 'Coupon deleted successfully'));
       // Redirect to coupons list
       window.location.href = '/admin/coupons';
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete coupon');
+      toast.error(error.message || t('coupons.toast.deleteFailed', locale === 'zh' ? '删除优惠券失败' : 'Failed to delete coupon'));
     } finally {
       setDeleting(false);
     }
@@ -78,16 +80,16 @@ export default function CouponDetailPage() {
       <AdminLayout>
         <div className="text-center py-12">
           <TagIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Coupon not found</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">{t('coupons.notFound', locale === 'zh' ? '未找到优惠券' : 'Coupon not found')}</h3>
           <p className="mt-1 text-sm text-gray-500">
-            The coupon you're looking for doesn't exist or has been deleted.
+            {t('coupons.notFound.desc', locale === 'zh' ? '你要查看的优惠券不存在或已被删除。' : "The coupon you're looking for doesn't exist or has been deleted.")}
           </p>
           <div className="mt-6">
             <Link
               href="/admin/coupons"
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700"
             >
-              Back to Coupons
+              {t('coupons.back', locale === 'zh' ? '返回优惠券列表' : 'Back to Coupons')}
             </Link>
           </div>
         </div>
@@ -105,11 +107,40 @@ export default function CouponDetailPage() {
       exhausted: 'bg-orange-100 text-orange-800'
     };
 
+    const label =
+      status.status === 'active'
+        ? t('coupons.status.active', locale === 'zh' ? '可用' : 'Active')
+        : status.status === 'inactive'
+          ? t('coupons.status.inactive', locale === 'zh' ? '停用' : 'Inactive')
+          : status.status === 'expired'
+            ? t('coupons.status.expired', locale === 'zh' ? '已过期' : 'Expired')
+            : status.status === 'scheduled'
+              ? t('coupons.status.scheduled', locale === 'zh' ? '未开始' : 'Scheduled')
+              : status.status === 'exhausted'
+                ? t('coupons.status.exhausted', locale === 'zh' ? '已用尽' : 'Usage Limit Reached')
+                : status.label;
+
     return (
       <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${colors[status.status as keyof typeof colors] || colors.inactive}`}>
-        {status.label}
+        {label}
       </span>
     );
+  };
+
+  const formatDiscount = () => {
+    if (!coupon) return '';
+    if (coupon.type === 'percentage') {
+      const base = t('coupons.discount.percentage', locale === 'zh' ? '{value}% 折扣' : '{value}% off', { value: coupon.value });
+      if (coupon.max_discount_amount) {
+        return t(
+          'coupons.discount.percentageMax',
+          locale === 'zh' ? '{base}（最高 ${max}）' : '{base} (max ${max})',
+          { base, max: coupon.max_discount_amount }
+        );
+      }
+      return base;
+    }
+    return t('coupons.discount.fixed', locale === 'zh' ? '立减 ${value}' : '${value} off', { value: coupon.value });
   };
 
   const getUsageProgress = () => {
@@ -151,7 +182,7 @@ export default function CouponDetailPage() {
               className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
             >
               <PencilIcon className="h-4 w-4 mr-2" />
-              Edit
+              {t('common.edit', locale === 'zh' ? '编辑' : 'Edit')}
             </Link>
             <button
               onClick={handleDelete}
@@ -163,7 +194,7 @@ export default function CouponDetailPage() {
               ) : (
                 <TrashIcon className="h-4 w-4 mr-2" />
               )}
-              Delete
+              {t('common.delete', locale === 'zh' ? '删除' : 'Delete')}
             </button>
           </div>
         </div>
@@ -173,43 +204,43 @@ export default function CouponDetailPage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Coupon Details */}
             <div className="bg-white shadow-sm rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Coupon Details</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('coupons.detail.section', locale === 'zh' ? '优惠券详情' : 'Coupon Details')}</h3>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Code</dt>
+                  <dt className="text-sm font-medium text-gray-500">{t('coupons.field.code', locale === 'zh' ? '代码' : 'Code')}</dt>
                   <dd className="mt-1 text-sm text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded">
                     {coupon.code}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Name</dt>
+                  <dt className="text-sm font-medium text-gray-500">{t('coupons.field.name', locale === 'zh' ? '名称' : 'Name')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">{coupon.name}</dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Type</dt>
+                  <dt className="text-sm font-medium text-gray-500">{t('coupons.field.type', locale === 'zh' ? '类型' : 'Type')}</dt>
                   <dd className="mt-1 text-sm text-gray-900 capitalize">
                     {coupon.type.replace('_', ' ')}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Discount</dt>
+                  <dt className="text-sm font-medium text-gray-500">{t('coupons.field.discount', locale === 'zh' ? '优惠' : 'Discount')}</dt>
                   <dd className="mt-1 text-sm text-gray-900 font-semibold">
-                    {CouponService.getDiscountDescription(coupon)}
+                    {formatDiscount()}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Minimum Order</dt>
+                  <dt className="text-sm font-medium text-gray-500">{t('coupons.field.minOrder', locale === 'zh' ? '最低订单金额' : 'Minimum Order')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">${coupon.min_order_amount}</dd>
                 </div>
                 {coupon.max_discount_amount && (
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Maximum Discount</dt>
+                    <dt className="text-sm font-medium text-gray-500">{t('coupons.field.maxDiscount', locale === 'zh' ? '最高优惠' : 'Maximum Discount')}</dt>
                     <dd className="mt-1 text-sm text-gray-900">${coupon.max_discount_amount}</dd>
                   </div>
                 )}
                 {coupon.description && (
                   <div className="sm:col-span-2">
-                    <dt className="text-sm font-medium text-gray-500">Description</dt>
+                    <dt className="text-sm font-medium text-gray-500">{t('coupons.field.description', locale === 'zh' ? '描述' : 'Description')}</dt>
                     <dd className="mt-1 text-sm text-gray-900">{coupon.description}</dd>
                   </div>
                 )}
@@ -220,32 +251,32 @@ export default function CouponDetailPage() {
             <div className="bg-white shadow-sm rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                 <ChartBarIcon className="h-5 w-5 mr-2" />
-                Usage Statistics
+                {t('coupons.usageStats', locale === 'zh' ? '使用统计' : 'Usage Statistics')}
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">{coupon.used_count}</div>
-                  <div className="text-sm text-gray-500">Times Used</div>
+                  <div className="text-sm text-gray-500">{t('coupons.timesUsed', locale === 'zh' ? '使用次数' : 'Times Used')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">
                     ${usage?.total_discount?.toFixed(2) || '0.00'}
                   </div>
-                  <div className="text-sm text-gray-500">Total Savings</div>
+                  <div className="text-sm text-gray-500">{t('coupons.totalSavings', locale === 'zh' ? '累计优惠' : 'Total Savings')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-amber-600">
                     {coupon.usage_limit || '∞'}
                   </div>
-                  <div className="text-sm text-gray-500">Usage Limit</div>
+                  <div className="text-sm text-gray-500">{t('coupons.usageLimit', locale === 'zh' ? '使用上限' : 'Usage Limit')}</div>
                 </div>
               </div>
 
               {coupon.usage_limit && (
                 <div className="mb-4">
                   <div className="flex justify-between text-sm text-gray-600 mb-1">
-                    <span>Usage Progress</span>
+                    <span>{t('coupons.usageProgress', locale === 'zh' ? '使用进度' : 'Usage Progress')}</span>
                     <span>{coupon.used_count} / {coupon.usage_limit}</span>
                   </div>
                   {getUsageProgress()}
@@ -255,7 +286,7 @@ export default function CouponDetailPage() {
               {/* Recent Usage */}
               {usage?.usage_records && usage.usage_records.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Recent Usage</h4>
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">{t('coupons.recentUsage', locale === 'zh' ? '最近使用记录' : 'Recent Usage')}</h4>
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {usage.usage_records.slice(0, 10).map((record: any) => (
                       <div key={record.id} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-md">
@@ -284,31 +315,31 @@ export default function CouponDetailPage() {
             <div className="bg-white shadow-sm rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                 <CalendarIcon className="h-5 w-5 mr-2" />
-                Date Information
+                {t('coupons.dateInfo', locale === 'zh' ? '时间信息' : 'Date Information')}
               </h3>
               <dl className="space-y-3">
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Created</dt>
+                  <dt className="text-sm font-medium text-gray-500">{t('common.created', locale === 'zh' ? '创建时间' : 'Created')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     {new Date(coupon.created_at).toLocaleDateString()}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Last Updated</dt>
+                  <dt className="text-sm font-medium text-gray-500">{t('common.updated', locale === 'zh' ? '更新时间' : 'Last Updated')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     {new Date(coupon.updated_at).toLocaleDateString()}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Start Date</dt>
+                  <dt className="text-sm font-medium text-gray-500">{t('coupons.field.startsAt', locale === 'zh' ? '开始时间' : 'Start Date')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {coupon.starts_at ? new Date(coupon.starts_at).toLocaleDateString() : 'Immediate'}
+                    {coupon.starts_at ? new Date(coupon.starts_at).toLocaleDateString() : t('coupons.startImmediate', locale === 'zh' ? '立即生效' : 'Immediate')}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Expiry Date</dt>
+                  <dt className="text-sm font-medium text-gray-500">{t('coupons.field.expiresAt', locale === 'zh' ? '过期时间' : 'Expiry Date')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {coupon.expires_at ? new Date(coupon.expires_at).toLocaleDateString() : 'No expiry'}
+                    {coupon.expires_at ? new Date(coupon.expires_at).toLocaleDateString() : t('coupons.noExpiry', locale === 'zh' ? '永不过期' : 'No expiry')}
                   </dd>
                 </div>
               </dl>
@@ -318,25 +349,25 @@ export default function CouponDetailPage() {
             <div className="bg-white shadow-sm rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                 <UserGroupIcon className="h-5 w-5 mr-2" />
-                Usage Limits
+                {t('coupons.limits', locale === 'zh' ? '使用限制' : 'Usage Limits')}
               </h3>
               <dl className="space-y-3">
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Total Usage Limit</dt>
+                  <dt className="text-sm font-medium text-gray-500">{t('coupons.limit.total', locale === 'zh' ? '总使用上限' : 'Total Usage Limit')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {coupon.usage_limit || 'Unlimited'}
+                    {coupon.usage_limit || t('coupons.unlimited', locale === 'zh' ? '不限' : 'Unlimited')}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Per User Limit</dt>
+                  <dt className="text-sm font-medium text-gray-500">{t('coupons.limit.perUser', locale === 'zh' ? '单用户上限' : 'Per User Limit')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {coupon.user_usage_limit || 'Unlimited'}
+                    {coupon.user_usage_limit || t('coupons.unlimited', locale === 'zh' ? '不限' : 'Unlimited')}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Current Usage</dt>
+                  <dt className="text-sm font-medium text-gray-500">{t('coupons.limit.current', locale === 'zh' ? '当前使用' : 'Current Usage')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {coupon.used_count} times
+                    {t('coupons.usedCount', locale === 'zh' ? '{count} 次' : '{count} times', { count: coupon.used_count })}
                   </dd>
                 </div>
               </dl>
@@ -344,20 +375,20 @@ export default function CouponDetailPage() {
 
             {/* Quick Actions */}
             <div className="bg-white shadow-sm rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('dashboard.quickActions', locale === 'zh' ? '快捷操作' : 'Quick Actions')}</h3>
               <div className="space-y-3">
                 <Link
                   href={`/admin/coupons/${coupon.id}/edit`}
                   className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
                 >
                   <PencilIcon className="h-4 w-4 mr-2" />
-                  Edit Coupon
+                  {t('coupons.edit', locale === 'zh' ? '编辑优惠券' : 'Edit Coupon')}
                 </Link>
                 <button
                   onClick={() => navigator.clipboard.writeText(coupon.code)}
                   className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
                 >
-                  Copy Code
+                  {t('coupons.copyCode', locale === 'zh' ? '复制代码' : 'Copy Code')}
                 </button>
               </div>
             </div>

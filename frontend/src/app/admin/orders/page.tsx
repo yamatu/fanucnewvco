@@ -25,7 +25,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useAdminI18n } from '@/lib/admin-i18n';
 
 export default function AdminOrdersPage() {
-  const { t } = useAdminI18n();
+  const { locale, t } = useAdminI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -52,11 +52,11 @@ export default function AdminOrdersPage() {
     mutationFn: ({ orderId, status }: { orderId: number; status: string }) =>
       OrderService.updateOrderStatus(orderId, status),
     onSuccess: () => {
-      toast.success('Order status updated successfully!');
+      toast.success(t('orders.toast.statusUpdated', locale === 'zh' ? '订单状态已更新！' : 'Order status updated successfully!'));
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to update order status');
+      toast.error(error.message || t('orders.toast.statusUpdateFailed', locale === 'zh' ? '更新订单状态失败' : 'Failed to update order status'));
     },
   });
 
@@ -64,12 +64,12 @@ export default function AdminOrdersPage() {
   const deleteOrderMutation = useMutation({
     mutationFn: (orderId: number) => OrderService.deleteOrder(orderId),
     onSuccess: () => {
-      toast.success('Order deleted successfully!');
+      toast.success(t('orders.toast.deleted', locale === 'zh' ? '订单已删除！' : 'Order deleted successfully!'));
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
       setDeleteConfirmOrder(null);
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to delete order');
+      toast.error(error.message || t('orders.toast.deleteFailed', locale === 'zh' ? '删除订单失败' : 'Failed to delete order'));
     },
   });
 
@@ -85,11 +85,11 @@ export default function AdminOrdersPage() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800', icon: ClockIcon },
-      processing: { label: 'Processing', color: 'bg-blue-100 text-blue-800', icon: ClockIcon },
-      shipped: { label: 'Shipped', color: 'bg-purple-100 text-purple-800', icon: TruckIcon },
-      delivered: { label: 'Delivered', color: 'bg-green-100 text-green-800', icon: CheckCircleIcon },
-      cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800', icon: XCircleIcon },
+      pending: { label: t('orders.status.pending', locale === 'zh' ? '待处理' : 'Pending'), color: 'bg-yellow-100 text-yellow-800', icon: ClockIcon },
+      processing: { label: t('orders.status.processing', locale === 'zh' ? '处理中' : 'Processing'), color: 'bg-blue-100 text-blue-800', icon: ClockIcon },
+      shipped: { label: t('orders.status.shipped', locale === 'zh' ? '已发货' : 'Shipped'), color: 'bg-purple-100 text-purple-800', icon: TruckIcon },
+      delivered: { label: t('orders.status.delivered', locale === 'zh' ? '已送达' : 'Delivered'), color: 'bg-green-100 text-green-800', icon: CheckCircleIcon },
+      cancelled: { label: t('orders.status.cancelled', locale === 'zh' ? '已取消' : 'Cancelled'), color: 'bg-red-100 text-red-800', icon: XCircleIcon },
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] ||
@@ -107,10 +107,10 @@ export default function AdminOrdersPage() {
 
   const getPaymentStatusBadge = (status: string) => {
     const statusConfig = {
-      pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800' },
-      paid: { label: 'Paid', color: 'bg-green-100 text-green-800' },
-      failed: { label: 'Failed', color: 'bg-red-100 text-red-800' },
-      refunded: { label: 'Refunded', color: 'bg-gray-100 text-gray-800' },
+      pending: { label: t('orders.pay.pending', locale === 'zh' ? '待支付' : 'Pending'), color: 'bg-yellow-100 text-yellow-800' },
+      paid: { label: t('orders.pay.paid', locale === 'zh' ? '已支付' : 'Paid'), color: 'bg-green-100 text-green-800' },
+      failed: { label: t('orders.pay.failed', locale === 'zh' ? '失败' : 'Failed'), color: 'bg-red-100 text-red-800' },
+      refunded: { label: t('orders.pay.refunded', locale === 'zh' ? '已退款' : 'Refunded'), color: 'bg-gray-100 text-gray-800' },
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] ||
@@ -130,7 +130,7 @@ export default function AdminOrdersPage() {
           <div className="text-red-600 mb-4">
             <XCircleIcon className="h-12 w-12 mx-auto" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Orders</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('orders.error.title', locale === 'zh' ? '订单加载失败' : 'Error Loading Orders')}</h3>
           <p className="text-gray-500">{error.message}</p>
         </div>
       </AdminLayout>
@@ -145,7 +145,7 @@ export default function AdminOrdersPage() {
 	          <div>
 	            <h1 className="text-2xl font-bold text-gray-900">{t('nav.orders', 'Orders')}</h1>
 	            <p className="mt-1 text-sm text-gray-500">
-	              Manage customer orders and track fulfillment
+					{t('orders.page.subtitle', locale === 'zh' ? '管理客户订单并跟踪履约/发货' : 'Manage customer orders and track fulfillment')}
 	            </p>
 	          </div>
           <div className="flex items-center space-x-3">
@@ -154,7 +154,7 @@ export default function AdminOrdersPage() {
               className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               <FunnelIcon className="h-4 w-4 mr-2" />
-              Filters
+			  {t('common.filters', locale === 'zh' ? '筛选' : 'Filters')}
             </button>
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function AdminOrdersPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-                  Search
+				  {t('common.search', locale === 'zh' ? '搜索' : 'Search')}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -177,14 +177,14 @@ export default function AdminOrdersPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Order number, customer name..."
+					placeholder={t('orders.searchPh', locale === 'zh' ? '订单号、客户姓名...' : 'Order number, customer name...')}
                   />
                 </div>
               </div>
 
               <div>
                 <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
+				  {t('orders.status.title', locale === 'zh' ? '状态' : 'Status')}
                 </label>
                 <select
                   id="status"
@@ -192,12 +192,12 @@ export default function AdminOrdersPage() {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="">All Statuses</option>
-                  <option value="pending">Pending</option>
-                  <option value="processing">Processing</option>
-                  <option value="shipped">Shipped</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
+				  <option value="">{t('common.all', locale === 'zh' ? '全部' : 'All Statuses')}</option>
+				  <option value="pending">{t('orders.status.pending', locale === 'zh' ? '待处理' : 'Pending')}</option>
+				  <option value="processing">{t('orders.status.processing', locale === 'zh' ? '处理中' : 'Processing')}</option>
+				  <option value="shipped">{t('orders.status.shipped', locale === 'zh' ? '已发货' : 'Shipped')}</option>
+				  <option value="delivered">{t('orders.status.delivered', locale === 'zh' ? '已送达' : 'Delivered')}</option>
+				  <option value="cancelled">{t('orders.status.cancelled', locale === 'zh' ? '已取消' : 'Cancelled')}</option>
                 </select>
               </div>
 
@@ -209,7 +209,7 @@ export default function AdminOrdersPage() {
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                 >
-                  Clear Filters
+				  {t('common.clearFilters', locale === 'zh' ? '清除筛选' : 'Clear Filters')}
                 </button>
               </div>
             </div>
@@ -221,16 +221,16 @@ export default function AdminOrdersPage() {
           {isLoading ? (
             <div className="p-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-500">Loading orders...</p>
+			  <p className="mt-2 text-gray-500">{t('orders.loading', locale === 'zh' ? '正在加载订单...' : 'Loading orders...')}</p>
             </div>
           ) : orders.length === 0 ? (
             <div className="p-8 text-center">
               <ShoppingBagIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
+			  <h3 className="text-lg font-medium text-gray-900 mb-2">{t('orders.empty', locale === 'zh' ? '没有找到订单' : 'No orders found')}</h3>
               <p className="text-gray-500">
                 {searchQuery || statusFilter
-                  ? 'Try adjusting your filters to see more orders.'
-                  : 'Orders will appear here when customers make purchases.'}
+					? t('orders.empty.filtered', locale === 'zh' ? '请尝试调整筛选条件。' : 'Try adjusting your filters to see more orders.')
+					: t('orders.empty.fresh', locale === 'zh' ? '客户下单后会在这里显示。' : 'Orders will appear here when customers make purchases.')}
               </p>
             </div>
           ) : (
@@ -239,25 +239,25 @@ export default function AdminOrdersPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Order
+					  {t('orders.table.order', locale === 'zh' ? '订单' : 'Order')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer
+					  {t('orders.table.customer', locale === 'zh' ? '客户' : 'Customer')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
+					  {t('orders.table.status', locale === 'zh' ? '状态' : 'Status')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Payment
+					  {t('orders.table.payment', locale === 'zh' ? '支付' : 'Payment')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total
+					  {t('orders.table.total', locale === 'zh' ? '总计' : 'Total')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
+					  {t('orders.table.date', locale === 'zh' ? '日期' : 'Date')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
+					  {t('common.actions', locale === 'zh' ? '操作' : 'Actions')}
                     </th>
                   </tr>
                 </thead>
@@ -270,17 +270,21 @@ export default function AdminOrdersPage() {
                             #{order.order_number}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
+                            {t(
+                              'orders.itemsCount',
+                              locale === 'zh' ? '{count} 件商品' : '{count} item(s)',
+                              { count: order.items?.length || 0 }
+                            )}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {order.customer_name || order.user?.name || 'N/A'}
+                            {order.customer_name || order.user?.name || t('common.na', locale === 'zh' ? '无' : 'N/A')}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {order.customer_email || order.user?.email || 'N/A'}
+                            {order.customer_email || order.user?.email || t('common.na', locale === 'zh' ? '无' : 'N/A')}
                           </div>
                         </div>
                       </td>
@@ -294,11 +298,11 @@ export default function AdminOrdersPage() {
                               disabled={updateOrderStatusMutation.isPending}
                               className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
                             >
-                              <option value="pending">Pending</option>
-                              <option value="processing">Processing</option>
-                              <option value="shipped">Shipped</option>
-                              <option value="delivered">Delivered</option>
-                              <option value="cancelled">Cancelled</option>
+							  <option value="pending">{t('orders.status.pending', locale === 'zh' ? '待处理' : 'Pending')}</option>
+							  <option value="processing">{t('orders.status.processing', locale === 'zh' ? '处理中' : 'Processing')}</option>
+							  <option value="shipped">{t('orders.status.shipped', locale === 'zh' ? '已发货' : 'Shipped')}</option>
+							  <option value="delivered">{t('orders.status.delivered', locale === 'zh' ? '已送达' : 'Delivered')}</option>
+							  <option value="cancelled">{t('orders.status.cancelled', locale === 'zh' ? '已取消' : 'Cancelled')}</option>
                             </select>
                           </div>
                         </div>
@@ -324,7 +328,7 @@ export default function AdminOrdersPage() {
                             className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
                           >
                             <EyeIcon className="h-4 w-4 mr-1" />
-                            View
+							{t('common.view', locale === 'zh' ? '查看' : 'View')}
                           </Link>
                           {OrderService.canEditOrder(order) && (
                             <Link
@@ -332,7 +336,7 @@ export default function AdminOrdersPage() {
                               className="inline-flex items-center px-3 py-1 border border-blue-300 rounded-md text-sm text-blue-700 bg-blue-50 hover:bg-blue-100"
                             >
                               <PencilIcon className="h-4 w-4 mr-1" />
-                              Edit
+							{t('common.edit', locale === 'zh' ? '编辑' : 'Edit')}
                             </Link>
                           )}
                           {OrderService.canDeleteOrder(order) && (
@@ -341,7 +345,7 @@ export default function AdminOrdersPage() {
                               className="inline-flex items-center px-3 py-1 border border-red-300 rounded-md text-sm text-red-700 bg-red-50 hover:bg-red-100"
                             >
                               <TrashIcon className="h-4 w-4 mr-1" />
-                              Delete
+							{t('common.delete', locale === 'zh' ? '删除' : 'Delete')}
                             </button>
                           )}
                         </div>
@@ -360,14 +364,19 @@ export default function AdminOrdersPage() {
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
               <div className="flex items-center mb-4">
                 <ExclamationTriangleIcon className="h-6 w-6 text-red-600 mr-3" />
-                <h3 className="text-lg font-medium text-gray-900">Delete Order</h3>
+                <h3 className="text-lg font-medium text-gray-900">{t('orders.delete.title', locale === 'zh' ? '删除订单' : 'Delete Order')}</h3>
               </div>
               <p className="text-gray-500 mb-6">
-                Are you sure you want to delete order <strong>#{deleteConfirmOrder.order_number}</strong>?
-                This action cannot be undone.
+				{t(
+					'orders.delete.confirm',
+					locale === 'zh'
+						? '确定要删除订单 #{orderNumber} 吗？此操作不可撤销。'
+						: 'Are you sure you want to delete order #{orderNumber}? This action cannot be undone.',
+					{ orderNumber: deleteConfirmOrder.order_number }
+				)}
                 {deleteConfirmOrder.payment_status === 'paid' && (
                   <span className="block mt-2 text-orange-600 font-medium">
-                    Note: This order has been paid. Product stock will be restored.
+					{t('orders.delete.paidNote', locale === 'zh' ? '注意：该订单已支付，删除后会恢复产品库存。' : 'Note: This order has been paid. Product stock will be restored.')}
                   </span>
                 )}
               </p>
@@ -377,7 +386,7 @@ export default function AdminOrdersPage() {
                   disabled={deleteOrderMutation.isPending}
                   className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Cancel
+                  {t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}
                 </button>
                 <button
                   onClick={handleDeleteOrder}
@@ -387,10 +396,10 @@ export default function AdminOrdersPage() {
                   {deleteOrderMutation.isPending ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Deleting...
+						{t('common.deleting', locale === 'zh' ? '删除中...' : 'Deleting...')}
                     </>
                   ) : (
-                    'Delete Order'
+						t('orders.delete.confirmBtn', locale === 'zh' ? '确认删除' : 'Delete Order')
                   )}
                 </button>
               </div>

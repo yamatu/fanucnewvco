@@ -27,7 +27,7 @@ import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl } fro
 import { useAdminI18n } from '@/lib/admin-i18n';
 
 function AdminProductsContent() {
-  const { t } = useAdminI18n();
+  const { locale, t } = useAdminI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,26 +189,40 @@ function AdminProductsContent() {
   const bulkApplyDefaultImageMutation = useMutation({
     mutationFn: (payload: any) => ProductService.bulkApplyDefaultImage(payload),
     onSuccess: (data: any) => {
-      toast.success(`Default images applied: ${data?.updated || 0} updated`);
+      toast.success(
+        t(
+          'products.defaultImage.applied',
+          locale === 'zh'
+            ? `已应用默认图片：更新 ${data?.updated || 0} 个`
+            : `Default images applied: ${data?.updated || 0} updated`
+        )
+      );
       setSelectedIds([]);
       setSelectAllResults(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to apply default images');
+      toast.error(error.message || t('products.defaultImage.applyFailed', locale === 'zh' ? '应用默认图片失败' : 'Failed to apply default images'));
     },
   });
 
   const bulkRemoveDefaultImageMutation = useMutation({
     mutationFn: (payload: any) => ProductService.bulkRemoveDefaultImage(payload),
     onSuccess: (data: any) => {
-      toast.success(`Default images removed: ${data?.updated || 0} updated`);
+      toast.success(
+        t(
+          'products.defaultImage.removed',
+          locale === 'zh'
+            ? `已移除默认图片：更新 ${data?.updated || 0} 个`
+            : `Default images removed: ${data?.updated || 0} updated`
+        )
+      );
       setSelectedIds([]);
       setSelectAllResults(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to remove default images');
+      toast.error(error.message || t('products.defaultImage.removeFailed', locale === 'zh' ? '移除默认图片失败' : 'Failed to remove default images'));
     },
   });
 
@@ -221,13 +235,13 @@ function AdminProductsContent() {
   });
 
   const bulkApplyDefaultImages = () => {
-    if (!selectAllResults && selectedIds.length === 0) { toast.error('Select at least one product'); return; }
+    if (!selectAllResults && selectedIds.length === 0) { toast.error(t('products.toast.selectOne', locale === 'zh' ? '请至少选择一个产品' : 'Select at least one product')); return; }
     const payload = selectAllResults ? buildSelectAllPayload() : { ids: selectedIds };
     bulkApplyDefaultImageMutation.mutate(payload);
   };
 
   const bulkRemoveDefaultImages = () => {
-    if (!selectAllResults && selectedIds.length === 0) { toast.error('Select at least one product'); return; }
+    if (!selectAllResults && selectedIds.length === 0) { toast.error(t('products.toast.selectOne', locale === 'zh' ? '请至少选择一个产品' : 'Select at least one product')); return; }
     const payload = selectAllResults ? buildSelectAllPayload() : { ids: selectedIds };
     bulkRemoveDefaultImageMutation.mutate(payload);
   };
@@ -255,7 +269,7 @@ function AdminProductsContent() {
 
   const importMutation = useMutation({
     mutationFn: async () => {
-      if (!importFile) throw new Error('Please select an .xlsx file');
+      if (!importFile) throw new Error(locale === 'zh' ? '请选择 .xlsx 文件' : 'Please select an .xlsx file');
       return ProductService.importProductsXlsx(importFile, {
         brand: importBrand,
         overwrite: importOverwrite,
@@ -264,11 +278,18 @@ function AdminProductsContent() {
     },
     onSuccess: (data: any) => {
       setImportResult(data);
-      toast.success(`Import completed: ${data?.created || 0} created, ${data?.updated || 0} updated`);
+      toast.success(
+        t(
+          'products.import.completed',
+          locale === 'zh'
+            ? `导入完成：新增 ${data?.created || 0}，更新 ${data?.updated || 0}`
+            : `Import completed: ${data?.created || 0} created, ${data?.updated || 0} updated`
+        )
+      );
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Import failed');
+      toast.error(error.message || t('products.import.failed', locale === 'zh' ? '导入失败' : 'Import failed'));
     },
   });
 
@@ -283,9 +304,9 @@ function AdminProductsContent() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      toast.success('Template downloaded');
+      toast.success(t('products.import.templateDownloaded', locale === 'zh' ? '模板已下载' : 'Template downloaded'));
     } catch (e: any) {
-      toast.error(e.message || 'Failed to download template');
+      toast.error(e.message || t('products.import.templateDownloadFailed', locale === 'zh' ? '下载模板失败' : 'Failed to download template'));
     }
   };
 
@@ -383,7 +404,7 @@ function AdminProductsContent() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{t('nav.products', 'Products')}</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Manage your FANUC product inventory
+				{t('products.page.subtitle', locale === 'zh' ? '管理 FANUC 产品库存' : 'Manage your FANUC product inventory')}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -396,14 +417,14 @@ function AdminProductsContent() {
               className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
-              Bulk Import
+				{t('products.import.bulk', locale === 'zh' ? '批量导入' : 'Bulk Import')}
             </button>
             <Link
               href="/admin/products/new"
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <PlusIcon className="h-4 w-4 mr-2" />
-              Add Product
+				{t('products.new.title', locale === 'zh' ? '新增产品' : 'Add Product')}
             </Link>
           </div>
         </div>
@@ -413,8 +434,8 @@ function AdminProductsContent() {
             <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
               <div className="flex items-center justify-between border-b px-4 py-3">
                 <div>
-                  <div className="text-lg font-semibold text-gray-900">Bulk Import Products (XLSX)</div>
-                  <div className="text-xs text-gray-500">Template columns: Model, Price, Quantity</div>
+				  <div className="text-lg font-semibold text-gray-900">{t('products.import.modalTitle', locale === 'zh' ? '批量导入产品（XLSX）' : 'Bulk Import Products (XLSX)')}</div>
+				  <div className="text-xs text-gray-500">{t('products.import.columns', locale === 'zh' ? '模板列：型号 / 价格 / 数量 / 重量kg' : 'Template columns: Model, Price, Quantity, WeightKg')}</div>
                 </div>
                 <button
                   onClick={() => setShowImportModal(false)}
@@ -427,7 +448,7 @@ function AdminProductsContent() {
               <div className="p-4 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                   <div className="w-full sm:w-auto">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+					<label className="block text-sm font-medium text-gray-700 mb-1">{t('products.import.brand', locale === 'zh' ? '品牌' : 'Brand')}</label>
                     <select
                       value={importBrand}
                       onChange={(e) => setImportBrand(e.target.value)}
@@ -435,19 +456,19 @@ function AdminProductsContent() {
                     >
                       <option value="fanuc">FANUC</option>
                     </select>
-                    <p className="mt-1 text-xs text-gray-500">More brands can be added later.</p>
+					<p className="mt-1 text-xs text-gray-500">{t('products.import.brandHint', locale === 'zh' ? '后续可以再增加更多品牌。' : 'More brands can be added later.')}</p>
                   </div>
                   <button
                     onClick={downloadTemplate}
                     className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                   >
                     <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-                    Download Template
+					{t('products.import.downloadTemplate', locale === 'zh' ? '下载模板' : 'Download Template')}
                   </button>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Upload .xlsx</label>
+				  <label className="block text-sm font-medium text-gray-700 mb-1">{t('products.import.uploadXlsx', locale === 'zh' ? '上传 .xlsx 文件' : 'Upload .xlsx')}</label>
                   <input
                     type="file"
                     accept=".xlsx"
@@ -458,7 +479,7 @@ function AdminProductsContent() {
                     }}
                     className="block w-full text-sm"
                   />
-                  <p className="mt-1 text-xs text-gray-500">We will match by SKU/model/part number; then update price/stock, and fill missing SEO fields.</p>
+				  <p className="mt-1 text-xs text-gray-500">{t('products.import.hint', locale === 'zh' ? '系统会按 SKU/型号/料号匹配；更新价格/库存/重量，并可补全 SEO 字段。' : 'We will match by SKU/model/part number; then update price/stock/weight, and fill missing SEO fields.')}</p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -469,7 +490,7 @@ function AdminProductsContent() {
                       onChange={(e) => setImportCreateMissing(e.target.checked)}
                       className="h-4 w-4"
                     />
-                    Create missing products
+					{t('products.import.createMissing', locale === 'zh' ? '自动创建缺失的产品' : 'Create missing products')}
                   </label>
                   <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                     <input
@@ -478,15 +499,17 @@ function AdminProductsContent() {
                       onChange={(e) => setImportOverwrite(e.target.checked)}
                       className="h-4 w-4"
                     />
-                    Overwrite name/description/SEO
+					{t('products.import.overwrite', locale === 'zh' ? '覆盖名称/描述/SEO' : 'Overwrite name/description/SEO')}
                   </label>
                 </div>
 
                 {importResult && (
-                  <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
-                    <div className="text-sm font-semibold text-gray-900">Result</div>
+                    <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+					<div className="text-sm font-semibold text-gray-900">{t('common.result', locale === 'zh' ? '结果' : 'Result')}</div>
                     <div className="mt-1 text-sm text-gray-700">
-                      Total rows: {importResult.total_rows} | Created: {importResult.created} | Updated: {importResult.updated} | Failed: {importResult.failed}
+						{t('products.import.summary', locale === 'zh'
+							? `总行数：${importResult.total_rows} | 新增：${importResult.created} | 更新：${importResult.updated} | 失败：${importResult.failed}`
+							: `Total rows: ${importResult.total_rows} | Created: ${importResult.created} | Updated: ${importResult.updated} | Failed: ${importResult.failed}`)}
                     </div>
 
                     {Array.isArray(importResult.items) && importResult.items.length > 0 && (
@@ -494,10 +517,10 @@ function AdminProductsContent() {
                         <table className="min-w-full text-sm">
                           <thead className="sticky top-0 bg-gray-50">
                             <tr>
-                              <th className="px-3 py-2 text-left font-semibold text-gray-700">Row</th>
-                              <th className="px-3 py-2 text-left font-semibold text-gray-700">Model</th>
-                              <th className="px-3 py-2 text-left font-semibold text-gray-700">Action</th>
-                              <th className="px-3 py-2 text-left font-semibold text-gray-700">Message</th>
+							  <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('common.row', locale === 'zh' ? '行号' : 'Row')}</th>
+							  <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('products.import.model', locale === 'zh' ? '型号' : 'Model')}</th>
+							  <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('common.action', locale === 'zh' ? '操作' : 'Action')}</th>
+							  <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('common.message', locale === 'zh' ? '信息' : 'Message')}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -522,7 +545,7 @@ function AdminProductsContent() {
                   onClick={() => setShowImportModal(false)}
                   className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
                 >
-                  Close
+				  {t('common.close', locale === 'zh' ? '关闭' : 'Close')}
                 </button>
                 <button
                   onClick={() => importMutation.mutate()}
@@ -530,7 +553,9 @@ function AdminProductsContent() {
                   className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
                 >
                   <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
-                  {importMutation.isPending ? 'Importing...' : 'Import'}
+				  {importMutation.isPending
+					? t('products.import.importing', locale === 'zh' ? '导入中...' : 'Importing...')
+					: t('shipping.import', locale === 'zh' ? '导入' : 'Import')}
                 </button>
               </div>
             </div>
@@ -543,21 +568,21 @@ function AdminProductsContent() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-4 border-b border-gray-200">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-700 font-medium">Show:</span>
+                <span className="text-sm text-gray-700 font-medium">{t('common.show', locale === 'zh' ? '显示：' : 'Show:')}</span>
                 <select
                   value={pageSize}
                   onChange={(e) => handlePageSizeChange(Number(e.target.value))}
                   className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value={20}>20 per page</option>
-                  <option value={50}>50 per page</option>
-                  <option value={100}>100 per page</option>
-                  <option value={200}>200 per page</option>
-                  <option value={500}>500 per page</option>
+				  <option value={20}>{locale === 'zh' ? '每页 20' : '20 per page'}</option>
+				  <option value={50}>{locale === 'zh' ? '每页 50' : '50 per page'}</option>
+				  <option value={100}>{locale === 'zh' ? '每页 100' : '100 per page'}</option>
+				  <option value={200}>{locale === 'zh' ? '每页 200' : '200 per page'}</option>
+				  <option value={500}>{locale === 'zh' ? '每页 500' : '500 per page'}</option>
                 </select>
               </div>
               <div className="text-sm text-gray-500">
-                Total: {totalProducts} products
+				{t('common.total', locale === 'zh' ? '总计：' : 'Total:')} {totalProducts} {t('products.page.count', locale === 'zh' ? '个产品' : 'products')}
               </div>
             </div>
 
@@ -565,27 +590,27 @@ function AdminProductsContent() {
               {!selectAllResults ? (
                 <>
                   <span className="text-gray-600 font-medium">
-                    Selected on page: <span className="text-blue-600">{selectedIds.length}</span>
+					{t('common.selected', locale === 'zh' ? '已选择' : 'Selected')}: <span className="text-blue-600">{selectedIds.length}</span>
                   </span>
                   {filteredProducts.length > 0 && totalProducts > filteredProducts.length && (
                     <button
                       onClick={() => { setSelectAllResults(true); }}
                       className="inline-flex items-center px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors font-medium"
                     >
-                      Select all {totalProducts} results
+						{t('common.selectAll', locale === 'zh' ? `选择全部 ${totalProducts} 条结果` : `Select all ${totalProducts} results`)}
                     </button>
                   )}
                 </>
               ) : (
                 <>
                   <span className="text-green-700 font-medium bg-green-50 px-3 py-1.5 rounded-md">
-                    All {totalProducts} results selected
+					{t('common.allSelected', locale === 'zh' ? `已选择全部 ${totalProducts} 条结果` : `All ${totalProducts} results selected`)}
                   </span>
                   <button
                     onClick={() => { setSelectAllResults(false); setSelectedIds([]); }}
                     className="inline-flex items-center px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors font-medium"
                   >
-                    Clear selection
+					{t('common.clearSelection', locale === 'zh' ? '清空选择' : 'Clear selection')}
                   </button>
                 </>
               )}
@@ -595,7 +620,7 @@ function AdminProductsContent() {
           {/* Bottom Row - Bulk Action Buttons */}
           <div className="p-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-gray-700 font-medium mr-2">Bulk actions:</span>
+				<span className="text-sm text-gray-700 font-medium mr-2">{t('common.bulkActions', locale === 'zh' ? '批量操作：' : 'Bulk actions:')}</span>
 
               <button
                 onClick={() => bulkSetActive(true)}
@@ -605,7 +630,7 @@ function AdminProductsContent() {
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Set Active
+				{t('products.bulk.setActive', locale === 'zh' ? '设为启用' : 'Set Active')}
               </button>
 
               <button
@@ -616,7 +641,7 @@ function AdminProductsContent() {
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-                Set Inactive
+				{t('products.bulk.setInactive', locale === 'zh' ? '设为停用' : 'Set Inactive')}
               </button>
 
               <button
@@ -627,7 +652,7 @@ function AdminProductsContent() {
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                 </svg>
-                Mark Featured
+				{t('products.bulk.markFeatured', locale === 'zh' ? '设为推荐' : 'Mark Featured')}
               </button>
 
               <button
@@ -638,7 +663,7 @@ function AdminProductsContent() {
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
                 </svg>
-                Unmark Featured
+				{t('products.bulk.unmarkFeatured', locale === 'zh' ? '取消推荐' : 'Unmark Featured')}
               </button>
 
               <button
@@ -648,10 +673,10 @@ function AdminProductsContent() {
                   bulkApplyDefaultImageMutation.isPending ||
                   (!selectAllResults && selectedIds.length === 0)
                 }
-                title="Apply default SKU-watermarked image to products that currently have no images"
+				title={t('products.bulk.applyDefaultTitle', locale === 'zh' ? '为当前没有图片的产品应用默认 SKU 水印图' : 'Apply default SKU-watermarked image to products that currently have no images')}
               >
                 <SparklesIcon className="h-4 w-4 mr-2" />
-                Apply Default Image
+				{t('products.bulk.applyDefault', locale === 'zh' ? '应用默认图片' : 'Apply Default Image')}
               </button>
 
               <button
@@ -661,15 +686,17 @@ function AdminProductsContent() {
                   bulkRemoveDefaultImageMutation.isPending ||
                   (!selectAllResults && selectedIds.length === 0)
                 }
-                title="Remove the default watermark image URL (keeps other images)"
+				title={t('products.bulk.removeDefaultTitle', locale === 'zh' ? '移除默认水印图 URL（保留其他图片）' : 'Remove the default watermark image URL (keeps other images)')}
               >
                 <XMarkIcon className="h-4 w-4 mr-2" />
-                Remove Default Image
+				{t('products.bulk.removeDefault', locale === 'zh' ? '移除默认图片' : 'Remove Default Image')}
               </button>
 
               {(selectedIds.length > 0 || selectAllResults) && (
                 <div className="ml-auto text-sm text-gray-500 bg-gray-100 px-3 py-2 rounded-lg">
-                  {selectAllResults ? `${totalProducts} products selected` : `${selectedIds.length} products selected`}
+					{selectAllResults
+						? (locale === 'zh' ? `已选择 ${totalProducts} 个产品` : `${totalProducts} products selected`)
+						: (locale === 'zh' ? `已选择 ${selectedIds.length} 个产品` : `${selectedIds.length} products selected`)}
                 </div>
               )}
             </div>
@@ -681,9 +708,9 @@ function AdminProductsContent() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Search */}
             <div>
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-                Search
-              </label>
+                <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+				{t('common.search', locale === 'zh' ? '搜索' : 'Search')}
+                </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
@@ -694,23 +721,23 @@ function AdminProductsContent() {
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Search products..."
+				  placeholder={t('products.page.searchPh', locale === 'zh' ? '搜索产品...' : 'Search products...')}
                 />
               </div>
             </div>
 
             {/* Category Filter */}
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-                Category
-              </label>
+                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+				{t('products.field.category', locale === 'zh' ? '分类' : 'Category')}
+                </label>
               <select
                 id="category"
                 value={selectedCategory}
                 onChange={(e) => handleCategoryChange(e.target.value)}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">All Categories</option>
+				<option value="">{t('products.page.allCategories', locale === 'zh' ? '全部分类' : 'All Categories')}</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id.toString()}>
                     {category.name}
@@ -721,19 +748,19 @@ function AdminProductsContent() {
 
             {/* Status Filter */}
             <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
+                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+				{t('products.status.title', locale === 'zh' ? '状态' : 'Status')}
+                </label>
               <select
                 id="status"
                 value={statusFilter}
                 onChange={(e) => handleStatusChange(e.target.value)}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="featured">Featured</option>
+				<option value="all">{t('common.all', locale === 'zh' ? '全部' : 'All')}</option>
+				<option value="active">{t('common.active', locale === 'zh' ? '启用' : 'Active')}</option>
+				<option value="inactive">{t('common.inactive', locale === 'zh' ? '停用' : 'Inactive')}</option>
+				<option value="featured">{t('products.status.featured', locale === 'zh' ? '推荐' : 'Featured')}</option>
               </select>
             </div>
 
@@ -745,7 +772,7 @@ function AdminProductsContent() {
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 <FunnelIcon className="h-4 w-4 mr-2" />
-                Clear Filters
+				{t('common.clearFilters', locale === 'zh' ? '清除筛选' : 'Clear Filters')}
               </button>
             </div>
           </div>
@@ -755,18 +782,22 @@ function AdminProductsContent() {
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">
-              Products ({isLoading ? '...' : filteredProducts.length})
+              {t(
+                'products.page.tableTitle',
+                locale === 'zh' ? '产品（{count}）' : 'Products ({count})',
+                { count: isLoading ? '...' : filteredProducts.length }
+              )}
             </h3>
           </div>
 
           {isLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-sm text-gray-500">Loading products...</p>
+			  <p className="mt-2 text-sm text-gray-500">{t('products.page.loading', locale === 'zh' ? '正在加载产品...' : 'Loading products...')}</p>
             </div>
           ) : error ? (
             <div className="text-center py-12">
-              <p className="text-sm text-red-600">Failed to load products. Please try again.</p>
+			  <p className="text-sm text-red-600">{t('products.page.loadFailed', locale === 'zh' ? '加载产品失败，请重试。' : 'Failed to load products. Please try again.')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -777,22 +808,22 @@ function AdminProductsContent() {
                     <input type="checkbox" className="h-4 w-4 rounded border-gray-300" onChange={(e)=>toggleSelectAllOnPage(e.target.checked, filteredProducts)} checked={!selectAllResults && selectedIds.length>0 && selectedIds.length===filteredProducts.length} />
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Product
+                    {t('products.table.product', locale === 'zh' ? '产品' : 'Product')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
+                    {t('products.table.category', locale === 'zh' ? '分类' : 'Category')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price
+                    {t('products.table.price', locale === 'zh' ? '价格' : 'Price')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock
+                    {t('products.table.stock', locale === 'zh' ? '库存' : 'Stock')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t('products.table.status', locale === 'zh' ? '状态' : 'Status')}
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                    {t('common.actions', locale === 'zh' ? '操作' : 'Actions')}
                   </th>
                 </tr>
               </thead>
@@ -826,7 +857,7 @@ function AdminProductsContent() {
                             {product.name}
                           </div>
                           <div className="text-sm text-gray-500">
-                            SKU: {product.sku}
+                            {t('products.field.skuLabel', locale === 'zh' ? 'SKU：' : 'SKU:')} {product.sku}
                           </div>
                         </div>
                       </div>
@@ -844,7 +875,7 @@ function AdminProductsContent() {
                         product.stock_quantity > 10 ? 'text-green-600' :
                         product.stock_quantity > 0 ? 'text-yellow-600' : 'text-red-600'
                       }`}>
-                        {product.stock_quantity} units
+                        {t('products.stock.units', locale === 'zh' ? '{count} 件' : '{count} units', { count: product.stock_quantity })}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -854,11 +885,13 @@ function AdminProductsContent() {
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                         }`}>
-                          {product.is_active ? 'Active' : 'Inactive'}
+                          {product.is_active
+                            ? t('common.active', locale === 'zh' ? '启用' : 'Active')
+                            : t('common.inactive', locale === 'zh' ? '停用' : 'Inactive')}
                         </span>
                         {product.is_featured && (
                           <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                            Featured
+                            {t('products.status.featured', locale === 'zh' ? '推荐' : 'Featured')}
                           </span>
                         )}
                       </div>
@@ -898,9 +931,9 @@ function AdminProductsContent() {
           {!isLoading && !error && filteredProducts.length === 0 && (
             <div className="text-center py-12">
               <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No products found</h3>
+			  <h3 className="mt-2 text-sm font-medium text-gray-900">{t('products.page.empty', locale === 'zh' ? '没有找到产品' : 'No products found')}</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Get started by adding a new product.
+                {t('products.page.emptyHint', locale === 'zh' ? '从添加一个新产品开始吧。' : 'Get started by adding a new product.')}
               </p>
               <div className="mt-6">
                 <Link
@@ -908,7 +941,7 @@ function AdminProductsContent() {
                   className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
                   <PlusIcon className="h-4 w-4 mr-2" />
-                  Add Product
+                  {t('products.new.title', locale === 'zh' ? '新增产品' : 'Add Product')}
                 </Link>
               </div>
             </div>
@@ -931,7 +964,17 @@ function AdminProductsContent() {
           {/* Products count info */}
           {!isLoading && !error && totalProducts > 0 && (
             <div className="mt-4 text-center text-sm text-gray-500">
-              Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalProducts)} of {totalProducts} products
+              {t(
+                'common.showingRange',
+                locale === 'zh'
+                  ? '显示第 {from} - {to} 条，共 {total} 个产品'
+                  : 'Showing {from} to {to} of {total} products',
+                {
+                  from: ((currentPage - 1) * pageSize) + 1,
+                  to: Math.min(currentPage * pageSize, totalProducts),
+                  total: totalProducts,
+                }
+              )}
             </div>
           )}
         </div>
@@ -941,8 +984,17 @@ function AdminProductsContent() {
 }
 
 export default function AdminProductsPage() {
+  function AdminProductsPageFallback() {
+    const { locale, t } = useAdminI18n();
+    return (
+      <div className="flex items-center justify-center py-10">
+        {t('common.loading', locale === 'zh' ? '加载中...' : 'Loading...')}
+      </div>
+    );
+  }
+
   return (
-    <Suspense fallback={<div className="flex items-center justify-center py-10">Loading...</div>}>
+	<Suspense fallback={<AdminProductsPageFallback />}>
       <AdminProductsContent />
     </Suspense>
   );

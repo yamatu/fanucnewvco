@@ -10,6 +10,7 @@ import { SortableList } from '@/components/admin/homepage/SortableList';
 import { IconPreview } from '@/components/admin/homepage/icon-options';
 import { DEFAULT_WORKSHOP_SECTION_DATA } from '@/lib/homepage-defaults';
 import { newId } from '@/components/admin/homepage/homepage-schema';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 type FacilityForm = {
   id: string;
@@ -128,18 +129,8 @@ function toData(values: FormValues): any {
   };
 }
 
-const FACILITY_ICON_OPTIONS = [
-  { value: 'beaker', label: 'Beaker' },
-  { value: 'archive', label: 'Archive' },
-  { value: 'wrench', label: 'Wrench' },
-  { value: 'shield', label: 'Shield' },
-];
-const CAP_ICON_OPTIONS = [
-  { value: 'cog', label: 'Cog' },
-  { value: 'clipboard', label: 'Clipboard' },
-  { value: 'truck', label: 'Truck' },
-  { value: 'check', label: 'Check' },
-];
+const FACILITY_ICON_OPTIONS: string[] = ['beaker', 'archive', 'wrench', 'shield'];
+const CAP_ICON_OPTIONS: string[] = ['cog', 'clipboard', 'truck', 'check'];
 
 export default function WorkshopEditor({
   content,
@@ -148,6 +139,7 @@ export default function WorkshopEditor({
   content?: HomepageContent | null;
   onSave: (payload: { data: any; title?: string; description?: string; is_active: boolean; sort_order: number }) => Promise<void>;
 }) {
+  const { locale, t } = useAdminI18n();
   const defaults = useMemo(() => fromContent(content), [content]);
   const { register, control, handleSubmit, reset, setValue, watch, formState } = useForm<FormValues>({ defaultValues: defaults });
   useEffect(() => reset(defaults), [defaults, reset]);
@@ -159,6 +151,28 @@ export default function WorkshopEditor({
   const facilities = watch('facilities');
   const capabilities = watch('capabilities');
   const statsItems = watch('statsItems');
+
+  const facilityIconLabel = (value: string) => {
+    const v = String(value || '').toLowerCase();
+    const map: Record<string, string> = {
+      beaker: t('homepage.icon.beaker', locale === 'zh' ? '烧杯' : 'Beaker'),
+      archive: t('homepage.icon.archive', locale === 'zh' ? '档案盒' : 'Archive'),
+      wrench: t('homepage.icon.wrench', locale === 'zh' ? '扳手' : 'Wrench'),
+      shield: t('homepage.icon.shield', locale === 'zh' ? '盾牌' : 'Shield'),
+    };
+    return map[v] || value;
+  };
+
+  const capIconLabel = (value: string) => {
+    const v = String(value || '').toLowerCase();
+    const map: Record<string, string> = {
+      cog: t('homepage.icon.cog', locale === 'zh' ? '齿轮' : 'Cog'),
+      clipboard: t('homepage.icon.clipboard', locale === 'zh' ? '清单' : 'Clipboard'),
+      truck: t('homepage.icon.truck', locale === 'zh' ? '卡车' : 'Truck'),
+      check: t('homepage.icon.check', locale === 'zh' ? '勾选' : 'Check'),
+    };
+    return map[v] || value;
+  };
 
   const [picker, setPicker] = useState<{ open: boolean; facilityIdx: number | null }>({ open: false, facilityIdx: null });
 
@@ -178,23 +192,23 @@ export default function WorkshopEditor({
       <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.sortOrder', locale === 'zh' ? '排序' : 'Sort Order')}</label>
             <input type="number" {...register('sort_order', { valueAsNumber: true })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
           </div>
           <div className="flex items-end">
             <label className="inline-flex items-center gap-2 text-sm text-gray-700">
               <input type="checkbox" {...register('is_active')} className="h-4 w-4 rounded border-gray-300" />
-              Active
+              {t('common.active', locale === 'zh' ? '启用' : 'Active')}
             </label>
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Header Title</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.title', locale === 'zh' ? '标题' : 'Header Title')}</label>
           <input {...register('headerTitle')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Header Description</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.description', locale === 'zh' ? '描述' : 'Header Description')}</label>
           <textarea rows={3} {...register('headerDescription')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
         </div>
       </div>
@@ -202,14 +216,14 @@ export default function WorkshopEditor({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-6 bg-white border border-gray-200 rounded-lg p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="font-medium text-gray-900">Facilities (Tabs)</div>
+            <div className="font-medium text-gray-900">{t('homepage.workshop.facilities', locale === 'zh' ? '设施（标签页）' : 'Facilities (Tabs)')}</div>
             <button
               type="button"
               onClick={() => facilitiesFA.append({ id: newId('facility'), icon: 'beaker', title: '', description: '', image: '', featuresText: '' })}
               className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700"
             >
               <PlusIcon className="h-4 w-4" />
-              Add
+              {t('common.add', locale === 'zh' ? '添加' : 'Add')}
             </button>
           </div>
 
@@ -232,16 +246,26 @@ export default function WorkshopEditor({
                       {...drag.attributes}
                       {...drag.listeners}
                       className="p-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing"
-                      title="Drag to reorder"
+                      title={t('common.dragToReorder', locale === 'zh' ? '拖拽排序' : 'Drag to reorder')}
                     >
                       <Bars3Icon className="h-5 w-5" />
                     </button>
                     <IconPreview name={String(f?.icon || 'beaker')} />
                     <div className="flex-1 font-medium text-gray-900 truncate">{f?.title?.trim() ? f.title : `Facility ${idx + 1}`}</div>
-                    <button type="button" onClick={() => setPicker({ open: true, facilityIdx: idx })} className="p-2 rounded-md border border-gray-200 hover:bg-gray-50" title="Choose image">
+                    <button
+                      type="button"
+                      onClick={() => setPicker({ open: true, facilityIdx: idx })}
+                      className="p-2 rounded-md border border-gray-200 hover:bg-gray-50"
+                      title={t('common.chooseImage', locale === 'zh' ? '选择图片' : 'Choose image')}
+                    >
                       <PhotoIcon className="h-5 w-5" />
                     </button>
-                    <button type="button" onClick={() => facilitiesFA.remove(idx)} className="p-2 rounded-md border border-gray-200 text-red-600 hover:bg-red-50" title="Delete">
+                    <button
+                      type="button"
+                      onClick={() => facilitiesFA.remove(idx)}
+                      className="p-2 rounded-md border border-gray-200 text-red-600 hover:bg-red-50"
+                      title={t('common.delete', locale === 'zh' ? '删除' : 'Delete')}
+                    >
                       <TrashIcon className="h-5 w-5" />
                     </button>
                   </div>
@@ -270,7 +294,7 @@ export default function WorkshopEditor({
                       <div className="flex gap-2">
                         <input {...register(`facilities.${idx}.image` as const)} className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="/uploads/..." />
                         <button type="button" onClick={() => setPicker({ open: true, facilityIdx: idx })} className="px-3 py-2 border border-gray-200 rounded-md text-sm hover:bg-gray-50">
-                          Choose
+                          {t('common.choose', locale === 'zh' ? '选择' : 'Choose')}
                         </button>
                       </div>
                     </div>
@@ -287,7 +311,7 @@ export default function WorkshopEditor({
 
         <div className="lg:col-span-6 bg-white border border-gray-200 rounded-lg p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="font-medium text-gray-900">Capabilities</div>
+            <div className="font-medium text-gray-900">{t('homepage.workshop.capabilities', locale === 'zh' ? '能力' : 'Capabilities')}</div>
             <button
               type="button"
               onClick={() => capabilitiesFA.append({ id: newId('cap'), icon: 'cog', title: '', description: '' })}
@@ -354,7 +378,7 @@ export default function WorkshopEditor({
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-        <div className="font-medium text-gray-900">Bottom Stats + CTA (Yellow Block)</div>
+        <div className="font-medium text-gray-900">{t('homepage.workshop.bottomBlock', locale === 'zh' ? '底部统计 + CTA（黄色区块）' : 'Bottom Stats + CTA (Yellow Block)')}</div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-6 space-y-4">
@@ -444,10 +468,10 @@ export default function WorkshopEditor({
 
         <div className="flex items-center justify-between pt-2">
           <button type="button" onClick={() => reset(defaults)} className="px-4 py-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50" disabled={formState.isSubmitting}>
-            Reset
+            {t('common.reset', locale === 'zh' ? '重置' : 'Reset')}
           </button>
           <button type="submit" className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50" disabled={formState.isSubmitting}>
-            Save
+            {t('common.save', locale === 'zh' ? '保存' : 'Save')}
           </button>
         </div>
       </div>
@@ -456,7 +480,7 @@ export default function WorkshopEditor({
         open={picker.open}
         onClose={() => setPicker({ open: false, facilityIdx: null })}
         multiple={false}
-        title="Select an image"
+        title={t('media.picker.title.single', locale === 'zh' ? '选择图片' : 'Select an image')}
         onSelect={(assets) => {
           if (picker.facilityIdx == null) return;
           if (assets[0]) setValue(`facilities.${picker.facilityIdx}.image` as const, assets[0].url, { shouldDirty: true });
@@ -465,4 +489,3 @@ export default function WorkshopEditor({
     </form>
   );
 }
-

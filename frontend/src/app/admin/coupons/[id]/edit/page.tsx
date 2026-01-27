@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -8,6 +8,7 @@ import * as yup from 'yup';
 import { toast } from 'react-hot-toast';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { CouponService, Coupon, CouponCreateRequest } from '@/services/coupon.service';
+import { useAdminI18n } from '@/lib/admin-i18n';
 import {
   TagIcon,
   ArrowLeftIcon,
@@ -15,25 +16,23 @@ import {
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
-// Validation schema
-const couponSchema = yup.object({
-  code: yup.string().required('Coupon code is required').min(3, 'Code must be at least 3 characters'),
-  name: yup.string().required('Coupon name is required'),
-  description: yup.string(),
-  type: yup.string().oneOf(['percentage', 'fixed_amount']).required('Discount type is required'),
-  value: yup.number().required('Discount value is required').min(0.01, 'Value must be greater than 0'),
-  min_order_amount: yup.number().min(0, 'Minimum order amount cannot be negative').default(0),
-  max_discount_amount: yup.number().min(0, 'Maximum discount amount cannot be negative').nullable(),
-  usage_limit: yup.number().min(1, 'Usage limit must be at least 1').nullable(),
-  user_usage_limit: yup.number().min(1, 'User usage limit must be at least 1').nullable(),
-  is_active: yup.boolean().default(true),
-  starts_at: yup.string().nullable(),
-  expires_at: yup.string().nullable()
-});
-
-type CouponFormData = yup.InferType<typeof couponSchema>;
+type CouponFormData = {
+  code: string;
+  name: string;
+  description?: string;
+  type: 'percentage' | 'fixed_amount';
+  value: number;
+  min_order_amount?: number;
+  max_discount_amount?: number | null;
+  usage_limit?: number | null;
+  user_usage_limit?: number | null;
+  is_active: boolean;
+  starts_at?: string | null;
+  expires_at?: string | null;
+};
 
 export default function EditCouponPage() {
+  const { locale, t } = useAdminI18n();
   const params = useParams();
   const router = useRouter();
   const couponId = parseInt(params.id as string);
@@ -84,7 +83,7 @@ export default function EditCouponPage() {
         expires_at: formatDateForInput(couponData.expires_at)
       });
     } catch (error: any) {
-      toast.error(error.message || 'Failed to fetch coupon');
+      toast.error(error.message || t('coupons.toast.detailLoadFailed', locale === 'zh' ? '加载优惠券失败' : 'Failed to fetch coupon'));
     } finally {
       setLoading(false);
     }
@@ -102,7 +101,7 @@ export default function EditCouponPage() {
     try {
       // Validate percentage value
       if (data.type === 'percentage' && data.value > 100) {
-        toast.error('Percentage discount cannot exceed 100%');
+        toast.error(t('coupons.validation.percentMax', locale === 'zh' ? '百分比折扣不能超过 100%' : 'Percentage discount cannot exceed 100%'));
         return;
       }
 
@@ -115,10 +114,10 @@ export default function EditCouponPage() {
       };
 
       await CouponService.updateCoupon(couponId, formattedData);
-      toast.success('Coupon updated successfully');
+      toast.success(t('coupons.toast.updated', locale === 'zh' ? '优惠券更新成功' : 'Coupon updated successfully'));
       router.push(`/admin/coupons/${couponId}`);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update coupon');
+      toast.error(error.message || t('coupons.toast.updateFailed', locale === 'zh' ? '更新优惠券失败' : 'Failed to update coupon'));
     } finally {
       setIsSubmitting(false);
     }
@@ -148,16 +147,16 @@ export default function EditCouponPage() {
       <AdminLayout>
         <div className="text-center py-12">
           <TagIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Coupon not found</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">{t('coupons.notFound', locale === 'zh' ? '未找到优惠券' : 'Coupon not found')}</h3>
           <p className="mt-1 text-sm text-gray-500">
-            The coupon you're trying to edit doesn't exist or has been deleted.
+            {t('coupons.notFound.desc', locale === 'zh' ? '你要编辑的优惠券不存在或已被删除。' : "The coupon you're trying to edit doesn't exist or has been deleted.")}
           </p>
           <div className="mt-6">
             <Link
               href="/admin/coupons"
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700"
             >
-              Back to Coupons
+              {t('coupons.back', locale === 'zh' ? '返回优惠券列表' : 'Back to Coupons')}
             </Link>
           </div>
         </div>
@@ -179,7 +178,7 @@ export default function EditCouponPage() {
             </Link>
             <TagIcon className="h-8 w-8 text-amber-600" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Edit Coupon</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{t('coupons.edit', locale === 'zh' ? '编辑优惠券' : 'Edit Coupon')}</h1>
               <p className="text-sm text-gray-500">{coupon.code}</p>
             </div>
           </div>
@@ -192,12 +191,17 @@ export default function EditCouponPage() {
               <InformationCircleIcon className="h-5 w-5 text-yellow-400 mt-0.5" />
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-yellow-800">
-                  Coupon Already Used
+                  {t('coupons.usedWarning', locale === 'zh' ? '该优惠券已被使用' : 'Coupon Already Used')}
                 </h3>
                 <div className="mt-2 text-sm text-yellow-700">
-                  <p>
-                    This coupon has been used <strong>{coupon.used_count}</strong> times.
-                    Be careful when making changes as they may affect existing usage records.
+                    <p>
+                    {t(
+                      'coupons.usedWarning.desc',
+                      locale === 'zh'
+                        ? '该优惠券已被使用 {count} 次。修改时请谨慎，可能会影响已有的使用记录。'
+                        : 'This coupon has been used {count} times. Be careful when making changes as they may affect existing usage records.',
+                      { count: coupon.used_count }
+                    )}
                   </p>
                 </div>
               </div>
@@ -210,7 +214,7 @@ export default function EditCouponPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 p-6">
             {/* Basic Information */}
             <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('coupons.section.basic', locale === 'zh' ? '基础信息' : 'Basic Information')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Coupon Code */}
                 <div>
@@ -225,7 +229,7 @@ export default function EditCouponPage() {
                       className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 ${
                         errors.code ? 'border-red-300' : 'border-gray-300'
                       }`}
-                      placeholder="Enter coupon code"
+                      placeholder={t('coupons.field.codePh', locale === 'zh' ? '输入优惠券代码' : 'Enter coupon code')}
                       style={{ textTransform: 'uppercase' }}
                     />
                     <button
@@ -233,7 +237,7 @@ export default function EditCouponPage() {
                       onClick={generateRandomCode}
                       className="px-3 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
                     >
-                      Generate
+                      {t('common.generate', locale === 'zh' ? '生成' : 'Generate')}
                     </button>
                   </div>
                   {errors.code && (
@@ -244,7 +248,7 @@ export default function EditCouponPage() {
                 {/* Coupon Name */}
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                    Coupon Name *
+                    {t('coupons.field.name', locale === 'zh' ? '优惠券名称 *' : 'Coupon Name *')}
                   </label>
                   <input
                     type="text"
@@ -253,7 +257,7 @@ export default function EditCouponPage() {
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 ${
                       errors.name ? 'border-red-300' : 'border-gray-300'
                     }`}
-                    placeholder="Enter coupon name"
+                    placeholder={t('coupons.field.namePh', locale === 'zh' ? '输入优惠券名称' : 'Enter coupon name')}
                   />
                   {errors.name && (
                     <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -263,14 +267,14 @@ export default function EditCouponPage() {
                 {/* Description */}
                 <div className="md:col-span-2">
                   <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                    Description
+                    {t('coupons.field.description', locale === 'zh' ? '描述' : 'Description')}
                   </label>
                   <textarea
                     id="description"
                     {...register('description')}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                    placeholder="Enter coupon description"
+                    placeholder={t('coupons.field.descriptionPh', locale === 'zh' ? '输入优惠券描述' : 'Enter coupon description')}
                   />
                 </div>
               </div>
@@ -278,27 +282,27 @@ export default function EditCouponPage() {
 
             {/* Discount Settings */}
             <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Discount Settings</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('coupons.section.discount', locale === 'zh' ? '优惠设置' : 'Discount Settings')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Discount Type */}
                 <div>
                   <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
-                    Discount Type *
+                    {t('coupons.field.type', locale === 'zh' ? '优惠类型 *' : 'Discount Type *')}
                   </label>
                   <select
                     id="type"
                     {...register('type')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                   >
-                    <option value="percentage">Percentage Discount</option>
-                    <option value="fixed_amount">Fixed Amount Discount</option>
+                    <option value="percentage">{t('coupons.type.percentage', locale === 'zh' ? '百分比折扣' : 'Percentage Discount')}</option>
+                    <option value="fixed_amount">{t('coupons.type.fixed', locale === 'zh' ? '固定金额立减' : 'Fixed Amount Discount')}</option>
                   </select>
                 </div>
 
                 {/* Discount Value */}
                 <div>
                   <label htmlFor="value" className="block text-sm font-medium text-gray-700 mb-2">
-                    Discount Value *
+                    {t('coupons.field.value', locale === 'zh' ? '优惠数值 *' : 'Discount Value *')}
                   </label>
                   <div className="relative">
                     <input
@@ -311,7 +315,9 @@ export default function EditCouponPage() {
                       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 ${
                         errors.value ? 'border-red-300' : 'border-gray-300'
                       }`}
-                      placeholder={watchType === 'percentage' ? '0-100' : '0.00'}
+                      placeholder={watchType === 'percentage'
+                        ? t('coupons.field.valuePh.percent', locale === 'zh' ? '0-100' : '0-100')
+                        : t('coupons.field.valuePh.amount', locale === 'zh' ? '0.00' : '0.00')}
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                       <span className="text-gray-500 text-sm">
@@ -323,14 +329,16 @@ export default function EditCouponPage() {
                     <p className="mt-1 text-sm text-red-600">{errors.value.message}</p>
                   )}
                   {watchType === 'percentage' && watchValue > 100 && (
-                    <p className="mt-1 text-sm text-red-600">Percentage cannot exceed 100%</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {t('coupons.validation.percentMax', locale === 'zh' ? '百分比不能超过 100%' : 'Percentage cannot exceed 100%')}
+                    </p>
                   )}
                 </div>
 
                 {/* Minimum Order Amount */}
                 <div>
                   <label htmlFor="min_order_amount" className="block text-sm font-medium text-gray-700 mb-2">
-                    Minimum Order Amount
+                    {t('coupons.field.minOrder', locale === 'zh' ? '最低订单金额' : 'Minimum Order Amount')}
                   </label>
                   <div className="relative">
                     <input
@@ -342,7 +350,7 @@ export default function EditCouponPage() {
                       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 ${
                         errors.min_order_amount ? 'border-red-300' : 'border-gray-300'
                       }`}
-                      placeholder="0.00"
+                      placeholder={t('coupons.field.moneyPh', locale === 'zh' ? '0.00' : '0.00')}
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                       <span className="text-gray-500 text-sm">$</span>
@@ -357,7 +365,7 @@ export default function EditCouponPage() {
                 {watchType === 'percentage' && (
                   <div>
                     <label htmlFor="max_discount_amount" className="block text-sm font-medium text-gray-700 mb-2">
-                      Maximum Discount Amount
+                      {t('coupons.field.maxDiscount', locale === 'zh' ? '最高优惠金额' : 'Maximum Discount Amount')}
                     </label>
                     <div className="relative">
                       <input
@@ -369,7 +377,7 @@ export default function EditCouponPage() {
                         className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 ${
                           errors.max_discount_amount ? 'border-red-300' : 'border-gray-300'
                         }`}
-                        placeholder="No limit"
+                        placeholder={t('common.noLimit', locale === 'zh' ? '不限制' : 'No limit')}
                       />
                       <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                         <span className="text-gray-500 text-sm">$</span>
@@ -388,12 +396,12 @@ export default function EditCouponPage() {
 
             {/* Usage Limits */}
             <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Usage Limits</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('coupons.section.limits', locale === 'zh' ? '使用限制' : 'Usage Limits')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Total Usage Limit */}
                 <div>
                   <label htmlFor="usage_limit" className="block text-sm font-medium text-gray-700 mb-2">
-                    Total Usage Limit
+                    {t('coupons.field.usageLimit', locale === 'zh' ? '总使用上限' : 'Total Usage Limit')}
                   </label>
                   <input
                     type="number"
@@ -403,7 +411,7 @@ export default function EditCouponPage() {
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 ${
                       errors.usage_limit ? 'border-red-300' : 'border-gray-300'
                     }`}
-                    placeholder="Unlimited"
+                    placeholder={t('common.unlimited', locale === 'zh' ? '无限制' : 'Unlimited')}
                   />
                   {errors.usage_limit && (
                     <p className="mt-1 text-sm text-red-600">{errors.usage_limit.message}</p>
@@ -416,7 +424,7 @@ export default function EditCouponPage() {
                 {/* Per User Usage Limit */}
                 <div>
                   <label htmlFor="user_usage_limit" className="block text-sm font-medium text-gray-700 mb-2">
-                    Per User Usage Limit
+                    {t('coupons.field.userUsageLimit', locale === 'zh' ? '单用户上限' : 'Per User Usage Limit')}
                   </label>
                   <input
                     type="number"
@@ -426,7 +434,7 @@ export default function EditCouponPage() {
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 ${
                       errors.user_usage_limit ? 'border-red-300' : 'border-gray-300'
                     }`}
-                    placeholder="Unlimited"
+                    placeholder={t('common.unlimited', locale === 'zh' ? '无限制' : 'Unlimited')}
                   />
                   {errors.user_usage_limit && (
                     <p className="mt-1 text-sm text-red-600">{errors.user_usage_limit.message}</p>
@@ -440,7 +448,7 @@ export default function EditCouponPage() {
 
             {/* Date Range */}
             <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Date Range</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('coupons.section.dates', locale === 'zh' ? '时间范围' : 'Date Range')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Start Date */}
                 <div>
@@ -478,7 +486,7 @@ export default function EditCouponPage() {
 
             {/* Status */}
             <div className="pb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Status</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('common.status', locale === 'zh' ? '状态' : 'Status')}</h3>
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -501,7 +509,7 @@ export default function EditCouponPage() {
                 href={`/admin/coupons/${coupon.id}`}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
               >
-                Cancel
+                {t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}
               </Link>
               <button
                 type="submit"
@@ -511,10 +519,10 @@ export default function EditCouponPage() {
                 {isSubmitting ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Updating...
+                    {t('common.updating', locale === 'zh' ? '更新中...' : 'Updating...')}
                   </div>
                 ) : (
-                  'Update Coupon'
+                  t('coupons.update', locale === 'zh' ? '更新优惠券' : 'Update Coupon')
                 )}
               </button>
             </div>
@@ -524,3 +532,42 @@ export default function EditCouponPage() {
     </AdminLayout>
   );
 }
+  const couponSchema = useMemo(
+    () =>
+      yup.object({
+        code: yup
+          .string()
+          .required(t('coupons.validation.codeRequired', locale === 'zh' ? '请输入优惠券代码' : 'Coupon code is required'))
+          .min(3, t('coupons.validation.codeMin', locale === 'zh' ? '代码至少 3 个字符' : 'Code must be at least 3 characters')),
+        name: yup.string().required(t('coupons.validation.nameRequired', locale === 'zh' ? '请输入优惠券名称' : 'Coupon name is required')),
+        description: yup.string(),
+        type: yup
+          .string()
+          .oneOf(['percentage', 'fixed_amount'])
+          .required(t('coupons.validation.typeRequired', locale === 'zh' ? '请选择优惠类型' : 'Discount type is required')),
+        value: yup
+          .number()
+          .required(t('coupons.validation.valueRequired', locale === 'zh' ? '请输入优惠数值' : 'Discount value is required'))
+          .min(0.01, t('coupons.validation.valueMin', locale === 'zh' ? '数值必须大于 0' : 'Value must be greater than 0')),
+        min_order_amount: yup
+          .number()
+          .min(0, t('coupons.validation.minOrderNonNeg', locale === 'zh' ? '最低订单金额不能为负数' : 'Minimum order amount cannot be negative'))
+          .default(0),
+        max_discount_amount: yup
+          .number()
+          .min(0, t('coupons.validation.maxNonNeg', locale === 'zh' ? '最高优惠不能为负数' : 'Maximum discount amount cannot be negative'))
+          .nullable(),
+        usage_limit: yup
+          .number()
+          .min(1, t('coupons.validation.usageMin', locale === 'zh' ? '使用上限至少为 1' : 'Usage limit must be at least 1'))
+          .nullable(),
+        user_usage_limit: yup
+          .number()
+          .min(1, t('coupons.validation.userUsageMin', locale === 'zh' ? '单用户上限至少为 1' : 'User usage limit must be at least 1'))
+          .nullable(),
+        is_active: yup.boolean().default(true),
+        starts_at: yup.string().nullable(),
+        expires_at: yup.string().nullable(),
+      }),
+    [locale, t]
+  );

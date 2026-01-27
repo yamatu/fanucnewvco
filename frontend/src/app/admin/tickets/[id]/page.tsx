@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { apiClient } from '@/lib/api';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { useAdminI18n } from '@/lib/admin-i18n';
 import {
   ChevronLeftIcon,
   PaperAirplaneIcon,
@@ -46,6 +47,7 @@ interface Ticket {
 }
 
 export default function AdminTicketDetailPage() {
+  const { locale, t } = useAdminI18n();
   const params = useParams();
   const ticketId = params?.id as string;
   const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -70,7 +72,7 @@ export default function AdminTicketDetailPage() {
       }
     } catch (error: any) {
       console.error('Failed to load ticket:', error);
-      toast.error('Failed to load ticket details');
+      toast.error(t('tickets.toast.detailLoadFailed', locale === 'zh' ? '加载工单详情失败' : 'Failed to load ticket details'));
     } finally {
       setLoading(false);
     }
@@ -87,12 +89,12 @@ export default function AdminTicketDetailPage() {
       });
 
       if (response.data.success) {
-        toast.success('Reply sent successfully');
+        toast.success(t('tickets.toast.replySent', locale === 'zh' ? '回复已发送' : 'Reply sent successfully'));
         setReplyMessage('');
         loadTicket();
       }
     } catch (error: any) {
-      toast.error('Failed to send reply');
+      toast.error(t('tickets.toast.replySendFailed', locale === 'zh' ? '发送回复失败' : 'Failed to send reply'));
     } finally {
       setSubmitting(false);
     }
@@ -105,12 +107,12 @@ export default function AdminTicketDetailPage() {
       });
 
       if (response.data.success) {
-        toast.success('Ticket status updated');
+        toast.success(t('tickets.toast.statusUpdated', locale === 'zh' ? '工单状态已更新' : 'Ticket status updated'));
         setStatus(newStatus);
         loadTicket();
       }
     } catch (error: any) {
-      toast.error('Failed to update status');
+      toast.error(t('tickets.toast.statusUpdateFailed', locale === 'zh' ? '更新工单状态失败' : 'Failed to update status'));
     }
   };
 
@@ -120,7 +122,7 @@ export default function AdminTicketDetailPage() {
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-sm text-gray-500">Loading ticket...</p>
+            <p className="mt-4 text-sm text-gray-500">{t('tickets.detail.loading', locale === 'zh' ? '正在加载工单...' : 'Loading ticket...')}</p>
           </div>
         </div>
       </AdminLayout>
@@ -131,7 +133,7 @@ export default function AdminTicketDetailPage() {
     return (
       <AdminLayout>
         <div className="px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-gray-500">Ticket not found</p>
+          <p className="text-center text-gray-500">{t('tickets.detail.notFound', locale === 'zh' ? '未找到工单' : 'Ticket not found')}</p>
         </div>
       </AdminLayout>
     );
@@ -154,7 +156,7 @@ export default function AdminTicketDetailPage() {
             className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
           >
             <ChevronLeftIcon className="h-4 w-4 mr-1" />
-            Back to Tickets
+            {t('tickets.back', locale === 'zh' ? '返回工单列表' : 'Back to Tickets')}
           </Link>
           <div className="md:flex md:items-center md:justify-between">
             <div className="flex-1 min-w-0">
@@ -170,7 +172,7 @@ export default function AdminTicketDetailPage() {
                       href={`/admin/orders?search=${ticket.order_number}`}
                       className="text-blue-600 hover:text-blue-800"
                     >
-                      Order #{ticket.order_number}
+                      {t('tickets.orderLink', locale === 'zh' ? '订单 #{orderNumber}' : 'Order #{orderNumber}', { orderNumber: ticket.order_number })}
                     </Link>
                   </>
                 )}
@@ -190,10 +192,10 @@ export default function AdminTicketDetailPage() {
                 onChange={(e) => handleStatusChange(e.target.value)}
                 className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
               >
-                <option value="open">Open</option>
-                <option value="in-progress">In Progress</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
+                <option value="open">{t('tickets.status.open', locale === 'zh' ? '未处理' : 'Open')}</option>
+                <option value="in-progress">{t('tickets.status.inProgress', locale === 'zh' ? '处理中' : 'In Progress')}</option>
+                <option value="resolved">{t('tickets.status.resolved', locale === 'zh' ? '已解决' : 'Resolved')}</option>
+                <option value="closed">{t('tickets.status.closed', locale === 'zh' ? '已关闭' : 'Closed')}</option>
               </select>
             </div>
           </div>
@@ -251,11 +253,11 @@ export default function AdminTicketDetailPage() {
                       <div>
                         <p className="text-sm font-medium text-gray-900">
                           {reply.is_staff
-                            ? (reply.admin_user?.full_name || 'Support Team')
+                            ? (reply.admin_user?.full_name || t('tickets.staffTeam', locale === 'zh' ? '客服团队' : 'Support Team'))
                             : ticket.customer.full_name}
                           {reply.is_staff && (
                             <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              Staff
+                              {t('tickets.staff', locale === 'zh' ? '客服' : 'Staff')}
                             </span>
                           )}
                         </p>
@@ -276,7 +278,7 @@ export default function AdminTicketDetailPage() {
             <div className="bg-white shadow rounded-lg p-6">
               <form onSubmit={handleReply}>
                 <label htmlFor="reply" className="block text-sm font-medium text-gray-700 mb-2">
-                  Add Reply
+                  {t('tickets.reply.add', locale === 'zh' ? '添加回复' : 'Add Reply')}
                 </label>
                 <textarea
                   id="reply"
@@ -284,7 +286,7 @@ export default function AdminTicketDetailPage() {
                   value={replyMessage}
                   onChange={(e) => setReplyMessage(e.target.value)}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                  placeholder="Type your response..."
+                  placeholder={t('tickets.reply.ph', locale === 'zh' ? '输入回复内容...' : 'Type your response...')}
                   disabled={submitting}
                 />
                 <div className="mt-4 flex justify-end">
@@ -315,12 +317,12 @@ export default function AdminTicketDetailPage() {
                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                           ></path>
                         </svg>
-                        Sending...
+                        {t('common.sending', locale === 'zh' ? '发送中...' : 'Sending...')}
                       </>
                     ) : (
                       <>
                         <PaperAirplaneIcon className="h-4 w-4 mr-2" />
-                        Send Reply
+                        {t('tickets.reply.send', locale === 'zh' ? '发送回复' : 'Send Reply')}
                       </>
                     )}
                   </button>
@@ -332,14 +334,14 @@ export default function AdminTicketDetailPage() {
           {/* Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Customer Information</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('tickets.customerInfo', locale === 'zh' ? '客户信息' : 'Customer Information')}</h3>
               <dl className="space-y-3">
                 <div>
-                  <dt className="text-xs font-medium text-gray-500 uppercase">Name</dt>
+                  <dt className="text-xs font-medium text-gray-500 uppercase">{t('tickets.field.name', locale === 'zh' ? '姓名' : 'Name')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">{ticket.customer.full_name}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-medium text-gray-500 uppercase">Email</dt>
+                  <dt className="text-xs font-medium text-gray-500 uppercase">{t('tickets.field.email', locale === 'zh' ? '邮箱' : 'Email')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     <a
                       href={`mailto:${ticket.customer.email}`}
@@ -351,7 +353,7 @@ export default function AdminTicketDetailPage() {
                 </div>
                 {ticket.customer.phone && (
                   <div>
-                    <dt className="text-xs font-medium text-gray-500 uppercase">Phone</dt>
+                    <dt className="text-xs font-medium text-gray-500 uppercase">{t('tickets.field.phone', locale === 'zh' ? '电话' : 'Phone')}</dt>
                     <dd className="mt-1 text-sm text-gray-900">
                       <a
                         href={`tel:${ticket.customer.phone}`}
@@ -363,7 +365,7 @@ export default function AdminTicketDetailPage() {
                   </div>
                 )}
                 <div>
-                  <dt className="text-xs font-medium text-gray-500 uppercase">Customer ID</dt>
+                  <dt className="text-xs font-medium text-gray-500 uppercase">{t('tickets.field.customerId', locale === 'zh' ? '客户ID' : 'Customer ID')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     <Link
                       href={`/admin/customers?search=${ticket.customer.email}`}
@@ -377,22 +379,22 @@ export default function AdminTicketDetailPage() {
             </div>
 
             <div className="bg-white shadow rounded-lg p-6 mt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Ticket Information</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('tickets.ticketInfo', locale === 'zh' ? '工单信息' : 'Ticket Information')}</h3>
               <dl className="space-y-3">
                 <div>
-                  <dt className="text-xs font-medium text-gray-500 uppercase">Created</dt>
+                  <dt className="text-xs font-medium text-gray-500 uppercase">{t('common.created', locale === 'zh' ? '创建时间' : 'Created')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     {new Date(ticket.created_at).toLocaleString()}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-medium text-gray-500 uppercase">Last Updated</dt>
+                  <dt className="text-xs font-medium text-gray-500 uppercase">{t('common.updated', locale === 'zh' ? '更新时间' : 'Last Updated')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     {new Date(ticket.updated_at).toLocaleString()}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-medium text-gray-500 uppercase">Replies</dt>
+                  <dt className="text-xs font-medium text-gray-500 uppercase">{t('tickets.replies', locale === 'zh' ? '回复数' : 'Replies')}</dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     {ticket.replies ? ticket.replies.length : 0}
                   </dd>

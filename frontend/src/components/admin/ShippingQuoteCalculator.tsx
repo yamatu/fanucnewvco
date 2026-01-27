@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 
 import { ShippingRateService, type ShippingQuote } from '@/services/shipping-rate.service';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 type Country = { country_code: string; country_name: string; currency: string };
 
@@ -13,6 +14,7 @@ export default function ShippingQuoteCalculator(props: {
 	defaultCountryCode?: string;
 	onSetPrice?: (nextPrice: number) => void;
 }) {
+	const { t } = useAdminI18n();
 	const { weightKg = 0, price = 0, defaultCountryCode = 'US', onSetPrice } = props;
 	const w = Number(weightKg || 0);
 
@@ -105,21 +107,21 @@ export default function ShippingQuoteCalculator(props: {
 		<div className="bg-white shadow rounded-lg p-6">
 			<div className="flex items-center justify-between gap-3">
 				<div>
-					<h3 className="text-lg font-medium text-gray-900">Shipping (By Weight)</h3>
-					<p className="mt-1 text-sm text-gray-500">Preview shipping fee from configured templates.</p>
+					<h3 className="text-lg font-medium text-gray-900">{t('shipping.calc.title', '运费预览（按重量）')}</h3>
+					<p className="mt-1 text-sm text-gray-500">{t('shipping.calc.subtitle', '根据已配置模板预览运费，并可自动加到标价。')}</p>
 				</div>
 			</div>
 
 			<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
 				<div>
-					<label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+					<label className="block text-sm font-medium text-gray-700 mb-1">{t('shipping.calc.country', '国家')}</label>
 					<select
 						value={countryCode}
 						onChange={(e) => setCountryCode(e.target.value)}
 						className="block w-full px-3 py-2 border border-gray-300 rounded-md"
 						disabled={loadingCountries || countries.length === 0}
 					>
-						<option value="">{loadingCountries ? 'Loading...' : 'Select country'}</option>
+						<option value="">{loadingCountries ? t('common.loading', '加载中...') : t('shipping.calc.country', '国家')}</option>
 						{countries.map((c) => (
 							<option key={c.country_code} value={c.country_code}>
 								{c.country_name} ({c.country_code})
@@ -129,14 +131,14 @@ export default function ShippingQuoteCalculator(props: {
 				</div>
 
 				<div>
-					<label className="block text-sm font-medium text-gray-700 mb-1">Weight (kg)</label>
+					<label className="block text-sm font-medium text-gray-700 mb-1">{t('shipping.calc.weight', '重量(kg)')}</label>
 					<div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900">{w > 0 ? w : '-'}</div>
 				</div>
 
 				<div>
-					<label className="block text-sm font-medium text-gray-700 mb-1">Shipping Fee</label>
+					<label className="block text-sm font-medium text-gray-700 mb-1">{t('shipping.calc.shippingFee', '运费')}</label>
 					<div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900">
-						{loadingQuote ? 'Calculating...' : quote ? `${quote.currency || 'USD'} ${shippingFee.toFixed(2)}` : '-'}
+						{loadingQuote ? t('common.loading', '加载中...') : quote ? `${quote.currency || 'USD'} ${shippingFee.toFixed(2)}` : '-'}
 					</div>
 				</div>
 			</div>
@@ -147,14 +149,14 @@ export default function ShippingQuoteCalculator(props: {
 
 			{quote && (
 				<div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 grid grid-cols-1 gap-2 sm:grid-cols-2">
-					<div>Rate / kg: {Number(quote.rate_per_kg || 0).toFixed(3)}</div>
-					<div>Base quote: {Number(quote.base_quote || 0).toFixed(2)}</div>
-					<div>Additional fee: {Number(quote.additional_fee || 0).toFixed(2)}</div>
+					<div>{t('shipping.calc.ratePerKg', '每公斤价格')}: {Number(quote.rate_per_kg || 0).toFixed(3)}</div>
+					<div>{t('shipping.calc.baseQuote', '基础运费')}: {Number(quote.base_quote || 0).toFixed(2)}</div>
+					<div>{t('shipping.calc.additionalFee', '附加费')}: {Number(quote.additional_fee || 0).toFixed(2)}</div>
 					<div>
-						Billing weight: {billingWeightKg ? Number(billingWeightKg).toFixed(3) : '-'}
-						{w > 0 && w < 21 ? <span className="ml-2 text-gray-500">(round up &lt; 21kg)</span> : null}
+						{t('shipping.calc.billingWeight', '计费重量')}: {billingWeightKg ? Number(billingWeightKg).toFixed(3) : '-'}
+						{w > 0 && w < 21 ? <span className="ml-2 text-gray-500">{t('shipping.calc.roundUpHint', '（<21kg 向上取整）')}</span> : null}
 					</div>
-					<div>Price + shipping: {nextPriceWithShipping.toFixed(2)}</div>
+					<div>{t('shipping.calc.priceWithShipping', '标价 + 运费')}: {nextPriceWithShipping.toFixed(2)}</div>
 				</div>
 			)}
 
@@ -170,7 +172,7 @@ export default function ShippingQuoteCalculator(props: {
 						className="h-4 w-4"
 						disabled={!onSetPrice}
 					/>
-					Auto apply to price
+					{t('shipping.calc.autoApply', '自动加到标价')}
 				</label>
 				<button
 					type="button"
@@ -180,13 +182,13 @@ export default function ShippingQuoteCalculator(props: {
 						const nextPrice = calcNextPrice(shippingFee);
 						onSetPrice(nextPrice);
 						setAppliedFee(shippingFee);
-						toast.success(`Price set to ${nextPrice.toFixed(2)} (shipping ${shippingFee.toFixed(2)})`);
+						toast.success(`${t('common.save', '保存')}: ${nextPrice.toFixed(2)} (${t('shipping.calc.shippingFee', '运费')} ${shippingFee.toFixed(2)})`);
 					}}
 					className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
 				>
-					Set Price = Base + Shipping
+					{t('shipping.calc.setPrice', '设置：标价 = 原价 + 运费')}
 				</button>
-				<span className="text-xs text-gray-500">Admin helper: uses current price as base and avoids double-adding.</span>
+				<span className="text-xs text-gray-500">{t('shipping.calc.helperNote', '后台助手：以当前标价为基准，避免重复叠加。')}</span>
 			</div>
 		</div>
 	);

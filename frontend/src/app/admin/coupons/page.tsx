@@ -21,7 +21,7 @@ import Link from 'next/link';
 import { useAdminI18n } from '@/lib/admin-i18n';
 
 export default function CouponsPage() {
-  const { t } = useAdminI18n();
+  const { locale, t } = useAdminI18n();
   const [coupons, setCoupons] = useState<PaginationResponse<Coupon> | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<number | null>(null);
@@ -37,7 +37,7 @@ export default function CouponsPage() {
       const data = await CouponService.getCoupons(filters);
       setCoupons(data);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to fetch coupons');
+      toast.error(error.message || t('coupons.toast.loadFailed', locale === 'zh' ? '加载优惠券失败' : 'Failed to fetch coupons'));
     } finally {
       setLoading(false);
     }
@@ -48,15 +48,15 @@ export default function CouponsPage() {
   }, [filters]);
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this coupon?')) return;
+    if (!confirm(t('coupons.confirm.delete', locale === 'zh' ? '确定要删除这个优惠券吗？此操作不可撤销。' : 'Are you sure you want to delete this coupon? This action cannot be undone.'))) return;
 
     setDeleting(id);
     try {
       await CouponService.deleteCoupon(id);
-      toast.success('Coupon deleted successfully');
+      toast.success(t('coupons.toast.deleted', locale === 'zh' ? '优惠券已删除' : 'Coupon deleted successfully'));
       fetchCoupons();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete coupon');
+      toast.error(error.message || t('coupons.toast.deleteFailed', locale === 'zh' ? '删除优惠券失败' : 'Failed to delete coupon'));
     } finally {
       setDeleting(null);
     }
@@ -88,11 +88,39 @@ export default function CouponsPage() {
       exhausted: 'bg-orange-100 text-orange-800'
     };
 
+    const label =
+      status.status === 'active'
+        ? t('coupons.status.active', locale === 'zh' ? '可用' : 'Active')
+        : status.status === 'inactive'
+          ? t('coupons.status.inactive', locale === 'zh' ? '停用' : 'Inactive')
+          : status.status === 'expired'
+            ? t('coupons.status.expired', locale === 'zh' ? '已过期' : 'Expired')
+            : status.status === 'scheduled'
+              ? t('coupons.status.scheduled', locale === 'zh' ? '未开始' : 'Scheduled')
+              : status.status === 'exhausted'
+                ? t('coupons.status.exhausted', locale === 'zh' ? '已用尽' : 'Usage Limit Reached')
+                : status.label;
+
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[status.status as keyof typeof colors] || colors.inactive}`}>
-        {status.label}
+        {label}
       </span>
     );
+  };
+
+  const formatDiscount = (coupon: Coupon) => {
+    if (coupon.type === 'percentage') {
+      const base = t('coupons.discount.percentage', locale === 'zh' ? '{value}% 折扣' : '{value}% off', { value: coupon.value });
+      if (coupon.max_discount_amount) {
+        return t(
+          'coupons.discount.percentageMax',
+          locale === 'zh' ? '{base}（最高 ${max}）' : '{base} (max ${max})',
+          { base, max: coupon.max_discount_amount }
+        );
+      }
+      return base;
+    }
+    return t('coupons.discount.fixed', locale === 'zh' ? '立减 ${value}' : '${value} off', { value: coupon.value });
   };
 
   const getUsageProgress = (coupon: Coupon) => {
@@ -123,7 +151,7 @@ export default function CouponsPage() {
             className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 flex items-center space-x-2"
           >
             <PlusIcon className="h-5 w-5" />
-            <span>Create Coupon</span>
+            <span>{t('coupons.create', locale === 'zh' ? '创建优惠券' : 'Create Coupon')}</span>
           </Link>
         </div>
 
@@ -135,7 +163,7 @@ export default function CouponsPage() {
               <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search coupons..."
+                placeholder={t('coupons.searchPh', locale === 'zh' ? '搜索优惠券...' : 'Search coupons...')}
                 value={filters.search || ''}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
@@ -148,10 +176,10 @@ export default function CouponsPage() {
               onChange={(e) => handleStatusFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
             >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="expired">Expired</option>
+              <option value="all">{t('common.all', locale === 'zh' ? '全部' : 'All')}</option>
+              <option value="active">{t('coupons.status.active', locale === 'zh' ? '可用' : 'Active')}</option>
+              <option value="inactive">{t('coupons.status.inactive', locale === 'zh' ? '停用' : 'Inactive')}</option>
+              <option value="expired">{t('coupons.status.expired', locale === 'zh' ? '已过期' : 'Expired')}</option>
             </select>
 
             {/* Page Size */}
@@ -160,9 +188,9 @@ export default function CouponsPage() {
               onChange={(e) => setFilters(prev => ({ ...prev, page_size: parseInt(e.target.value), page: 1 }))}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
             >
-              <option value={10}>10 per page</option>
-              <option value={25}>25 per page</option>
-              <option value={50}>50 per page</option>
+              <option value={10}>{t('common.pageSizeN', locale === 'zh' ? '每页 10' : '10 per page')}</option>
+              <option value={25}>{t('common.pageSizeN', locale === 'zh' ? '每页 25' : '25 per page')}</option>
+              <option value={50}>{t('common.pageSizeN', locale === 'zh' ? '每页 50' : '50 per page')}</option>
             </select>
           </div>
         </div>
@@ -172,7 +200,7 @@ export default function CouponsPage() {
           {loading ? (
             <div className="p-6 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto"></div>
-              <p className="mt-2 text-gray-500">Loading coupons...</p>
+              <p className="mt-2 text-gray-500">{t('coupons.loading', locale === 'zh' ? '正在加载优惠券...' : 'Loading coupons...')}</p>
             </div>
           ) : coupons && coupons.data.length > 0 ? (
             <>
@@ -181,22 +209,22 @@ export default function CouponsPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Code & Name
+                        {t('coupons.table.codeName', locale === 'zh' ? '代码 / 名称' : 'Code & Name')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type & Value
+                        {t('coupons.table.typeValue', locale === 'zh' ? '类型 / 面额' : 'Type & Value')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
+                        {t('common.status', locale === 'zh' ? '状态' : 'Status')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Usage
+                        {t('coupons.table.usage', locale === 'zh' ? '使用情况' : 'Usage')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Dates
+                        {t('coupons.table.dates', locale === 'zh' ? '时间' : 'Dates')}
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
+                        {t('common.actions', locale === 'zh' ? '操作' : 'Actions')}
                       </th>
                     </tr>
                   </thead>
@@ -215,10 +243,10 @@ export default function CouponsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
-                            {CouponService.getDiscountDescription(coupon)}
+                            {formatDiscount(coupon)}
                           </div>
                           <div className="text-sm text-gray-500">
-                            Min: ${coupon.min_order_amount}
+                            {t('coupons.minOrder', locale === 'zh' ? '最低订单：${amount}' : 'Min: ${amount}', { amount: coupon.min_order_amount })}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -232,10 +260,14 @@ export default function CouponsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div>
-                            {coupon.starts_at ? new Date(coupon.starts_at).toLocaleDateString() : 'No start date'}
+                            {coupon.starts_at
+                              ? new Date(coupon.starts_at).toLocaleDateString()
+                              : t('coupons.noStart', locale === 'zh' ? '无开始时间' : 'No start date')}
                           </div>
                           <div>
-                            {coupon.expires_at ? new Date(coupon.expires_at).toLocaleDateString() : 'No expiry'}
+                            {coupon.expires_at
+                              ? new Date(coupon.expires_at).toLocaleDateString()
+                              : t('coupons.noExpiry', locale === 'zh' ? '永不过期' : 'No expiry')}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -243,14 +275,14 @@ export default function CouponsPage() {
                             <Link
                               href={`/admin/coupons/${coupon.id}`}
                               className="text-blue-600 hover:text-blue-900"
-                              title="View Details"
+                              title={t('common.view', locale === 'zh' ? '查看' : 'View')}
                             >
                               <EyeIcon className="h-4 w-4" />
                             </Link>
                             <Link
                               href={`/admin/coupons/${coupon.id}/edit`}
                               className="text-amber-600 hover:text-amber-900"
-                              title="Edit"
+                              title={t('common.edit', locale === 'zh' ? '编辑' : 'Edit')}
                             >
                               <PencilIcon className="h-4 w-4" />
                             </Link>
@@ -258,7 +290,7 @@ export default function CouponsPage() {
                               onClick={() => handleDelete(coupon.id)}
                               disabled={deleting === coupon.id}
                               className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                              title="Delete"
+                              title={t('common.delete', locale === 'zh' ? '删除' : 'Delete')}
                             >
                               {deleting === coupon.id ? (
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
@@ -283,29 +315,28 @@ export default function CouponsPage() {
                       disabled={filters.page === 1}
                       className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Previous
+                      {t('common.prev', locale === 'zh' ? '上一页' : 'Previous')}
                     </button>
                     <button
                       onClick={() => handlePageChange(Math.min(coupons.total_pages, filters.page! + 1))}
                       disabled={filters.page === coupons.total_pages}
                       className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Next
+                      {t('common.next', locale === 'zh' ? '下一页' : 'Next')}
                     </button>
                   </div>
                   <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm text-gray-700">
-                        Showing{' '}
-                        <span className="font-medium">
-                          {(filters.page! - 1) * filters.page_size! + 1}
-                        </span>{' '}
-                        to{' '}
-                        <span className="font-medium">
-                          {Math.min(filters.page! * filters.page_size!, coupons.total)}
-                        </span>{' '}
-                        of{' '}
-                        <span className="font-medium">{coupons.total}</span> results
+                        {t(
+                          'common.showingRangeGeneric',
+                          locale === 'zh' ? '显示 {from} - {to} / 共 {total} 条' : 'Showing {from} to {to} of {total} results',
+                          {
+                            from: (filters.page! - 1) * filters.page_size! + 1,
+                            to: Math.min(filters.page! * filters.page_size!, coupons.total),
+                            total: coupons.total,
+                          }
+                        )}
                       </p>
                     </div>
                     <div>
@@ -315,7 +346,7 @@ export default function CouponsPage() {
                           disabled={filters.page === 1}
                           className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Previous
+                          {t('common.prev', locale === 'zh' ? '上一页' : 'Previous')}
                         </button>
                         {Array.from({ length: Math.min(5, coupons.total_pages) }, (_, i) => {
                           const page = i + 1;
@@ -338,7 +369,7 @@ export default function CouponsPage() {
                           disabled={filters.page === coupons.total_pages}
                           className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Next
+                          {t('common.next', locale === 'zh' ? '下一页' : 'Next')}
                         </button>
                       </nav>
                     </div>
@@ -349,9 +380,9 @@ export default function CouponsPage() {
           ) : (
             <div className="p-6 text-center">
               <TagIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No coupons</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">{t('coupons.empty', locale === 'zh' ? '暂无优惠券' : 'No coupons')}</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Get started by creating a new coupon.
+                {t('coupons.emptyHint', locale === 'zh' ? '从创建一个新的优惠券开始吧。' : 'Get started by creating a new coupon.')}
               </p>
               <div className="mt-6">
                 <Link
@@ -359,7 +390,7 @@ export default function CouponsPage() {
                   className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
                 >
                   <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-                  Create Coupon
+                  {t('coupons.create', locale === 'zh' ? '创建优惠券' : 'Create Coupon')}
                 </Link>
               </div>
             </div>

@@ -6,8 +6,10 @@ import { useForm } from 'react-hook-form';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useLogin } from '@/hooks/useAuth';
 import { LoginRequest } from '@/types';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 export default function AdminLoginPage() {
+  const { t } = useAdminI18n();
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const loginMutation = useLogin();
@@ -39,10 +41,10 @@ export default function AdminLoginPage() {
             </div>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Admin Login
+            {t('admin.login.title', 'Admin Login')}
           </h2>
           <p className="text-gray-600">
-            Sign in to access the admin dashboard
+            {t('admin.login.subtitle', 'Sign in to access the admin dashboard')}
           </p>
         </div>
 
@@ -52,19 +54,19 @@ export default function AdminLoginPage() {
             {/* Username Field */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                Username
+                {t('admin.login.username', 'Username')}
               </label>
               <input
                 {...register('username', {
-                  required: 'Username is required',
+                  required: t('admin.login.usernameRequired', 'Username is required'),
                   minLength: {
                     value: 3,
-                    message: 'Username must be at least 3 characters'
+                    message: t('admin.login.usernameMin', 'Username must be at least 3 characters')
                   }
                 })}
                 type="text"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="Enter your username"
+                placeholder={t('admin.login.usernamePlaceholder', 'Enter your username')}
               />
               {errors.username && (
                 <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
@@ -74,20 +76,20 @@ export default function AdminLoginPage() {
             {/* Password Field */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+                {t('admin.login.password', 'Password')}
               </label>
               <div className="relative">
                 <input
                   {...register('password', {
-                    required: 'Password is required',
+                    required: t('admin.login.passwordRequired', 'Password is required'),
                     minLength: {
                       value: 6,
-                      message: 'Password must be at least 6 characters'
+                      message: t('admin.login.passwordMin', 'Password must be at least 6 characters')
                     }
                   })}
                   type={showPassword ? 'text' : 'password'}
                   className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                  placeholder="Enter your password"
+                  placeholder={t('admin.login.passwordPlaceholder', 'Enter your password')}
                 />
                 <button
                   type="button"
@@ -116,13 +118,13 @@ export default function AdminLoginPage() {
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                  Remember me
+                  {t('admin.login.remember', 'Remember me')}
                 </label>
               </div>
 
               <div className="text-sm">
                 <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                  Forgot your password?
+                  {t('admin.login.forgot', 'Forgot your password?')}
                 </a>
               </div>
             </div>
@@ -136,10 +138,10 @@ export default function AdminLoginPage() {
               {isSubmitting || loginMutation.isPending ? (
                 <div className="flex items-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Signing in...
+                  {t('admin.login.signingIn', 'Signing in...')}
                 </div>
               ) : (
-                'Sign in'
+                t('admin.login.signIn', 'Sign in')
               )}
             </button>
           </form>
@@ -148,7 +150,7 @@ export default function AdminLoginPage() {
           {loginMutation.error && (
             <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-600">
-                {loginMutation.error.message || 'Login failed. Please try again.'}
+                {loginMutation.error.message || t('admin.login.failed', 'Login failed. Please try again.')}
               </p>
             </div>
           )}
@@ -157,7 +159,7 @@ export default function AdminLoginPage() {
         {/* Footer */}
         <div className="text-center">
           <p className="text-sm text-gray-600">
-            © 2024 FANUC Sales. All rights reserved.
+            {t('admin.login.footer', '© 2024 FANUC Sales. All rights reserved.')}
           </p>
         </div>
       </div>

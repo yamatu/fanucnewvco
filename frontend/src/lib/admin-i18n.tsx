@@ -12,10 +12,17 @@ import React, {
 
 export type AdminLocale = 'en' | 'zh';
 
+type AdminFallback =
+  | string
+  | {
+      en?: string;
+      zh?: string;
+    };
+
 type AdminI18nContextValue = {
   locale: AdminLocale;
   setLocale: (l: AdminLocale) => void;
-  t: (key: string, fallback?: string, vars?: Record<string, string | number>) => string;
+  t: (key: string, fallback?: AdminFallback, vars?: Record<string, string | number>) => string;
 };
 
 const AdminI18nContext = createContext<AdminI18nContextValue | null>(null);
@@ -75,6 +82,7 @@ const DICT: Record<AdminLocale, Record<string, string>> = {
     'nav.contacts': 'Contact Messages',
     'nav.email': 'Email',
     'nav.media': 'Media Library',
+    'nav.shipping': 'Shipping',
     'nav.backup': 'Backup & Restore',
     'nav.cache': 'Cache Settings',
     'nav.paypal': 'PayPal',
@@ -277,6 +285,43 @@ const DICT: Record<AdminLocale, Record<string, string>> = {
     'products.toast.noValidUrls': 'No valid URLs found',
     'products.toast.invalidUrlsFound': 'Found {count} invalid URLs. Please check and try again.',
     'products.confirm.delete': 'Are you sure you want to delete \"{name}\"? This action cannot be undone.',
+    'shipping.title': 'Shipping Templates',
+    'shipping.subtitle': 'Configure multi-country shipping by weight (<21kg fixed fee + >=21kg per-kg brackets).',
+    'shipping.downloadTemplate': 'Download XLSX Template',
+    'shipping.chooseXlsx': 'Choose XLSX',
+    'shipping.replaceRules': 'Replace existing rules',
+    'shipping.import': 'Import',
+    'shipping.deleteAll': 'Delete All',
+    'shipping.deleteSelected': 'Delete Selected',
+    'shipping.search': 'Search',
+    'shipping.select': 'Select',
+    'shipping.country': 'Country',
+    'shipping.currency': 'Currency',
+    'shipping.weightBrackets': 'Weight Brackets',
+    'shipping.quoteSurcharges': 'Quote Surcharges',
+    'shipping.loading': 'Loading...',
+    'shipping.empty': 'No templates',
+    'shipping.confirmDeleteAll': 'Delete ALL shipping templates? This cannot be undone.',
+    'shipping.confirmDeleteSelected': 'Delete templates for: {codes} ?',
+    'shipping.toast.templateDownloaded': 'Template downloaded',
+    'shipping.toast.imported': 'Imported countries: {countries} (created {created}, updated {updated})',
+    'shipping.toast.deleted': 'Deleted {deleted} country template(s)',
+    'shipping.toast.selectOne': 'Select at least one country',
+
+    'shipping.calc.title': 'Shipping (By Weight)',
+    'shipping.calc.subtitle': 'Preview shipping fee from configured templates.',
+    'shipping.calc.country': 'Country',
+    'shipping.calc.weight': 'Weight (kg)',
+    'shipping.calc.shippingFee': 'Shipping Fee',
+    'shipping.calc.ratePerKg': 'Rate / kg',
+    'shipping.calc.baseQuote': 'Base quote',
+    'shipping.calc.additionalFee': 'Additional fee',
+    'shipping.calc.billingWeight': 'Billing weight',
+    'shipping.calc.roundUpHint': '(round up < 21kg)',
+    'shipping.calc.priceWithShipping': 'Price + shipping',
+    'shipping.calc.autoApply': 'Auto apply to price',
+    'shipping.calc.setPrice': 'Set Price = Base + Shipping',
+    'shipping.calc.helperNote': 'Admin helper: uses current price as base and avoids double-adding.',
   },
   zh: {
     'nav.dashboard': '仪表盘',
@@ -290,6 +335,7 @@ const DICT: Record<AdminLocale, Record<string, string>> = {
     'nav.contacts': '联系消息',
     'nav.email': '邮件',
     'nav.media': '图库',
+    'nav.shipping': '运费模板',
     'nav.backup': '备份与恢复',
     'nav.cache': '缓存设置',
     'nav.paypal': 'PayPal',
@@ -490,11 +536,65 @@ const DICT: Record<AdminLocale, Record<string, string>> = {
     'products.toast.noValidUrls': '没有找到有效的链接',
     'products.toast.invalidUrlsFound': '发现 {count} 个无效链接，请检查后重试。',
     'products.confirm.delete': '确定要删除“{name}”吗？此操作不可撤销。',
+    'shipping.title': '运费模板',
+    'shipping.subtitle': '支持多国家运费配置：<21kg 按整数公斤直接取值；>=21kg 按区间每公斤价格计算。',
+    'shipping.downloadTemplate': '下载 XLSX 模板',
+    'shipping.chooseXlsx': '选择 XLSX',
+    'shipping.replaceRules': '覆盖旧规则（同国家）',
+    'shipping.import': '导入',
+    'shipping.deleteAll': '删除全部',
+    'shipping.deleteSelected': '删除已选',
+    'shipping.search': '搜索',
+    'shipping.select': '选择',
+    'shipping.country': '国家',
+    'shipping.currency': '币种',
+    'shipping.weightBrackets': '重量规则数',
+    'shipping.quoteSurcharges': '附加费规则数',
+    'shipping.loading': '加载中...',
+    'shipping.empty': '暂无模板',
+    'shipping.confirmDeleteAll': '确定删除全部运费模板吗？此操作不可撤销。',
+    'shipping.confirmDeleteSelected': '确定删除这些国家的模板吗：{codes}？',
+    'shipping.toast.templateDownloaded': '模板已下载',
+    'shipping.toast.imported': '已导入国家：{countries}（新增 {created}，更新 {updated}）',
+    'shipping.toast.deleted': '已删除 {deleted} 个国家模板',
+    'shipping.toast.selectOne': '请至少选择一个国家',
+
+    'shipping.calc.title': '运费预览（按重量）',
+    'shipping.calc.subtitle': '根据已配置模板预览运费，并可自动加到标价。',
+    'shipping.calc.country': '国家',
+    'shipping.calc.weight': '重量(kg)',
+    'shipping.calc.shippingFee': '运费',
+    'shipping.calc.ratePerKg': '每公斤价格',
+    'shipping.calc.baseQuote': '基础运费',
+    'shipping.calc.additionalFee': '附加费',
+    'shipping.calc.billingWeight': '计费重量',
+    'shipping.calc.roundUpHint': '（<21kg 向上取整）',
+    'shipping.calc.priceWithShipping': '标价 + 运费',
+    'shipping.calc.autoApply': '自动加到标价',
+    'shipping.calc.setPrice': '设置：标价 = 原价 + 运费',
+    'shipping.calc.helperNote': '后台助手：以当前标价为基准，避免重复叠加。',
+
+	'admin.login.title': '后台登录',
+	'admin.login.subtitle': '登录后进入管理后台',
+	'admin.login.username': '用户名',
+	'admin.login.password': '密码',
+	'admin.login.usernameRequired': '请输入用户名',
+	'admin.login.usernameMin': '用户名至少 3 个字符',
+	'admin.login.passwordRequired': '请输入密码',
+	'admin.login.passwordMin': '密码至少 6 个字符',
+	'admin.login.usernamePlaceholder': '请输入用户名',
+	'admin.login.passwordPlaceholder': '请输入密码',
+	'admin.login.remember': '记住我',
+	'admin.login.forgot': '忘记密码？',
+	'admin.login.signingIn': '登录中...',
+	'admin.login.signIn': '登录',
+	'admin.login.failed': '登录失败，请重试。',
+	'admin.login.footer': '© 2024 FANUC Sales. 保留所有权利。',
   },
 };
 
 export function AdminI18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState<AdminLocale>('en');
+  const [locale, setLocale] = useState<AdminLocale>('zh');
 
   useIsoLayoutEffect(() => {
     const saved = readSavedLocale();
@@ -507,8 +607,18 @@ export function AdminI18nProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AdminI18nContextValue>(() => {
-    const t = (key: string, fallback?: string, vars?: Record<string, string | number>) => {
-      const base = DICT[locale][key] || DICT.en[key] || fallback || key;
+    const t = (key: string, fallback?: AdminFallback, vars?: Record<string, string | number>) => {
+      const fallbackStr =
+        typeof fallback === 'string'
+          ? fallback
+          : locale === 'zh'
+            ? (fallback?.zh ?? fallback?.en)
+            : (fallback?.en ?? fallback?.zh);
+
+      // For zh admin UX, prefer provided fallback (usually zh) over English.
+      const base = locale === 'en'
+        ? (DICT.en[key] || fallbackStr || key)
+        : (DICT[locale][key] || fallbackStr || DICT.en[key] || key);
       if (!vars) return base;
       return base.replace(/\{(\w+)\}/g, (_, k) => (vars[k] === undefined ? `{${k}}` : String(vars[k])));
     };

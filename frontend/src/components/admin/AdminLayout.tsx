@@ -128,7 +128,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
               <div className="bg-blue-600 text-white px-3 py-1 rounded font-bold text-lg">
                 FANUC
               </div>
-              <span className="text-gray-900 font-semibold">Admin</span>
+              <span className="text-gray-900 font-semibold">{t('admin.panel', '管理后台')}</span>
             </div>
             <button
               className="lg:hidden"

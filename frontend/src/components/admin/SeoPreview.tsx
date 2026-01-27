@@ -22,15 +22,34 @@ function rangeClass(value: number, idealMin: number, idealMax: number, softMin: 
 }
 
 export default function SeoPreview({ title, description, sku, name }: SeoPreviewProps) {
-  const { t } = useAdminI18n();
+  const { locale, t } = useAdminI18n();
   const site = getSiteUrl();
   const path = `/products/${toProductPathId((sku || "SKU").trim())}`;
 
-  const displayTitle = (title || "").trim() || [name, sku].filter(Boolean).join(" - ") || "SEO 标题预览";
-  const displayDescription = (description || "").trim() ||
+  const displayTitle =
+    (title || '').trim() ||
+    [name, sku].filter(Boolean).join(' - ') ||
+    t('seo.preview.defaultTitle', locale === 'zh' ? 'SEO 标题预览' : 'SEO Title Preview');
+
+  const displayDescription =
+    (description || '').trim() ||
     (name || sku
-      ? `${name ? name + (sku ? ` (${sku})` : "") : sku} — In stock, fast global shipping, 1-year warranty.`
-      : "在此填写 SEO 描述，建议 150-160 字符，包含价格、库存、发货与保修信息。");
+      ? t(
+          'seo.preview.defaultDesc.withSku',
+          locale === 'zh'
+            ? '{name}{skuPart} — 现货供应，全球快速发货，提供 1 年质保。'
+            : '{name}{skuPart} — In stock, fast global shipping, 1-year warranty.',
+          {
+            name: String(name || sku || ''),
+            skuPart: sku && name ? ` (${sku})` : '',
+          }
+        )
+      : t(
+          'seo.preview.defaultDesc.empty',
+          locale === 'zh'
+            ? '在此填写 SEO 描述，建议 150-160 字符，包含价格、库存、发货与保修信息。'
+            : 'Write an SEO description here. Recommended 150-160 characters, including price, stock, shipping, and warranty.'
+        ));
 
   const titleLen = displayTitle.length;
   const descLen = displayDescription.length;

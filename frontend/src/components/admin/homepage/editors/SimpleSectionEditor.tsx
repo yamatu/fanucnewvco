@@ -7,6 +7,7 @@ import { PhotoIcon } from '@heroicons/react/24/outline';
 import MediaPickerModal from '@/components/admin/MediaPickerModal';
 import EditorPanel from '@/components/admin/homepage/EditorPanel';
 import type { HomepageContent } from '@/types';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 type FormValues = {
   title: string;
@@ -55,6 +56,7 @@ export default function SimpleSectionEditor({
   content?: HomepageContent | null;
   onSave: (payload: { title: string; subtitle: string; description: string; image_url: string; button_text: string; button_url: string; sort_order: number; is_active: boolean; data?: any }) => Promise<void>;
 }) {
+  const { locale, t } = useAdminI18n();
   const defaults = useMemo(() => fromContent(content), [content]);
   const { register, handleSubmit, reset, setValue, watch, formState } = useForm<FormValues>({ defaultValues: defaults });
   useEffect(() => reset(defaults), [defaults, reset]);
@@ -91,37 +93,37 @@ export default function SimpleSectionEditor({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <EditorPanel title="Basics" defaultOpen={true}>
+      <EditorPanel title={t('homepage.editor.basics', locale === 'zh' ? '基础' : 'Basics')} defaultOpen={true}>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.sortOrder', locale === 'zh' ? '排序' : 'Sort Order')}</label>
             <input type="number" {...register('sort_order', { valueAsNumber: true })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
           </div>
           <div className="flex items-end">
             <label className="inline-flex items-center gap-2 text-sm text-gray-700">
               <input type="checkbox" {...register('is_active')} className="h-4 w-4 rounded border-gray-300" />
-              Active
+              {t('common.active', locale === 'zh' ? '启用' : 'Active')}
             </label>
           </div>
         </div>
 
         <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.title', locale === 'zh' ? '标题' : 'Title')}</label>
           <input {...register('title')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
         </div>
         <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Subtitle</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.subtitle', locale === 'zh' ? '副标题' : 'Subtitle')}</label>
           <input {...register('subtitle')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
         </div>
         <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.description', locale === 'zh' ? '描述' : 'Description')}</label>
           <textarea rows={6} {...register('description')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
         </div>
       </EditorPanel>
 
-      <EditorPanel title="Image" defaultOpen={true}>
+      <EditorPanel title={t('common.image', locale === 'zh' ? '图片' : 'Image')} defaultOpen={true}>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.image', locale === 'zh' ? '图片' : 'Image')}</label>
           <div className="flex gap-2">
             <input {...register('image_url')} className="flex-1 px-3 py-2 border border-gray-300 rounded-md" placeholder="/uploads/..." />
             <button type="button" onClick={() => setPickerOpen(true)} className="px-3 py-2 rounded-md border border-gray-200 hover:bg-gray-50">
@@ -129,31 +131,36 @@ export default function SimpleSectionEditor({
             </button>
           </div>
           {imageUrl ? (
-            <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={imageUrl} alt="preview" className="w-full h-auto" />
-            </div>
-          ) : null}
+              <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imageUrl} alt={t('common.preview', locale === 'zh' ? '预览' : 'Preview')} className="w-full h-auto" />
+              </div>
+            ) : null}
         </div>
       </EditorPanel>
 
-      <EditorPanel title="Button" defaultOpen={false}>
+      <EditorPanel title={t('common.button', locale === 'zh' ? '按钮' : 'Button')} defaultOpen={false}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Button Text</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.buttonText', locale === 'zh' ? '按钮文字' : 'Button Text')}</label>
             <input {...register('button_text')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Button URL</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.buttonUrl', locale === 'zh' ? '按钮链接' : 'Button URL')}</label>
             <input {...register('button_url')} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
           </div>
         </div>
       </EditorPanel>
 
-      <EditorPanel title="Advanced (Section data JSON)" defaultOpen={false}>
+      <EditorPanel title={t('homepage.editor.advanced', locale === 'zh' ? '高级（区块 JSON 数据）' : 'Advanced (Section data JSON)')} defaultOpen={false}>
         <div>
           <div className="text-xs text-gray-500 mb-2">
-            Use this only when you need structured data for custom rendering. Leave empty for normal sections.
+            {t(
+              'homepage.editor.advancedHint',
+              locale === 'zh'
+                ? '仅在需要结构化数据进行自定义渲染时使用；普通区块留空即可。'
+                : 'Use this only when you need structured data for custom rendering. Leave empty for normal sections.'
+            )}
           </div>
           <textarea
             rows={10}
@@ -167,10 +174,10 @@ export default function SimpleSectionEditor({
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <div className="flex items-center justify-between">
           <button type="button" onClick={() => reset(defaults)} className="px-4 py-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50" disabled={formState.isSubmitting}>
-            Reset
+            {t('common.reset', locale === 'zh' ? '重置' : 'Reset')}
           </button>
           <button type="submit" className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50" disabled={formState.isSubmitting}>
-            Save
+            {t('common.save', locale === 'zh' ? '保存' : 'Save')}
           </button>
         </div>
       </div>
@@ -179,7 +186,7 @@ export default function SimpleSectionEditor({
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         multiple={false}
-        title="Select an image"
+        title={t('media.picker.title.single', locale === 'zh' ? '选择图片' : 'Select an image')}
         onSelect={(assets) => {
           if (assets[0]) setValue('image_url', assets[0].url, { shouldDirty: true });
         }}
@@ -187,4 +194,3 @@ export default function SimpleSectionEditor({
     </form>
   );
 }
-

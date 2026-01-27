@@ -156,12 +156,12 @@ export default function NewProductPage() {
               className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               <ArrowLeftIcon className="h-4 w-4 mr-2" />
-              Back
+              {t('common.back', locale === 'zh' ? '返回' : 'Back')}
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Add New Product</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{t('products.new.title', locale === 'zh' ? '新增产品' : 'Add New Product')}</h1>
               <p className="mt-1 text-sm text-gray-500">
-                Create a new FANUC product listing
+                {t('products.new.subtitle', locale === 'zh' ? '创建一个新的 FANUC 产品' : 'Create a new FANUC product listing')}
               </p>
             </div>
           </div>
@@ -174,18 +174,18 @@ export default function NewProductPage() {
             <div className="lg:col-span-2 space-y-6">
               {/* Basic Information */}
               <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('products.basic.title', locale === 'zh' ? '基础信息' : 'Basic Information')}</h3>
                 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                      Product Name *
+                      {t('products.field.name', locale === 'zh' ? '产品名称 *' : 'Product Name *')}
                     </label>
                     <input
-                      {...register('name', { required: 'Product name is required' })}
+                      {...register('name', { required: t('products.validation.nameRequired', locale === 'zh' ? '请输入产品名称' : 'Product name is required') })}
                       type="text"
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., FANUC A02B-0120-C041"
+                      placeholder={t('products.placeholder.name', locale === 'zh' ? '例如：FANUC A02B-0120-C041' : 'e.g., FANUC A02B-0120-C041')}
                     />
                     {errors.name && (
                       <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -194,13 +194,13 @@ export default function NewProductPage() {
 
                   <div>
                     <label htmlFor="sku" className="block text-sm font-medium text-gray-700 mb-1">
-                      SKU *
+                      {t('products.field.sku', locale === 'zh' ? 'SKU *' : 'SKU *')}
                     </label>
                     <input
-                      {...register('sku', { required: 'SKU is required' })}
+                      {...register('sku', { required: t('products.validation.skuRequired', locale === 'zh' ? '请输入 SKU' : 'SKU is required') })}
                       type="text"
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., A02B-0120-C041"
+                      placeholder={t('products.placeholder.sku', locale === 'zh' ? '例如：A02B-0120-C041' : 'e.g., A02B-0120-C041')}
                     />
                     {errors.sku && (
                       <p className="mt-1 text-sm text-red-600">{errors.sku.message}</p>
@@ -209,7 +209,7 @@ export default function NewProductPage() {
 
                   <div>
                     <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
-                      Price *
+                      {t('products.field.price', locale === 'zh' ? '价格 *' : 'Price *')}
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -217,8 +217,8 @@ export default function NewProductPage() {
                       </div>
                       <input
                         {...register('price', { 
-                          required: 'Price is required',
-                          min: { value: 0, message: 'Price must be positive' }
+                          required: t('products.validation.priceRequired', locale === 'zh' ? '请输入价格' : 'Price is required'),
+                          min: { value: 0, message: t('products.validation.pricePositive', locale === 'zh' ? '价格必须大于等于 0' : 'Price must be positive') }
                         })}
                         type="number"
                         step="0.01"
@@ -233,13 +233,13 @@ export default function NewProductPage() {
 
                   <div>
                     <label htmlFor="category_id" className="block text-sm font-medium text-gray-700 mb-1">
-                      Category *
+                      {t('products.field.category', locale === 'zh' ? '分类 *' : 'Category *')}
                     </label>
 
 					{/* Hidden field for react-hook-form validation/submission */}
 					<input
 						type="hidden"
-						{...register('category_id', { required: 'Category is required' })}
+						{...register('category_id', { required: t('products.validation.categoryRequired', locale === 'zh' ? '请选择分类' : 'Category is required') })}
 					/>
 					<CategoryCombobox
 						categories={Array.isArray(categories) ? categories : []}
@@ -247,7 +247,7 @@ export default function NewProductPage() {
 						onChange={(categoryId) =>
 							setValue('category_id', categoryId as any, { shouldDirty: true, shouldValidate: true })
 						}
-						placeholder="Type to search categories (name / path / slug)"
+						placeholder={t('products.placeholder.category', locale === 'zh' ? '输入搜索分类（名称 / 路径 / slug）' : 'Type to search categories (name / path / slug)')}
 					/>
                     {errors.category_id && (
                       <p className="mt-1 text-sm text-red-600">{errors.category_id.message}</p>
@@ -256,11 +256,11 @@ export default function NewProductPage() {
 
                   <div>
                     <label htmlFor="stock_quantity" className="block text-sm font-medium text-gray-700 mb-1">
-                      Stock Quantity
+                      {t('products.field.stock', locale === 'zh' ? '库存数量' : 'Stock Quantity')}
                     </label>
                     <input
                       {...register('stock_quantity', { 
-                        min: { value: 0, message: 'Stock quantity must be positive' }
+                        min: { value: 0, message: t('products.validation.stockPositive', locale === 'zh' ? '库存必须大于等于 0' : 'Stock quantity must be positive') }
                       })}
                       type="number"
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -273,14 +273,14 @@ export default function NewProductPage() {
 
 				  <div>
 					<label htmlFor="weight" className="block text-sm font-medium text-gray-700 mb-1">
-						Weight (kg)
+						{t('products.field.weight', locale === 'zh' ? '重量(kg)' : 'Weight (kg)')}
 					</label>
 					<input
-						{...register('weight', { min: { value: 0, message: 'Weight must be positive' } })}
+						{...register('weight', { min: { value: 0, message: t('products.validation.weightPositive', locale === 'zh' ? '重量必须大于等于 0' : 'Weight must be positive') } })}
 						type="number"
 						step="0.001"
 						className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-						placeholder="e.g., 1.25"
+						placeholder={t('products.placeholder.weight', locale === 'zh' ? '例如：1.25' : 'e.g., 1.25')}
 					/>
 					{errors.weight && (
 						<p className="mt-1 text-sm text-red-600">{String(errors.weight.message)}</p>
@@ -289,13 +289,13 @@ export default function NewProductPage() {
 
                   <div className="sm:col-span-2">
                     <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
+                      {t('products.field.description', locale === 'zh' ? '描述' : 'Description')}
                     </label>
                     <textarea
                       {...register('description')}
                       rows={4}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Product description..."
+                      placeholder={t('products.placeholder.description', locale === 'zh' ? '产品描述...' : 'Product description...')}
                     />
                   </div>
                 </div>
@@ -309,49 +309,49 @@ export default function NewProductPage() {
 
               {/* SEO Basic Information */}
               <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">SEO Basic Information</h3>
-                <p className="text-sm text-gray-500 mb-4">These fields control how your product appears in search engines and social previews.</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">{t('products.seo.title', locale === 'zh' ? 'SEO 基础信息' : 'SEO Basic Information')}</h3>
+                <p className="text-sm text-gray-500 mb-4">{t('products.seo.subtitle', locale === 'zh' ? '这些字段用于控制产品在搜索引擎与社交预览中的展示。' : 'These fields control how your product appears in search engines and social previews.')}</p>
 
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label htmlFor="meta_title" className="block text-sm font-medium text-gray-700 mb-1">
-                      SEO Title
+                      {t('products.seo.metaTitle', locale === 'zh' ? 'SEO 标题' : 'SEO Title')}
                     </label>
                     <input
                       {...register('meta_title')}
                       type="text"
                       maxLength={70}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., FANUC A16B-2202-0420 Power Supply | In Stock"
+                      placeholder={t('products.seo.metaTitlePh', locale === 'zh' ? '例如：FANUC A16B-2202-0420 电源 | 现货' : 'e.g., FANUC A16B-2202-0420 Power Supply | In Stock')}
                     />
-                    <p className="mt-1 text-xs text-gray-500">Recommended 50–60 characters. Include SKU and category.</p>
+                    <p className="mt-1 text-xs text-gray-500">{t('products.seo.metaTitleHint', locale === 'zh' ? '建议 50–60 字符，包含 SKU 和分类。' : 'Recommended 50–60 characters. Include SKU and category.')}</p>
                   </div>
 
                   <div>
                     <label htmlFor="meta_description" className="block text-sm font-medium text-gray-700 mb-1">
-                      SEO Description
+                      {t('products.seo.metaDesc', locale === 'zh' ? 'SEO 描述' : 'SEO Description')}
                     </label>
                     <textarea
                       {...register('meta_description')}
                       rows={3}
                       maxLength={180}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., FANUC A16B-2202-0420 24V Power Supply, USD $506, In Stock, 1-Year Warranty, Fast Global Shipping."
+                      placeholder={t('products.seo.metaDescPh', locale === 'zh' ? '例如：FANUC A16B-2202-0420 24V 电源，现货，1 年质保，全球快速发货。' : 'e.g., FANUC A16B-2202-0420 24V Power Supply, USD $506, In Stock, 1-Year Warranty, Fast Global Shipping.')}
                     />
-                    <p className="mt-1 text-xs text-gray-500">Recommended 150–160 characters. Mention price, availability, warranty, shipping.</p>
+                    <p className="mt-1 text-xs text-gray-500">{t('products.seo.metaDescHint', locale === 'zh' ? '建议 150–160 字符，包含价格、库存、质保、运费等信息。' : 'Recommended 150–160 characters. Mention price, availability, warranty, shipping.')}</p>
                   </div>
 
                   <div>
                     <label htmlFor="meta_keywords" className="block text-sm font-medium text-gray-700 mb-1">
-                      SEO Keywords (optional)
+                      {t('products.seo.metaKeywords', locale === 'zh' ? 'SEO 关键词（可选）' : 'SEO Keywords (optional)')}
                     </label>
                     <input
                       {...register('meta_keywords')}
                       type="text"
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., A16B-2202-0420, A16B22020420, power supply, 24V"
+                      placeholder={t('products.seo.metaKeywordsPh', locale === 'zh' ? '例如：A16B-2202-0420, A16B22020420, 电源, 24V' : 'e.g., A16B-2202-0420, A16B22020420, power supply, 24V')}
                     />
-                    <p className="mt-1 text-xs text-gray-500">Comma-separated keywords. Include alternate SKU format.</p>
+                    <p className="mt-1 text-xs text-gray-500">{t('products.seo.metaKeywordsHint', locale === 'zh' ? '用逗号分隔，建议包含不同格式的 SKU。' : 'Comma-separated keywords. Include alternate SKU format.')}</p>
                   </div>
                 </div>
 
@@ -366,7 +366,7 @@ export default function NewProductPage() {
 
               {/* Product Images */}
               <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Product Images</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('products.images.title', locale === 'zh' ? '产品图片' : 'Product Images')}</h3>
                 
                 <div className="space-y-4">
 
@@ -374,7 +374,7 @@ export default function NewProductPage() {
                   {/* External Images Section */}
                   <div className="border-t pt-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-sm font-medium text-gray-700">Images (URLs)</h4>
+                      <h4 className="text-sm font-medium text-gray-700">{t('products.images.urlsTitle', locale === 'zh' ? '图片（链接）' : 'Images (URLs)')}</h4>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -382,7 +382,7 @@ export default function NewProductPage() {
                           className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                           <PhotoIcon className="h-4 w-4 mr-1" />
-                          {locale === 'zh' ? '从图库选择' : 'Choose From Library'}
+                          {t('products.images.chooseFromLibrary', locale === 'zh' ? '从图库选择' : 'Choose From Library')}
                         </button>
                         <button
                           type="button"
@@ -390,7 +390,7 @@ export default function NewProductPage() {
                           className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                           <LinkIcon className="h-4 w-4 mr-1" />
-                          {locale === 'zh' ? '添加图片链接' : 'Add Image URL'}
+                          {t('products.images.addUrl', locale === 'zh' ? '添加图片链接' : 'Add Image URL')}
                         </button>
                       </div>
                     </div>
@@ -401,7 +401,7 @@ export default function NewProductPage() {
                         <div className="space-y-3">
                           <div>
                             <label htmlFor="image-url" className="block text-sm font-medium text-gray-700 mb-1">
-                              Image URL *
+                              {t('products.images.imageUrl', locale === 'zh' ? '图片链接 *' : 'Image URL *')}
                             </label>
                             <input
                               id="image-url"
@@ -409,7 +409,7 @@ export default function NewProductPage() {
                               value={imageUrl}
                               onChange={(e) => setImageUrl(e.target.value)}
                               className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
-                              placeholder="https://example.com/image.jpg"
+                              placeholder={t('products.images.imageUrlPh', locale === 'zh' ? '例如：https://example.com/image.jpg' : 'https://example.com/image.jpg')}
                             />
                           </div>
                           <div className="flex space-x-2">
@@ -420,7 +420,7 @@ export default function NewProductPage() {
                               className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <PlusIcon className="h-4 w-4 mr-1" />
-                              Add Image
+                              {t('products.images.addImage', locale === 'zh' ? '添加图片' : 'Add Image')}
                             </button>
                             <button
                               type="button"
@@ -430,7 +430,7 @@ export default function NewProductPage() {
                               }}
                               className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             >
-                              Cancel
+                              {t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}
                             </button>
                           </div>
                         </div>
@@ -440,14 +440,14 @@ export default function NewProductPage() {
                     {/* External Images Display */}
                     {images.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">External Images</h4>
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">{t('products.images.external', locale === 'zh' ? '外链图片' : 'External Images')}</h4>
                         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                           {images.map((image, index) => (
                             <div key={index} className="relative">
                               <div className="relative h-24 w-full">
                                 <img
                                   src={image.url}
-                                  alt={image.alt_text || `External image ${index + 1}`}
+                                  alt={image.alt_text || t('products.images.externalAlt', locale === 'zh' ? `外链图片 ${index + 1}` : `External image ${index + 1}`)}
                                   className="h-24 w-full object-cover rounded-lg"
                                   onError={(e) => {
                                     const target = e.target as HTMLImageElement;
@@ -458,7 +458,7 @@ export default function NewProductPage() {
                               <div className="absolute top-1 left-1">
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                   <LinkIcon className="h-3 w-3 mr-1" />
-                                  URL
+                                  {t('products.images.urlTag', locale === 'zh' ? '链接' : 'URL')}
                                 </span>
                               </div>
                               <button
@@ -476,7 +476,9 @@ export default function NewProductPage() {
 
                     {images.length === 0 && !showImageForm && (
                       <div className="text-center py-6 text-gray-500 text-sm">
-                        No external images added yet. Click "Add External Image" to add images from URLs.
+                        {t('products.images.empty', locale === 'zh'
+						? '还没有添加外链图片。点击“添加图片链接”从 URL 添加图片。'
+						: 'No external images added yet. Click "Add Image URL" to add images from URLs.')}
                       </div>
                     )}
                   </div>
@@ -488,7 +490,7 @@ export default function NewProductPage() {
             <div className="space-y-6">
               {/* Status */}
               <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Status</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('products.status.title', locale === 'zh' ? '状态' : 'Status')}</h3>
                 
                 <div className="space-y-4">
                   <div className="flex items-center">
@@ -499,7 +501,7 @@ export default function NewProductPage() {
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">
-                      Active
+                      {t('products.status.active', locale === 'zh' ? '启用' : 'Active')}
                     </label>
                   </div>
 
@@ -511,7 +513,7 @@ export default function NewProductPage() {
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <label htmlFor="is_featured" className="ml-2 block text-sm text-gray-900">
-                      Featured Product
+                      {t('products.status.featured', locale === 'zh' ? '推荐产品' : 'Featured Product')}
                     </label>
                   </div>
                 </div>
@@ -528,12 +530,12 @@ export default function NewProductPage() {
                     {isSubmitting || createProductMutation.isPending ? (
                       <div className="flex items-center">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Creating...
+                        {t('common.creating', locale === 'zh' ? '创建中...' : 'Creating...')}
                       </div>
                     ) : (
                       <>
                         <PlusIcon className="h-4 w-4 mr-2" />
-                        Create Product
+						{t('products.new.create', locale === 'zh' ? '创建产品' : 'Create Product')}
                       </>
                     )}
                   </button>
@@ -543,7 +545,7 @@ export default function NewProductPage() {
                     onClick={() => router.back()}
                     className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
-                    Cancel
+                    {t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}
                   </button>
                 </div>
               </div>
@@ -555,7 +557,7 @@ export default function NewProductPage() {
           open={showMediaPicker}
           onClose={() => setShowMediaPicker(false)}
           multiple={true}
-          title="Select product images"
+		  title={t('products.images.pickerTitle', locale === 'zh' ? '选择产品图片' : 'Select product images')}
           onSelect={(assets) => {
             setImages((prev) => {
               const existing = new Set(prev.map((p) => p.url));
@@ -568,7 +570,7 @@ export default function NewProductPage() {
               }
               return next;
             });
-            toast.success(t('products.toast.addedFromLibrary', 'Added from media library'));
+            toast.success(t('products.toast.addedFromLibrary', locale === 'zh' ? '已从图库添加' : 'Added from media library'));
           }}
         />
       </div>

@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import { ArrowsUpDownIcon } from '@heroicons/react/24/outline';
 import type { Category } from '@/types';
 import { CategoryService } from '@/services';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 type Props = {
   categories: Category[];
@@ -45,6 +46,7 @@ function buildTree(list: Category[]): TreeNode[] {
 }
 
 function DraggableRow({ node, depth }: { node: TreeNode; depth: number }) {
+  const { locale, t } = useAdminI18n();
   const rowId = `row:${node.id}`;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: rowId });
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: rowId });
@@ -67,7 +69,7 @@ function DraggableRow({ node, depth }: { node: TreeNode; depth: number }) {
             className="cursor-grab text-gray-400 hover:text-gray-600"
             {...listeners}
             {...attributes}
-            aria-label="Drag"
+            aria-label={t('common.drag', locale === 'zh' ? '拖拽' : 'Drag')}
           >
             <ArrowsUpDownIcon className="h-4 w-4" />
           </button>
@@ -76,7 +78,7 @@ function DraggableRow({ node, depth }: { node: TreeNode; depth: number }) {
             <div className="text-xs text-gray-500 truncate">/{node.path || node.slug}</div>
           </div>
           <div className={`text-xs px-2 py-0.5 rounded-full ${node.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-            {node.is_active ? 'Active' : 'Hidden'}
+            {node.is_active ? t('common.active', locale === 'zh' ? '启用' : 'Active') : t('common.hidden', locale === 'zh' ? '隐藏' : 'Hidden')}
           </div>
         </div>
       </div>
@@ -92,6 +94,7 @@ function DraggableRow({ node, depth }: { node: TreeNode; depth: number }) {
 }
 
 export default function CategoryHierarchyEditor({ categories, onUpdated }: Props) {
+  const { locale, t } = useAdminI18n();
   const tree = useMemo(() => buildTree(categories), [categories]);
 
   const [mode, setMode] = useState<'sort' | 'parent'>('sort');
@@ -173,7 +176,14 @@ export default function CategoryHierarchyEditor({ categories, onUpdated }: Props
 
       // Only reorder within the same parent.
       if (targetParentId !== draggedOldParentId) {
-        toast.error('Sort mode only reorders within the same parent. Switch to "Move" to change hierarchy.');
+        toast.error(
+          t(
+            'categories.hierarchy.sortOnlyHint',
+            locale === 'zh'
+              ? '“排序”模式只能在同一父级下调整顺序。如需修改层级，请切换到“移动”。'
+              : 'Sort mode only reorders within the same parent. Switch to "Move" to change hierarchy.'
+          )
+        );
         return;
       }
 
@@ -198,10 +208,10 @@ export default function CategoryHierarchyEditor({ categories, onUpdated }: Props
 
       try {
         await CategoryService.reorderCategories(updates);
-        toast.success('Sort order updated');
+        toast.success(t('categories.hierarchy.sortUpdated', locale === 'zh' ? '排序已更新' : 'Sort order updated'));
         onUpdated?.();
       } catch (err: any) {
-        toast.error(err?.message || 'Failed to update sort order');
+        toast.error(err?.message || t('categories.hierarchy.sortUpdateFailed', locale === 'zh' ? '更新排序失败' : 'Failed to update sort order'));
       }
       return;
     }
@@ -215,7 +225,7 @@ export default function CategoryHierarchyEditor({ categories, onUpdated }: Props
       if (!Number.isFinite(pid) || pid <= 0) return;
       if (pid === dragged.id) return;
       if (wouldCreateCycle(pid, dragged.id)) {
-        toast.error('Cannot move a category into its own descendant.');
+        toast.error(t('categories.hierarchy.cycle', locale === 'zh' ? '不能把分类移动到自己的子分类中。' : 'Cannot move a category into its own descendant.'));
         return;
       }
       newParentId = pid;
@@ -238,10 +248,10 @@ export default function CategoryHierarchyEditor({ categories, onUpdated }: Props
 
     try {
       await CategoryService.reorderCategories(updates);
-      toast.success('Hierarchy updated');
+      toast.success(t('categories.hierarchy.updated', locale === 'zh' ? '层级已更新' : 'Hierarchy updated'));
       onUpdated?.();
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update category hierarchy');
+      toast.error(err?.message || t('categories.hierarchy.updateFailed', locale === 'zh' ? '更新分类层级失败' : 'Failed to update category hierarchy'));
     }
   };
 
@@ -257,7 +267,9 @@ export default function CategoryHierarchyEditor({ categories, onUpdated }: Props
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm text-gray-600">
-            {mode === 'sort' ? 'Mode: Sort within same parent' : 'Mode: Move (drop onto parent to nest)'}
+            {mode === 'sort'
+              ? t('categories.hierarchy.mode.sort', locale === 'zh' ? '模式：同级排序' : 'Mode: Sort within same parent')
+              : t('categories.hierarchy.mode.move', locale === 'zh' ? '模式：移动（拖到父级下以嵌套）' : 'Mode: Move (drop onto parent to nest)')}
           </div>
           <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
             <button
@@ -265,14 +277,14 @@ export default function CategoryHierarchyEditor({ categories, onUpdated }: Props
               onClick={() => setMode('sort')}
               className={`px-3 py-1.5 text-sm rounded-md ${mode === 'sort' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
             >
-              Sort
+              {t('common.sort', locale === 'zh' ? '排序' : 'Sort')}
             </button>
             <button
               type="button"
               onClick={() => setMode('parent')}
               className={`px-3 py-1.5 text-sm rounded-md ${mode === 'parent' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
             >
-              Move
+              {t('common.move', locale === 'zh' ? '移动' : 'Move')}
             </button>
           </div>
         </div>
@@ -281,7 +293,7 @@ export default function CategoryHierarchyEditor({ categories, onUpdated }: Props
           ref={setRootDropRef}
           className={`sticky top-0 z-10 rounded-lg border border-dashed px-3 py-2 text-sm ${isRootOver ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 bg-gray-50 text-gray-600'} ${mode === 'sort' ? 'opacity-50 pointer-events-none' : ''}`}
         >
-          Drop here to move into root (top level)
+          {t('categories.hierarchy.dropRoot', locale === 'zh' ? '拖到这里：移动到根级（顶级分类）' : 'Drop here to move into root (top level)')}
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-1">
@@ -294,7 +306,7 @@ export default function CategoryHierarchyEditor({ categories, onUpdated }: Props
           ref={setRootBottomDropRef}
           className={`rounded-lg border border-dashed px-3 py-2 text-sm ${isRootBottomOver ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 bg-gray-50 text-gray-600'} ${mode === 'sort' ? 'opacity-50 pointer-events-none' : ''}`}
         >
-          Drop here to move into root (top level)
+          {t('categories.hierarchy.dropRoot', locale === 'zh' ? '拖到这里：移动到根级（顶级分类）' : 'Drop here to move into root (top level)')}
         </div>
       </div>
 

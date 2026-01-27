@@ -270,7 +270,11 @@ export default function AdminCategoriesPage() {
       <AdminLayout>
         <div className="text-center py-20">
           <div className="text-red-600 mb-4">
-            {locale === 'zh' ? '分类加载失败：' : 'Error loading categories: '}{error instanceof Error ? error.message : (locale === 'zh' ? '未知错误' : 'Unknown error')}
+            {t(
+              'categories.error.load',
+              locale === 'zh' ? '分类加载失败：{message}' : 'Error loading categories: {message}',
+              { message: error instanceof Error ? error.message : t('common.unknownError', locale === 'zh' ? '未知错误' : 'Unknown error') }
+            )}
           </div>
           <button
             onClick={() => window.location.reload()}
@@ -335,7 +339,7 @@ export default function AdminCategoriesPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder={locale === 'zh' ? '按名称/描述搜索...' : 'Search by name or description...'}
+                  placeholder={t('categories.searchPh', locale === 'zh' ? '按名称/描述搜索...' : 'Search by name or description...')}
                 />
               </div>
             </div>
@@ -390,7 +394,9 @@ export default function AdminCategoriesPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       {t('categories.field.name', 'Category Name')}
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">URL</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      {t('common.url', locale === 'zh' ? '链接' : 'URL')}
+                    </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       {t('categories.field.parent', 'Parent Category')}
                     </th>
@@ -479,7 +485,7 @@ export default function AdminCategoriesPage() {
                   className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
                   <PlusIcon className="h-4 w-4 mr-2" />
-                  Add Category
+                  {t('categories.add', locale === 'zh' ? '新增分类' : 'Add Category')}
                 </button>
               </div>
             )}

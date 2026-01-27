@@ -33,7 +33,7 @@ function formatBytes(bytes: number) {
 }
 
 export default function AdminMediaPage() {
-  const { t } = useAdminI18n();
+  const { locale, t } = useAdminI18n();
   const queryClient = useQueryClient();
 
   const [q, setQ] = useState('');
@@ -107,9 +107,21 @@ export default function AdminMediaPage() {
       const okCount = res.success_count;
       const errCount = res.error_count;
       if (errCount > 0) {
-        toast.error(`Uploaded ${okCount}, duplicates ${dupCount}, errors ${errCount}`);
+        toast.error(
+			t(
+				'media.toast.uploadResultErrors',
+				locale === 'zh'
+					? `上传 ${okCount} 个（重复 ${dupCount}），失败 ${errCount}`
+					: `Uploaded ${okCount}, duplicates ${dupCount}, errors ${errCount}`
+			)
+		);
       } else {
-        toast.success(`Uploaded ${okCount} (duplicates ${dupCount})`);
+        toast.success(
+			t(
+				'media.toast.uploadResultOk',
+				locale === 'zh' ? `上传 ${okCount} 个（重复 ${dupCount}）` : `Uploaded ${okCount} (duplicates ${dupCount})`
+			)
+		);
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.media.lists() });
       setUploadFiles([]);
@@ -117,17 +129,17 @@ export default function AdminMediaPage() {
       setUploadTags('');
       setShowUploadModal(false);
     },
-    onError: (e: any) => toast.error(e?.message || 'Failed to upload'),
+    onError: (e: any) => toast.error(e?.message || t('media.toast.uploadFailed', locale === 'zh' ? '上传失败' : 'Failed to upload')),
   });
 
   const batchDeleteMutation = useMutation({
     mutationFn: (ids: number[]) => MediaService.batchDelete(ids),
     onSuccess: () => {
-      toast.success('Deleted successfully');
+      toast.success(t('media.toast.deleted', locale === 'zh' ? '删除成功' : 'Deleted successfully'));
       setSelectedIds([]);
       queryClient.invalidateQueries({ queryKey: queryKeys.media.lists() });
     },
-    onError: (e: any) => toast.error(e?.message || 'Failed to delete'),
+    onError: (e: any) => toast.error(e?.message || t('media.toast.deleteFailed', locale === 'zh' ? '删除失败' : 'Failed to delete')),
   });
 
   const batchUpdateMutation = useMutation({
@@ -137,41 +149,41 @@ export default function AdminMediaPage() {
         tags: payload.tags,
       }),
     onSuccess: () => {
-      toast.success('Updated successfully');
+      toast.success(t('media.toast.updated', locale === 'zh' ? '更新成功' : 'Updated successfully'));
       setSelectedIds([]);
       setShowBatchEditModal(false);
       setBatchFolder('');
       setBatchTags('');
       queryClient.invalidateQueries({ queryKey: queryKeys.media.lists() });
     },
-    onError: (e: any) => toast.error(e?.message || 'Failed to update'),
+    onError: (e: any) => toast.error(e?.message || t('media.toast.updateFailed', locale === 'zh' ? '更新失败' : 'Failed to update')),
   });
 
   const updateMutation = useMutation({
     mutationFn: (payload: { id: number; updates: any }) => MediaService.update(payload.id, payload.updates),
     onSuccess: () => {
-      toast.success('Saved');
+      toast.success(t('common.save', locale === 'zh' ? '保存' : 'Saved'));
       setEditingAsset(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.media.lists() });
     },
-    onError: (e: any) => toast.error(e?.message || 'Failed to save'),
+    onError: (e: any) => toast.error(e?.message || t('common.saveFailed', locale === 'zh' ? '保存失败' : 'Failed to save')),
   });
 
   const watermarkSettingsMutation = useMutation({
     mutationFn: (payload: { enabled?: boolean; watermark_position?: string; base_media_asset_id?: number | null }) =>
       MediaService.updateWatermarkSettings(payload),
     onSuccess: () => {
-      toast.success('Watermark settings updated');
+      toast.success(t('media.toast.watermarkSettingsUpdated', locale === 'zh' ? '水印设置已更新' : 'Watermark settings updated'));
       queryClient.invalidateQueries({ queryKey: queryKeys.media.watermarkSettings() });
     },
-    onError: (e: any) => toast.error(e?.message || 'Failed to update watermark settings'),
+    onError: (e: any) => toast.error(e?.message || t('media.toast.watermarkSettingsUpdateFailed', locale === 'zh' ? '更新水印设置失败' : 'Failed to update watermark settings')),
   });
 
   const watermarkMutation = useMutation({
     mutationFn: (payload: { asset_id: number; text_source: 'sku' | 'custom'; sku?: string; text?: string }) =>
       MediaService.watermarkAsset(payload),
     onSuccess: (asset) => {
-      toast.success('Watermarked image created');
+      toast.success(t('media.toast.watermarkedCreated', locale === 'zh' ? '水印图片已生成' : 'Watermarked image created'));
       setShowWatermarkModal(false);
       setWatermarkAssetId(null);
       setWatermarkSku('');
@@ -180,7 +192,7 @@ export default function AdminMediaPage() {
       // Optional: auto-select the new asset
       setSelectedIds([asset.id]);
     },
-    onError: (e: any) => toast.error(e?.message || 'Failed to watermark image'),
+    onError: (e: any) => toast.error(e?.message || t('media.toast.watermarkFailed', locale === 'zh' ? '生成水印失败' : 'Failed to watermark image')),
   });
 
   const toggleSelected = (id: number) => {
@@ -202,7 +214,7 @@ export default function AdminMediaPage() {
     const list = Array.isArray(files) ? files : Array.from(files);
     const onlyImages = list.filter(f => f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|avif|bmp|tiff?|heic|heif)$/i.test(f.name));
     if (onlyImages.length === 0) {
-      toast.error('Please select image files');
+      toast.error(t('media.toast.onlyImages', locale === 'zh' ? '请选择图片文件' : 'Please select image files'));
       return;
     }
     setUploadFiles(prev => [...prev, ...onlyImages]);
@@ -233,13 +245,17 @@ export default function AdminMediaPage() {
       <AdminLayout>
         <div className="text-center py-20">
           <div className="text-red-600 mb-4">
-            Error loading media: {error instanceof Error ? error.message : 'Unknown error'}
+            {t(
+              'media.error.load',
+              locale === 'zh' ? '加载媒体失败：{message}' : 'Error loading media: {message}',
+              { message: error instanceof Error ? error.message : t('common.unknownError', locale === 'zh' ? '未知错误' : 'Unknown error') }
+            )}
           </div>
           <button
             onClick={() => window.location.reload()}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold"
           >
-            Retry
+            {t('common.retry', locale === 'zh' ? '重试' : 'Retry')}
           </button>
         </div>
       </AdminLayout>
@@ -253,14 +269,16 @@ export default function AdminMediaPage() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{t('nav.media', 'Media Library')}</h1>
-            <p className="mt-1 text-sm text-gray-500">Upload and manage images (deduplicated by SHA-256)</p>
+            <p className="mt-1 text-sm text-gray-500">
+              {t('media.subtitle', locale === 'zh' ? '上传并管理图片（按 SHA-256 去重）' : 'Upload and manage images (deduplicated by SHA-256)')}
+            </p>
           </div>
           <button
             onClick={() => setShowUploadModal(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
-            Upload Images
+            {t('media.upload', locale === 'zh' ? '上传图片' : 'Upload Images')}
           </button>
         </div>
 
@@ -268,9 +286,14 @@ export default function AdminMediaPage() {
         <div className="bg-white shadow rounded-lg p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Default Product Image (Watermark)</h2>
+              <h2 className="text-base font-semibold text-gray-900">{t('media.watermark.defaultTitle', locale === 'zh' ? '默认产品图片（水印）' : 'Default Product Image (Watermark)')}</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Used when a product has no images. The system generates a watermarked fallback image using the product SKU.
+                {t(
+                  'media.watermark.defaultDesc',
+                  locale === 'zh'
+                    ? '当产品没有图片时使用。系统会根据产品 SKU 生成带水印的默认图片。'
+                    : 'Used when a product has no images. The system generates a watermarked fallback image using the product SKU.'
+                )}
               </p>
             </div>
             <label className="inline-flex items-center gap-2 text-sm text-gray-700">
@@ -280,7 +303,7 @@ export default function AdminMediaPage() {
                 onChange={(e) => watermarkSettingsMutation.mutate({ enabled: e.target.checked })}
                 className="h-4 w-4"
               />
-              Enable
+              {t('common.enable', locale === 'zh' ? '启用' : 'Enable')}
             </label>
           </div>
 
@@ -295,12 +318,12 @@ export default function AdminMediaPage() {
                 )}
               </div>
               <div>
-                <div className="text-sm font-medium text-gray-900">Base image</div>
-                <div className="text-xs text-gray-500">
-                  {watermarkSettings?.base_media_asset?.original_name || 'Not set'}
-                </div>
-              </div>
-            </div>
+                 <div className="text-sm font-medium text-gray-900">{t('media.watermark.base', locale === 'zh' ? '底图' : 'Base image')}</div>
+                 <div className="text-xs text-gray-500">
+                  {watermarkSettings?.base_media_asset?.original_name || t('common.notSet', locale === 'zh' ? '未设置' : 'Not set')}
+                 </div>
+               </div>
+             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -311,7 +334,7 @@ export default function AdminMediaPage() {
                 title={singleSelectedId ? 'Use the selected media item as base image' : 'Select exactly 1 media item to set as base'}
               >
                 <StarIcon className="h-4 w-4 mr-2" />
-                Set Selected As Base
+                {t('media.watermark.setBase', locale === 'zh' ? '设为底图' : 'Set Selected As Base')}
               </button>
               <button
                 type="button"
@@ -320,27 +343,31 @@ export default function AdminMediaPage() {
                 className="inline-flex items-center px-3 py-2 text-sm rounded-md border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
               >
                 <XMarkIcon className="h-4 w-4 mr-2" />
-                Clear Base
+                {t('media.watermark.clearBase', locale === 'zh' ? '清除底图' : 'Clear Base')}
               </button>
-              <div className="text-xs text-gray-500">Tip: select an image in the grid, then click “Set Selected As Base”.</div>
+              <div className="text-xs text-gray-500">
+                {t('media.watermark.tip', locale === 'zh' ? '提示：先在网格中选择一张图片，然后点击“设为底图”。' : 'Tip: select an image in the grid, then click “Set Selected As Base”.')}
+              </div>
             </div>
           </div>
 
           <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="w-full sm:w-72">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Watermark position</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('media.watermark.position', locale === 'zh' ? '水印位置' : 'Watermark position')}</label>
               <select
                 value={watermarkSettings?.watermark_position || 'bottom-right'}
                 onChange={(e) => watermarkSettingsMutation.mutate({ watermark_position: e.target.value })}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md"
               >
-                <option value="bottom-right">Bottom right</option>
-                <option value="center">Center</option>
-                <option value="bottom-left">Bottom left</option>
-                <option value="top-left">Top left</option>
-                <option value="top-right">Top right</option>
+                <option value="bottom-right">{t('media.pos.br', locale === 'zh' ? '右下' : 'Bottom right')}</option>
+                <option value="center">{t('media.pos.center', locale === 'zh' ? '居中' : 'Center')}</option>
+                <option value="bottom-left">{t('media.pos.bl', locale === 'zh' ? '左下' : 'Bottom left')}</option>
+                <option value="top-left">{t('media.pos.tl', locale === 'zh' ? '左上' : 'Top left')}</option>
+                <option value="top-right">{t('media.pos.tr', locale === 'zh' ? '右上' : 'Top right')}</option>
               </select>
-              <p className="mt-1 text-xs text-gray-500">This affects both default images and generated watermark copies.</p>
+              <p className="mt-1 text-xs text-gray-500">
+                {t('media.watermark.positionHint', locale === 'zh' ? '此设置会影响默认图片以及生成的水印副本。' : 'This affects both default images and generated watermark copies.')}
+              </p>
             </div>
           </div>
         </div>
@@ -349,7 +376,7 @@ export default function AdminMediaPage() {
         <div className="bg-white shadow rounded-lg p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.search', locale === 'zh' ? '搜索' : 'Search')}</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
@@ -359,24 +386,24 @@ export default function AdminMediaPage() {
                   value={q}
                   onChange={(e) => { setQ(e.target.value); setPage(1); }}
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="filename / hash / title..."
+                  placeholder={t('media.searchPh', locale === 'zh' ? '文件名 / 哈希 / 标题...' : 'filename / hash / title...')}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Folder</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('media.folder', locale === 'zh' ? '文件夹' : 'Folder')}</label>
               <input
                 type="text"
                 value={folder}
                 onChange={(e) => { setFolder(e.target.value); setPage(1); }}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g. homepage"
+				placeholder={t('media.folder.ph', locale === 'zh' ? '例如：homepage' : 'e.g. homepage')}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Page Size</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.pageSize', locale === 'zh' ? '每页数量' : 'Page Size')}</label>
               <select
                 value={pageSize}
                 onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
@@ -394,21 +421,24 @@ export default function AdminMediaPage() {
         {canBatch && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
             <div className="text-sm text-blue-800">
-              Selected: <span className="font-semibold">{selectedIds.length}</span>
+				{t('common.selected', locale === 'zh' ? '已选择' : 'Selected')}: <span className="font-semibold">{selectedIds.length}</span>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => { selectAllOnPage(); toast.success('Selected all items on this page'); }}
+				onClick={() => {
+					selectAllOnPage();
+					toast.success(t('media.toast.selectedPage', locale === 'zh' ? '已选择本页全部项目' : 'Selected all items on this page'));
+				}}
                 className="px-3 py-2 text-sm rounded-md border border-blue-200 text-blue-700 hover:bg-blue-100"
               >
-                Select Page
+				{t('common.selectPage', locale === 'zh' ? '选择本页' : 'Select Page')}
               </button>
               <button
                 onClick={() => setShowBatchEditModal(true)}
                 className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-white border border-gray-200 hover:bg-gray-50"
               >
                 <PencilIcon className="h-4 w-4 mr-1" />
-                Batch Edit
+				{t('common.batchEdit', locale === 'zh' ? '批量编辑' : 'Batch Edit')}
               </button>
 				{selectedIds.length === 1 && (
 					<button
@@ -421,27 +451,36 @@ export default function AdminMediaPage() {
 							setShowWatermarkModal(true);
 						}}
 						className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-white border border-gray-200 hover:bg-gray-50"
-						title="Create a watermarked copy"
+						title={t('media.watermark.title', locale === 'zh' ? '生成水印副本' : 'Create a watermarked copy')}
 					>
 						<SparklesIcon className="h-4 w-4 mr-1" />
-						Watermark
+						{t('media.watermark', locale === 'zh' ? '水印' : 'Watermark')}
 					</button>
 				)}
               <button
                 onClick={() => {
-                  if (!window.confirm(`Delete ${selectedIds.length} item(s)? This cannot be undone.`)) return;
+                  if (
+                    !window.confirm(
+                      t(
+                        'media.confirm.deleteSelected',
+                        locale === 'zh' ? '确定要删除 {count} 个项目吗？此操作不可撤销。' : 'Delete {count} item(s)? This cannot be undone.',
+                        { count: selectedIds.length }
+                      )
+                    )
+                  )
+                    return;
                   batchDeleteMutation.mutate(selectedIds);
                 }}
                 className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700"
               >
                 <TrashIcon className="h-4 w-4 mr-1" />
-                Delete
+                {t('common.delete', locale === 'zh' ? '删除' : 'Delete')}
               </button>
               <button
                 onClick={clearSelection}
                 className="px-3 py-2 text-sm rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
               >
-                Clear
+                {t('common.clear', locale === 'zh' ? '清空' : 'Clear')}
               </button>
             </div>
           </div>
@@ -452,15 +491,15 @@ export default function AdminMediaPage() {
           {items.length === 0 ? (
             <div className="text-center py-16">
               <PhotoIcon className="mx-auto h-12 w-12 text-gray-300" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No media found</h3>
-              <p className="mt-1 text-sm text-gray-500">Upload images to build your media library.</p>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">{t('media.empty', locale === 'zh' ? '没有找到媒体文件' : 'No media found')}</h3>
+              <p className="mt-1 text-sm text-gray-500">{t('media.emptyHint', locale === 'zh' ? '上传图片以建立你的媒体库。' : 'Upload images to build your media library.')}</p>
               <div className="mt-6">
                 <button
                   onClick={() => setShowUploadModal(true)}
                   className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                 >
                   <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
-                  Upload Images
+                  {t('media.upload', locale === 'zh' ? '上传图片' : 'Upload Images')}
                 </button>
               </div>
             </div>
@@ -478,7 +517,7 @@ export default function AdminMediaPage() {
                         type="button"
                         onClick={() => toggleSelected(asset.id)}
                         className="absolute top-2 left-2 z-10 h-5 w-5 rounded bg-white/90 border border-gray-300 flex items-center justify-center"
-                        aria-label="Select"
+							aria-label={t('common.select', locale === 'zh' ? '选择' : 'Select')}
                       >
                         {selected ? <span className="h-3 w-3 bg-blue-600 rounded-sm" /> : null}
                       </button>
@@ -487,7 +526,7 @@ export default function AdminMediaPage() {
                         type="button"
                         onClick={() => openEdit(asset)}
                         className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 rounded bg-white/90 border border-gray-200 flex items-center justify-center hover:bg-white"
-                        aria-label="Edit"
+							aria-label={t('common.edit', locale === 'zh' ? '编辑' : 'Edit')}
                       >
                         <PencilIcon className="h-4 w-4 text-gray-700" />
                       </button>
@@ -520,26 +559,26 @@ export default function AdminMediaPage() {
 
               {/* Pagination */}
               <div className="mt-6 flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  Total: <span className="font-medium">{total}</span>
-                </div>
-                <div className="flex items-center gap-2">
+                  <div className="text-sm text-gray-600">
+                    {t('common.total', locale === 'zh' ? '总计：' : 'Total:')} <span className="font-medium">{total}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
                   <button
                     disabled={page <= 1}
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
                   >
-                    Prev
+                    {t('common.prev', locale === 'zh' ? '上一页' : 'Prev')}
                   </button>
                   <div className="text-sm text-gray-700">
-                    Page <span className="font-medium">{page}</span> / {totalPages}
+                    {t('common.page', locale === 'zh' ? '第 {page} 页 / 共 {pages} 页' : 'Page {page} / {pages}', { page, pages: totalPages })}
                   </div>
                   <button
                     disabled={page >= totalPages}
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
                   >
-                    Next
+                    {t('common.next', locale === 'zh' ? '下一页' : 'Next')}
                   </button>
                 </div>
               </div>
@@ -555,7 +594,7 @@ export default function AdminMediaPage() {
             <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => !watermarkMutation.isPending && setShowWatermarkModal(false)} />
             <div className="relative bg-white rounded-lg shadow-xl max-w-xl w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Create Watermarked Copy</h3>
+                <h3 className="text-lg font-medium text-gray-900">{t('media.watermark.modalTitle', locale === 'zh' ? '生成水印副本' : 'Create Watermarked Copy')}</h3>
                 <button
                   onClick={() => setShowWatermarkModal(false)}
                   disabled={watermarkMutation.isPending}
@@ -567,33 +606,34 @@ export default function AdminMediaPage() {
 
               <div className="space-y-4">
                 <div className="text-sm text-gray-600">
-                  Selected asset ID: <span className="font-mono">{watermarkAssetId}</span>
+                  {t('media.watermark.selectedId', locale === 'zh' ? '已选择资源 ID：' : 'Selected asset ID:')}{' '}
+                  <span className="font-mono">{watermarkAssetId}</span>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Text source</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('media.watermark.textSource', locale === 'zh' ? '水印文字来源' : 'Text source')}</label>
                   <select
                     value={watermarkTextSource}
                     onChange={(e) => setWatermarkTextSource(e.target.value as any)}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
-                    <option value="sku">From SKU</option>
-                    <option value="custom">Custom text</option>
+                    <option value="sku">{t('media.watermark.fromSku', locale === 'zh' ? '使用 SKU' : 'From SKU')}</option>
+                    <option value="custom">{t('media.watermark.customText', locale === 'zh' ? '自定义' : 'Custom text')}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('media.watermark.position', locale === 'zh' ? '水印位置' : 'Position')}</label>
                   <select
                     value={watermarkPosition}
                     onChange={(e) => setWatermarkPosition(e.target.value)}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
-                    <option value="bottom-right">Bottom right</option>
-                    <option value="center">Center</option>
-                    <option value="bottom-left">Bottom left</option>
-                    <option value="top-left">Top left</option>
-                    <option value="top-right">Top right</option>
+                    <option value="bottom-right">{t('media.pos.br', locale === 'zh' ? '右下' : 'Bottom right')}</option>
+                    <option value="center">{t('media.pos.center', locale === 'zh' ? '居中' : 'Center')}</option>
+                    <option value="bottom-left">{t('media.pos.bl', locale === 'zh' ? '左下' : 'Bottom left')}</option>
+                    <option value="top-left">{t('media.pos.tl', locale === 'zh' ? '左上' : 'Top left')}</option>
+                    <option value="top-right">{t('media.pos.tr', locale === 'zh' ? '右上' : 'Top right')}</option>
                   </select>
                 </div>
 
@@ -604,18 +644,18 @@ export default function AdminMediaPage() {
                       value={watermarkSku}
                       onChange={(e) => setWatermarkSku(e.target.value)}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder="e.g. A02B-0120-C041"
+                      placeholder={t('media.watermark.skuPh', locale === 'zh' ? '例如：A02B-0120-C041' : 'e.g. A02B-0120-C041')}
                     />
-                    <p className="mt-1 text-xs text-gray-500">We will use this SKU as watermark text.</p>
+                    <p className="mt-1 text-xs text-gray-500">{t('media.watermark.skuHint', locale === 'zh' ? '系统会使用该 SKU 作为水印文字。' : 'We will use this SKU as watermark text.')}</p>
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Text</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('media.watermark.text', locale === 'zh' ? '水印文字' : 'Text')}</label>
                     <input
                       value={watermarkText}
                       onChange={(e) => setWatermarkText(e.target.value)}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder="e.g. Vcocnc"
+                      placeholder={t('media.watermark.textPh', locale === 'zh' ? '例如：Vcocnc' : 'e.g. Vcocnc')}
                     />
                   </div>
                 )}
@@ -626,7 +666,7 @@ export default function AdminMediaPage() {
                     disabled={watermarkMutation.isPending}
                     className="px-4 py-2 text-sm rounded-md border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
                   >
-                    Cancel
+                    {t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}
                   </button>
                   <button
                     onClick={() => {
@@ -646,7 +686,9 @@ export default function AdminMediaPage() {
                     className="inline-flex items-center px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                   >
                     <SparklesIcon className="h-4 w-4 mr-2" />
-                    {watermarkMutation.isPending ? 'Generating...' : 'Generate'}
+                    {watermarkMutation.isPending
+                      ? t('media.watermark.generating', locale === 'zh' ? '生成中...' : 'Generating...')
+                      : t('media.watermark.generate', locale === 'zh' ? '生成' : 'Generate')}
                   </button>
                 </div>
               </div>
@@ -662,7 +704,7 @@ export default function AdminMediaPage() {
             <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => !uploadMutation.isPending && setShowUploadModal(false)} />
             <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Upload Images</h3>
+                <h3 className="text-lg font-medium text-gray-900">{t('media.upload', locale === 'zh' ? '上传图片' : 'Upload Images')}</h3>
                 <button
                   onClick={() => setShowUploadModal(false)}
                   disabled={uploadMutation.isPending}
@@ -672,28 +714,28 @@ export default function AdminMediaPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Folder (optional)</label>
-                  <input
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('media.folder.optional', locale === 'zh' ? '文件夹（可选）' : 'Folder (optional)')}</label>
+                    <input
                     type="text"
                     value={uploadFolder}
                     onChange={(e) => setUploadFolder(e.target.value)}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="e.g. homepage"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tags (optional)</label>
-                  <input
+                      placeholder={t('media.folder.ph', locale === 'zh' ? '例如：homepage' : 'e.g. homepage')}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('media.tags.optional', locale === 'zh' ? '标签（可选）' : 'Tags (optional)')}</label>
+                    <input
                     type="text"
                     value={uploadTags}
                     onChange={(e) => setUploadTags(e.target.value)}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="comma-separated"
-                  />
+                      placeholder={t('media.tags.ph', locale === 'zh' ? '逗号分隔' : 'comma-separated')}
+                    />
+                  </div>
                 </div>
-              </div>
 
               <div
                 className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
@@ -712,14 +754,14 @@ export default function AdminMediaPage() {
                 }}
               >
                 <PhotoIcon className="mx-auto h-10 w-10 text-gray-300" />
-                <p className="mt-2 text-sm text-gray-700">Drag & drop images here</p>
-                <p className="mt-1 text-xs text-gray-500">or</p>
+                <p className="mt-2 text-sm text-gray-700">{t('media.upload.drop', locale === 'zh' ? '拖拽图片到此处' : 'Drag & drop images here')}</p>
+                <p className="mt-1 text-xs text-gray-500">{t('common.or', locale === 'zh' ? '或' : 'or')}</p>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="mt-3 inline-flex items-center px-4 py-2 text-sm rounded-md bg-white border border-gray-200 hover:bg-gray-50"
                 >
-                  Choose Files
+                  {t('media.upload.chooseFiles', locale === 'zh' ? '选择文件' : 'Choose Files')}
                 </button>
                 <input
                   ref={fileInputRef}
@@ -735,16 +777,18 @@ export default function AdminMediaPage() {
                 />
               </div>
 
-              {uploadFiles.length > 0 && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-medium text-gray-900">Selected Files ({uploadFiles.length})</div>
-                    <button
+                {uploadFiles.length > 0 && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-medium text-gray-900">
+                        {t('media.upload.selectedFiles', locale === 'zh' ? '已选择文件' : 'Selected Files')} ({uploadFiles.length})
+                      </div>
+                      <button
                       type="button"
                       onClick={() => setUploadFiles([])}
                       className="text-sm text-gray-600 hover:text-gray-900"
                     >
-                      Clear
+                      {t('common.clear', locale === 'zh' ? '清空' : 'Clear')}
                     </button>
                   </div>
                   <div className="max-h-44 overflow-auto border border-gray-200 rounded-md">
@@ -773,12 +817,12 @@ export default function AdminMediaPage() {
                   disabled={uploadMutation.isPending}
                   className="px-4 py-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Cancel
+                  {t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}
                 </button>
                 <button
                   onClick={() => {
                     if (uploadFiles.length === 0) {
-                      toast.error('Please select at least one image');
+                      toast.error(t('media.toast.selectOne', locale === 'zh' ? '请至少选择一张图片' : 'Please select at least one image'));
                       return;
                     }
                     uploadMutation.mutate();
@@ -787,7 +831,9 @@ export default function AdminMediaPage() {
                   className="inline-flex items-center px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
                   <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
-                  {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
+                  {uploadMutation.isPending
+						? t('media.uploading', locale === 'zh' ? '上传中...' : 'Uploading...')
+						: t('media.upload', locale === 'zh' ? '上传' : 'Upload')}
                 </button>
               </div>
             </div>
@@ -802,7 +848,7 @@ export default function AdminMediaPage() {
             <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => !batchUpdateMutation.isPending && setShowBatchEditModal(false)} />
             <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Batch Edit ({selectedIds.length})</h3>
+                <h3 className="text-lg font-medium text-gray-900">{t('common.batchEdit', locale === 'zh' ? '批量编辑' : 'Batch Edit')} ({selectedIds.length})</h3>
                 <button
                   onClick={() => setShowBatchEditModal(false)}
                   disabled={batchUpdateMutation.isPending}
@@ -814,26 +860,26 @@ export default function AdminMediaPage() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Folder</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('media.folder', locale === 'zh' ? '文件夹' : 'Folder')}</label>
                   <input
                     type="text"
                     value={batchFolder}
                     onChange={(e) => setBatchFolder(e.target.value)}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="leave empty to keep unchanged"
+                    placeholder={t('common.leaveEmptyKeep', locale === 'zh' ? '留空则不修改' : 'leave empty to keep unchanged')}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('media.tags', locale === 'zh' ? '标签' : 'Tags')}</label>
                   <input
                     type="text"
                     value={batchTags}
                     onChange={(e) => setBatchTags(e.target.value)}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="leave empty to keep unchanged"
+                    placeholder={t('common.leaveEmptyKeep', locale === 'zh' ? '留空则不修改' : 'leave empty to keep unchanged')}
                   />
                 </div>
-                <p className="text-xs text-gray-500">Only non-empty fields will be applied to all selected items.</p>
+                <p className="text-xs text-gray-500">{t('media.batch.hint', locale === 'zh' ? '仅会把非空字段应用到所有已选项目。' : 'Only non-empty fields will be applied to all selected items.')}</p>
               </div>
 
               <div className="mt-6 flex justify-end gap-2">
@@ -842,7 +888,7 @@ export default function AdminMediaPage() {
                   disabled={batchUpdateMutation.isPending}
                   className="px-4 py-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Cancel
+                  {t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}
                 </button>
                 <button
                   onClick={() => {
@@ -850,7 +896,7 @@ export default function AdminMediaPage() {
                     if (batchFolder.trim()) payload.folder = batchFolder.trim();
                     if (batchTags.trim()) payload.tags = batchTags.trim();
                     if (!payload.folder && !payload.tags) {
-                      toast.error('Please set at least one field');
+                      toast.error(t('media.toast.setOneField', locale === 'zh' ? '请至少填写一个字段' : 'Please set at least one field'));
                       return;
                     }
                     batchUpdateMutation.mutate(payload);
@@ -859,7 +905,9 @@ export default function AdminMediaPage() {
                   className="inline-flex items-center px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
                   <PencilIcon className="h-4 w-4 mr-2" />
-                  {batchUpdateMutation.isPending ? 'Saving...' : 'Save'}
+                  {batchUpdateMutation.isPending
+						? t('common.saving', locale === 'zh' ? '保存中...' : 'Saving...')
+						: t('common.save', locale === 'zh' ? '保存' : 'Save')}
                 </button>
               </div>
             </div>
@@ -874,7 +922,7 @@ export default function AdminMediaPage() {
             <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => !updateMutation.isPending && setEditingAsset(null)} />
             <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Edit Media</h3>
+                <h3 className="text-lg font-medium text-gray-900">{t('media.edit', locale === 'zh' ? '编辑媒体' : 'Edit Media')}</h3>
                 <button
                   onClick={() => setEditingAsset(null)}
                   disabled={updateMutation.isPending}
@@ -893,11 +941,11 @@ export default function AdminMediaPage() {
                   <div className="text-sm">
                     <div className="text-gray-900 font-medium truncate" title={editingAsset.original_name}>{editingAsset.original_name}</div>
                     <div className="text-xs text-gray-500 mt-1">SHA256: <span className="font-mono">{editingAsset.sha256}</span></div>
-                    <div className="text-xs text-gray-500">Size: {formatBytes(editingAsset.size_bytes)}</div>
+                    <div className="text-xs text-gray-500">{t('media.size', locale === 'zh' ? '大小：' : 'Size:')} {formatBytes(editingAsset.size_bytes)}</div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.title', locale === 'zh' ? '标题' : 'Title')}</label>
                     <input
                       type="text"
                       value={editTitle}
@@ -906,7 +954,7 @@ export default function AdminMediaPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Alt Text</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('media.altText', locale === 'zh' ? '替代文本' : 'Alt Text')}</label>
                     <input
                       type="text"
                       value={editAlt}
@@ -915,7 +963,7 @@ export default function AdminMediaPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Folder</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('media.folder', locale === 'zh' ? '文件夹' : 'Folder')}</label>
                     <input
                       type="text"
                       value={editFolder}
@@ -924,7 +972,7 @@ export default function AdminMediaPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('media.tags', locale === 'zh' ? '标签' : 'Tags')}</label>
                     <input
                       type="text"
                       value={editTags}
@@ -936,17 +984,17 @@ export default function AdminMediaPage() {
               </div>
 
               <div className="mt-6 flex justify-between">
-                <button
-                  onClick={() => {
-                    if (!window.confirm('Delete this media item?')) return;
-                    batchDeleteMutation.mutate([editingAsset.id]);
-                    setEditingAsset(null);
-                  }}
+                  <button
+                    onClick={() => {
+                      if (!window.confirm(t('media.confirm.deleteOne', locale === 'zh' ? '确定要删除该媒体文件吗？此操作不可撤销。' : 'Delete this media item? This cannot be undone.'))) return;
+                      batchDeleteMutation.mutate([editingAsset.id]);
+                      setEditingAsset(null);
+                    }}
                   disabled={updateMutation.isPending || batchDeleteMutation.isPending}
                   className="inline-flex items-center px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                 >
                   <TrashIcon className="h-4 w-4 mr-2" />
-                  Delete
+                  {t('common.delete', locale === 'zh' ? '删除' : 'Delete')}
                 </button>
                 <div className="flex gap-2">
                   <button
@@ -954,7 +1002,7 @@ export default function AdminMediaPage() {
                     disabled={updateMutation.isPending}
                     className="px-4 py-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                   >
-                    Cancel
+                    {t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}
                   </button>
                   <button
                     onClick={() => {
@@ -972,7 +1020,9 @@ export default function AdminMediaPage() {
                     className="inline-flex items-center px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                   >
                     <PencilIcon className="h-4 w-4 mr-2" />
-                    {updateMutation.isPending ? 'Saving...' : 'Save'}
+                    {updateMutation.isPending
+                      ? t('common.saving', locale === 'zh' ? '保存中...' : 'Saving...')
+                      : t('common.save', locale === 'zh' ? '保存' : 'Save')}
                   </button>
                 </div>
               </div>

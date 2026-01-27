@@ -85,12 +85,12 @@ export default function AdminHomepageContentPage() {
         id: c.section_key,
         key: c.section_key,
         name: c.section_key,
-        description: 'Custom section',
+        description: t('homepage.section.custom', locale === 'zh' ? '自定义区块' : 'Custom section'),
         predefined: false,
         sortOrder: Number((c as any)?.sort_order ?? (9000 + idx)),
       }));
     return [...predefined, ...extras].sort((a, b) => a.sortOrder - b.sortOrder);
-  }, [sections, contents]);
+  }, [sections, contents, locale, t]);
 
   const filteredSections = useMemo(() => {
     const q = sectionSearch.trim().toLowerCase();
@@ -210,8 +210,10 @@ export default function AdminHomepageContentPage() {
       <AdminLayout>
         <div className="text-center py-20">
           <XCircleIcon className="h-12 w-12 mx-auto text-red-500" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">Error loading homepage content</h3>
-          <p className="mt-2 text-sm text-gray-500">{(error as any)?.message || 'Unknown error'}</p>
+          <h3 className="mt-4 text-lg font-medium text-gray-900">
+            {t('homepage.error.title', locale === 'zh' ? '首页内容加载失败' : 'Error loading homepage content')}
+          </h3>
+          <p className="mt-2 text-sm text-gray-500">{(error as any)?.message || t('common.unknownError', locale === 'zh' ? '未知错误' : 'Unknown error')}</p>
         </div>
       </AdminLayout>
     );

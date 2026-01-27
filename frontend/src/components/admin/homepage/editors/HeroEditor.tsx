@@ -10,6 +10,7 @@ import type { HomepageContent } from '@/types';
 import { SortableList } from '@/components/admin/homepage/SortableList';
 import { DEFAULT_HERO_DATA } from '@/lib/homepage-defaults';
 import { newId, type HeroEditorData } from '@/components/admin/homepage/homepage-schema';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 type FormValues = {
   autoPlayMs: number;
@@ -87,6 +88,7 @@ export default function HeroEditor({
   content?: HomepageContent | null;
   onSave: (payload: { data: any; title?: string; subtitle?: string; description?: string; image_url?: string; button_text?: string; button_url?: string; is_active: boolean; sort_order: number }) => Promise<void>;
 }) {
+  const { locale, t } = useAdminI18n();
   const defaults = useMemo(() => fromContent(content), [content]);
   const { register, control, handleSubmit, reset, setValue, watch, formState } = useForm<FormValues>({
     defaultValues: defaults,
@@ -101,7 +103,7 @@ export default function HeroEditor({
 
   const onSubmit = async (values: FormValues) => {
     if (!values.slides || values.slides.length === 0) {
-      toast.error('At least 1 slide is required');
+      toast.error(t('homepage.hero.minOneSlide', locale === 'zh' ? '至少需要 1 张轮播图' : 'At least 1 slide is required'));
       return;
     }
     const data = toData(values);
@@ -124,10 +126,10 @@ export default function HeroEditor({
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-5">
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-              <div className="font-medium text-gray-900">Slides</div>
-              <button
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                <div className="font-medium text-gray-900">{t('homepage.hero.slides', locale === 'zh' ? '轮播列表' : 'Slides')}</div>
+                <button
                 type="button"
                 onClick={() =>
                   append({
@@ -145,7 +147,7 @@ export default function HeroEditor({
                 className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700"
               >
                 <PlusIcon className="h-4 w-4" />
-                Add
+                {t('common.add', locale === 'zh' ? '添加' : 'Add')}
               </button>
             </div>
 
@@ -168,13 +170,15 @@ export default function HeroEditor({
                         {...drag.attributes}
                         {...drag.listeners}
                         className="p-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing"
-                        title="Drag to reorder"
+                        title={t('common.dragToReorder', locale === 'zh' ? '拖拽排序' : 'Drag to reorder')}
                       >
                         <Bars3Icon className="h-5 w-5" />
                       </button>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-900 truncate">
-                          {s?.title?.trim() ? s.title : `Slide ${idx + 1}`}
+                          {s?.title?.trim()
+                            ? s.title
+                            : t('homepage.hero.slideN', locale === 'zh' ? '轮播 {n}' : 'Slide {n}', { n: idx + 1 })}
                         </div>
                         <div className="text-xs text-gray-500 truncate">{s?.subtitle || ''}</div>
                       </div>
@@ -182,7 +186,7 @@ export default function HeroEditor({
                         type="button"
                         onClick={() => setPicker({ open: true, idx })}
                         className="p-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
-                        title="Choose image"
+                        title={t('common.chooseImage', locale === 'zh' ? '选择图片' : 'Choose image')}
                       >
                         <PhotoIcon className="h-5 w-5" />
                       </button>
@@ -190,7 +194,7 @@ export default function HeroEditor({
                         type="button"
                         onClick={() => remove(idx)}
                         className="p-2 rounded-md border border-gray-200 text-red-600 hover:bg-red-50"
-                        title="Delete"
+                        title={t('common.delete', locale === 'zh' ? '删除' : 'Delete')}
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
@@ -206,7 +210,7 @@ export default function HeroEditor({
           <form onSubmit={handleSubmit(onSubmit)} className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Auto Play (ms)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.hero.autoPlay', locale === 'zh' ? '自动播放（毫秒）' : 'Auto Play (ms)')}</label>
                 <input
                   type="number"
                   {...register('autoPlayMs', { valueAsNumber: true })}
@@ -214,7 +218,7 @@ export default function HeroEditor({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.sortOrder', locale === 'zh' ? '排序' : 'Sort Order')}</label>
                 <input
                   type="number"
                   {...register('sort_order', { valueAsNumber: true })}
@@ -224,43 +228,43 @@ export default function HeroEditor({
               <div className="flex items-end">
                 <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                   <input type="checkbox" {...register('is_active')} className="h-4 w-4 rounded border-gray-300" />
-                  Active
+                  {t('common.active', locale === 'zh' ? '启用' : 'Active')}
                 </label>
               </div>
             </div>
 
             <div className="border-t border-gray-200 pt-6">
-              <div className="text-sm font-medium text-gray-900 mb-4">Edit Slides</div>
+              <div className="text-sm font-medium text-gray-900 mb-4">{t('homepage.hero.editSlides', locale === 'zh' ? '编辑轮播内容' : 'Edit Slides')}</div>
               <div className="space-y-8">
                 {fields.map((f, idx) => (
                   <div key={f.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <div className="font-medium text-gray-900">Slide {idx + 1}</div>
+                      <div className="font-medium text-gray-900">{t('homepage.hero.slideN', locale === 'zh' ? '轮播 {n}' : 'Slide {n}', { n: idx + 1 })}</div>
                       <button
                         type="button"
                         onClick={() => remove(idx)}
                         className="text-sm text-red-600 hover:text-red-700"
                       >
-                        Delete
+                        {t('common.delete', locale === 'zh' ? '删除' : 'Delete')}
                       </button>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.title', locale === 'zh' ? '标题' : 'Title')}</label>
                         <input {...register(`slides.${idx}.title` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                       </div>
                       <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Subtitle</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.subtitle', locale === 'zh' ? '副标题' : 'Subtitle')}</label>
                         <input {...register(`slides.${idx}.subtitle` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                       </div>
                       <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.description', locale === 'zh' ? '描述' : 'Description')}</label>
                         <textarea rows={4} {...register(`slides.${idx}.description` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                       </div>
 
                       <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.image', locale === 'zh' ? '图片' : 'Image')}</label>
                         <div className="flex gap-2">
                           <input {...register(`slides.${idx}.image` as const)} className="flex-1 px-3 py-2 border border-gray-300 rounded-md" placeholder="/uploads/..." />
                           <button
@@ -268,25 +272,25 @@ export default function HeroEditor({
                             onClick={() => setPicker({ open: true, idx })}
                             className="px-3 py-2 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
                           >
-                            Choose
+                            {t('common.choose', locale === 'zh' ? '选择' : 'Choose')}
                           </button>
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Primary CTA Text</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.cta.primaryText', locale === 'zh' ? '主按钮文字' : 'Primary CTA Text')}</label>
                         <input {...register(`slides.${idx}.primaryText` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Primary CTA URL</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.cta.primaryUrl', locale === 'zh' ? '主按钮链接' : 'Primary CTA URL')}</label>
                         <input {...register(`slides.${idx}.primaryHref` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Secondary CTA Text</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.cta.secondaryText', locale === 'zh' ? '次按钮文字' : 'Secondary CTA Text')}</label>
                         <input {...register(`slides.${idx}.secondaryText` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Secondary CTA URL</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('homepage.cta.secondaryUrl', locale === 'zh' ? '次按钮链接' : 'Secondary CTA URL')}</label>
                         <input {...register(`slides.${idx}.secondaryHref` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                       </div>
                     </div>
@@ -302,14 +306,14 @@ export default function HeroEditor({
                 className="px-4 py-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
                 disabled={formState.isSubmitting}
               >
-                Reset
+                {t('common.reset', locale === 'zh' ? '重置' : 'Reset')}
               </button>
               <button
                 type="submit"
                 className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 disabled={formState.isSubmitting}
               >
-                Save
+                {t('common.save', locale === 'zh' ? '保存' : 'Save')}
               </button>
             </div>
           </form>
@@ -320,7 +324,7 @@ export default function HeroEditor({
         open={picker.open}
         onClose={() => setPicker({ open: false, idx: null })}
         multiple={false}
-        title="Select an image"
+        title={t('media.picker.title.single', locale === 'zh' ? '选择图片' : 'Select an image')}
         onSelect={(assets) => {
           if (picker.idx == null) return;
           if (assets[0]) setValue(`slides.${picker.idx}.image` as const, assets[0].url, { shouldDirty: true });
@@ -329,4 +333,3 @@ export default function HeroEditor({
     </div>
   );
 }
-

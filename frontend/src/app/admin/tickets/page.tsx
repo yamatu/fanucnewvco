@@ -33,12 +33,7 @@ interface Ticket {
   };
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  open: { label: 'Open', color: 'bg-blue-100 text-blue-800', icon: ClockIcon },
-  'in-progress': { label: 'In Progress', color: 'bg-yellow-100 text-yellow-800', icon: ClockIcon },
-  resolved: { label: 'Resolved', color: 'bg-green-100 text-green-800', icon: CheckCircleIcon },
-  closed: { label: 'Closed', color: 'bg-gray-100 text-gray-800', icon: XCircleIcon },
-};
+// statusConfig is built inside component so it can be localized.
 
 const priorityColors: Record<string, string> = {
   low: 'text-gray-600',
@@ -48,13 +43,35 @@ const priorityColors: Record<string, string> = {
 };
 
 export default function AdminTicketsPage() {
-  const { t } = useAdminI18n();
+  const { locale, t } = useAdminI18n();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+
+  const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
+    open: { label: t('tickets.status.open', locale === 'zh' ? '未处理' : 'Open'), color: 'bg-blue-100 text-blue-800', icon: ClockIcon },
+    'in-progress': {
+      label: t('tickets.status.inProgress', locale === 'zh' ? '处理中' : 'In Progress'),
+      color: 'bg-yellow-100 text-yellow-800',
+      icon: ClockIcon,
+    },
+    resolved: { label: t('tickets.status.resolved', locale === 'zh' ? '已解决' : 'Resolved'), color: 'bg-green-100 text-green-800', icon: CheckCircleIcon },
+    closed: { label: t('tickets.status.closed', locale === 'zh' ? '已关闭' : 'Closed'), color: 'bg-gray-100 text-gray-800', icon: XCircleIcon },
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    const p = String(priority || '').toLowerCase();
+    const map: Record<string, string> = {
+      low: t('tickets.priority.low', locale === 'zh' ? '低' : 'Low'),
+      normal: t('tickets.priority.normal', locale === 'zh' ? '普通' : 'Normal'),
+      high: t('tickets.priority.high', locale === 'zh' ? '高' : 'High'),
+      urgent: t('tickets.priority.urgent', locale === 'zh' ? '紧急' : 'Urgent'),
+    };
+    return map[p] || priority.toUpperCase();
+  };
 
   useEffect(() => {
     loadTickets();
@@ -69,7 +86,7 @@ export default function AdminTicketsPage() {
       }
     } catch (error: any) {
       console.error('Failed to load tickets:', error);
-      toast.error('Failed to load support tickets');
+	  toast.error(t('tickets.toast.loadFailed', locale === 'zh' ? '加载工单失败' : 'Failed to load support tickets'));
     } finally {
       setLoading(false);
     }
@@ -82,11 +99,11 @@ export default function AdminTicketsPage() {
       });
 
       if (response.data.success) {
-        toast.success('Ticket status updated');
+		toast.success(t('tickets.toast.statusUpdated', locale === 'zh' ? '工单状态已更新' : 'Ticket status updated'));
         loadTickets();
       }
     } catch (error: any) {
-      toast.error('Failed to update ticket status');
+	  toast.error(t('tickets.toast.statusUpdateFailed', locale === 'zh' ? '更新工单状态失败' : 'Failed to update ticket status'));
     }
   };
 
@@ -120,7 +137,7 @@ export default function AdminTicketsPage() {
           <div className="sm:flex-auto">
             <h1 className="text-2xl font-semibold text-gray-900">{t('nav.tickets', 'Support Tickets')}</h1>
             <p className="mt-2 text-sm text-gray-700">
-              Manage customer support tickets and inquiries
+              {t('tickets.subtitle', locale === 'zh' ? '管理客户支持工单与咨询' : 'Manage customer support tickets and inquiries')}
             </p>
           </div>
           <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
@@ -129,7 +146,7 @@ export default function AdminTicketsPage() {
               className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               <FunnelIcon className="h-4 w-4 mr-2" />
-              Filters
+              {t('common.filters', locale === 'zh' ? '筛选' : 'Filters')}
             </button>
           </div>
         </div>
@@ -149,7 +166,7 @@ export default function AdminTicketsPage() {
                     <div className="ml-5 w-0 flex-1">
                       <dl>
                         <dt className="text-sm font-medium text-gray-500 truncate capitalize">
-                          {status.replace('-', ' ')}
+                          {statusConfig[status]?.label || status.replace('-', ' ')}
                         </dt>
                         <dd className="text-lg font-medium text-gray-900">{count}</dd>
                       </dl>
@@ -167,7 +184,7 @@ export default function AdminTicketsPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
                 <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-                  Search
+                  {t('common.search', locale === 'zh' ? '搜索' : 'Search')}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -179,14 +196,14 @@ export default function AdminTicketsPage() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="Search tickets..."
+                    placeholder={t('tickets.searchPh', locale === 'zh' ? '搜索工单...' : 'Search tickets...')}
                   />
                 </div>
               </div>
 
               <div>
                 <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
+                  {t('common.status', locale === 'zh' ? '状态' : 'Status')}
                 </label>
                 <select
                   id="status"
@@ -194,17 +211,17 @@ export default function AdminTicketsPage() {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                 >
-                  <option value="">All Statuses</option>
-                  <option value="open">Open</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed</option>
+                  <option value="">{t('common.all', locale === 'zh' ? '全部' : 'All')}</option>
+                  <option value="open">{statusConfig.open.label}</option>
+                  <option value="in-progress">{statusConfig['in-progress'].label}</option>
+                  <option value="resolved">{statusConfig.resolved.label}</option>
+                  <option value="closed">{statusConfig.closed.label}</option>
                 </select>
               </div>
 
               <div>
                 <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
-                  Priority
+                  {t('tickets.field.priority', locale === 'zh' ? '优先级' : 'Priority')}
                 </label>
                 <select
                   id="priority"
@@ -212,11 +229,11 @@ export default function AdminTicketsPage() {
                   onChange={(e) => setPriorityFilter(e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                 >
-                  <option value="">All Priorities</option>
-                  <option value="low">Low</option>
-                  <option value="normal">Normal</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
+                  <option value="">{t('common.all', locale === 'zh' ? '全部' : 'All')}</option>
+                  <option value="low">{t('tickets.priority.low', locale === 'zh' ? '低' : 'Low')}</option>
+                  <option value="normal">{t('tickets.priority.normal', locale === 'zh' ? '普通' : 'Normal')}</option>
+                  <option value="high">{t('tickets.priority.high', locale === 'zh' ? '高' : 'High')}</option>
+                  <option value="urgent">{t('tickets.priority.urgent', locale === 'zh' ? '紧急' : 'Urgent')}</option>
                 </select>
               </div>
             </div>
@@ -231,32 +248,32 @@ export default function AdminTicketsPage() {
                 {loading ? (
                   <div className="text-center py-12 bg-white">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-sm text-gray-500">Loading tickets...</p>
+                    <p className="mt-4 text-sm text-gray-500">{t('tickets.loading', locale === 'zh' ? '正在加载工单...' : 'Loading tickets...')}</p>
                   </div>
                 ) : filteredTickets.length > 0 ? (
                   <table className="min-w-full divide-y divide-gray-300">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                          Ticket
+                          {t('tickets.table.ticket', locale === 'zh' ? '工单' : 'Ticket')}
                         </th>
                         <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Customer
+                          {t('tickets.table.customer', locale === 'zh' ? '客户' : 'Customer')}
                         </th>
                         <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Category
+                          {t('tickets.table.category', locale === 'zh' ? '分类' : 'Category')}
                         </th>
                         <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Priority
+                          {t('tickets.field.priority', locale === 'zh' ? '优先级' : 'Priority')}
                         </th>
                         <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Status
+                          {t('common.status', locale === 'zh' ? '状态' : 'Status')}
                         </th>
                         <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Created
+                          {t('common.created', locale === 'zh' ? '创建时间' : 'Created')}
                         </th>
                         <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                          <span className="sr-only">Actions</span>
+                          <span className="sr-only">{t('common.actions', locale === 'zh' ? '操作' : 'Actions')}</span>
                         </th>
                       </tr>
                     </thead>
@@ -286,7 +303,7 @@ export default function AdminTicketsPage() {
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm">
                               <span className={priorityColors[ticket.priority]}>
-                                {ticket.priority.toUpperCase()}
+                                {getPriorityLabel(ticket.priority)}
                               </span>
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm">
@@ -306,16 +323,16 @@ export default function AdminTicketsPage() {
                                 onChange={(e) => updateTicketStatus(ticket.id, e.target.value)}
                                 className="mr-2 text-xs rounded-md border-gray-300"
                               >
-                                <option value="open">Open</option>
-                                <option value="in-progress">In Progress</option>
-                                <option value="resolved">Resolved</option>
-                                <option value="closed">Closed</option>
+                                <option value="open">{statusConfig.open.label}</option>
+                                <option value="in-progress">{statusConfig['in-progress'].label}</option>
+                                <option value="resolved">{statusConfig.resolved.label}</option>
+                                <option value="closed">{statusConfig.closed.label}</option>
                               </select>
                               <Link
                                 href={`/admin/tickets/${ticket.id}`}
                                 className="text-blue-600 hover:text-blue-900"
                               >
-                                View
+                                {t('common.view', locale === 'zh' ? '查看' : 'View')}
                               </Link>
                             </td>
                           </tr>
@@ -326,11 +343,11 @@ export default function AdminTicketsPage() {
                 ) : (
                   <div className="text-center py-12 bg-white">
                     <TicketIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No tickets found</h3>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">{t('tickets.empty', locale === 'zh' ? '没有找到工单' : 'No tickets found')}</h3>
                     <p className="mt-1 text-sm text-gray-500">
                       {searchTerm || statusFilter || priorityFilter
-                        ? 'Try adjusting your search or filter.'
-                        : 'No support tickets have been submitted yet.'}
+                        ? t('tickets.empty.filtered', locale === 'zh' ? '请尝试调整搜索或筛选条件。' : 'Try adjusting your search or filter.')
+                        : t('tickets.empty.fresh', locale === 'zh' ? '暂无提交的支持工单。' : 'No support tickets have been submitted yet.')}
                     </p>
                   </div>
                 )}

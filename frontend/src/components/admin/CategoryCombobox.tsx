@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Category } from '@/types';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 type CategoryLike = Pick<Category, 'id' | 'name' | 'slug' | 'path' | 'description'>;
 
@@ -18,6 +19,7 @@ export default function CategoryCombobox(props: {
 	className?: string;
 }) {
 	const { categories, value, onChange, placeholder, className } = props;
+	const { locale, t } = useAdminI18n();
 
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const inputRef = useRef<HTMLInputElement | null>(null);
@@ -129,7 +131,10 @@ export default function CategoryCombobox(props: {
 						}
 					}}
 					className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-					placeholder={placeholder || 'Type to search categories'}
+					placeholder={
+						placeholder ||
+						t('categories.combobox.placeholder', locale === 'zh' ? '输入关键词搜索分类' : 'Type to search categories')
+					}
 					autoComplete="off"
 				/>
 
@@ -137,7 +142,13 @@ export default function CategoryCombobox(props: {
 					<div className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg">
 						<div className="max-h-64 overflow-auto py-1">
 							{visibleResults.length === 0 ? (
-								<div className="px-3 py-2 text-sm text-gray-500">No categories match "{query}"</div>
+								<div className="px-3 py-2 text-sm text-gray-500">
+									{t(
+										'categories.combobox.noMatch',
+										locale === 'zh' ? '没有匹配的分类："{query}"' : 'No categories match "{query}"',
+										{ query }
+									)}
+								</div>
 							) : (
 								visibleResults.slice(0, 200).map((c, idx) => {
 									const isActive = idx === activeIndex;
@@ -168,7 +179,9 @@ export default function CategoryCombobox(props: {
 				) : null}
 			</div>
 			{selected ? (
-				<p className="mt-1 text-xs text-gray-500">Selected: {categoryLabel(selected)}</p>
+				<p className="mt-1 text-xs text-gray-500">
+					{t('common.selected', locale === 'zh' ? '已选择' : 'Selected')}: {categoryLabel(selected)}
+				</p>
 			) : null}
 		</div>
 	);

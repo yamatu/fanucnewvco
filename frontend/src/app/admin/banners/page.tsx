@@ -18,8 +18,10 @@ import {
 import AdminLayout from '@/components/admin/AdminLayout';
 import { BannerService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 export default function AdminBannersPage() {
+  const { t } = useAdminI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -48,11 +50,11 @@ export default function AdminBannersPage() {
   const deleteBannerMutation = useMutation({
     mutationFn: (bannerId: number) => BannerService.deleteBanner(bannerId),
     onSuccess: () => {
-      toast.success('Banner deleted successfully!');
+      toast.success(t('banners.toast.deleted', { en: 'Banner deleted successfully!', zh: '横幅已删除！' }));
       queryClient.invalidateQueries({ queryKey: [...queryKeys.banners.admin(), 'list'] });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to delete banner');
+      toast.error(error.message || t('banners.toast.deleteFailed', { en: 'Failed to delete banner', zh: '删除横幅失败' }));
     },
   });
 
@@ -70,16 +72,25 @@ export default function AdminBannersPage() {
         is_active: !banner.is_active,
       }),
     onSuccess: () => {
-      toast.success('Banner status updated successfully!');
+      toast.success(t('banners.toast.statusUpdated', { en: 'Banner status updated successfully!', zh: '横幅状态已更新！' }));
       queryClient.invalidateQueries({ queryKey: [...queryKeys.banners.admin(), 'list'] });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to update banner status');
+      toast.error(error.message || t('banners.toast.statusUpdateFailed', { en: 'Failed to update banner status', zh: '更新横幅状态失败' }));
     },
   });
 
   const handleDeleteBanner = (bannerId: number, title: string) => {
-    if (window.confirm(`Are you sure you want to delete banner "${title}"? This action cannot be undone.`)) {
+    if (window.confirm(
+      t(
+        'banners.confirm.delete',
+        {
+          en: 'Are you sure you want to delete banner "{title}"? This action cannot be undone.',
+          zh: '确定要删除横幅“{title}”吗？此操作不可撤销。',
+        },
+        { title }
+      )
+    )) {
       deleteBannerMutation.mutate(bannerId);
     }
   };
@@ -90,10 +101,10 @@ export default function AdminBannersPage() {
 
   const getPositionBadge = (position: string) => {
     const positionConfig = {
-      home: { label: 'Home', color: 'bg-blue-100 text-blue-800' },
-      products: { label: 'Products', color: 'bg-green-100 text-green-800' },
-      about: { label: 'About', color: 'bg-purple-100 text-purple-800' },
-      contact: { label: 'Contact', color: 'bg-orange-100 text-orange-800' },
+      home: { label: t('banners.position.home', { en: 'Home', zh: '首页' }), color: 'bg-blue-100 text-blue-800' },
+      products: { label: t('banners.position.products', { en: 'Products', zh: '产品页' }), color: 'bg-green-100 text-green-800' },
+      about: { label: t('banners.position.about', { en: 'About', zh: '关于' }), color: 'bg-purple-100 text-purple-800' },
+      contact: { label: t('banners.position.contact', { en: 'Contact', zh: '联系' }), color: 'bg-orange-100 text-orange-800' },
     };
 
     const config = positionConfig[position as keyof typeof positionConfig] || 
@@ -110,12 +121,12 @@ export default function AdminBannersPage() {
     return isActive ? (
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
         <CheckCircleIcon className="h-3 w-3 mr-1" />
-        Active
+		{t('common.active', { en: 'Active', zh: '启用' })}
       </span>
     ) : (
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
         <XCircleIcon className="h-3 w-3 mr-1" />
-        Inactive
+		{t('common.inactive', { en: 'Inactive', zh: '停用' })}
       </span>
     );
   };
@@ -127,7 +138,9 @@ export default function AdminBannersPage() {
           <div className="text-red-600 mb-4">
             <XCircleIcon className="h-12 w-12 mx-auto" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Banners</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {t('banners.error.title', { en: 'Error Loading Banners', zh: '横幅加载失败' })}
+          </h3>
           <p className="text-gray-500">{error.message}</p>
         </div>
       </AdminLayout>
@@ -140,9 +153,9 @@ export default function AdminBannersPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Banners</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('banners.title', { en: 'Banners', zh: '横幅管理' })}</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Manage website banners and promotional content
+              {t('banners.subtitle', { en: 'Manage website banners and promotional content', zh: '管理网站横幅与促销内容' })}
             </p>
           </div>
           <div className="flex items-center space-x-3">
@@ -151,14 +164,14 @@ export default function AdminBannersPage() {
               className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               <FunnelIcon className="h-4 w-4 mr-2" />
-              Filters
+              {t('common.filters', { en: 'Filters', zh: '筛选' })}
             </button>
             <Link
               href="/admin/banners/new"
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
             >
               <PlusIcon className="h-4 w-4 mr-2" />
-              Add Banner
+              {t('banners.add', { en: 'Add Banner', zh: '新增横幅' })}
             </Link>
           </div>
         </div>
@@ -169,7 +182,7 @@ export default function AdminBannersPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-                  Search
+                  {t('common.search', { en: 'Search', zh: '搜索' })}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -181,14 +194,14 @@ export default function AdminBannersPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Title, subtitle, or description..."
+                    placeholder={t('banners.searchPh', { en: 'Title, subtitle, or description...', zh: '标题、副标题或描述...' })}
                   />
                 </div>
               </div>
 
               <div>
                 <label htmlFor="position" className="block text-sm font-medium text-gray-700 mb-1">
-                  Position
+                  {t('banners.field.position', { en: 'Position', zh: '位置' })}
                 </label>
                 <select
                   id="position"
@@ -196,17 +209,17 @@ export default function AdminBannersPage() {
                   onChange={(e) => setPositionFilter(e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="">All Positions</option>
-                  <option value="home">Home</option>
-                  <option value="products">Products</option>
-                  <option value="about">About</option>
-                  <option value="contact">Contact</option>
+                  <option value="">{t('banners.position.all', { en: 'All Positions', zh: '全部位置' })}</option>
+                  <option value="home">{t('banners.position.home', { en: 'Home', zh: '首页' })}</option>
+                  <option value="products">{t('banners.position.products', { en: 'Products', zh: '产品页' })}</option>
+                  <option value="about">{t('banners.position.about', { en: 'About', zh: '关于' })}</option>
+                  <option value="contact">{t('banners.position.contact', { en: 'Contact', zh: '联系' })}</option>
                 </select>
               </div>
 
               <div>
                 <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
+                  {t('common.status', { en: 'Status', zh: '状态' })}
                 </label>
                 <select
                   id="status"
@@ -214,9 +227,9 @@ export default function AdminBannersPage() {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="">All Statuses</option>
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
+                  <option value="">{t('common.all', { en: 'All Statuses', zh: '全部' })}</option>
+                  <option value="true">{t('common.active', { en: 'Active', zh: '启用' })}</option>
+                  <option value="false">{t('common.inactive', { en: 'Inactive', zh: '停用' })}</option>
                 </select>
               </div>
 
@@ -229,7 +242,7 @@ export default function AdminBannersPage() {
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                 >
-                  Clear Filters
+                  {t('common.clearFilters', { en: 'Clear Filters', zh: '清除筛选' })}
                 </button>
               </div>
             </div>
@@ -241,16 +254,16 @@ export default function AdminBannersPage() {
           {isLoading ? (
             <div className="p-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-500">Loading banners...</p>
+              <p className="mt-2 text-gray-500">{t('banners.loading', { en: 'Loading banners...', zh: '正在加载横幅...' })}</p>
             </div>
           ) : banners.length === 0 ? (
             <div className="p-8 text-center">
               <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No banners found</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('banners.empty', { en: 'No banners found', zh: '没有找到横幅' })}</h3>
               <p className="text-gray-500">
                 {searchQuery || positionFilter || statusFilter
-                  ? 'Try adjusting your filters to see more banners.'
-                  : 'Get started by creating your first banner.'}
+                  ? t('banners.empty.filtered', { en: 'Try adjusting your filters to see more banners.', zh: '请尝试调整筛选条件。' })
+                  : t('banners.empty.fresh', { en: 'Get started by creating your first banner.', zh: '从创建第一个横幅开始吧。' })}
               </p>
               {!searchQuery && !positionFilter && !statusFilter && (
                 <div className="mt-6">
@@ -259,7 +272,7 @@ export default function AdminBannersPage() {
                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                   >
                     <PlusIcon className="h-4 w-4 mr-2" />
-                    Add Banner
+                    {t('banners.add', { en: 'Add Banner', zh: '新增横幅' })}
                   </Link>
                 </div>
               )}
@@ -299,7 +312,11 @@ export default function AdminBannersPage() {
                     <div className="flex items-center justify-between mb-4">
                       {getPositionBadge(banner.position)}
                       <span className="text-xs text-gray-500">
-                        Order: {banner.sort_order}
+                        {t(
+                          'banners.field.sortOrderLine',
+                          { en: 'Order: {order}', zh: '排序：{order}' },
+                          { order: banner.sort_order }
+                        )}
                       </span>
                     </div>
 
@@ -315,7 +332,9 @@ export default function AdminBannersPage() {
                               : 'text-green-700 bg-green-50 hover:bg-green-100'
                           }`}
                         >
-                          {banner.is_active ? 'Deactivate' : 'Activate'}
+                          {banner.is_active
+                            ? t('common.deactivate', { en: 'Deactivate', zh: '停用' })
+                            : t('common.activate', { en: 'Activate', zh: '启用' })}
                         </button>
                       </div>
 

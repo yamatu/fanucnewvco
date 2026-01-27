@@ -262,31 +262,43 @@ export default function EditProductPage() {
     setImages([...images, ...newImages]);
     setBatchUrls('');
     setShowBatchImport(false);
-    toast.success(`Successfully imported ${validUrls.length} images!`);
+    toast.success(
+      t(
+        'products.images.imported',
+        locale === 'zh'
+          ? `成功导入 ${validUrls.length} 张图片！`
+          : `Successfully imported ${validUrls.length} images!`
+      )
+    );
   };
 
   // Clear all images function
   const handleClearAllImages = () => {
     if (images.length === 0) {
-      toast.error('No images to clear');
+      toast.error(t('products.images.noneToClear', locale === 'zh' ? '没有可清空的图片' : 'No images to clear'));
       return;
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to remove all ${images.length} images? This action cannot be undone.`
+      t(
+        'products.images.confirmClearAll',
+        locale === 'zh'
+          ? `确定要删除全部 ${images.length} 张图片吗？此操作不可撤销。`
+          : `Are you sure you want to remove all ${images.length} images? This action cannot be undone.`
+      )
     );
 
     if (confirmed) {
       setImages([]);
-      toast.success('All images have been cleared!');
+      toast.success(t('products.images.cleared', locale === 'zh' ? '已清空全部图片！' : 'All images have been cleared!'));
     }
   };
 
   const removeImage = (imageId: number) => {
-    if (window.confirm('Are you sure you want to delete this image?')) {
+    if (window.confirm(t('products.images.confirmDeleteOne', locale === 'zh' ? '确定要删除这张图片吗？' : 'Are you sure you want to delete this image?'))) {
       const newImages = images.filter(img => img.id !== imageId);
       setImages(newImages);
-      toast.success('Image removed successfully!');
+      toast.success(t('products.images.removed', locale === 'zh' ? '图片已删除！' : 'Image removed successfully!'));
     }
   };
 
@@ -330,11 +342,11 @@ export default function EditProductPage() {
       const catId = Number(data.category_id);
       const hasValidCategory = Array.isArray(categories) && categories.some((c: any) => Number(c.id) === catId);
       if (!catId || !hasValidCategory) {
-        toast.error('Please select a valid category');
+        toast.error(t('products.toast.categoryInvalid', locale === 'zh' ? '请选择有效的分类' : 'Please select a valid category'));
         return;
       }
 		if (!product) {
-			toast.error('Product not loaded');
+			toast.error(t('products.notLoaded', locale === 'zh' ? '产品未加载完成' : 'Product not loaded'));
 			return;
 		}
       // Convert images to the format expected by the API
@@ -413,9 +425,9 @@ export default function EditProductPage() {
     return (
       <AdminLayout>
         <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-900">Product not found</h3>
+          <h3 className="text-lg font-medium text-gray-900">{t('products.notFound', locale === 'zh' ? '未找到产品' : 'Product not found')}</h3>
           <p className="mt-1 text-sm text-gray-500">
-            The product you're trying to edit doesn't exist.
+            {t('products.notFound.desc', locale === 'zh' ? '你要编辑的产品不存在。' : "The product you're trying to edit doesn't exist.")}
           </p>
           <div className="mt-6">
             <button
@@ -423,7 +435,7 @@ export default function EditProductPage() {
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
             >
               <ArrowLeftIcon className="h-4 w-4 mr-2" />
-              Back to Products
+              {t('products.backToList', locale === 'zh' ? '返回产品列表' : 'Back to Products')}
             </button>
           </div>
         </div>
@@ -442,12 +454,12 @@ export default function EditProductPage() {
               className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               <ArrowLeftIcon className="h-4 w-4 mr-2" />
-              Back
+              {t('common.back', locale === 'zh' ? '返回' : 'Back')}
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Edit Product</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{t('products.edit.title', locale === 'zh' ? '编辑产品' : 'Edit Product')}</h1>
               <p className="mt-1 text-sm text-gray-500">
-                Update product information for {product.name}
+                {t('products.edit.subtitle', locale === 'zh' ? `更新产品信息：${product.name}` : `Update product information for ${product.name}`)}
               </p>
             </div>
           </div>
@@ -460,18 +472,18 @@ export default function EditProductPage() {
             <div className="lg:col-span-2 space-y-6">
               {/* Basic Information */}
               <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('products.basic.title', locale === 'zh' ? '基础信息' : 'Basic Information')}</h3>
                 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                      Product Name *
+                      {t('products.field.name', locale === 'zh' ? '产品名称 *' : 'Product Name *')}
                     </label>
                     <input
-                      {...register('name', { required: 'Product name is required' })}
+                      {...register('name', { required: t('products.validation.nameRequired', locale === 'zh' ? '请输入产品名称' : 'Product name is required') })}
                       type="text"
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., FANUC A02B-0120-C041"
+                      placeholder={t('products.placeholder.name', locale === 'zh' ? '例如：FANUC A02B-0120-C041' : 'e.g., FANUC A02B-0120-C041')}
                     />
                     {errors.name && (
                       <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -480,13 +492,13 @@ export default function EditProductPage() {
 
                   <div>
                     <label htmlFor="sku" className="block text-sm font-medium text-gray-700 mb-1">
-                      SKU *
+                      {t('products.field.sku', locale === 'zh' ? 'SKU *' : 'SKU *')}
                     </label>
                     <input
-                      {...register('sku', { required: 'SKU is required' })}
+                      {...register('sku', { required: t('products.validation.skuRequired', locale === 'zh' ? '请输入 SKU' : 'SKU is required') })}
                       type="text"
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., A02B-0120-C041"
+                      placeholder={t('products.placeholder.sku', locale === 'zh' ? '例如：A02B-0120-C041' : 'e.g., A02B-0120-C041')}
                     />
                     {errors.sku && (
                       <p className="mt-1 text-sm text-red-600">{errors.sku.message}</p>
@@ -495,17 +507,17 @@ export default function EditProductPage() {
 
                   <div>
                     <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
-                      Price *
+                      {t('products.field.price', locale === 'zh' ? '价格 *' : 'Price *')}
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <span className="text-gray-500 sm:text-sm">$</span>
                       </div>
-                      <input
-                        {...register('price', { 
-                          required: 'Price is required',
-                          min: { value: 0, message: 'Price must be positive' }
-                        })}
+                        <input
+                          {...register('price', { 
+                            required: t('products.validation.priceRequired', locale === 'zh' ? '请输入价格' : 'Price is required'),
+                            min: { value: 0, message: t('products.validation.pricePositive', locale === 'zh' ? '价格必须大于等于 0' : 'Price must be positive') }
+                          })}
                         type="number"
                         step="0.01"
                         className="block w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -519,13 +531,13 @@ export default function EditProductPage() {
 
                   <div>
                     <label htmlFor="category_id" className="block text-sm font-medium text-gray-700 mb-1">
-                      Category *
+                      {t('products.field.category', locale === 'zh' ? '分类 *' : 'Category *')}
                     </label>
 
 					{/* Hidden field for react-hook-form validation/submission */}
 					<input
 						type="hidden"
-						{...register('category_id', { required: 'Category is required' })}
+						{...register('category_id', { required: t('products.validation.categoryRequired', locale === 'zh' ? '请选择分类' : 'Category is required') })}
 					/>
 					<CategoryCombobox
 						categories={Array.isArray(categories) ? categories : []}
@@ -533,7 +545,7 @@ export default function EditProductPage() {
 						onChange={(categoryId) =>
 							setValue('category_id', categoryId as any, { shouldDirty: true, shouldValidate: true })
 						}
-						placeholder="Type to search categories (name / path / slug)"
+						placeholder={t('products.placeholder.category', locale === 'zh' ? '输入搜索分类（名称 / 路径 / slug）' : 'Type to search categories (name / path / slug)')}
 					/>
                     {errors.category_id && (
                       <p className="mt-1 text-sm text-red-600">{errors.category_id.message}</p>
@@ -542,11 +554,11 @@ export default function EditProductPage() {
 
                   <div>
                     <label htmlFor="stock_quantity" className="block text-sm font-medium text-gray-700 mb-1">
-                      Stock Quantity
+                      {t('products.field.stock', locale === 'zh' ? '库存数量' : 'Stock Quantity')}
                     </label>
                     <input
                       {...register('stock_quantity', { 
-                        min: { value: 0, message: 'Stock quantity must be positive' }
+                        min: { value: 0, message: t('products.validation.stockPositive', locale === 'zh' ? '库存必须大于等于 0' : 'Stock quantity must be positive') }
                       })}
                       type="number"
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -559,14 +571,14 @@ export default function EditProductPage() {
 
 				  <div>
 					<label htmlFor="weight" className="block text-sm font-medium text-gray-700 mb-1">
-						Weight (kg)
+						{t('products.field.weight', locale === 'zh' ? '重量(kg)' : 'Weight (kg)')}
 					</label>
 					<input
-						{...register('weight', { min: { value: 0, message: 'Weight must be positive' } })}
+						{...register('weight', { min: { value: 0, message: t('products.validation.weightPositive', locale === 'zh' ? '重量必须大于等于 0' : 'Weight must be positive') } })}
 						type="number"
 						step="0.001"
 						className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-						placeholder="e.g., 1.25"
+						placeholder={t('products.placeholder.weight', locale === 'zh' ? '例如：1.25' : 'e.g., 1.25')}
 					/>
 					{errors.weight && (
 						<p className="mt-1 text-sm text-red-600">{String(errors.weight.message)}</p>
@@ -575,13 +587,13 @@ export default function EditProductPage() {
 
                   <div className="sm:col-span-2">
                     <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
+                      {t('products.field.description', locale === 'zh' ? '描述' : 'Description')}
                     </label>
                     <textarea
                       {...register('description')}
                       rows={4}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Product description..."
+                      placeholder={t('products.placeholder.description', locale === 'zh' ? '产品描述...' : 'Product description...')}
                     />
                   </div>
             </div>
@@ -595,49 +607,49 @@ export default function EditProductPage() {
 
           {/* SEO Basic Information */}
           <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">SEO Basic Information</h3>
-            <p className="text-sm text-gray-500 mb-4">These fields control how your product appears in search engines and social previews.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('products.seo.title', locale === 'zh' ? 'SEO 基础信息' : 'SEO Basic Information')}</h3>
+            <p className="text-sm text-gray-500 mb-4">{t('products.seo.subtitle', locale === 'zh' ? '这些字段用于控制产品在搜索引擎与社交预览中的展示。' : 'These fields control how your product appears in search engines and social previews.')}</p>
 
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <label htmlFor="meta_title" className="block text-sm font-medium text-gray-700 mb-1">
-                  SEO Title
+                  {t('products.seo.metaTitle', locale === 'zh' ? 'SEO 标题' : 'SEO Title')}
                 </label>
                 <input
                   {...register('meta_title')}
                   type="text"
                   maxLength={70}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g., FANUC A16B-2202-0420 Power Supply | In Stock"
+                  placeholder={t('products.seo.metaTitlePh', locale === 'zh' ? '例如：FANUC A16B-2202-0420 电源 | 现货' : 'e.g., FANUC A16B-2202-0420 Power Supply | In Stock')}
                 />
-                <p className="mt-1 text-xs text-gray-500">Recommended 50–60 characters. Include SKU and category.</p>
+                <p className="mt-1 text-xs text-gray-500">{t('products.seo.metaTitleHint', locale === 'zh' ? '建议 50–60 字符，包含 SKU 和分类。' : 'Recommended 50–60 characters. Include SKU and category.')}</p>
               </div>
 
               <div>
                 <label htmlFor="meta_description" className="block text-sm font-medium text-gray-700 mb-1">
-                  SEO Description
+                  {t('products.seo.metaDesc', locale === 'zh' ? 'SEO 描述' : 'SEO Description')}
                 </label>
                 <textarea
                   {...register('meta_description')}
                   rows={3}
                   maxLength={180}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g., FANUC A16B-2202-0420 24V Power Supply, USD $506, In Stock, 1-Year Warranty, Fast Global Shipping."
+                  placeholder={t('products.seo.metaDescPh', locale === 'zh' ? '例如：FANUC A16B-2202-0420 24V 电源，现货，1 年质保，全球快速发货。' : 'e.g., FANUC A16B-2202-0420 24V Power Supply, USD $506, In Stock, 1-Year Warranty, Fast Global Shipping.')}
                 />
-                <p className="mt-1 text-xs text-gray-500">Recommended 150–160 characters. Mention price, availability, warranty, shipping.</p>
+                <p className="mt-1 text-xs text-gray-500">{t('products.seo.metaDescHint', locale === 'zh' ? '建议 150–160 字符，包含价格、库存、质保、运费等信息。' : 'Recommended 150–160 characters. Mention price, availability, warranty, shipping.')}</p>
               </div>
 
               <div>
                 <label htmlFor="meta_keywords" className="block text-sm font-medium text-gray-700 mb-1">
-                  SEO Keywords (optional)
+                  {t('products.seo.metaKeywords', locale === 'zh' ? 'SEO 关键词（可选）' : 'SEO Keywords (optional)')}
                 </label>
                 <input
                   {...register('meta_keywords')}
                   type="text"
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g., A16B-2202-0420, A16B22020420, power supply, 24V"
+                  placeholder={t('products.seo.metaKeywordsPh', locale === 'zh' ? '例如：A16B-2202-0420, A16B22020420, 电源, 24V' : 'e.g., A16B-2202-0420, A16B22020420, power supply, 24V')}
                 />
-                <p className="mt-1 text-xs text-gray-500">Comma-separated keywords. Include alternate SKU format.</p>
+                <p className="mt-1 text-xs text-gray-500">{t('products.seo.metaKeywordsHint', locale === 'zh' ? '用逗号分隔，建议包含不同格式的 SKU。' : 'Comma-separated keywords. Include alternate SKU format.')}</p>
               </div>
             </div>
 
@@ -652,7 +664,7 @@ export default function EditProductPage() {
 
           {/* Product Images */}
           <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Product Images</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">{t('products.images.title', locale === 'zh' ? '产品图片' : 'Product Images')}</h3>
                 
                 <div className="space-y-4">
 
@@ -663,7 +675,12 @@ export default function EditProductPage() {
                   <div className="border-t pt-6">
                     <div className="flex items-center justify-between mb-4">
                       <h4 className="text-sm font-medium text-gray-700">
-                        Images (URLs) {images.length > 0 && <span className="text-gray-500">({images.length} images)</span>}
+						{t('products.images.urlsTitle', locale === 'zh' ? '图片（链接）' : 'Images (URLs)')}
+						{images.length > 0 && (
+							<span className="text-gray-500">
+								({images.length} {t('products.images.count', locale === 'zh' ? '张' : 'images')})
+							</span>
+						)}
                       </h4>
                       <div className="flex space-x-2">
                         <button
@@ -672,7 +689,7 @@ export default function EditProductPage() {
                           className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                           <PhotoIcon className="h-4 w-4 mr-1" />
-                          {locale === 'zh' ? '从图库选择' : 'Choose From Library'}
+							{t('products.images.chooseFromLibrary', locale === 'zh' ? '从图库选择' : 'Choose From Library')}
                         </button>
                         <button
                           type="button"
@@ -683,7 +700,7 @@ export default function EditProductPage() {
                           className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                           <LinkIcon className="h-4 w-4 mr-1" />
-                          Add Single Image
+							{t('products.images.addSingle', locale === 'zh' ? '添加单张图片' : 'Add Single Image')}
                         </button>
                         <button
                           type="button"
@@ -694,7 +711,7 @@ export default function EditProductPage() {
                           className="inline-flex items-center px-3 py-1 border border-transparent shadow-sm text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                           <CloudArrowUpIcon className="h-4 w-4 mr-1" />
-                          Batch Import
+							{t('products.images.batchImport', locale === 'zh' ? '批量导入' : 'Batch Import')}
                         </button>
                         {images.length > 0 && (
                           <button
@@ -703,7 +720,7 @@ export default function EditProductPage() {
                             className="inline-flex items-center px-3 py-1 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                           >
                             <TrashIcon className="h-4 w-4 mr-1" />
-                            Clear All ({images.length})
+							{t('products.images.clearAll', locale === 'zh' ? '清空' : 'Clear All')} ({images.length})
                           </button>
                         )}
                       </div>
@@ -715,7 +732,7 @@ export default function EditProductPage() {
                         <div className="space-y-3">
                           <div>
                             <label htmlFor="image-url" className="block text-sm font-medium text-gray-700 mb-1">
-                              Image URL *
+							{t('products.images.imageUrl', locale === 'zh' ? '图片链接 *' : 'Image URL *')}
                             </label>
                             <input
                               id="image-url"
@@ -723,7 +740,7 @@ export default function EditProductPage() {
                               value={imageUrl}
                               onChange={(e) => setImageUrl(e.target.value)}
                               className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
-                              placeholder="https://example.com/image.jpg"
+							placeholder={t('products.images.imageUrlPh', locale === 'zh' ? '例如：https://example.com/image.jpg' : 'https://example.com/image.jpg')}
                             />
                           </div>
                           <div className="flex space-x-2">
@@ -734,7 +751,7 @@ export default function EditProductPage() {
                               className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <PlusIcon className="h-4 w-4 mr-1" />
-                              Add Image
+							{t('products.images.addImage', locale === 'zh' ? '添加图片' : 'Add Image')}
                             </button>
                             <button
                               type="button"
@@ -744,7 +761,7 @@ export default function EditProductPage() {
                               }}
                               className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             >
-                              Cancel
+							{t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}
                             </button>
                           </div>
                         </div>
@@ -757,7 +774,7 @@ export default function EditProductPage() {
                         <div className="space-y-3">
                           <div>
                             <label htmlFor="batch-urls" className="block text-sm font-medium text-gray-700 mb-1">
-                              Batch Import URLs (one per line) *
+							{t('products.images.batchUrls', locale === 'zh' ? '批量导入链接（每行一个）*' : 'Batch Import URLs (one per line) *')}
                             </label>
                             <textarea
                               id="batch-urls"
@@ -772,7 +789,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57.webp
 https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
                             />
                             <p className="mt-1 text-xs text-gray-500">
-                              Enter each image URL on a new line. All URLs will be validated before importing.
+							{t('products.images.batchHint', locale === 'zh' ? '每行填写一个图片链接；导入前会校验所有链接。' : 'Enter each image URL on a new line. All URLs will be validated before importing.')}
                             </p>
                           </div>
                           <div className="flex space-x-2">
@@ -783,7 +800,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
                               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <CloudArrowUpIcon className="h-4 w-4 mr-2" />
-                              Import All URLs
+							{t('products.images.importAll', locale === 'zh' ? '导入全部链接' : 'Import All URLs')}
                             </button>
                             <button
                               type="button"
@@ -793,7 +810,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
                               }}
                               className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             >
-                              Cancel
+							{t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}
                             </button>
                           </div>
                         </div>
@@ -814,10 +831,10 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
                               onDrop={() => onDrop(index)}
                             >
                               <div className="relative h-24 w-full">
-                                <Image
-                                  src={image.url}
-                                  alt={image.alt_text || `Image ${index + 1}`}
-                                  fill
+                                  <Image
+                                    src={image.url}
+								alt={image.alt_text || t('products.images.alt', locale === 'zh' ? `图片 ${index + 1}` : `Image ${index + 1}`)}
+                                    fill
                                   unoptimized
                                   sizes="120px"
                                   className="object-cover rounded-lg"
@@ -832,19 +849,19 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
                               <div className="absolute top-1 left-1">
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                   <LinkIcon className="h-3 w-3 mr-1" />
-                                  URL
+								{t('products.images.urlTag', locale === 'zh' ? '链接' : 'URL')}
                                 </span>
                               </div>
                               <div className="absolute bottom-1 left-1">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-white/90 border text-gray-600">
-                                  Drag to reorder
+								{t('products.images.dragReorder', locale === 'zh' ? '拖拽调整顺序' : 'Drag to reorder')}
                                 </span>
                               </div>
                               {index === 0 && (
                                 <div className="absolute top-1 right-1">
                                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                     <StarIcon className="h-3 w-3 mr-1" />
-                                    Main
+								{t('products.images.main', locale === 'zh' ? '主图' : 'Main')}
                                   </span>
                                 </div>
                               )}
@@ -862,7 +879,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
                                   onClick={() => moveImage(index, 'left')}
                                   className="bg-white/90 backdrop-blur px-1.5 py-1 rounded shadow border hover:bg-white disabled:opacity-50"
                                   disabled={index === 0}
-                                  title="Move left"
+								title={t('products.images.moveLeft', locale === 'zh' ? '左移' : 'Move left')}
                                 >
                                   <ChevronLeftIcon className="h-4 w-4 text-gray-700" />
                                 </button>
@@ -870,7 +887,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
                                   type="button"
                                   onClick={() => setAsPrimary(index)}
                                   className="bg-white/90 backdrop-blur px-2 py-1 rounded shadow border hover:bg-white"
-                                  title="Set as main"
+								title={t('products.images.setMain', locale === 'zh' ? '设为主图' : 'Set as main')}
                                 >
                                   <StarIcon className="h-4 w-4 text-yellow-600" />
                                 </button>
@@ -879,7 +896,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
                                   onClick={() => moveImage(index, 'right')}
                                   className="bg-white/90 backdrop-blur px-1.5 py-1 rounded shadow border hover:bg-white disabled:opacity-50"
                                   disabled={index === images.length - 1}
-                                  title="Move right"
+								title={t('products.images.moveRight', locale === 'zh' ? '右移' : 'Move right')}
                                 >
                                   <ChevronRightIcon className="h-4 w-4 text-gray-700" />
                                 </button>
@@ -892,7 +909,9 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
 
                     {images.length === 0 && !showImageForm && (
                       <div className="text-center py-6 text-gray-500 text-sm">
-                        No images added yet. Click "Add Image" to add images from URLs.
+						{t('products.images.empty', locale === 'zh'
+							? '还没有添加图片。点击“添加图片”从 URL 添加图片。'
+							: 'No images added yet. Click "Add Image" to add images from URLs.')}
                       </div>
                     )}
                   </div>
@@ -904,7 +923,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
             <div className="space-y-6">
               {/* Status */}
               <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Status</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('products.status.title', locale === 'zh' ? '状态' : 'Status')}</h3>
                 
                 <div className="space-y-4">
                   <div className="flex items-center">
@@ -915,7 +934,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">
-                      Active
+                      {t('products.status.active', locale === 'zh' ? '启用' : 'Active')}
                     </label>
                   </div>
 
@@ -927,7 +946,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <label htmlFor="is_featured" className="ml-2 block text-sm text-gray-900">
-                      Featured Product
+                      {t('products.status.featured', locale === 'zh' ? '推荐产品' : 'Featured Product')}
                     </label>
                   </div>
                 </div>
@@ -944,12 +963,12 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
                     {isSubmitting || updateProductMutation.isPending ? (
                       <div className="flex items-center">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Updating...
+						{t('common.updating', locale === 'zh' ? '更新中...' : 'Updating...')}
                       </div>
                     ) : (
                       <>
                         <PencilIcon className="h-4 w-4 mr-2" />
-                        Update Product
+						{t('products.edit.update', locale === 'zh' ? '更新产品' : 'Update Product')}
                       </>
                     )}
                   </button>
@@ -959,7 +978,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
                     onClick={() => router.back()}
                     className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
-                    Cancel
+                    {t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}
                   </button>
                 </div>
               </div>
@@ -972,7 +991,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
         open={showMediaPicker}
         onClose={() => setShowMediaPicker(false)}
         multiple={true}
-        title="Select product images"
+		title={t('products.images.pickerTitle', locale === 'zh' ? '选择产品图片' : 'Select product images')}
         onSelect={(assets) => {
           setImages((prev) => {
             const existing = new Set(prev.map((p: any) => p.url));
@@ -996,7 +1015,7 @@ https://dz.yamatu.xyz/i/2025/09/22/A06B-6079-H121_-_57-5.webp`}
             }
             return next;
           });
-          toast.success(t('products.toast.addedFromLibrary', 'Added from media library'));
+		  toast.success(t('products.toast.addedFromLibrary', locale === 'zh' ? '已从图库添加' : 'Added from media library'));
         }}
       />
     </AdminLayout>

@@ -35,6 +35,7 @@ const emptyStats = {
 };
 
 function StatCard({ title, value, change, changeType, icon: Icon, color }: any) {
+  const { locale, t } = useAdminI18n();
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center">
@@ -56,7 +57,10 @@ function StatCard({ title, value, change, changeType, icon: Icon, color }: any) 
                     <ArrowDownIcon className="self-center flex-shrink-0 h-4 w-4" />
                   )}
                   <span className="sr-only">
-                    {changeType === 'increase' ? 'Increased' : 'Decreased'} by
+                    {changeType === 'increase'
+                      ? t('dashboard.change.increase', locale === 'zh' ? '增加' : 'Increased')
+                      : t('dashboard.change.decrease', locale === 'zh' ? '减少' : 'Decreased')}{' '}
+                    {t('dashboard.change.by', locale === 'zh' ? '幅度' : 'by')}
                   </span>
                   {change}%
                 </div>
@@ -70,7 +74,7 @@ function StatCard({ title, value, change, changeType, icon: Icon, color }: any) 
 }
 
 export default function AdminDashboard() {
-  const { t } = useAdminI18n();
+  const { locale, t } = useAdminI18n();
   // Fetch dashboard stats from API
   const {
     data: dashboardData,
@@ -111,6 +115,16 @@ export default function AdminDashboard() {
   const recentOrders = ordersData ?? [];
   const topProducts = productsData ?? [];
 
+  const getOrderStatusLabel = (status: string) => {
+    const s = String(status || '').toLowerCase();
+    if (s === 'pending') return t('orders.status.pending', locale === 'zh' ? '待处理' : 'Pending');
+    if (s === 'processing') return t('orders.status.processing', locale === 'zh' ? '处理中' : 'Processing');
+    if (s === 'shipped') return t('orders.status.shipped', locale === 'zh' ? '已发货' : 'Shipped');
+    if (s === 'delivered' || s === 'completed') return t('orders.status.delivered', locale === 'zh' ? '已送达' : 'Delivered');
+    if (s === 'cancelled') return t('orders.status.cancelled', locale === 'zh' ? '已取消' : 'Cancelled');
+    return status;
+  };
+
   const dashboardCards = DashboardService.getDashboardCards(stats);
 
   if (isStatsLoading) {
@@ -137,14 +151,17 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('nav.dashboard', 'Dashboard')}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Welcome back! Here's what's happening with your FANUC store today.
+            {t(
+              'dashboard.welcome',
+              locale === 'zh' ? '欢迎回来！这里是今天店铺的最新情况。' : "Welcome back! Here's what's happening with your FANUC store today."
+            )}
           </p>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            title="Total Products"
+            title={t('dashboard.card.totalProducts', locale === 'zh' ? '产品总数' : 'Total Products')}
             value={stats.total_products.toLocaleString()}
             change={5.2}
             changeType="increase"
@@ -152,7 +169,7 @@ export default function AdminDashboard() {
             color="bg-blue-500"
           />
           <StatCard
-            title="Active Products"
+            title={t('dashboard.card.activeProducts', locale === 'zh' ? '启用产品' : 'Active Products')}
             value={stats.active_products.toLocaleString()}
             change={3.1}
             changeType="increase"
@@ -160,7 +177,7 @@ export default function AdminDashboard() {
             color="bg-green-500"
           />
           <StatCard
-            title="Total Orders"
+            title={t('dashboard.card.totalOrders', locale === 'zh' ? '订单总数' : 'Total Orders')}
             value={stats.total_orders.toLocaleString()}
             change={12.5}
             changeType="increase"
@@ -168,7 +185,7 @@ export default function AdminDashboard() {
             color="bg-purple-500"
           />
           <StatCard
-            title="Pending Orders"
+            title={t('dashboard.card.pendingOrders', locale === 'zh' ? '待处理订单' : 'Pending Orders')}
             value={stats.pending_orders.toLocaleString()}
             change={-2.3}
             changeType="decrease"
@@ -180,7 +197,7 @@ export default function AdminDashboard() {
         {/* Secondary Stats Grid */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            title="Total Revenue"
+            title={t('dashboard.card.totalRevenue', locale === 'zh' ? '累计营收' : 'Total Revenue')}
             value={formatCurrency(stats.total_revenue)}
             change={8.1}
             changeType="increase"
@@ -188,7 +205,7 @@ export default function AdminDashboard() {
             color="bg-emerald-500"
           />
           <StatCard
-            title="Monthly Revenue"
+            title={t('dashboard.card.monthlyRevenue', locale === 'zh' ? '本月营收' : 'Monthly Revenue')}
             value={formatCurrency(stats.monthly_revenue)}
             change={15.2}
             changeType="increase"
@@ -196,7 +213,7 @@ export default function AdminDashboard() {
             color="bg-indigo-500"
           />
           <StatCard
-            title="Total Categories"
+            title={t('dashboard.card.totalCategories', locale === 'zh' ? '分类总数' : 'Total Categories')}
             value={stats.total_categories.toLocaleString()}
             change={1.0}
             changeType="increase"
@@ -204,7 +221,7 @@ export default function AdminDashboard() {
             color="bg-pink-500"
           />
           <StatCard
-            title="Active Users"
+            title={t('dashboard.card.activeUsers', locale === 'zh' ? '活跃用户' : 'Active Users')}
             value={stats.active_users}
             change={2.3}
             changeType="increase"
@@ -218,15 +235,19 @@ export default function AdminDashboard() {
           {/* Recent Orders */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Recent Orders</h3>
+              <h3 className="text-lg font-medium text-gray-900">{t('dashboard.recentOrders', locale === 'zh' ? '最近订单' : 'Recent Orders')}</h3>
             </div>
               <div className="overflow-hidden">
               {isRecentOrdersLoading ? (
-                <div className="p-6 text-sm text-gray-500">Loading...</div>
+                <div className="p-6 text-sm text-gray-500">{t('common.loading', locale === 'zh' ? '加载中...' : 'Loading...')}</div>
               ) : recentOrdersError ? (
-                <div className="p-6 text-sm text-red-600">Failed to load recent orders.</div>
+                <div className="p-6 text-sm text-red-600">
+                  {t('dashboard.recentOrdersFailed', locale === 'zh' ? '加载最近订单失败。' : 'Failed to load recent orders.')}
+                </div>
               ) : recentOrders.length === 0 ? (
-                <div className="p-6 text-sm text-gray-500">No recent orders yet.</div>
+                <div className="p-6 text-sm text-gray-500">
+                  {t('dashboard.recentOrdersEmpty', locale === 'zh' ? '暂无最近订单。' : 'No recent orders yet.')}
+                </div>
               ) : (
               <ul className="divide-y divide-gray-200">
                 {recentOrders.map((order) => (
@@ -252,10 +273,14 @@ export default function AdminDashboard() {
                               ? 'bg-yellow-100 text-yellow-800'
                               : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {order.status}
+                            {getOrderStatusLabel(order.status)}
                           </span>
                         </div>
-                        <a href={`/admin/orders/${order.id}`} className="text-gray-400 hover:text-gray-500" aria-label="View order">
+                        <a
+                          href={`/admin/orders/${order.id}`}
+                          className="text-gray-400 hover:text-gray-500"
+                          aria-label={t('common.view', locale === 'zh' ? '查看' : 'View')}
+                        >
                           <EyeIcon className="h-5 w-5" />
                         </a>
                       </div>
@@ -267,7 +292,7 @@ export default function AdminDashboard() {
             </div>
             <div className="px-6 py-3 border-t border-gray-200">
               <a href="/admin/orders" className="text-sm font-medium text-blue-600 hover:text-blue-500">
-                View all orders →
+                {t('dashboard.viewAllOrders', locale === 'zh' ? '查看全部订单 →' : 'View all orders →')}
               </a>
             </div>
           </div>
@@ -275,15 +300,17 @@ export default function AdminDashboard() {
           {/* Top Products */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Top Products</h3>
+              <h3 className="text-lg font-medium text-gray-900">{t('dashboard.topProducts', locale === 'zh' ? '热销产品' : 'Top Products')}</h3>
             </div>
               <div className="overflow-hidden">
               {isTopProductsLoading ? (
-                <div className="p-6 text-sm text-gray-500">Loading...</div>
+                <div className="p-6 text-sm text-gray-500">{t('common.loading', locale === 'zh' ? '加载中...' : 'Loading...')}</div>
               ) : topProductsError ? (
-                <div className="p-6 text-sm text-red-600">Failed to load top products.</div>
+                <div className="p-6 text-sm text-red-600">
+                  {t('dashboard.topProductsFailed', locale === 'zh' ? '加载热销产品失败。' : 'Failed to load top products.')}
+                </div>
               ) : topProducts.length === 0 ? (
-                <div className="p-6 text-sm text-gray-500">No sales data yet.</div>
+                <div className="p-6 text-sm text-gray-500">{t('dashboard.topProductsEmpty', locale === 'zh' ? '暂无销量数据。' : 'No sales data yet.')}</div>
               ) : (
               <ul className="divide-y divide-gray-200">
                 {topProducts.map((item, index) => (
@@ -302,13 +329,13 @@ export default function AdminDashboard() {
                             {item.name}
                           </p>
                           <p className="text-sm text-gray-500">
-                            SKU: {item.sku}
+                            {t('products.field.skuLabel', locale === 'zh' ? 'SKU：' : 'SKU:')} {item.sku}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium text-gray-900">
-                          {item.total_sold || 0} sold
+                          {t('dashboard.soldCount', locale === 'zh' ? '已售 {count}' : '{count} sold', { count: item.total_sold || 0 })}
                         </p>
                         <p className="text-sm text-gray-500">
                           {formatCurrency(item.revenue || 0)}
@@ -322,7 +349,7 @@ export default function AdminDashboard() {
             </div>
             <div className="px-6 py-3 border-t border-gray-200">
               <a href="/admin/products" className="text-sm font-medium text-blue-600 hover:text-blue-500">
-                View all products →
+                {t('dashboard.viewAllProducts', locale === 'zh' ? '查看全部产品 →' : 'View all products →')}
               </a>
             </div>
           </div>
@@ -331,7 +358,7 @@ export default function AdminDashboard() {
         {/* Quick Actions */}
         <div className="bg-white shadow rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+            <h3 className="text-lg font-medium text-gray-900">{t('dashboard.quickActions', locale === 'zh' ? '快捷操作' : 'Quick Actions')}</h3>
           </div>
           <div className="p-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -350,7 +377,7 @@ export default function AdminDashboard() {
                     {t('nav.products', 'Products')}
                   </h3>
                   <p className="mt-2 text-sm text-gray-500">
-                    Add a new FANUC product to your inventory
+                    {t('dashboard.quick.addProduct', locale === 'zh' ? '新增一个 FANUC 产品到库存' : 'Add a new FANUC product to your inventory')}
                   </p>
                 </div>
               </a>
@@ -370,7 +397,7 @@ export default function AdminDashboard() {
                     {t('nav.orders', 'Orders')}
                   </h3>
                   <p className="mt-2 text-sm text-gray-500">
-                    View and manage customer orders
+                    {t('dashboard.quick.manageOrders', locale === 'zh' ? '查看并管理客户订单' : 'View and manage customer orders')}
                   </p>
                 </div>
               </a>
@@ -390,7 +417,10 @@ export default function AdminDashboard() {
                     {t('nav.media', 'Media Library')}
                   </h3>
                   <p className="mt-2 text-sm text-gray-500">
-                    Upload and manage site images (deduplicated by hash)
+                    {t(
+                      'dashboard.quick.media',
+                      locale === 'zh' ? '上传并管理站点图片（按哈希去重）' : 'Upload and manage site images (deduplicated by hash)'
+                    )}
                   </p>
                 </div>
               </a>
@@ -410,7 +440,7 @@ export default function AdminDashboard() {
                     {t('nav.users', 'All Users')}
                   </h3>
                   <p className="mt-2 text-sm text-gray-500">
-                    Manage admin users and permissions
+                    {t('dashboard.quick.users', locale === 'zh' ? '管理后台用户与权限' : 'Manage admin users and permissions')}
                   </p>
                 </div>
               </a>

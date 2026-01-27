@@ -6,10 +6,12 @@ import { EmailService } from '@/services';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { buildEmailHtml, defaultModule, type EmailModule, type EmailModuleType } from '@/lib/email-templates';
+import { useAdminI18n } from '@/lib/admin-i18n';
 
 type Tab = 'settings' | 'send' | 'marketing' | 'webhooks';
 
 export default function AdminEmailPage() {
+  const { locale, t } = useAdminI18n();
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>('settings');
 
@@ -90,20 +92,20 @@ export default function AdminEmailPage() {
       return EmailService.updateSettings(payload);
     },
     onSuccess: async () => {
-      toast.success('Saved');
+      toast.success(t('common.saved', locale === 'zh' ? '保存成功' : 'Saved'));
       await qc.invalidateQueries({ queryKey: ['email'] });
       await qc.invalidateQueries({ queryKey: ['public', 'email'] });
       refetch();
       setForm((p: any) => ({ ...p, smtp_password: '', resend_api_key: '', resend_webhook_secret: '' }));
     },
-    onError: (e: any) => toast.error(e?.message || 'Failed to save'),
+    onError: (e: any) => toast.error(e?.message || t('common.saveFailed', locale === 'zh' ? '保存失败' : 'Failed to save')),
   });
 
   const [testTo, setTestTo] = useState('');
   const testMutation = useMutation({
     mutationFn: async () => EmailService.sendTest(testTo),
-    onSuccess: () => toast.success('Test email sent'),
-    onError: (e: any) => toast.error(e?.message || 'Failed to send test'),
+    onSuccess: () => toast.success(t('email.test.sent', locale === 'zh' ? '测试邮件已发送' : 'Test email sent')),
+    onError: (e: any) => toast.error(e?.message || t('email.test.failed', locale === 'zh' ? '发送测试邮件失败' : 'Failed to send test')),
   });
 
   const [modules, setModules] = useState<EmailModule[]>(() => {
@@ -132,8 +134,8 @@ export default function AdminEmailPage() {
 
   const singleSendMutation = useMutation({
     mutationFn: async () => EmailService.send(single),
-    onSuccess: () => toast.success('Email sent'),
-    onError: (e: any) => toast.error(e?.message || 'Failed to send'),
+    onSuccess: () => toast.success(t('email.send.sent', locale === 'zh' ? '邮件已发送' : 'Email sent')),
+    onError: (e: any) => toast.error(e?.message || t('email.send.failed', locale === 'zh' ? '发送失败' : 'Failed to send')),
   });
 
   const webhooksQuery = useQuery({
@@ -149,10 +151,10 @@ export default function AdminEmailPage() {
       events: whCreate.events.split(',').map((s) => s.trim()).filter(Boolean),
     }),
     onSuccess: async () => {
-      toast.success('Webhook created');
+      toast.success(t('email.webhook.created', locale === 'zh' ? 'Webhook 已创建' : 'Webhook created'));
       await webhooksQuery.refetch();
     },
-    onError: (e: any) => toast.error(e?.message || 'Failed to create webhook'),
+    onError: (e: any) => toast.error(e?.message || t('email.webhook.createFailed', locale === 'zh' ? '创建 Webhook 失败' : 'Failed to create webhook')),
   });
 
   const canSendMarketing = useMemo(() => Boolean(form.enabled && form.marketing_enabled), [form.enabled, form.marketing_enabled]);
@@ -166,19 +168,33 @@ export default function AdminEmailPage() {
       limit: mk.limit || undefined,
     }),
     onSuccess: (res) => {
-      if (mk.test_to) toast.success('Test marketing email sent');
-      else toast.success(`Broadcast finished: sent ${res.sent || 0}, failed ${res.failed || 0}`);
+      if (mk.test_to) {
+        toast.success(t('email.marketing.testSent', locale === 'zh' ? '营销测试邮件已发送' : 'Test marketing email sent'));
+      } else {
+        toast.success(
+          t(
+            'email.marketing.broadcastDone',
+            locale === 'zh' ? '群发完成：成功 {sent}，失败 {failed}' : 'Broadcast finished: sent {sent}, failed {failed}',
+            { sent: res.sent || 0, failed: res.failed || 0 }
+          )
+        );
+      }
     },
-    onError: (e: any) => toast.error(e?.message || 'Failed to send'),
+    onError: (e: any) => toast.error(e?.message || t('email.send.failed', locale === 'zh' ? '发送失败' : 'Failed to send')),
   });
 
   return (
     <AdminLayout>
       <div className="max-w-5xl space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Email</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav.email', locale === 'zh' ? '邮件' : 'Email')}</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Configure SMTP (Poste.io / AliMail / etc.), order notifications, verification codes, and marketing emails.
+            {t(
+              'email.subtitle',
+              locale === 'zh'
+                ? '配置 SMTP（Poste.io / AliMail 等）、订单通知、验证码与营销邮件。'
+                : 'Configure SMTP (Poste.io / AliMail / etc.), order notifications, verification codes, and marketing emails.'
+            )}
           </p>
         </div>
 
@@ -188,39 +204,44 @@ export default function AdminEmailPage() {
             onClick={() => setTab('settings')}
             className={`px-3 py-2 text-sm rounded-md ${tab === 'settings' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
           >
-            Settings
+            {t('email.tab.settings', locale === 'zh' ? '设置' : 'Settings')}
           </button>
           <button
             type="button"
             onClick={() => setTab('send')}
             className={`px-3 py-2 text-sm rounded-md ${tab === 'send' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
           >
-            Send
+            {t('email.tab.send', locale === 'zh' ? '发送' : 'Send')}
           </button>
           <button
             type="button"
             onClick={() => setTab('marketing')}
             className={`px-3 py-2 text-sm rounded-md ${tab === 'marketing' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
           >
-            Marketing
+            {t('email.tab.marketing', locale === 'zh' ? '营销' : 'Marketing')}
           </button>
           <button
             type="button"
             onClick={() => setTab('webhooks')}
             className={`px-3 py-2 text-sm rounded-md ${tab === 'webhooks' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
           >
-            Webhooks
+            {t('email.tab.webhooks', locale === 'zh' ? 'Webhooks' : 'Webhooks')}
           </button>
         </div>
 
         {isLoading ? (
-          <div className="bg-white rounded-lg shadow p-6">Loading...</div>
+          <div className="bg-white rounded-lg shadow p-6">{t('common.loading', locale === 'zh' ? '加载中...' : 'Loading...')}</div>
         ) : tab === 'settings' ? (
           <div className="bg-white rounded-lg shadow p-6 space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm font-semibold text-gray-900">Enable Email</div>
-                <div className="text-xs text-gray-500">Controls all outbound email (order notifications + verification + marketing)</div>
+                <div className="text-sm font-semibold text-gray-900">{t('email.settings.enable', locale === 'zh' ? '启用邮件' : 'Enable Email')}</div>
+                <div className="text-xs text-gray-500">
+                  {t(
+                    'email.settings.enableHint',
+                    locale === 'zh' ? '控制全部外发邮件（订单通知 / 验证码 / 营销邮件）' : 'Controls all outbound email (order notifications + verification + marketing)'
+                  )}
+                </div>
               </div>
               <input
                 type="checkbox"
@@ -232,7 +253,7 @@ export default function AdminEmailPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">From Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.fromName', locale === 'zh' ? '发件人名称' : 'From Name')}</label>
                 <input
                   value={form.from_name || ''}
                   onChange={(e) => setForm((p: any) => ({ ...p, from_name: e.target.value }))}
@@ -240,7 +261,7 @@ export default function AdminEmailPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">From Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.fromEmail', locale === 'zh' ? '发件邮箱' : 'From Email')}</label>
                 <input
                   value={form.from_email || ''}
                   onChange={(e) => setForm((p: any) => ({ ...p, from_email: e.target.value }))}
@@ -249,7 +270,7 @@ export default function AdminEmailPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reply-To</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.replyTo', locale === 'zh' ? '回复邮箱' : 'Reply-To')}</label>
                 <input
                   value={form.reply_to || ''}
                   onChange={(e) => setForm((p: any) => ({ ...p, reply_to: e.target.value }))}
@@ -262,48 +283,63 @@ export default function AdminEmailPage() {
             <div className="border-t pt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.provider', locale === 'zh' ? '服务商' : 'Provider')}</label>
                   <select
                     value={form.provider || 'smtp'}
                     onChange={(e) => setForm((p: any) => ({ ...p, provider: e.target.value }))}
                     className="block w-full rounded-md border border-gray-300 px-3 py-2"
                   >
-                    <option value="smtp">SMTP (Poste.io / AliMail)</option>
-                    <option value="resend">Resend API</option>
+                    <option value="smtp">{t('email.settings.provider.smtp', locale === 'zh' ? 'SMTP（Poste.io / AliMail）' : 'SMTP (Poste.io / AliMail)')}</option>
+                    <option value="resend">{t('email.settings.provider.resend', locale === 'zh' ? 'Resend API' : 'Resend API')}</option>
                   </select>
                 </div>
               </div>
 
-              <div className="text-sm font-semibold text-gray-900 mb-3">SMTP (Poste.io / AliMail / Custom)</div>
+              <div className="text-sm font-semibold text-gray-900 mb-3">
+                {t('email.settings.smtp.title', locale === 'zh' ? 'SMTP（Poste.io / AliMail / 自定义）' : 'SMTP (Poste.io / AliMail / Custom)')}
+              </div>
               {String(form.provider || 'smtp') === 'resend' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Resend API Key</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.resend.apiKey', locale === 'zh' ? 'Resend API Key' : 'Resend API Key')}</label>
                     <input
                       type="password"
                       value={form.resend_api_key || ''}
                       onChange={(e) => setForm((p: any) => ({ ...p, resend_api_key: e.target.value }))}
                       className="block w-full rounded-md border border-gray-300 px-3 py-2"
-                      placeholder={form.has_resend_api_key ? 'Saved (leave blank to keep)' : 're_xxxxxxxxx'}
+                      placeholder={
+                        form.has_resend_api_key
+                          ? t('common.savedKeepBlank', locale === 'zh' ? '已保存（留空则不修改）' : 'Saved (leave blank to keep)')
+                          : 're_xxxxxxxxx'
+                      }
                     />
-                    <p className="mt-1 text-xs text-gray-500">Stored encrypted if SETTINGS_ENCRYPTION_KEY is set.</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t(
+                        'email.settings.encryptionHint',
+                        locale === 'zh' ? '如设置 SETTINGS_ENCRYPTION_KEY，则会加密存储。' : 'Stored encrypted if SETTINGS_ENCRYPTION_KEY is set.'
+                      )}
+                    </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Webhook Secret (optional)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('email.settings.resend.webhookSecret', locale === 'zh' ? 'Webhook Secret（可选）' : 'Webhook Secret (optional)')}
+                    </label>
                     <input
                       type="password"
                       value={form.resend_webhook_secret || ''}
                       onChange={(e) => setForm((p: any) => ({ ...p, resend_webhook_secret: e.target.value }))}
                       className="block w-full rounded-md border border-gray-300 px-3 py-2"
-                      placeholder="(optional)"
+                      placeholder={t('common.optional', locale === 'zh' ? '（可选）' : '(optional)')}
                     />
-                    <p className="mt-1 text-xs text-gray-500">Used to verify inbound events (future).</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t('email.settings.resend.webhookHint', locale === 'zh' ? '用于校验回调事件（预留）。' : 'Used to verify inbound events (future).')}
+                    </p>
                   </div>
                 </div>
               ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.smtp.host', locale === 'zh' ? 'SMTP 主机' : 'SMTP Host')}</label>
                   <input
                     value={form.smtp_host || ''}
                     onChange={(e) => setForm((p: any) => ({ ...p, smtp_host: e.target.value }))}
@@ -311,12 +347,16 @@ export default function AdminEmailPage() {
                     placeholder="mail.vcocncspare.com"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    You can use hostname only (recommended) or hostname with port (e.g. mail.vcocncspare.com:8443).
-                    If you paste a URL, it will be sanitized server-side.
+                    {t(
+                      'email.settings.smtp.hostHint',
+                      locale === 'zh'
+                        ? '建议仅填写域名（推荐），也可填写域名+端口（例如 mail.vcocncspare.com:8443）。如果粘贴 URL，服务端会自动清洗。'
+                        : 'You can use hostname only (recommended) or hostname with port (e.g. mail.vcocncspare.com:8443). If you paste a URL, it will be sanitized server-side.'
+                    )}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Port</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.smtp.port', locale === 'zh' ? 'SMTP 端口' : 'SMTP Port')}</label>
                   <input
                     type="number"
                     value={form.smtp_port ?? 587}
@@ -325,7 +365,7 @@ export default function AdminEmailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.smtp.username', locale === 'zh' ? '用户名' : 'Username')}</label>
                   <input
                     value={form.smtp_username || ''}
                     onChange={(e) => setForm((p: any) => ({ ...p, smtp_username: e.target.value }))}
@@ -333,17 +373,21 @@ export default function AdminEmailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.smtp.password', locale === 'zh' ? '密码' : 'Password')}</label>
                   <input
                     type="password"
                     value={form.smtp_password || ''}
                     onChange={(e) => setForm((p: any) => ({ ...p, smtp_password: e.target.value }))}
                     className="block w-full rounded-md border border-gray-300 px-3 py-2"
-                    placeholder={form.has_smtp_password ? 'Saved (leave blank to keep)' : 'Enter SMTP password'}
+                    placeholder={
+                      form.has_smtp_password
+                        ? t('common.savedKeepBlank', locale === 'zh' ? '已保存（留空则不修改）' : 'Saved (leave blank to keep)')
+                        : t('email.settings.smtp.passwordPh', locale === 'zh' ? '输入 SMTP 密码' : 'Enter SMTP password')
+                    }
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">TLS Mode</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.smtp.tls', locale === 'zh' ? 'TLS 模式' : 'TLS Mode')}</label>
                   <select
                     value={form.smtp_tls_mode || 'starttls'}
                     onChange={(e) => setForm((p: any) => ({ ...p, smtp_tls_mode: e.target.value }))}
@@ -351,7 +395,7 @@ export default function AdminEmailPage() {
                   >
                     <option value="starttls">STARTTLS (587)</option>
                     <option value="ssl">SSL (465)</option>
-                    <option value="none">None (25)</option>
+                    <option value="none">{t('email.settings.smtp.tls.none', locale === 'zh' ? '不加密（25）' : 'None (25)')}</option>
                   </select>
                 </div>
               </div>
@@ -362,8 +406,8 @@ export default function AdminEmailPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-gray-900">Email Verification</div>
-                    <div className="text-xs text-gray-500">Require code for registration (and password reset)</div>
+                    <div className="text-sm font-semibold text-gray-900">{t('email.settings.verification', locale === 'zh' ? '邮箱验证码' : 'Email Verification')}</div>
+                    <div className="text-xs text-gray-500">{t('email.settings.verificationHint', locale === 'zh' ? '注册（以及重置密码）需要验证码' : 'Require code for registration (and password reset)')}</div>
                   </div>
                   <input
                     type="checkbox"
@@ -375,8 +419,8 @@ export default function AdminEmailPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-gray-900">Marketing Emails</div>
-                    <div className="text-xs text-gray-500">Enable bulk email sending</div>
+                    <div className="text-sm font-semibold text-gray-900">{t('email.settings.marketing', locale === 'zh' ? '营销邮件' : 'Marketing Emails')}</div>
+                    <div className="text-xs text-gray-500">{t('email.settings.marketingHint', locale === 'zh' ? '启用群发邮件' : 'Enable bulk email sending')}</div>
                   </div>
                   <input
                     type="checkbox"
@@ -388,8 +432,8 @@ export default function AdminEmailPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-gray-900">Shipping Notifications</div>
-                    <div className="text-xs text-gray-500">Send an email when you add tracking number</div>
+                    <div className="text-sm font-semibold text-gray-900">{t('email.settings.shippingNotice', locale === 'zh' ? '发货通知' : 'Shipping Notifications')}</div>
+                    <div className="text-xs text-gray-500">{t('email.settings.shippingNoticeHint', locale === 'zh' ? '填写物流单号时发送邮件' : 'Send an email when you add tracking number')}</div>
                   </div>
                   <input
                     type="checkbox"
@@ -400,16 +444,16 @@ export default function AdminEmailPage() {
                 </div>
 
                 <div>
-                  <div className="text-sm font-semibold text-gray-900">Order Notifications</div>
-                  <div className="text-xs text-gray-500">Send notifications when orders are created and/or paid</div>
+                  <div className="text-sm font-semibold text-gray-900">{t('email.settings.orderNotice', locale === 'zh' ? '订单通知' : 'Order Notifications')}</div>
+                  <div className="text-xs text-gray-500">{t('email.settings.orderNoticeHint', locale === 'zh' ? '订单创建/支付完成时发送通知' : 'Send notifications when orders are created and/or paid')}</div>
                 </div>
               </div>
 
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-gray-900">Notify on create</div>
-                    <div className="text-xs text-gray-500">When customer submits the order</div>
+                    <div className="text-sm font-semibold text-gray-900">{t('email.settings.orderNotice.create', locale === 'zh' ? '下单通知' : 'Notify on create')}</div>
+                    <div className="text-xs text-gray-500">{t('email.settings.orderNotice.createHint', locale === 'zh' ? '客户提交订单时' : 'When customer submits the order')}</div>
                   </div>
                   <input
                     type="checkbox"
@@ -421,8 +465,8 @@ export default function AdminEmailPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-gray-900">Notify on paid</div>
-                    <div className="text-xs text-gray-500">When payment is completed</div>
+                    <div className="text-sm font-semibold text-gray-900">{t('email.settings.orderNotice.paid', locale === 'zh' ? '支付通知' : 'Notify on paid')}</div>
+                    <div className="text-xs text-gray-500">{t('email.settings.orderNotice.paidHint', locale === 'zh' ? '支付完成时' : 'When payment is completed')}</div>
                   </div>
                   <input
                     type="checkbox"
@@ -434,7 +478,7 @@ export default function AdminEmailPage() {
               </div>
 
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Order notification emails</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.orderNotice.emails', locale === 'zh' ? '订单通知收件人' : 'Order notification emails')}</label>
                 <textarea
                   value={form.order_notification_emails || ''}
                   onChange={(e) => setForm((p: any) => ({ ...p, order_notification_emails: e.target.value }))}
@@ -446,12 +490,17 @@ export default function AdminEmailPage() {
                   className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
                   placeholder="owner@yourdomain.com, sales@yourdomain.com"
                 />
-                <p className="mt-1 text-xs text-gray-500">Separate by comma / semicolon / new line. Requires Enable Email = on.</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {t(
+                    'email.settings.orderNotice.emailsHint',
+                    locale === 'zh' ? '可用逗号/分号/换行分隔；需先开启“启用邮件”。' : 'Separate by comma / semicolon / new line. Requires Enable Email = on.'
+                  )}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Code expiry (minutes)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.codeExpiry', locale === 'zh' ? '验证码有效期（分钟）' : 'Code expiry (minutes)')}</label>
                   <input
                     type="number"
                     value={form.code_expiry_minutes ?? 10}
@@ -460,7 +509,7 @@ export default function AdminEmailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Resend wait (seconds)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.settings.resendWait', locale === 'zh' ? '重发等待（秒）' : 'Resend wait (seconds)')}</label>
                   <input
                     type="number"
                     value={form.code_resend_seconds ?? 60}
@@ -485,7 +534,9 @@ export default function AdminEmailPage() {
                   disabled={testMutation.isPending || !testTo}
                   className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
                 >
-                  {testMutation.isPending ? 'Sending...' : 'Send test'}
+                  {testMutation.isPending
+                    ? t('common.sending', locale === 'zh' ? '发送中...' : 'Sending...')
+                    : t('email.test.send', locale === 'zh' ? '发送测试' : 'Send test')}
                 </button>
               </div>
 
@@ -495,28 +546,42 @@ export default function AdminEmailPage() {
                 disabled={saveMutation.isPending}
                 className="rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
               >
-                {saveMutation.isPending ? 'Saving...' : 'Save'}
+                {saveMutation.isPending
+                  ? t('common.saving', locale === 'zh' ? '保存中...' : 'Saving...')
+                  : t('common.save', locale === 'zh' ? '保存' : 'Save')}
               </button>
             </div>
           </div>
         ) : tab === 'send' ? (
           <div className="bg-white rounded-lg shadow p-6 space-y-4">
-            <div className="text-sm text-gray-600">Send a single email (use this as your mail panel).</div>
+            <div className="text-sm text-gray-600">
+              {t('email.send.subtitle', locale === 'zh' ? '发送单封邮件（可当作后台邮件面板使用）。' : 'Send a single email (use this as your mail panel).')}
+            </div>
             <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
-              <div className="text-sm font-semibold text-gray-900 mb-3">Modules (edit text here)</div>
+              <div className="text-sm font-semibold text-gray-900 mb-3">{t('email.modules.title', locale === 'zh' ? '模块（在此编辑内容）' : 'Modules (edit text here)')}</div>
               <ModuleEditor modules={modules} setModules={setModules} />
               <div className="mt-3 text-xs text-gray-500">
-                Editing modules regenerates HTML automatically. You can still edit HTML below after generation.
+                {t(
+                  'email.modules.hint',
+                  locale === 'zh'
+                    ? '编辑模块会自动重新生成 HTML；你仍可在下方对 HTML 做最终修改。'
+                    : 'Editing modules regenerates HTML automatically. You can still edit HTML below after generation.'
+                )}
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">To</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.send.to', locale === 'zh' ? '收件人' : 'To')}</label>
                 <input value={single.to} onChange={(e) => setSingle((p) => ({ ...p, to: e.target.value }))} className="block w-full rounded-md border border-gray-300 px-3 py-2" placeholder="customer@example.com" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                <input value={single.subject} onChange={(e) => setSingle((p) => ({ ...p, subject: e.target.value }))} className="block w-full rounded-md border border-gray-300 px-3 py-2" placeholder="Your subject" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.subject', locale === 'zh' ? '主题' : 'Subject')}</label>
+                <input
+                  value={single.subject}
+                  onChange={(e) => setSingle((p) => ({ ...p, subject: e.target.value }))}
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2"
+                  placeholder={t('email.subjectPh', locale === 'zh' ? '邮件主题' : 'Your subject')}
+                />
               </div>
             </div>
             <div>
@@ -524,7 +589,7 @@ export default function AdminEmailPage() {
               <textarea value={single.html} onChange={(e) => setSingle((p) => ({ ...p, html: e.target.value }))} rows={14} className="block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-xs" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Text (optional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.textOptional', locale === 'zh' ? '纯文本（可选）' : 'Text (optional)')}</label>
               <textarea value={single.text} onChange={(e) => setSingle((p) => ({ ...p, text: e.target.value }))} rows={6} className="block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-xs" />
             </div>
             <div className="flex justify-end">
@@ -534,12 +599,14 @@ export default function AdminEmailPage() {
                 disabled={singleSendMutation.isPending}
                 className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black disabled:opacity-60"
               >
-                {singleSendMutation.isPending ? 'Sending...' : 'Send email'}
+                {singleSendMutation.isPending
+                  ? t('common.sending', locale === 'zh' ? '发送中...' : 'Sending...')
+                  : t('email.send.sendEmail', locale === 'zh' ? '发送邮件' : 'Send email')}
               </button>
             </div>
 
             <div className="border-t pt-4">
-              <div className="text-sm font-semibold text-gray-900 mb-2">Preview</div>
+              <div className="text-sm font-semibold text-gray-900 mb-2">{t('common.preview', locale === 'zh' ? '预览' : 'Preview')}</div>
               <iframe
                 title="email-preview"
                 sandbox=""
@@ -553,31 +620,34 @@ export default function AdminEmailPage() {
             <div className="text-sm text-gray-600">
               {canSendMarketing ? (
                 <div>
-                  Placeholders supported: <span className="font-mono">{'{{full_name}}'}</span>,{' '}
-                  <span className="font-mono">{'{{email}}'}</span>
+                  {t('email.marketing.placeholders', locale === 'zh' ? '支持占位符：' : 'Placeholders supported:')}{' '}
+                  <span className="font-mono">{'{{full_name}}'}</span>, <span className="font-mono">{'{{email}}'}</span>
                 </div>
               ) : (
                 <div className="text-red-600">
-                  Enable Email + Marketing in Settings first.
+                  {t('email.marketing.enableFirst', locale === 'zh' ? '请先在“设置”中开启：启用邮件 + 营销邮件。' : 'Enable Email + Marketing in Settings first.')}
                 </div>
               )}
             </div>
 
             <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
-              <div className="text-sm font-semibold text-gray-900 mb-3">Modules (edit text here)</div>
+              <div className="text-sm font-semibold text-gray-900 mb-3">{t('email.modules.title', locale === 'zh' ? '模块（在此编辑内容）' : 'Modules (edit text here)')}</div>
               <ModuleEditor modules={modules} setModules={setModules} />
               <div className="mt-3 text-xs text-gray-500">
-                Editing modules regenerates HTML automatically. Use the HTML field below for final tweaks.
+                {t(
+                  'email.modules.hint2',
+                  locale === 'zh' ? '编辑模块会自动生成 HTML；最终微调请使用下方 HTML 字段。' : 'Editing modules regenerates HTML automatically. Use the HTML field below for final tweaks.'
+                )}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.subject', locale === 'zh' ? '主题' : 'Subject')}</label>
               <input
                 value={mk.subject}
                 onChange={(e) => setMk((p) => ({ ...p, subject: e.target.value }))}
                 className="block w-full rounded-md border border-gray-300 px-3 py-2"
-                placeholder="New arrivals / Promotion / Update"
+                placeholder={t('email.marketing.subjectPh', locale === 'zh' ? '新品 / 促销 / 更新' : 'New arrivals / Promotion / Update')}
               />
             </div>
 
@@ -593,7 +663,7 @@ export default function AdminEmailPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Text (optional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.textOptional', locale === 'zh' ? '纯文本（可选）' : 'Text (optional)')}</label>
               <textarea
                 value={mk.text}
                 onChange={(e) => setMk((p) => ({ ...p, text: e.target.value }))}
@@ -604,7 +674,7 @@ export default function AdminEmailPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Test to (optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.marketing.testTo', locale === 'zh' ? '测试收件人（可选）' : 'Test to (optional)')}</label>
                 <input
                   value={mk.test_to}
                   onChange={(e) => setMk((p) => ({ ...p, test_to: e.target.value }))}
@@ -613,7 +683,7 @@ export default function AdminEmailPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Limit (0 = all)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.marketing.limit', locale === 'zh' ? '发送上限（0 = 全部）' : 'Limit (0 = all)')}</label>
                 <input
                   type="number"
                   value={mk.limit}
@@ -628,13 +698,17 @@ export default function AdminEmailPage() {
                   onClick={() => broadcastMutation.mutate()}
                   className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black disabled:opacity-60"
                 >
-                  {broadcastMutation.isPending ? 'Sending...' : mk.test_to ? 'Send test' : 'Send broadcast'}
+                  {broadcastMutation.isPending
+                    ? t('common.sending', locale === 'zh' ? '发送中...' : 'Sending...')
+                    : mk.test_to
+                      ? t('email.test.send', locale === 'zh' ? '发送测试' : 'Send test')
+                      : t('email.marketing.sendBroadcast', locale === 'zh' ? '开始群发' : 'Send broadcast')}
                 </button>
               </div>
             </div>
 
             <div className="border-t pt-4">
-              <div className="text-sm font-semibold text-gray-900 mb-2">Preview</div>
+              <div className="text-sm font-semibold text-gray-900 mb-2">{t('common.preview', locale === 'zh' ? '预览' : 'Preview')}</div>
               <iframe
                 title="email-preview"
                 sandbox=""
@@ -646,15 +720,18 @@ export default function AdminEmailPage() {
         ) : (
           <div className="bg-white rounded-lg shadow p-6 space-y-4">
             <div className="text-sm text-gray-600">
-              Resend webhooks (requires Provider=Resend and API key saved).
+              {t(
+                'email.webhooks.subtitle',
+                locale === 'zh' ? 'Resend Webhooks（需要服务商=Resend 且已保存 API Key）。' : 'Resend webhooks (requires Provider=Resend and API key saved).'
+              )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Endpoint</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.webhooks.endpoint', locale === 'zh' ? '回调地址' : 'Endpoint')}</label>
                 <input value={whCreate.endpoint} onChange={(e) => setWhCreate((p) => ({ ...p, endpoint: e.target.value }))} className="block w-full rounded-md border border-gray-300 px-3 py-2" placeholder="https://yourdomain.com/api/resend/webhook" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Events (comma)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('email.webhooks.events', locale === 'zh' ? '事件（逗号分隔）' : 'Events (comma)')}</label>
                 <input value={whCreate.events} onChange={(e) => setWhCreate((p) => ({ ...p, events: e.target.value }))} className="block w-full rounded-md border border-gray-300 px-3 py-2" placeholder="email.sent,email.delivered" />
               </div>
             </div>
@@ -665,15 +742,17 @@ export default function AdminEmailPage() {
                 disabled={createWebhookMutation.isPending}
                 className="rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
               >
-                {createWebhookMutation.isPending ? 'Creating...' : 'Create webhook'}
+                {createWebhookMutation.isPending
+                  ? t('common.creating', locale === 'zh' ? '创建中...' : 'Creating...')
+                  : t('email.webhooks.create', locale === 'zh' ? '创建 Webhook' : 'Create webhook')}
               </button>
             </div>
 
             <div className="border-t pt-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-gray-900">Existing webhooks</div>
+                <div className="text-sm font-semibold text-gray-900">{t('email.webhooks.existing', locale === 'zh' ? '已有 Webhooks' : 'Existing webhooks')}</div>
                 <button type="button" onClick={() => webhooksQuery.refetch()} className="text-sm text-gray-700 hover:underline">
-                  Refresh
+                  {t('common.refresh', locale === 'zh' ? '刷新' : 'Refresh')}
                 </button>
               </div>
               <div className="mt-3 space-y-2">
@@ -681,28 +760,30 @@ export default function AdminEmailPage() {
                   <div key={wh.id} className="rounded-md border border-gray-200 p-3 text-sm">
                     <div className="font-mono text-xs text-gray-700">{wh.id}</div>
                     <div className="mt-1 text-gray-800">{wh.endpoint}</div>
-                    <div className="mt-1 text-xs text-gray-500">Events: {(wh.events || []).join(', ')}</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {t('email.webhooks.eventsLabel', locale === 'zh' ? '事件：' : 'Events:')} {(wh.events || []).join(', ')}
+                    </div>
                     <div className="mt-2 flex justify-end">
                       <button
                         type="button"
                         onClick={async () => {
                           try {
                             await EmailService.resendWebhooksRemove(wh.id);
-                            toast.success('Deleted');
+                            toast.success(t('common.deleted', locale === 'zh' ? '已删除' : 'Deleted'));
                             webhooksQuery.refetch();
                           } catch (e: any) {
-                            toast.error(e?.message || 'Failed');
+                            toast.error(e?.message || t('common.failed', locale === 'zh' ? '失败' : 'Failed'));
                           }
                         }}
                         className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-red-600 hover:bg-gray-50"
                       >
-                        Delete
+                        {t('common.delete', locale === 'zh' ? '删除' : 'Delete')}
                       </button>
                     </div>
                   </div>
                 ))}
                 {Array.isArray(webhooksQuery.data?.data || webhooksQuery.data) && (webhooksQuery.data?.data || webhooksQuery.data).length === 0 ? (
-                  <div className="text-sm text-gray-500">No webhooks</div>
+                  <div className="text-sm text-gray-500">{t('email.webhooks.empty', locale === 'zh' ? '暂无 Webhooks' : 'No webhooks')}</div>
                 ) : null}
               </div>
             </div>
@@ -720,6 +801,18 @@ function ModuleEditor({
   modules: EmailModule[];
   setModules: (updater: (prev: EmailModule[]) => EmailModule[]) => void;
 }) {
+  const { locale, t } = useAdminI18n();
+
+  const moduleTypeLabel = (type: EmailModuleType) => {
+    const map: Record<EmailModuleType, string> = {
+      new_arrivals: t('email.module.newArrivals', locale === 'zh' ? '新品推荐' : 'New arrivals'),
+      promotion: t('email.module.promotion', locale === 'zh' ? '促销活动' : 'Promotion'),
+      replacement: t('email.module.replacement', locale === 'zh' ? '缺货替代' : 'Out-of-stock replacement'),
+      repair_quote: t('email.module.repairQuote', locale === 'zh' ? '维修报价' : 'Repair quote'),
+    };
+    return map[type] || String(type).replace(/_/g, ' ');
+  };
+
   const add = (type: EmailModuleType) => {
     setModules((prev) => {
       const id = `m${Date.now()}`;
@@ -731,16 +824,16 @@ function ModuleEditor({
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => add('new_arrivals')} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm hover:bg-gray-50">
-          + New arrivals
+          + {t('email.module.newArrivals', locale === 'zh' ? '新品推荐' : 'New arrivals')}
         </button>
         <button type="button" onClick={() => add('promotion')} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm hover:bg-gray-50">
-          + Promotion
+          + {t('email.module.promotion', locale === 'zh' ? '促销活动' : 'Promotion')}
         </button>
         <button type="button" onClick={() => add('replacement')} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm hover:bg-gray-50">
-          + Out-of-stock replacement
+          + {t('email.module.replacement', locale === 'zh' ? '缺货替代' : 'Out-of-stock replacement')}
         </button>
         <button type="button" onClick={() => add('repair_quote')} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm hover:bg-gray-50">
-          + Repair quote
+          + {t('email.module.repairQuote', locale === 'zh' ? '维修报价' : 'Repair quote')}
         </button>
       </div>
 
@@ -748,20 +841,20 @@ function ModuleEditor({
         <div key={m.id} className="rounded-md border border-gray-200 bg-white p-3">
           <div className="flex items-center justify-between gap-2">
             <div className="text-sm font-semibold text-gray-900">
-              {m.type.replace(/_/g, ' ')}
+              {moduleTypeLabel(m.type)}
             </div>
             <button
               type="button"
               onClick={() => setModules((prev) => prev.filter((x) => x.id !== m.id))}
               className="rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-red-600 hover:bg-gray-50"
             >
-              Remove
+              {t('common.remove', locale === 'zh' ? '移除' : 'Remove')}
             </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('common.title', locale === 'zh' ? '标题' : 'Title')}</label>
               <input
                 value={m.title}
                 onChange={(e) =>
@@ -771,20 +864,20 @@ function ModuleEditor({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Badge (optional)</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('email.module.badge', locale === 'zh' ? '角标（可选）' : 'Badge (optional)')}</label>
               <input
                 value={m.badge || ''}
                 onChange={(e) =>
                   setModules((prev) => prev.map((x) => (x.id === m.id ? { ...x, badge: e.target.value } : x)))
                 }
                 className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                placeholder="NEW / SALE / ALT"
+                placeholder={t('email.module.badgePh', locale === 'zh' ? 'NEW / SALE / ALT' : 'NEW / SALE / ALT')}
               />
             </div>
           </div>
 
           <div className="mt-3">
-            <label className="block text-xs font-medium text-gray-600 mb-1">Body</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('email.module.body', locale === 'zh' ? '正文' : 'Body')}</label>
             <textarea
               value={m.body}
               onChange={(e) => setModules((prev) => prev.map((x) => (x.id === m.id ? { ...x, body: e.target.value } : x)))}
@@ -794,7 +887,7 @@ function ModuleEditor({
           </div>
 
           <div className="mt-3">
-            <label className="block text-xs font-medium text-gray-600 mb-1">Bullets (one per line)</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('email.module.bullets', locale === 'zh' ? '要点（每行一个）' : 'Bullets (one per line)')}</label>
             <textarea
               value={(m.bullets || []).join('\n')}
               onChange={(e) =>
@@ -809,7 +902,7 @@ function ModuleEditor({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">CTA Label</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('email.module.ctaLabel', locale === 'zh' ? '按钮文字' : 'CTA Label')}</label>
               <input
                 value={m.ctaLabel}
                 onChange={(e) =>
@@ -819,7 +912,7 @@ function ModuleEditor({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">CTA URL</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('email.module.ctaUrl', locale === 'zh' ? '按钮链接' : 'CTA URL')}</label>
               <input
                 value={m.ctaUrl}
                 onChange={(e) =>
@@ -831,14 +924,14 @@ function ModuleEditor({
           </div>
 
           <div className="mt-3">
-            <label className="block text-xs font-medium text-gray-600 mb-1">Highlight (optional)</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('email.module.highlight', locale === 'zh' ? '高亮提示（可选）' : 'Highlight (optional)')}</label>
             <input
               value={m.highlight || ''}
               onChange={(e) =>
                 setModules((prev) => prev.map((x) => (x.id === m.id ? { ...x, highlight: e.target.value } : x)))
               }
               className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              placeholder="Coupon code / lead time / special note"
+              placeholder={t('email.module.highlightPh', locale === 'zh' ? '优惠码 / 交期 / 特别说明' : 'Coupon code / lead time / special note')}
             />
           </div>
         </div>
