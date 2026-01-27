@@ -11,9 +11,9 @@ export default function ShippingQuoteCalculator(props: {
 	weightKg?: number;
 	price?: number;
 	defaultCountryCode?: string;
-	onAddShippingToPrice?: (shippingFee: number) => void;
+	onSetPrice?: (nextPrice: number) => void;
 }) {
-	const { weightKg = 0, price = 0, defaultCountryCode = 'US', onAddShippingToPrice } = props;
+	const { weightKg = 0, price = 0, defaultCountryCode = 'US', onSetPrice } = props;
 	const w = Number(weightKg || 0);
 
 	const [countries, setCountries] = useState<Country[]>([]);
@@ -22,6 +22,8 @@ export default function ShippingQuoteCalculator(props: {
 	const [quote, setQuote] = useState<ShippingQuote | null>(null);
 	const [loadingQuote, setLoadingQuote] = useState(false);
 	const [quoteError, setQuoteError] = useState<string>('');
+	const [autoApply, setAutoApply] = useState(true);
+	const [appliedFee, setAppliedFee] = useState(0);
 
 	useEffect(() => {
 		let alive = true;
@@ -76,9 +78,28 @@ export default function ShippingQuoteCalculator(props: {
 	}, [countryCode, w]);
 
 	const shippingFee = Number(quote?.shipping_fee || 0);
-	const priceWithShipping = useMemo(() => {
-		return Number((Number(price || 0) + shippingFee).toFixed(2));
-	}, [price, shippingFee]);
+	const billingWeightKg = Number((quote as any)?.billing_weight_kg || (quote as any)?.billingWeight || 0);
+
+	const calcNextPrice = (nextFee: number) => {
+		const base = Number(price || 0) - Number(appliedFee || 0);
+		return Number((base + Number(nextFee || 0)).toFixed(2));
+	};
+
+	const nextPriceWithShipping = useMemo(() => {
+		return calcNextPrice(shippingFee);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [shippingFee, appliedFee, price]);
+
+	useEffect(() => {
+		if (!autoApply) return;
+		if (!quote || shippingFee <= 0) return;
+		if (!onSetPrice) return;
+		if (Number(price || 0) <= 0) return;
+		if (shippingFee === appliedFee) return;
+		const nextPrice = calcNextPrice(shippingFee);
+		onSetPrice(nextPrice);
+		setAppliedFee(shippingFee);
+	}, [autoApply, quote, shippingFee, onSetPrice, price, appliedFee, countryCode, w]);
 
 	return (
 		<div className="bg-white shadow rounded-lg p-6">
@@ -129,24 +150,43 @@ export default function ShippingQuoteCalculator(props: {
 					<div>Rate / kg: {Number(quote.rate_per_kg || 0).toFixed(3)}</div>
 					<div>Base quote: {Number(quote.base_quote || 0).toFixed(2)}</div>
 					<div>Additional fee: {Number(quote.additional_fee || 0).toFixed(2)}</div>
-					<div>Price + shipping: {priceWithShipping.toFixed(2)}</div>
+					<div>
+						Billing weight: {billingWeightKg ? Number(billingWeightKg).toFixed(3) : '-'}
+						{w > 0 && w < 21 ? <span className="ml-2 text-gray-500">(round up &lt; 21kg)</span> : null}
+					</div>
+					<div>Price + shipping: {nextPriceWithShipping.toFixed(2)}</div>
 				</div>
 			)}
 
 			<div className="mt-4 flex items-center gap-2">
+				<label className="inline-flex items-center gap-2 text-sm text-gray-700">
+					<input
+						type="checkbox"
+						checked={autoApply}
+						onChange={(e) => {
+							setAutoApply(e.target.checked);
+							if (!e.target.checked) setAppliedFee(0);
+						}}
+						className="h-4 w-4"
+						disabled={!onSetPrice}
+					/>
+					Auto apply to price
+				</label>
 				<button
 					type="button"
-					disabled={!quote || shippingFee <= 0 || !onAddShippingToPrice}
+					disabled={!quote || shippingFee <= 0 || !onSetPrice}
 					onClick={() => {
-						if (!quote || shippingFee <= 0 || !onAddShippingToPrice) return;
-						onAddShippingToPrice(shippingFee);
-						toast.success(`Added shipping (${shippingFee.toFixed(2)}) to product price`);
+						if (!quote || shippingFee <= 0 || !onSetPrice) return;
+						const nextPrice = calcNextPrice(shippingFee);
+						onSetPrice(nextPrice);
+						setAppliedFee(shippingFee);
+						toast.success(`Price set to ${nextPrice.toFixed(2)} (shipping ${shippingFee.toFixed(2)})`);
 					}}
 					className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
 				>
-					Add Shipping To Price
+					Set Price = Base + Shipping
 				</button>
-				<span className="text-xs text-gray-500">This updates only the product price field (admin helper).</span>
+				<span className="text-xs text-gray-500">Admin helper: uses current price as base and avoids double-adding.</span>
 			</div>
 		</div>
 	);

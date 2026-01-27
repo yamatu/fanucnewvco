@@ -590,10 +590,7 @@ export default function EditProductPage() {
 		  <ShippingQuoteCalculator
 			weightKg={watchedWeight}
 			price={watchedPrice}
-			onAddShippingToPrice={(fee) => {
-				const next = Number((Number(watchedPrice || 0) + Number(fee || 0)).toFixed(2));
-				setValue('price', next as any, { shouldDirty: true, shouldValidate: true });
-			}}
+			onSetPrice={(nextPrice) => setValue('price', nextPrice as any, { shouldDirty: true, shouldValidate: true })}
 		  />
 
           {/* SEO Basic Information */}

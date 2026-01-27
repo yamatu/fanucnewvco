@@ -22,6 +22,7 @@ export interface ShippingQuote {
   country_code: string;
   currency: string;
   weight_kg: number;
+  billing_weight_kg?: number;
   rate_per_kg: number;
   base_quote: number;
   additional_fee: number;

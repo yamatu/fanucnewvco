@@ -27,6 +27,7 @@ type ShippingQuoteResult struct {
 	CountryCode   string  `json:"country_code"`
 	Currency      string  `json:"currency"`
 	WeightKg      float64 `json:"weight_kg"`
+	BillingWeight float64 `json:"billing_weight_kg"`
 	RatePerKg     float64 `json:"rate_per_kg"`
 	BaseQuote     float64 `json:"base_quote"`
 	AdditionalFee float64 `json:"additional_fee"`
@@ -72,7 +73,7 @@ func CalculateShippingQuote(db *gorm.DB, countryCode string, weightKg float64) (
 		weightKg = 0
 	}
 	if weightKg == 0 {
-		return ShippingQuoteResult{CountryCode: cc, Currency: "USD", WeightKg: 0, RatePerKg: 0, BaseQuote: 0, AdditionalFee: 0, ShippingFee: 0}, nil
+		return ShippingQuoteResult{CountryCode: cc, Currency: "USD", WeightKg: 0, BillingWeight: 0, RatePerKg: 0, BaseQuote: 0, AdditionalFee: 0, ShippingFee: 0}, nil
 	}
 
 	var tpl models.ShippingTemplate
@@ -93,11 +94,46 @@ func CalculateShippingQuote(db *gorm.DB, countryCode string, weightKg float64) (
 		return ShippingQuoteResult{}, errors.New("no weight brackets configured")
 	}
 
-	ratePerKg, err := matchRatePerKg(brackets, weightKg)
-	if err != nil {
-		return ShippingQuoteResult{}, err
+	// Billing weight rules:
+	// - For weight < 21kg: round up to the next whole kg (15.6 -> 16)
+	// - For weight >= 21kg: use the actual weight
+	billingWeightKg := weightKg
+	if weightKg > 0 && weightKg < 21 {
+		billingWeightKg = math.Ceil(weightKg)
+		if billingWeightKg < 1 {
+			billingWeightKg = 1
+		}
 	}
-	baseQuote := round2(weightKg * ratePerKg)
+
+	// < 21kg prefers fixed-fee rows: min_kg == max_kg == billed integer kg
+	ratePerKg := 0.0
+	baseQuote := 0.0
+	if billingWeightKg > 0 && billingWeightKg < 21 {
+		fixedFound := false
+		for _, b := range brackets {
+			if round3(b.MinKg) == round3(billingWeightKg) && round3(b.MaxKg) == round3(billingWeightKg) {
+				baseQuote = round2(b.RatePerKg)
+				fixedFound = true
+				break
+			}
+		}
+		if !fixedFound {
+			// fallback: use per-kg brackets if the sheet didn't provide fixed fees
+			r, err := matchRatePerKg(brackets, billingWeightKg)
+			if err != nil {
+				return ShippingQuoteResult{}, err
+			}
+			ratePerKg = r
+			baseQuote = round2(billingWeightKg * ratePerKg)
+		}
+	} else {
+		r, err := matchRatePerKg(brackets, billingWeightKg)
+		if err != nil {
+			return ShippingQuoteResult{}, err
+		}
+		ratePerKg = r
+		baseQuote = round2(billingWeightKg * ratePerKg)
+	}
 
 	// Load surcharge rules (optional)
 	var sur []models.ShippingQuoteSurcharge
@@ -109,6 +145,7 @@ func CalculateShippingQuote(db *gorm.DB, countryCode string, weightKg float64) (
 		CountryCode:   cc,
 		Currency:      cur,
 		WeightKg:      round3(weightKg),
+		BillingWeight: round3(billingWeightKg),
 		RatePerKg:     round3(ratePerKg),
 		BaseQuote:     baseQuote,
 		AdditionalFee: round2(extra),
@@ -149,6 +186,9 @@ func matchRatePerKg(brackets []models.ShippingWeightBracket, weightKg float64) (
 		first := brackets[0]
 		// If below min of all, use the first bracket.
 		if weightKg < first.MinKg {
+			if first.MinKg > 0 {
+				return 0, fmt.Errorf("no matching weight bracket for %.3fkg (min configured %.3fkg)", weightKg, first.MinKg)
+			}
 			return first.RatePerKg, nil
 		}
 		// If above max of all, use the last bracket.
@@ -222,78 +262,55 @@ func round3(v float64) float64 { return math.Round(v*1000) / 1000 }
 // XLSX
 
 func GenerateShippingTemplateXLSX_USSample() ([]byte, error) {
+	// Single-sheet template matching the requested layout.
+	// Section A (<21kg): per-country weight->fee rows (billing weight rounds up: 15.6 -> 16)
+	// Section B (>=21kg): per-country weight ranges with price per kg
 	f := excelize.NewFile()
-	// Sheet 1: Quote surcharge
-	s1 := "QuoteSurcharge"
-	f.SetSheetName("Sheet1", s1)
-	head1 := []string{"国家代码(Country Code)", "国家(Country Name)", "报价(Quote)", "附加费(Additional Fee)", "币种(Currency)"}
-	for i, h := range head1 {
-		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		_ = f.SetCellValue(s1, cell, h)
-	}
-	// US sample (from your table)
-	usRows := [][2]float64{
-		{34, 1}, {36, 2}, {45, 2}, {54, 3}, {62, 4}, {62, 5}, {71, 6}, {79, 7}, {87, 7}, {95, 8}, {96, 9},
-		{103, 10}, {111, 11}, {118, 12}, {126, 12}, {133, 13}, {141, 14}, {148, 15}, {156, 16}, {163, 17},
-		{171, 17}, {176, 18}, {182, 19}, {188, 20}, {194, 21}, {200, 22}, {205, 22}, {211, 23}, {217, 24},
-		{223, 25}, {228, 26}, {234, 27}, {240, 27}, {246, 28}, {251, 29}, {257, 30}, {263, 31}, {269, 32},
-		{275, 32}, {280, 33}, {286, 34},
-	}
-	row := 2
-	for _, p := range usRows {
-		_ = f.SetCellValue(s1, fmt.Sprintf("A%d", row), "US")
-		_ = f.SetCellValue(s1, fmt.Sprintf("B%d", row), "United States")
-		_ = f.SetCellValue(s1, fmt.Sprintf("C%d", row), p[0])
-		_ = f.SetCellValue(s1, fmt.Sprintf("D%d", row), p[1])
-		_ = f.SetCellValue(s1, fmt.Sprintf("E%d", row), "USD")
-		row++
-	}
+	sheet := "Shipping"
+	f.SetSheetName("Sheet1", sheet)
 
-	// Sheet 2: Weight rates
-	s2 := "WeightKg"
-	idx, _ := f.NewSheet(s2)
-	f.SetActiveSheet(idx)
-	head2 := []string{"国家代码(Country Code)", "国家(Country Name)", "最小公斤(Min Kg)", "最大公斤(Max Kg)", "每公斤费用(Rate Per Kg)", "币种(Currency)"}
-	for i, h := range head2 {
-		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		_ = f.SetCellValue(s2, cell, h)
-	}
-	weightRows := [][3]float64{
-		{21.0, 44.0, 10},
-		{45.0, 70.0, 10},
-		{71.0, 99.0, 9},
-		{100.0, 299.0, 9},
-		{300.0, 499.0, 9},
-		{500.0, 999.0, 9},
-		{1000.0, 99999.0, 9},
-	}
-	row = 2
-	for _, w := range weightRows {
-		_ = f.SetCellValue(s2, fmt.Sprintf("A%d", row), "US")
-		_ = f.SetCellValue(s2, fmt.Sprintf("B%d", row), "United States")
-		_ = f.SetCellValue(s2, fmt.Sprintf("C%d", row), w[0])
-		_ = f.SetCellValue(s2, fmt.Sprintf("D%d", row), w[1])
-		_ = f.SetCellValue(s2, fmt.Sprintf("E%d", row), w[2])
-		_ = f.SetCellValue(s2, fmt.Sprintf("F%d", row), "USD")
-		row++
-	}
+	// Section A header (3-column group per country)
+	_ = f.SetCellValue(sheet, "A1", "US")
+	_ = f.SetCellValue(sheet, "B1", "重量(kg)")
+	_ = f.SetCellValue(sheet, "C1", "价格(运费)")
+	_ = f.SetCellValue(sheet, "D1", "CN")
+	_ = f.SetCellValue(sheet, "E1", "重量(kg)")
+	_ = f.SetCellValue(sheet, "F1", "价格(运费)")
+
+	// Minimal sample rows
+	_ = f.SetCellValue(sheet, "B2", 1)
+	_ = f.SetCellValue(sheet, "C2", 12)
+	_ = f.SetCellValue(sheet, "B3", 16)
+	_ = f.SetCellValue(sheet, "C3", 34)
+	_ = f.SetCellValue(sheet, "E2", 1)
+	_ = f.SetCellValue(sheet, "F2", 8)
+	_ = f.SetCellValue(sheet, "E3", 16)
+	_ = f.SetCellValue(sheet, "F3", 20)
+
+	// Section B header
+	start := 6
+	_ = f.SetCellValue(sheet, fmt.Sprintf("A%d", start), ">=21kg 区间(每公斤价格)")
+	_ = f.MergeCell(sheet, fmt.Sprintf("A%d", start), fmt.Sprintf("C%d", start))
+	start++
+	_ = f.SetCellValue(sheet, fmt.Sprintf("A%d", start), "国家代码")
+	_ = f.SetCellValue(sheet, fmt.Sprintf("B%d", start), "重量区间(kg)")
+	_ = f.SetCellValue(sheet, fmt.Sprintf("C%d", start), "每公斤价格")
+	start++
+	_ = f.SetCellValue(sheet, fmt.Sprintf("A%d", start), "US")
+	_ = f.SetCellValue(sheet, fmt.Sprintf("B%d", start), "21.0 - 44.0")
+	_ = f.SetCellValue(sheet, fmt.Sprintf("C%d", start), 10)
+	start++
+	_ = f.SetCellValue(sheet, fmt.Sprintf("A%d", start), "US")
+	_ = f.SetCellValue(sheet, fmt.Sprintf("B%d", start), "71.0 - 99.0")
+	_ = f.SetCellValue(sheet, fmt.Sprintf("C%d", start), 9)
 
 	// Style
-	for _, sh := range []string{s1, s2} {
-		_ = f.SetPanes(sh, &excelize.Panes{Freeze: true, Split: true, YSplit: 1, ActivePane: "bottomLeft"})
-		headerStyle, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}, Fill: excelize.Fill{Type: "pattern", Color: []string{"#F3F4F6"}, Pattern: 1}})
-		endCol := "E"
-		if sh == s2 {
-			endCol = "F"
-		}
-		_ = f.SetCellStyle(sh, "A1", endCol+"1", headerStyle)
-	}
-	_ = f.SetColWidth(s1, "A", "B", 18)
-	_ = f.SetColWidth(s1, "C", "D", 14)
-	_ = f.SetColWidth(s1, "E", "E", 10)
-	_ = f.SetColWidth(s2, "A", "B", 18)
-	_ = f.SetColWidth(s2, "C", "E", 14)
-	_ = f.SetColWidth(s2, "F", "F", 10)
+	_ = f.SetPanes(sheet, &excelize.Panes{Freeze: true, Split: true, YSplit: 1, ActivePane: "bottomLeft"})
+	headerStyle, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}, Fill: excelize.Fill{Type: "pattern", Color: []string{"#F3F4F6"}, Pattern: 1}})
+	_ = f.SetCellStyle(sheet, "A1", "F1", headerStyle)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("A%d", start-3), fmt.Sprintf("C%d", start-3), headerStyle)
+
+	_ = f.SetColWidth(sheet, "A", "F", 16)
 
 	buf, err := f.WriteToBuffer()
 	if err != nil {
@@ -329,6 +346,13 @@ func ImportShippingTemplatesFromXLSX(ctx context.Context, db *gorm.DB, r io.Read
 
 	quotes, qErrs := parseQuoteSheet(f)
 	weights, wErrs := parseWeightSheet(f)
+	// Support a single-sheet layout (no WeightKg sheet)
+	if len(wErrs) == 1 && strings.Contains(strings.ToLower(wErrs[0]), "missing sheet: weightkg") {
+		weights, wErrs = parseSingleSheetWeights(f)
+		// single-sheet format doesn't include quote surcharge in the requested layout
+		quotes = []quoteRow{}
+		qErrs = []string{}
+	}
 
 	res := ShippingTemplateImportResult{Errors: []string{}}
 	res.Errors = append(res.Errors, qErrs...)
@@ -616,6 +640,186 @@ func parseWeightSheet(f *excelize.File) ([]weightRow, []string) {
 		out = append(out, weightRow{CountryCode: cc, CountryName: cn, MinKg: round3(minV), MaxKg: round3(maxV), RatePerKg: round3(rate), Currency: cur})
 	}
 	return out, errs
+}
+
+type countryGroup struct {
+	CountryCode string
+	WeightCol   int
+	PriceCol    int
+}
+
+func parseSingleSheetWeights(f *excelize.File) ([]weightRow, []string) {
+	sheet := f.GetSheetName(0)
+	if strings.TrimSpace(sheet) == "" {
+		sheet = "Sheet1"
+	}
+	rows, err := f.GetRows(sheet)
+	if err != nil {
+		return nil, []string{err.Error()}
+	}
+	if len(rows) <= 1 {
+		return nil, []string{"single-sheet template has no data"}
+	}
+
+	head := rows[0]
+	groups := detectCountryGroups(head)
+	if len(groups) == 0 {
+		return nil, []string{"single-sheet template: failed to detect country columns"}
+	}
+
+	errStrs := []string{}
+	out := make([]weightRow, 0)
+
+	get := func(r []string, idx int) string {
+		if idx < 0 || idx >= len(r) {
+			return ""
+		}
+		return r[idx]
+	}
+
+	// Detect where the >=21kg table starts (first row like: US | 21.0 - 44.0 | 10)
+	bracketStart := len(rows)
+	for i := 1; i < len(rows); i++ {
+		r := rows[i]
+		if len(r) < 3 {
+			continue
+		}
+		cc := NormalizeCountryCode(strings.TrimSpace(r[0]))
+		if cc == "" {
+			continue
+		}
+		rng := strings.TrimSpace(r[1])
+		if rng == "" {
+			continue
+		}
+		if !strings.Contains(rng, "-") && !strings.Contains(rng, "—") && !strings.Contains(rng, "–") {
+			continue
+		}
+		if _, err := parseMoney(strings.TrimSpace(r[2])); err != nil {
+			continue
+		}
+		bracketStart = i
+		break
+	}
+
+	// Section A: <21kg fixed fees (weight -> fee)
+	for i := 1; i < bracketStart; i++ {
+		r := rows[i]
+		for _, g := range groups {
+			wStr := strings.TrimSpace(get(r, g.WeightCol))
+			pStr := strings.TrimSpace(get(r, g.PriceCol))
+			if wStr == "" && pStr == "" {
+				continue
+			}
+			w, e := parseFloat(wStr)
+			if e != nil {
+				errStrs = append(errStrs, fmt.Sprintf("%s row %d: invalid weight for %s: %v", sheet, i+1, g.CountryCode, e))
+				continue
+			}
+			fee, e := parseMoney(pStr)
+			if e != nil {
+				errStrs = append(errStrs, fmt.Sprintf("%s row %d: invalid fee for %s: %v", sheet, i+1, g.CountryCode, e))
+				continue
+			}
+			if w <= 0 || w >= 21 {
+				continue
+			}
+			cc := NormalizeCountryCode(g.CountryCode)
+			out = append(out, weightRow{CountryCode: cc, CountryName: cc, MinKg: round3(w), MaxKg: round3(w), RatePerKg: round3(fee), Currency: "USD"})
+		}
+	}
+
+	// Section B: >=21kg brackets (country_code, "21.0 - 44.0", price_per_kg)
+	for i := bracketStart; i < len(rows); i++ {
+		r := rows[i]
+		if len(r) < 3 {
+			continue
+		}
+		cc := NormalizeCountryCode(strings.TrimSpace(r[0]))
+		if cc == "" {
+			continue
+		}
+		rng := strings.TrimSpace(r[1])
+		if rng == "" {
+			continue
+		}
+		if !strings.Contains(rng, "-") && !strings.Contains(rng, "—") && !strings.Contains(rng, "–") {
+			continue
+		}
+		minV, maxV, e := parseMinMaxKg(rng, "")
+		if e != nil {
+			errStrs = append(errStrs, fmt.Sprintf("%s row %d: invalid range for %s: %v", sheet, i+1, cc, e))
+			continue
+		}
+		rate, e := parseMoney(strings.TrimSpace(r[2]))
+		if e != nil {
+			errStrs = append(errStrs, fmt.Sprintf("%s row %d: invalid price for %s: %v", sheet, i+1, cc, e))
+			continue
+		}
+		if minV == 0 && maxV == 0 {
+			continue
+		}
+		out = append(out, weightRow{CountryCode: cc, CountryName: cc, MinKg: round3(minV), MaxKg: round3(maxV), RatePerKg: round3(rate), Currency: "USD"})
+	}
+
+	return out, errStrs
+}
+
+func detectCountryGroups(head []string) []countryGroup {
+	weightKW := func(s string) bool {
+		s = strings.ToLower(s)
+		return strings.Contains(s, "weight") || strings.Contains(s, "kg") || strings.Contains(s, "重量")
+	}
+	priceKW := func(s string) bool {
+		s = strings.ToLower(s)
+		return strings.Contains(s, "price") || strings.Contains(s, "fee") || strings.Contains(s, "运费") || strings.Contains(s, "价格")
+	}
+
+	groups := []countryGroup{}
+
+	// Prefer 3-column groups: [US][weight][price][CN][weight][price]...
+	for i := 0; i < len(head); {
+		cell := strings.TrimSpace(head[i])
+		if len(cell) == 2 && cell == strings.ToUpper(cell) {
+			cc := NormalizeCountryCode(cell)
+			if cc != "" && i+2 < len(head) && weightKW(head[i+1]) && priceKW(head[i+2]) {
+				groups = append(groups, countryGroup{CountryCode: cc, WeightCol: i + 1, PriceCol: i + 2})
+				i += 3
+				continue
+			}
+		}
+		i++
+	}
+	if len(groups) > 0 {
+		return groups
+	}
+
+	// Fallback: 2-column groups where each header contains the country code.
+	for i := 0; i < len(head); i++ {
+		h := strings.TrimSpace(head[i])
+		cc := ""
+		for _, token := range strings.FieldsFunc(h, func(r rune) bool { return r == ' ' || r == '_' || r == '-' || r == '/' }) {
+			if len(token) == 2 && token == strings.ToUpper(token) {
+				cc = NormalizeCountryCode(token)
+				break
+			}
+		}
+		if cc == "" {
+			continue
+		}
+		if weightKW(h) {
+			// find the nearest price column for the same cc
+			for j := i + 1; j < len(head) && j <= i+2; j++ {
+				h2 := strings.TrimSpace(head[j])
+				if strings.Contains(strings.ToUpper(h2), cc) && priceKW(h2) {
+					groups = append(groups, countryGroup{CountryCode: cc, WeightCol: i, PriceCol: j})
+					break
+				}
+			}
+		}
+	}
+
+	return groups
 }
 
 func parseMinMaxKg(minCell string, maxCell string) (float64, float64, error) {
