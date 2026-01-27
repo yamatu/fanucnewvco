@@ -1,4 +1,4 @@
-# 运费模板（按国家 + 重量kg）+ XLSX 批量导入（单 Sheet 版）
+# 运费模板（按国家 + 重量kg）+ XLSX 批量导入（两张表，支持多国家）
 
 目标：你可以为不同国家配置“重量区间 + 每公斤费用 + 报价附加费”；结算时系统会根据购物车总重量自动计算运费，并加到订单总价。
 
@@ -11,28 +11,30 @@
 - XLSX 批量导入（推荐）
 - 批量删除（Delete Selected / Delete All）
 
-## 2) XLSX 模板（你要的单 Sheet 格式）
+## 2) XLSX 模板（推荐：Sheet1 + Sheet2）
 
 点击 `Download XLSX Template` 下载模板。
 
-模板只有 1 个 Sheet（默认叫 `Shipping` 或 `Sheet1`），里面分 2 个表：
+模板包含 2 个 Sheet：
 
-### 表 A：`<21kg` 运费（按整数公斤直接取值）
+### Sheet1：`Under21Kg`（<21kg 运费，按整数公斤直接取值）
 
 你填的是“最终运费”，不是每公斤价格。
 
-列按国家横向展开（3 列一组）：
+列按国家横向展开（共享同一列“重量(kg)”）：
 
-- `US | 重量(kg) | 价格(运费)`
-- `CN | 重量(kg) | 价格(运费)`
-- ... 你有多少国家就继续往右加
+- A 列：`重量(kg)`（建议填 1 ~ 20）
+- B 列开始：每一列就是一个国家简写（ISO2），例如 `US`、`CN`、`DE`...
+
+示例表头：
+
+- `重量(kg) | US | CN | ...`
 
 说明：
 
-- 下单/报价时如果 `重量 < 21kg`：系统会先向上取整到整数公斤（例：`15.6kg -> 16kg`），然后在表 A 里找 `重量=16` 的那一行，直接取对应的“价格(运费)”
-- 表 A 建议填写 1~20（或你需要的范围）
+下单/报价时如果 `重量 < 21kg`：系统会先向上取整到整数公斤（例：`15.6kg -> 16kg`），然后在 Sheet1 里找 `重量=16` 的那一行，读取对应国家列的“运费”。
 
-### 表 B：`>=21kg` 区间（每公斤价格，用乘法算）
+### Sheet2：`Over21Kg`（>=21kg 区间，每公斤价格，用乘法算）
 
 3 列，按行填写：
 
@@ -59,13 +61,13 @@
 - `total_weight_kg < 21kg`：向上取整到整数公斤（例：`15.6kg -> 16kg`）
 - `total_weight_kg >= 21kg`：使用实际重量
 
-2) `total_weight_kg < 21kg`：从表 A 直接取“运费”
+2) `total_weight_kg < 21kg`：从 `Under21Kg` 直接取“运费”
 
-3) `total_weight_kg >= 21kg`：从表 B 匹配区间并按乘法算 `base_quote = billing_weight_kg × rate_per_kg`
+3) `total_weight_kg >= 21kg`：从 `Over21Kg` 匹配区间并按乘法算 `base_quote = billing_weight_kg × rate_per_kg`
 3) （可选）从 `QuoteSurcharge` 里匹配 `base_quote` 对应的 `additional_fee`
 4) `shipping_fee = base_quote + additional_fee`
 
-提示：单 sheet 模板默认不包含 `QuoteSurcharge`（附加费）。如果你后续还要保留“报价->附加费”的逻辑，可以继续用旧模板的 `QuoteSurcharge` sheet（系统仍支持）。
+提示：如果你后续还要保留“报价->附加费”的逻辑，可以继续额外带上旧模板的 `QuoteSurcharge` sheet（系统仍支持，非必填）。
 
 ## 4) 重新上传/替换
 
