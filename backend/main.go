@@ -5,8 +5,12 @@ import (
 	"fanuc-backend/middleware"
 	"fanuc-backend/routes"
 	"fanuc-backend/services"
+	"io"
 	"log"
+	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -44,9 +48,13 @@ func main() {
 	config.ConnectRedis()
 
 	// Set Gin mode
-	ginMode := os.Getenv("GIN_MODE")
+	ginMode := strings.TrimSpace(os.Getenv("GIN_MODE"))
 	if ginMode == "" {
-		ginMode = "debug"
+		if env == "production" {
+			ginMode = "release"
+		} else {
+			ginMode = "debug"
+		}
 	}
 	gin.SetMode(ginMode)
 
@@ -56,7 +64,20 @@ func main() {
 	r.MaxMultipartMemory = 256 << 20 // 256 MiB
 
 	// Add middleware
-	r.Use(gin.Logger())
+	accessLog := strings.TrimSpace(os.Getenv("ACCESS_LOG"))
+	if accessLog == "" {
+		// Default: noisy logs are useful in dev, expensive in prod.
+		if env == "production" {
+			accessLog = "0"
+		} else {
+			accessLog = "1"
+		}
+	}
+	if accessLog == "0" || strings.EqualFold(accessLog, "false") {
+		r.Use(gin.LoggerWithWriter(io.Discard))
+	} else {
+		r.Use(gin.Logger())
+	}
 	r.Use(gin.Recovery())
 	r.Use(middleware.CORSMiddleware())
 
@@ -82,7 +103,17 @@ func main() {
 	// Start server
 	log.Printf("Starting FANUC Backend API server on %s", address)
 	log.Printf("Backend will be accessible at: http://%s", address)
-	if err := r.Run(address); err != nil {
+
+	srv := &http.Server{
+		Addr:              address,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1 MiB
+	}
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal("Failed to start server:", err)
 	}
 }

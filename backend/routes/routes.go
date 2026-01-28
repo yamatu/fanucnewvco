@@ -72,23 +72,24 @@ func SetupRoutes(r *gin.Engine) {
 			public.GET("/products/default-image/:sku", watermarkController.DefaultProductImage)
 
 			// Shipping (public)
-			public.GET("/shipping/countries", shippingRateController.PublicCountries)
+			public.GET("/shipping/countries", middleware.CachePublicGET(middleware.CacheTTLCategories(), "cache:public:shipping_countries:"), shippingRateController.PublicCountries)
 			public.GET("/shipping/quote", shippingRateController.PublicQuote)
 
-			public.GET("/products/:id", productController.GetProduct)
-			public.GET("/products/sku", productController.GetProductBySKUQuery) // query param: sku=...
-			public.GET("/products/sku/:sku", productController.GetProductBySKU) // legacy: path param
+			// Product detail endpoints are also cached (same TTL as product list)
+			public.GET("/products/:id", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:product:"), productController.GetProduct)
+			public.GET("/products/sku", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:product_sku_query:"), productController.GetProductBySKUQuery) // query param: sku=...
+			public.GET("/products/sku/:sku", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:product_sku:"), productController.GetProductBySKU)       // legacy: path param
 
-			// Banners (public read access)
-			public.GET("/banners", bannerController.GetPublicBanners)
+			// Banners (public read access) - cached
+			public.GET("/banners", middleware.CachePublicGET(middleware.CacheTTLHomepage(), "cache:public:banners:"), bannerController.GetPublicBanners)
 
 			// Homepage Content (public read access) - cached
 			public.GET("/homepage-content", middleware.CachePublicGET(middleware.CacheTTLHomepage(), "cache:public:homepage:"), homepageContentController.GetHomepageContents)
 
 			public.GET("/homepage-content/section/:section_key", homepageContentController.GetHomepageContentBySection)
 
-			// Company Profile (public read access)
-			public.GET("/company-profile", companyProfileController.GetCompanyProfile)
+			// Company Profile (public read access) - cached
+			public.GET("/company-profile", middleware.CachePublicGET(middleware.CacheTTLHomepage(), "cache:public:company_profile:"), companyProfileController.GetCompanyProfile)
 
 			// Contact form submission (public access)
 			public.POST("/contact", contactHandler.SubmitContact)

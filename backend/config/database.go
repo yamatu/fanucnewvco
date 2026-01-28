@@ -50,8 +50,32 @@ func ConnectDatabase() {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		username, password, host, port, database)
 
+	// Reduce query log noise in production by default (can override via DB_LOG_LEVEL).
+	// Options: silent | error | warn | info
+	dbLogLevel := strings.ToLower(strings.TrimSpace(os.Getenv("DB_LOG_LEVEL")))
+	if dbLogLevel == "" {
+		if strings.ToLower(strings.TrimSpace(os.Getenv("GO_ENV"))) == "production" {
+			dbLogLevel = "warn"
+		} else {
+			dbLogLevel = "info"
+		}
+	}
+	logMode := logger.Info
+	switch dbLogLevel {
+	case "silent", "off", "none":
+		logMode = logger.Silent
+	case "error":
+		logMode = logger.Error
+	case "warn", "warning":
+		logMode = logger.Warn
+	case "info":
+		logMode = logger.Info
+	default:
+		logMode = logger.Info
+	}
+
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger:                                   logger.Default.LogMode(logger.Info),
+		Logger:                                   logger.Default.LogMode(logMode),
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 
