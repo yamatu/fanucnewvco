@@ -17,14 +17,23 @@ import { useAdminI18n } from '@/lib/admin-i18n';
 export default function AdminShippingRatesPage() {
   const { locale, t } = useAdminI18n();
   const queryClient = useQueryClient();
+  const [mode, setMode] = useState<'country' | 'carrier'>('country');
+  const [carrier, setCarrier] = useState('FEDEX');
+  const [serviceCode, setServiceCode] = useState('IP');
+  const [currency, setCurrency] = useState('USD');
   const [q, setQ] = useState('');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [replaceMode, setReplaceMode] = useState(true);
   const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
 
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: [...queryKeys.shippingRates.admin(), { q }],
-    queryFn: () => ShippingRateService.adminList(q.trim() || undefined),
+    queryKey: [...queryKeys.shippingRates.admin(), { q, mode, carrier, serviceCode }],
+    queryFn: () =>
+      ShippingRateService.adminList(q.trim() || undefined, {
+        type: mode === 'carrier' ? 'carrier' : 'country',
+        carrier: mode === 'carrier' ? carrier : undefined,
+        service: mode === 'carrier' ? serviceCode : undefined,
+      }),
     retry: 1,
   });
 
@@ -32,11 +41,18 @@ export default function AdminShippingRatesPage() {
 
   const downloadTemplate = async () => {
     try {
-      const blob = await ShippingRateService.downloadTemplate();
+      const blob = await ShippingRateService.downloadTemplate({
+        type: mode === 'carrier' ? 'carrier-zone' : 'country',
+        carrier: mode === 'carrier' ? carrier : undefined,
+        service: mode === 'carrier' ? serviceCode : undefined,
+        currency: mode === 'carrier' ? currency : undefined,
+      });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'shipping-template.xlsx';
+      a.download = mode === 'carrier'
+        ? `shipping-${(carrier || 'carrier').toLowerCase()}-${(serviceCode || 'service').toLowerCase()}-zone-template.xlsx`
+        : 'shipping-template.xlsx';
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -50,7 +66,13 @@ export default function AdminShippingRatesPage() {
   const importMutation = useMutation({
     mutationFn: async () => {
       if (!importFile) throw new Error(t('shipping.import.noFile', locale === 'zh' ? '请选择 .xlsx 文件' : 'Please select an .xlsx file'));
-      return ShippingRateService.importXlsx(importFile, { replace: replaceMode });
+      return ShippingRateService.importXlsx(importFile, {
+        replace: replaceMode,
+        type: mode === 'carrier' ? 'carrier-zone' : 'country',
+        carrier: mode === 'carrier' ? carrier : undefined,
+        service: mode === 'carrier' ? serviceCode : undefined,
+        currency: mode === 'carrier' ? currency : undefined,
+      });
     },
     onSuccess: (res: any) => {
       toast.success(t('shipping.toast.imported', '已导入国家：{countries}（新增 {created}，更新 {updated}）', {
@@ -65,7 +87,12 @@ export default function AdminShippingRatesPage() {
   });
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: (payload: { all?: boolean; country_codes?: string[] }) => ShippingRateService.bulkDelete(payload),
+    mutationFn: (payload: { all?: boolean; country_codes?: string[] }) =>
+      ShippingRateService.bulkDelete(payload, {
+        type: mode === 'carrier' ? 'carrier' : 'country',
+        carrier: mode === 'carrier' ? carrier : undefined,
+        service: mode === 'carrier' ? serviceCode : undefined,
+      }),
     onSuccess: (res: any) => {
       toast.success(t('shipping.toast.deleted', '已删除 {deleted} 个国家模板', { deleted: res.deleted || 0 }));
       setSelectedCodes([]);
@@ -85,15 +112,73 @@ export default function AdminShippingRatesPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{t('shipping.title', '运费模板')}</h1>
             <p className="mt-1 text-sm text-gray-500">{t('shipping.subtitle', '支持多国家运费配置：<21kg 按整数公斤直接取值；>=21kg 按区间每公斤价格计算。')}</p>
+            {mode === 'carrier' && (
+              <p className="mt-1 text-xs text-gray-500">
+                {t(
+                  'shipping.carrier.hint',
+                  locale === 'zh'
+                    ? '承运商模式：上传文件需包含 CountryZones（ISO2->Zone）。费率可用模板的 Under21Kg_Zones/Over21Kg_Zones，或直接用你的 FedEx eBay 表（系统会从“加过利润的所有运费（含旺季附加费）”读取）。'
+                    : 'Carrier mode: upload must include CountryZones (ISO2->Zone). Rates can be from Under21Kg_Zones/Over21Kg_Zones, or your FedEx eBay sheet (parsed from the combined sheet).'
+                )}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <span className="text-gray-500">{t('shipping.mode', locale === 'zh' ? '类型' : 'Mode')}</span>
+              <select
+                value={mode}
+                onChange={(e) => {
+                  const v = e.target.value as 'country' | 'carrier';
+                  setMode(v);
+                  setSelectedCodes([]);
+                  setImportFile(null);
+                }}
+                className="px-2 py-1 border border-gray-300 rounded-md bg-white"
+              >
+                <option value="country">{t('shipping.mode.country', locale === 'zh' ? '按国家（默认）' : 'By country')}</option>
+                <option value="carrier">{t('shipping.mode.carrier', locale === 'zh' ? '按承运商（FedEx/DHL）' : 'By carrier')}</option>
+              </select>
+            </label>
+
+            {mode === 'carrier' && (
+              <>
+                <input
+                  value={carrier}
+                  onChange={(e) => {
+                    setCarrier(e.target.value);
+                    setSelectedCodes([]);
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder={t('shipping.carrierPh', locale === 'zh' ? '承运商 (FEDEX/DHL)' : 'Carrier (FEDEX/DHL)')}
+                />
+                <input
+                  value={serviceCode}
+                  onChange={(e) => {
+                    setServiceCode(e.target.value);
+                    setSelectedCodes([]);
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder={t('shipping.servicePh', locale === 'zh' ? '服务代码 (IP/IE...)' : 'Service (IP/IE...)')}
+                />
+                <input
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm w-24"
+                  placeholder={t('shipping.currency', '币种')}
+                />
+              </>
+            )}
+
             <button
               onClick={downloadTemplate}
               className="inline-flex items-center px-3 py-2 text-sm rounded-md border border-gray-200 bg-white hover:bg-gray-50"
             >
               <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-              {t('shipping.downloadTemplate', '下载 XLSX 模板')}
+              {mode === 'carrier'
+                ? t('shipping.downloadCarrierZoneTemplate', locale === 'zh' ? '下载承运商模板' : 'Download Carrier Template')
+                : t('shipping.downloadTemplate', '下载 XLSX 模板')}
             </button>
 
             <label className="inline-flex items-center px-3 py-2 text-sm rounded-md border border-gray-200 bg-white hover:bg-gray-50 cursor-pointer">
@@ -127,7 +212,11 @@ export default function AdminShippingRatesPage() {
               }}
               className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700"
               disabled={bulkDeleteMutation.isPending}
-              title={t('shipping.deleteAll.title', locale === 'zh' ? '批量删除全部国家模板' : 'Bulk delete all countries')}
+              title={
+                mode === 'carrier'
+                  ? t('shipping.deleteAllCarrier.title', locale === 'zh' ? '删除该承运商/服务下全部国家模板' : 'Delete all for this carrier/service')
+                  : t('shipping.deleteAll.title', locale === 'zh' ? '批量删除全部国家模板' : 'Bulk delete all countries')
+              }
             >
               <TrashIcon className="h-4 w-4 mr-2" />
               {t('shipping.deleteAll', '删除全部')}
@@ -165,6 +254,11 @@ export default function AdminShippingRatesPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('shipping.select', '选择')}</th>
+                  {mode === 'carrier' && (
+                    <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                      {t('shipping.carrier', locale === 'zh' ? '承运商/服务' : 'Carrier/Service')}
+                    </th>
+                  )}
                   <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('shipping.country', '国家')}</th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('shipping.currency', '币种')}</th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('shipping.weightBrackets', '重量规则数')}</th>
@@ -173,12 +267,12 @@ export default function AdminShippingRatesPage() {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={5} className="px-3 py-10 text-center text-gray-500">{t('shipping.loading', '加载中...')}</td></tr>
+                  <tr><td colSpan={mode === 'carrier' ? 6 : 5} className="px-3 py-10 text-center text-gray-500">{t('shipping.loading', '加载中...')}</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={5} className="px-3 py-10 text-center text-gray-500">{t('shipping.empty', '暂无模板')}</td></tr>
+                  <tr><td colSpan={mode === 'carrier' ? 6 : 5} className="px-3 py-10 text-center text-gray-500">{t('shipping.empty', '暂无模板')}</td></tr>
                 ) : (
                   rows.map((r: any) => (
-                    <tr key={r.country_code} className="border-t">
+                    <tr key={(mode === 'carrier' ? `${r.carrier || carrier}:${r.service_code || serviceCode}:` : '') + r.country_code} className="border-t">
                       <td className="px-3 py-2">
                         <input
                           type="checkbox"
@@ -187,6 +281,12 @@ export default function AdminShippingRatesPage() {
                           className="h-4 w-4"
                         />
                       </td>
+                      {mode === 'carrier' && (
+                        <td className="px-3 py-2 text-gray-900">
+                          <div className="font-mono">{r.carrier || carrier || '-'}</div>
+                          <div className="text-gray-700">{r.service_code || serviceCode || '-'}</div>
+                        </td>
+                      )}
                       <td className="px-3 py-2">
                         <div className="font-mono text-gray-900">{r.country_code}</div>
                         <div className="text-gray-700">{r.country_name}</div>

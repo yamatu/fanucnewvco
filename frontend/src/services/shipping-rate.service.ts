@@ -3,11 +3,14 @@ import { APIResponse } from '@/types';
 
 export interface ShippingRate {
   id: number;
+  carrier?: string;
+  service_code?: string;
   country_code: string;
   country_name: string;
-  fee: number;
   currency: string;
   is_active: boolean;
+  weight_brackets?: number;
+  quote_surcharges?: number;
   created_at: string;
   updated_at: string;
 }
@@ -39,45 +42,82 @@ export interface ShippingRateImportResult {
 }
 
 export class ShippingRateService {
-  static async publicCountries(): Promise<ShippingRatePublic[]> {
-    const res = await apiClient.get<APIResponse<ShippingRatePublic[]>>('/public/shipping/countries');
+  static async publicCountries(opts?: { carrier?: string; service?: string }): Promise<ShippingRatePublic[]> {
+    const qs = new URLSearchParams();
+    if (opts?.carrier) qs.set('carrier', opts.carrier);
+    if (opts?.service) qs.set('service', opts.service);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiClient.get<APIResponse<ShippingRatePublic[]>>(`/public/shipping/countries${suffix}`);
     if (res.data.success && res.data.data) return res.data.data;
     throw new Error(res.data.message || 'Failed to fetch shipping rates');
   }
 
-  static async quote(country: string, weightKg: number): Promise<ShippingQuote> {
+  static async quote(country: string, weightKg: number, opts?: { carrier?: string; service?: string }): Promise<ShippingQuote> {
     const qs = new URLSearchParams();
     qs.set('country', country);
     qs.set('weight_kg', String(weightKg || 0));
+    if (opts?.carrier) qs.set('carrier', opts.carrier);
+    if (opts?.service) qs.set('service', opts.service);
     const res = await apiClient.get<APIResponse<ShippingQuote>>(`/public/shipping/quote?${qs.toString()}`);
     if (res.data.success && res.data.data) return res.data.data;
     throw new Error(res.data.message || res.data.error || 'Failed to calculate shipping');
   }
 
-  static async adminList(q?: string): Promise<ShippingRate[]> {
-    const qs = q ? `?q=${encodeURIComponent(q)}` : '';
-    const res = await apiClient.get<APIResponse<ShippingRate[]>>(`/admin/shipping-rates${qs}`);
+  static async adminList(
+    q?: string,
+    opts?: { type?: 'country' | 'carrier'; carrier?: string; service?: string }
+  ): Promise<ShippingRate[]> {
+    const qs = new URLSearchParams();
+    if (q) qs.set('q', q);
+    if (opts?.type) qs.set('type', opts.type);
+    if (opts?.carrier) qs.set('carrier', opts.carrier);
+    if (opts?.service) qs.set('service', opts.service);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiClient.get<APIResponse<ShippingRate[]>>(`/admin/shipping-rates${suffix}`);
     if (res.data.success && res.data.data) return res.data.data;
     throw new Error(res.data.message || 'Failed to fetch shipping rates');
   }
 
 
-  static async bulkDelete(payload: { all?: boolean; country_codes?: string[] }): Promise<{ deleted: number }> {
-    const res = await apiClient.post<APIResponse<any>>('/admin/shipping-rates/bulk-delete', payload);
+  static async bulkDelete(
+    payload: { all?: boolean; country_codes?: string[] },
+    opts?: { type?: 'country' | 'carrier'; carrier?: string; service?: string }
+  ): Promise<{ deleted: number }> {
+    const qs = new URLSearchParams();
+    if (opts?.type) qs.set('type', opts.type);
+    if (opts?.carrier) qs.set('carrier', opts.carrier);
+    if (opts?.service) qs.set('service', opts.service);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiClient.post<APIResponse<any>>(`/admin/shipping-rates/bulk-delete${suffix}`, payload);
     if (res.data.success && res.data.data) return res.data.data;
     throw new Error(res.data.message || 'Failed to delete shipping templates');
   }
 
-  static async downloadTemplate(): Promise<Blob> {
-    const res = await apiClient.get('/admin/shipping-rates/import/template', { responseType: 'blob' });
+  static async downloadTemplate(opts?: { type?: 'country' | 'carrier-zone'; carrier?: string; service?: string; currency?: string }): Promise<Blob> {
+    const qs = new URLSearchParams();
+    if (opts?.type) qs.set('type', opts.type);
+    if (opts?.carrier) qs.set('carrier', opts.carrier);
+    if (opts?.service) qs.set('service', opts.service);
+    if (opts?.currency) qs.set('currency', opts.currency);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiClient.get(`/admin/shipping-rates/import/template${suffix}`, { responseType: 'blob' });
     return res.data as Blob;
   }
 
-  static async importXlsx(file: File, opts?: { replace?: boolean }): Promise<ShippingRateImportResult> {
+  static async importXlsx(
+    file: File,
+    opts?: { replace?: boolean; type?: 'country' | 'carrier-zone'; carrier?: string; service?: string; currency?: string }
+  ): Promise<ShippingRateImportResult> {
     const form = new FormData();
     form.append('file', file);
-    const qs = opts?.replace ? '?replace=1' : '';
-    const res = await apiClient.post<APIResponse<ShippingRateImportResult>>(`/admin/shipping-rates/import/xlsx${qs}`, form, {
+    const qs = new URLSearchParams();
+    if (opts?.replace) qs.set('replace', '1');
+    if (opts?.type) qs.set('type', opts.type);
+    if (opts?.carrier) qs.set('carrier', opts.carrier);
+    if (opts?.service) qs.set('service', opts.service);
+    if (opts?.currency) qs.set('currency', opts.currency);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiClient.post<APIResponse<ShippingRateImportResult>>(`/admin/shipping-rates/import/xlsx${suffix}`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     if (res.data.success && res.data.data) return res.data.data;

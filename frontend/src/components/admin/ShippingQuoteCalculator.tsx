@@ -14,12 +14,14 @@ export default function ShippingQuoteCalculator(props: {
 	defaultCountryCode?: string;
 	onSetPrice?: (nextPrice: number) => void;
 }) {
-	const { t } = useAdminI18n();
+	const { locale, t } = useAdminI18n();
 	const { weightKg = 0, price = 0, defaultCountryCode = 'US', onSetPrice } = props;
 	const w = Number(weightKg || 0);
 
 	const [countries, setCountries] = useState<Country[]>([]);
 	const [loadingCountries, setLoadingCountries] = useState(false);
+	const [carrier, setCarrier] = useState('');
+	const [serviceCode, setServiceCode] = useState('');
 	const [countryCode, setCountryCode] = useState('');
 	const [quote, setQuote] = useState<ShippingQuote | null>(null);
 	const [loadingQuote, setLoadingQuote] = useState(false);
@@ -32,7 +34,10 @@ export default function ShippingQuoteCalculator(props: {
 		(async () => {
 			setLoadingCountries(true);
 			try {
-				const list = (await ShippingRateService.publicCountries()) as any as Country[];
+				const list = (await ShippingRateService.publicCountries({
+					carrier: carrier || undefined,
+					service: carrier ? (serviceCode || undefined) : undefined,
+				})) as any as Country[];
 				if (!alive) return;
 				setCountries(Array.isArray(list) ? list : []);
 			} catch (e: any) {
@@ -46,7 +51,7 @@ export default function ShippingQuoteCalculator(props: {
 		return () => {
 			alive = false;
 		};
-	}, []);
+	}, [carrier, serviceCode]);
 
 	useEffect(() => {
 		if (countryCode) return;
@@ -57,6 +62,13 @@ export default function ShippingQuoteCalculator(props: {
 	}, [countries, countryCode, defaultCountryCode]);
 
 	useEffect(() => {
+		// When switching carrier/service, reset selection so list matches.
+		setCountryCode('');
+		setQuote(null);
+		setQuoteError('');
+	}, [carrier, serviceCode]);
+
+	useEffect(() => {
 		let alive = true;
 		(async () => {
 			setQuote(null);
@@ -64,7 +76,10 @@ export default function ShippingQuoteCalculator(props: {
 			if (!countryCode || !w || w <= 0) return;
 			setLoadingQuote(true);
 			try {
-				const q = await ShippingRateService.quote(countryCode, w);
+				const q = await ShippingRateService.quote(countryCode, w, {
+					carrier: carrier || undefined,
+					service: carrier ? (serviceCode || undefined) : undefined,
+				});
 				if (!alive) return;
 				setQuote(q);
 			} catch (e: any) {
@@ -77,7 +92,7 @@ export default function ShippingQuoteCalculator(props: {
 		return () => {
 			alive = false;
 		};
-	}, [countryCode, w]);
+	}, [countryCode, w, carrier, serviceCode]);
 
 	const shippingFee = Number(quote?.shipping_fee || 0);
 	const billingWeightKg = Number((quote as any)?.billing_weight_kg || (quote as any)?.billingWeight || 0);
@@ -112,7 +127,27 @@ export default function ShippingQuoteCalculator(props: {
 				</div>
 			</div>
 
-			<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+			<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-4">
+				<div>
+					<label className="block text-sm font-medium text-gray-700 mb-1">{t('shipping.calc.carrier', locale === 'zh' ? '承运商' : 'Carrier')}</label>
+					<select
+						value={carrier}
+						onChange={(e) => setCarrier(e.target.value)}
+						className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+					>
+						<option value="">{t('shipping.calc.carrier.default', locale === 'zh' ? '默认(按国家模板)' : 'Default (country templates)')}</option>
+						<option value="FEDEX">FEDEX</option>
+						<option value="DHL">DHL</option>
+					</select>
+					{carrier && (
+						<input
+							value={serviceCode}
+							onChange={(e) => setServiceCode(e.target.value)}
+							className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md"
+							placeholder={t('shipping.calc.servicePh', locale === 'zh' ? '服务代码 (IP/IE...)' : 'Service code (IP/IE...)')}
+						/>
+					)}
+				</div>
 				<div>
 					<label className="block text-sm font-medium text-gray-700 mb-1">{t('shipping.calc.country', '国家')}</label>
 					<select
