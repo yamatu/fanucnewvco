@@ -123,6 +123,10 @@ func ConnectDatabase() {
 			&models.ShippingTemplate{},
 			&models.ShippingWeightBracket{},
 			&models.ShippingQuoteSurcharge{},
+			// Shipping (carrier-specific)
+			&models.ShippingCarrierTemplate{},
+			&models.ShippingCarrierWeightBracket{},
+			&models.ShippingCarrierQuoteSurcharge{},
 			// Legacy flat shipping rate table (kept for compatibility; not used by new flow)
 			&models.ShippingRate{},
 			&models.WatermarkSetting{},

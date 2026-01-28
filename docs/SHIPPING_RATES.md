@@ -69,6 +69,21 @@
 
 提示：如果你后续还要保留“报价->附加费”的逻辑，可以继续额外带上旧模板的 `QuoteSurcharge` sheet（系统仍支持，非必填）。
 
+## 2.1) 承运商模板（FedEx/DHL：按 Zone 导入）
+
+如果你有类似 FedEx/DHL 的“分区(Zone) + 重量”的价目表，并希望在后台维护多套承运商运费（例如同时维护 FEDEX、DHL），可以使用承运商模板。
+
+下载承运商模板：后台 `Shipping Rates` 页面切换到「按承运商」，点击「下载承运商模板」。
+
+模板包含 4 个 Sheet：
+
+- `CarrierMeta`：承运商/服务/币种（例如 `Carrier=FEDEX`, `ServiceCode=IP`, `Currency=USD`）
+- `CountryZones`：国家 ISO2（例如 US、CN）对应的 Zone
+- `Under21Kg_Zones`：<21kg（支持 0.5kg 步进），按 Zone 填“最终运费”（不是每公斤）
+- `Over21Kg_Zones`：>=21kg，按 Zone + 区间 填“最终每公斤价格”
+
+上传后系统会根据 `CountryZones` 把每个 Zone 的规则展开成“每个国家一套模板”，用于运费计算与查询。
+
 ## 4) 重新上传/替换
 
 如果你每次调整运费都要重新上传：

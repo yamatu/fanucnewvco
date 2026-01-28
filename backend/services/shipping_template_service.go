@@ -95,13 +95,47 @@ func CalculateShippingQuote(db *gorm.DB, countryCode string, weightKg float64) (
 	}
 
 	// Billing weight rules:
-	// - For weight < 21kg: round up to the next whole kg (15.6 -> 16)
+	// - For weight < 21kg:
+	//   - If the template provides fixed-fee rows (min=max) under 21kg, round up to the nearest available row
+	//     (supports 0.5kg steps like 15.6 -> 16.0 or 15.6 -> 16.5 depending on the sheet).
+	//   - Otherwise, round up to the next whole kg (15.6 -> 16)
 	// - For weight >= 21kg: use the actual weight
 	billingWeightKg := weightKg
 	if weightKg > 0 && weightKg < 21 {
-		billingWeightKg = math.Ceil(weightKg)
-		if billingWeightKg < 1 {
-			billingWeightKg = 1
+		fixed := make([]float64, 0)
+		seen := map[float64]bool{}
+		for _, b := range brackets {
+			if round3(b.MinKg) == round3(b.MaxKg) && b.MinKg > 0 && b.MinKg < 21 {
+				w := round3(b.MinKg)
+				if !seen[w] {
+					seen[w] = true
+					fixed = append(fixed, w)
+				}
+			}
+		}
+		if len(fixed) > 0 {
+			sort.Float64s(fixed)
+			want := round3(weightKg)
+			picked := 0.0
+			for _, w := range fixed {
+				if w >= want {
+					picked = w
+					break
+				}
+			}
+			if picked > 0 {
+				billingWeightKg = picked
+			} else {
+				billingWeightKg = math.Ceil(weightKg)
+				if billingWeightKg < 1 {
+					billingWeightKg = 1
+				}
+			}
+		} else {
+			billingWeightKg = math.Ceil(weightKg)
+			if billingWeightKg < 1 {
+				billingWeightKg = 1
+			}
 		}
 	}
 
