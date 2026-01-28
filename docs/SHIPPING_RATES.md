@@ -84,6 +84,46 @@
 
 上传后系统会根据 `CountryZones` 把每个 Zone 的规则展开成“每个国家一套模板”，用于运费计算与查询。
 
+### FedEx eBay 表（你现在这个 `Fedex价格表2025上ebay.xlsx`）怎么导入
+
+你这个文件的费率在 sheet：`加过利润的所有运费（含旺季附加费）`。
+系统已经支持直接从这个 sheet 读取费率（你不需要把费率再手工复制到 `Under21Kg_Zones/Over21Kg_Zones`）。
+
+你需要做的只有一件事：在这个 Excel 里新增一个 sheet：`CountryZones`（国家 -> Zone 映射）。
+
+1) 打开 `Fedex价格表2025上ebay.xlsx`
+2) 新建 sheet，命名为 `CountryZones`
+3) 第一行写表头（三列即可，第四列备注可选）：
+
+   - `country_code`：ISO2，两位国家码，例如 `DE` `JP` `CA`
+   - `country_name`：可写可不写（只是方便你看）
+   - `zone`：对应 FedEx 的分区代码，例如 `K` `P` `N` `U` `1` `2`
+   - `note`：可选，备注（系统会忽略）
+
+4) 下面给你 10 个例子（这些 Zone 你仍然建议对照你选择的服务列确认一次）：
+
+   - `CA` Canada -> `N`
+   - `AU` Australia -> `U`
+   - `DE` Germany -> `K`
+   - `FR` France -> `K`
+   - `IT` Italy -> `K`
+   - `JP` Japan -> `P`
+   - `BR` Brazil -> `G`
+   - `IN` India -> `O`
+   - `VN` Vietnam -> `B`
+   - `TH` Thailand -> `R`
+
+5) 去后台：Admin -> Shipping Rates -> 选择「按承运商」
+6) 填：Carrier= `FEDEX`，ServiceCode= `IP`（你自己定义，用于区分多套模板），Currency= `USD` 或 `CNY`
+7) 选择刚才改好的 XLSX 上传导入
+
+### 常见坑
+
+- 没有 `CountryZones`：会导入失败（因为系统不知道每个国家属于哪个 Zone）。
+- `country_code` 必须是 ISO2（两位大写，例如 `DE`），不要写国家中文名。
+- `zone` 必须和你价目表里的 Zone 一致（例如 `K` / `P` / `N` / `U` / `1` / `2`）。
+- 美国经常会有 `1/2` 两种 Zone（按州/邮编划分）。当前系统是“按国家”计算，不支持按州/邮编；如果你需要更精细，我可以继续把系统扩展成“国家+州/邮编段”规则。
+
 ## 4) 重新上传/替换
 
 如果你每次调整运费都要重新上传：

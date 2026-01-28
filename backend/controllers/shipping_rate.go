@@ -238,7 +238,16 @@ func (sc *ShippingRateController) ImportXLSX(c *gin.Context) {
 		res, err = services.ImportShippingTemplatesFromXLSX(c.Request.Context(), db, src, replace)
 	}
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Import failed", Error: err.Error(), Data: res})
+		msg := "Import failed"
+		if len(res.Errors) > 0 {
+			// surface the first few errors to the UI
+			max := 3
+			if len(res.Errors) < max {
+				max = len(res.Errors)
+			}
+			msg = msg + ": " + strings.Join(res.Errors[:max], "; ")
+		}
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: msg, Error: err.Error(), Data: res})
 		return
 	}
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Import completed", Data: res})

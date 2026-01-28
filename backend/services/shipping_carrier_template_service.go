@@ -299,7 +299,13 @@ func GenerateCarrierZoneTemplateXLSX(opts CarrierZoneImportOptions) ([]byte, err
 	_ = f.SetCellValue(sMeta, "A3", "Currency")
 	_ = f.SetCellValue(sMeta, "B3", currency)
 	_ = f.SetCellValue(sMeta, "A5", "Notes")
-	_ = f.SetCellValue(sMeta, "B5", "Upload this file to build per-country templates using zone mapping. Under21Kg_Zones values are FINAL fees (not per-kg). Over21Kg_Zones values are FINAL rate per kg.")
+	_ = f.SetCellValue(sMeta, "B5", strings.Join([]string{
+		"1) Fill CountryZones: ISO2 country_code + zone.",
+		"2) Under21Kg_Zones: <21kg weights (0.5 step supported) => FINAL shipping fee for that billed weight.",
+		"3) Over21Kg_Zones: >=21kg brackets => FINAL rate per kg.",
+		"4) If you are using the provided FedEx workbook (Fedex价格表2025上ebay.xlsx), you can keep its combined sheet \"加过利润的所有运费（含旺季附加费）\" as the rate source and ONLY add CountryZones, then upload.",
+		"5) US has zone 1/2 in some sheets; this system is country-level (no ZIP/state). Pick one zone or extend to region logic.",
+	}, "\n"))
 
 	// Country-zone map
 	sMap := "CountryZones"
@@ -307,9 +313,32 @@ func GenerateCarrierZoneTemplateXLSX(opts CarrierZoneImportOptions) ([]byte, err
 	_ = f.SetCellValue(sMap, "A1", "country_code")
 	_ = f.SetCellValue(sMap, "B1", "country_name")
 	_ = f.SetCellValue(sMap, "C1", "zone")
-	_ = f.SetCellValue(sMap, "A2", "US")
-	_ = f.SetCellValue(sMap, "B2", "United States")
-	_ = f.SetCellValue(sMap, "C2", "1")
+	_ = f.SetCellValue(sMap, "D1", "note")
+
+	// 10 example countries (verify zone by your chosen service column)
+	examples := [][]string{
+		{"CA", "Canada", "N", "Example from FedEx index: Canada -> N"},
+		{"AU", "Australia", "U", "Example from FedEx index: Australia -> U"},
+		{"DE", "Germany", "K", "Example from FedEx index: Germany -> K"},
+		{"FR", "France", "K", "Example from FedEx index: France -> K"},
+		{"IT", "Italy", "K", "Example from FedEx index: Italy -> K"},
+		{"JP", "Japan", "P", "Example from FedEx index: Japan -> P"},
+		{"BR", "Brazil", "G", "Example from FedEx index: Brazil -> G"},
+		{"IN", "India", "O", "Example from FedEx index: India -> O"},
+		{"VN", "Vietnam", "B", "Example from FedEx index: Vietnam -> B"},
+		{"TH", "Thailand", "R", "Example from FedEx index: Thailand -> R"},
+	}
+	for i, r := range examples {
+		row := i + 2
+		_ = f.SetCellValue(sMap, fmt.Sprintf("A%d", row), r[0])
+		_ = f.SetCellValue(sMap, fmt.Sprintf("B%d", row), r[1])
+		_ = f.SetCellValue(sMap, fmt.Sprintf("C%d", row), r[2])
+		_ = f.SetCellValue(sMap, fmt.Sprintf("D%d", row), r[3])
+	}
+	_ = f.SetCellValue(sMap, "A12", "")
+	_ = f.SetCellValue(sMap, "B12", "")
+	_ = f.SetCellValue(sMap, "C12", "")
+	_ = f.SetCellValue(sMap, "D12", "Add more countries below")
 
 	// Under21Kg zone matrix
 	sU := "Under21Kg_Zones"
@@ -353,6 +382,7 @@ func GenerateCarrierZoneTemplateXLSX(opts CarrierZoneImportOptions) ([]byte, err
 	_ = f.SetColWidth(sMap, "A", "A", 14)
 	_ = f.SetColWidth(sMap, "B", "B", 28)
 	_ = f.SetColWidth(sMap, "C", "C", 10)
+	_ = f.SetColWidth(sMap, "D", "D", 48)
 	_ = f.SetColWidth(sU, "A", "A", 12)
 	_ = f.SetColWidth(sU, "B", lastCol, 10)
 	_ = f.SetColWidth(sO, "A", "A", 10)
@@ -553,30 +583,46 @@ func parseCountryZonesSheet(f *excelize.File, name string) ([]countryZoneRow, []
 		return nil, []string{err.Error()}
 	}
 	if len(rows) <= 1 {
-		return nil, []string{"CountryZones sheet has no data"}
+		return nil, []string{"CountryZones sheet has no data (expected columns: country_code, country_name, zone)"}
 	}
 
 	head := rows[0]
 	colCC, colName, colZone := -1, -1, -1
 	for i, h := range head {
 		k := strings.ToLower(strings.TrimSpace(h))
+		k = strings.ReplaceAll(k, " ", "")
 		switch k {
-		case "country_code", "country", "code":
+		case "country_code", "country", "code", "countrycode", "iso2", "iso":
 			colCC = i
-		case "country_name", "name":
+		case "country_name", "name", "countryname":
 			colName = i
-		case "zone":
+		case "zone", "region", "area":
+			colZone = i
+		case "\u56fd\u5bb6\u4ee3\u7801", "\u56fd\u5bb6\u7801", "\u56fd\u522b":
+			colCC = i
+		case "\u56fd\u5bb6\u540d\u79f0", "\u56fd\u5bb6", "\u540d\u79f0":
+			colName = i
+		case "\u5206\u533a", "\u5206\u533a(zone)", "\u533a\u57df", "\u5206\u533a\u7801", "\u5206\u533a\u4ee3\u7801":
 			colZone = i
 		}
 	}
-	if colCC < 0 {
-		colCC = 0
-	}
-	if colName < 0 {
-		colName = 1
-	}
-	if colZone < 0 {
-		colZone = 2
+
+	// If header doesn't look like a header, treat the first row as data.
+	looksLikeHeader := colCC >= 0 || colZone >= 0 || strings.Contains(strings.ToLower(strings.Join(head, ",")), "country") || strings.Contains(strings.ToLower(strings.Join(head, ",")), "zone")
+	startRow := 1
+	if !looksLikeHeader {
+		colCC, colName, colZone = 0, 1, 2
+		startRow = 0
+	} else {
+		if colCC < 0 {
+			colCC = 0
+		}
+		if colName < 0 {
+			colName = 1
+		}
+		if colZone < 0 {
+			colZone = 2
+		}
 	}
 
 	get := func(r []string, idx int) string {
@@ -587,7 +633,7 @@ func parseCountryZonesSheet(f *excelize.File, name string) ([]countryZoneRow, []
 	}
 
 	out := make([]countryZoneRow, 0)
-	for i := 1; i < len(rows); i++ {
+	for i := startRow; i < len(rows); i++ {
 		r := rows[i]
 		cc := get(r, colCC)
 		if cc == "" {
