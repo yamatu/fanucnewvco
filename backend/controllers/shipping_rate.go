@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -28,7 +30,34 @@ func (sc *ShippingRateController) PublicCountries(c *gin.Context) {
 		err  error
 	)
 	if carrier != "" {
-		list, err = services.ListActiveCarrierShippingCountries(db, carrier, serviceCode)
+		// Carrier mode: return union of (carrier templates) and (default country templates)
+		carrierList, e := services.ListActiveCarrierShippingCountries(db, carrier, serviceCode)
+		if e != nil {
+			err = e
+		} else {
+			defaultList, e2 := services.ListActiveShippingCountries(db)
+			if e2 != nil {
+				err = e2
+			} else {
+				// Merge by country code; prefer carrier entry when present.
+				m := map[string]services.ShippingCountryPublic{}
+				for _, it := range defaultList {
+					m[strings.ToUpper(it.CountryCode)] = it
+				}
+				for _, it := range carrierList {
+					m[strings.ToUpper(it.CountryCode)] = it
+				}
+				out := make([]services.ShippingCountryPublic, 0, len(m))
+				for _, v := range m {
+					out = append(out, v)
+				}
+				// Sort by country name for stable UX
+				sort.SliceStable(out, func(i, j int) bool {
+					return strings.ToLower(out[i].CountryName) < strings.ToLower(out[j].CountryName)
+				})
+				list = out
+			}
+		}
 	} else {
 		list, err = services.ListActiveShippingCountries(db)
 	}
@@ -71,11 +100,15 @@ func (sc *ShippingRateController) PublicQuote(c *gin.Context) {
 	)
 	if carrier != "" {
 		q, err = services.CalculateCarrierShippingQuote(db, carrier, serviceCode, cc, weight)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Carrier template missing for this country; fall back to default country template.
+			q, err = services.CalculateShippingQuote(db, cc, weight)
+		}
 	} else {
 		q, err = services.CalculateShippingQuote(db, cc, weight)
 	}
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Shipping template not found", Error: "not_found"})
 			return
 		}
@@ -250,6 +283,8 @@ func (sc *ShippingRateController) ImportXLSX(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: msg, Error: err.Error(), Data: res})
 		return
 	}
+	// Shipping countries endpoint is cached; clear it so whitelist/template changes show immediately.
+	_ = services.ClearRedisByPrefixes(c.Request.Context(), "cache:public:shipping_countries:")
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Import completed", Data: res})
 }
 
@@ -320,6 +355,7 @@ func (sc *ShippingRateController) BulkDelete(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to delete", Error: err.Error()})
 			return
 		}
+		_ = services.ClearRedisByPrefixes(c.Request.Context(), "cache:public:shipping_countries:")
 		c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Deleted", Data: gin.H{"deleted": deleted}})
 		return
 	}
@@ -372,6 +408,7 @@ func (sc *ShippingRateController) BulkDelete(c *gin.Context) {
 		return
 	}
 
+	_ = services.ClearRedisByPrefixes(c.Request.Context(), "cache:public:shipping_countries:")
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Deleted", Data: gin.H{"deleted": deleted}})
 }
 
@@ -427,6 +464,7 @@ func (sc *ShippingRateController) AddAllowedCountry(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to add country", Error: err.Error()})
 		return
 	}
+	_ = services.ClearRedisByPrefixes(c.Request.Context(), "cache:public:shipping_countries:")
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Country added to whitelist", Data: entry})
 }
 
@@ -447,6 +485,7 @@ func (sc *ShippingRateController) RemoveAllowedCountry(c *gin.Context) {
 		c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Country not found in whitelist", Error: "not_found"})
 		return
 	}
+	_ = services.ClearRedisByPrefixes(c.Request.Context(), "cache:public:shipping_countries:")
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Country removed from whitelist"})
 }
 
@@ -493,5 +532,6 @@ func (sc *ShippingRateController) BulkSetAllowedCountries(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to update whitelist", Error: err.Error()})
 		return
 	}
+	_ = services.ClearRedisByPrefixes(c.Request.Context(), "cache:public:shipping_countries:")
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Whitelist updated", Data: gin.H{"count": len(req.Countries)}})
 }
