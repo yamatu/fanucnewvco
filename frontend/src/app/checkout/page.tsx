@@ -267,6 +267,9 @@ export default function CheckoutPage() {
                   sameAsShipping={sameAsShipping}
                   setSameAsShipping={setSameAsShipping}
 					shippingRates={shippingCountries}
+					shippingRatesLoading={shippingRatesLoading}
+					shippingCountryValue={shippingCountry}
+					onShippingCountryChange={(cc) => setValue('shipping_country', cc, { shouldDirty: true, shouldValidate: true })}
                 />
               </div>
 
