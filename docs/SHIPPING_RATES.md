@@ -80,7 +80,7 @@
 - `CarrierMeta`：承运商/服务/币种（例如 `Carrier=FEDEX`, `ServiceCode=IP`, `Currency=USD`）
 - `CountryZones`：国家 ISO2（例如 US、CN）对应的 Zone
 - `Under21Kg_Zones`：<21kg（支持 0.5kg 步进），按 Zone 填“最终运费”（不是每公斤）
-- 说明：模板默认提供 1.0kg ~ 20.5kg（每 0.5kg 一行）。
+- 说明：模板默认提供 0.5kg ~ 20.5kg（每 0.5kg 一行，共 40 行）。
 - `Over21Kg_Zones`：>=21kg，按 Zone + 区间 填“最终每公斤价格”
 
 上传后系统会根据 `CountryZones` 把每个 Zone 的规则展开成“每个国家一套模板”，用于运费计算与查询。

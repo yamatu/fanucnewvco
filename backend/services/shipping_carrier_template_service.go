@@ -301,7 +301,7 @@ func GenerateCarrierZoneTemplateXLSX(opts CarrierZoneImportOptions) ([]byte, err
 	_ = f.SetCellValue(sMeta, "A5", "Notes")
 	_ = f.SetCellValue(sMeta, "B5", strings.Join([]string{
 		"1) Fill CountryZones: ISO2 country_code + zone.",
-		"2) Under21Kg_Zones: weights 1.0..20.5 (0.5 step) => FINAL shipping fee for that billed weight.",
+		"2) Under21Kg_Zones: weights 0.5..20.5 (0.5 step) => FINAL shipping fee for that billed weight.",
 		"3) Over21Kg_Zones: >=21kg brackets => FINAL rate per kg.",
 		"4) If you are using the provided FedEx workbook (Fedex价格表2025上ebay.xlsx), you can keep its combined sheet \"加过利润的所有运费（含旺季附加费）\" as the rate source and ONLY add CountryZones, then upload.",
 		"5) US has zone 1/2 in some sheets; this system is country-level (no ZIP/state). Pick one zone or extend to region logic.",
@@ -349,9 +349,9 @@ func GenerateCarrierZoneTemplateXLSX(opts CarrierZoneImportOptions) ([]byte, err
 		cell, _ := excelize.CoordinatesToCellName(2+i, 1)
 		_ = f.SetCellValue(sU, cell, z)
 	}
-	// Default weights: 1.0..20.5 step 0.5
+	// Default weights: 0.5..20.5 step 0.5 (matches FedEx sheet)
 	row := 2
-	for w := 1.0; w <= 20.5+1e-9; w += 0.5 {
+	for w := 0.5; w <= 20.5+1e-9; w += 0.5 {
 		_ = f.SetCellValue(sU, fmt.Sprintf("A%d", row), round3(w))
 		row++
 	}
