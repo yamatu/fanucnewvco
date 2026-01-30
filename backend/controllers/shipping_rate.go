@@ -374,3 +374,124 @@ func (sc *ShippingRateController) BulkDelete(c *gin.Context) {
 
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Deleted", Data: gin.H{"deleted": deleted}})
 }
+
+// ========== Allowed Countries Whitelist ==========
+
+type allowedCountryReq struct {
+	CountryCode string `json:"country_code" binding:"required"`
+	CountryName string `json:"country_name"`
+	SortOrder   int    `json:"sort_order"`
+}
+
+// Admin: GET /api/v1/admin/shipping-rates/allowed-countries
+func (sc *ShippingRateController) ListAllowedCountries(c *gin.Context) {
+	db := config.GetDB()
+	var list []models.ShippingAllowedCountry
+	if err := db.Order("sort_order ASC, country_name ASC").Find(&list).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to list allowed countries", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: list})
+}
+
+// Admin: POST /api/v1/admin/shipping-rates/allowed-countries
+func (sc *ShippingRateController) AddAllowedCountry(c *gin.Context) {
+	var req allowedCountryReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request", Error: err.Error()})
+		return
+	}
+	cc := services.NormalizeCountryCode(req.CountryCode)
+	if cc == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid country code", Error: "invalid_country_code"})
+		return
+	}
+	name := strings.TrimSpace(req.CountryName)
+	if name == "" {
+		name = cc
+	}
+
+	db := config.GetDB()
+	var existing models.ShippingAllowedCountry
+	if err := db.Where("country_code = ?", cc).First(&existing).Error; err == nil {
+		c.JSON(http.StatusConflict, models.APIResponse{Success: false, Message: "Country already in whitelist", Error: "already_exists"})
+		return
+	}
+
+	entry := models.ShippingAllowedCountry{
+		CountryCode: cc,
+		CountryName: name,
+		SortOrder:   req.SortOrder,
+	}
+	if err := db.Create(&entry).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to add country", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Country added to whitelist", Data: entry})
+}
+
+// Admin: DELETE /api/v1/admin/shipping-rates/allowed-countries/:code
+func (sc *ShippingRateController) RemoveAllowedCountry(c *gin.Context) {
+	cc := services.NormalizeCountryCode(c.Param("code"))
+	if cc == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid country code", Error: "invalid_country_code"})
+		return
+	}
+	db := config.GetDB()
+	result := db.Where("country_code = ?", cc).Delete(&models.ShippingAllowedCountry{})
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to remove country", Error: result.Error.Error()})
+		return
+	}
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Country not found in whitelist", Error: "not_found"})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Country removed from whitelist"})
+}
+
+type bulkAllowedCountriesReq struct {
+	Countries []allowedCountryReq `json:"countries"`
+}
+
+// Admin: POST /api/v1/admin/shipping-rates/allowed-countries/bulk
+func (sc *ShippingRateController) BulkSetAllowedCountries(c *gin.Context) {
+	var req bulkAllowedCountriesReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request", Error: err.Error()})
+		return
+	}
+
+	db := config.GetDB()
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// Clear existing
+		if e := tx.Where("1=1").Delete(&models.ShippingAllowedCountry{}).Error; e != nil {
+			return e
+		}
+		// Insert new
+		for i, r := range req.Countries {
+			cc := services.NormalizeCountryCode(r.CountryCode)
+			if cc == "" {
+				continue
+			}
+			name := strings.TrimSpace(r.CountryName)
+			if name == "" {
+				name = cc
+			}
+			entry := models.ShippingAllowedCountry{
+				CountryCode: cc,
+				CountryName: name,
+				SortOrder:   i,
+			}
+			if e := tx.Create(&entry).Error; e != nil {
+				return e
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to update whitelist", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Whitelist updated", Data: gin.H{"count": len(req.Countries)}})
+}

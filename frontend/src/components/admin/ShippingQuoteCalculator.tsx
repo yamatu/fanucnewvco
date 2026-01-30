@@ -63,6 +63,10 @@ export default function ShippingQuoteCalculator(props: {
 
 	useEffect(() => {
 		// When switching carrier/service, reset selection so list matches.
+		if (carrier && !serviceCode) {
+			// Default to a commonly used service code to avoid 404 (service is required for carrier templates).
+			setServiceCode('IE');
+		}
 		setCountryCode('');
 		setQuote(null);
 		setQuoteError('');

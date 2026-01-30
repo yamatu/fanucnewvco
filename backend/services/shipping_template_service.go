@@ -46,12 +46,33 @@ func ListActiveShippingCountries(db *gorm.DB) ([]ShippingCountryPublic, error) {
 	if db == nil {
 		return nil, errors.New("db is nil")
 	}
+
+	// Check if whitelist is enabled (has any entries)
+	var whitelistCount int64
+	db.Model(&models.ShippingAllowedCountry{}).Count(&whitelistCount)
+
 	var tpls []models.ShippingTemplate
 	if err := db.Where("is_active = ?", true).Order("country_name ASC").Find(&tpls).Error; err != nil {
 		return nil, err
 	}
+
+	// Build whitelist set if enabled
+	var whitelist map[string]bool
+	if whitelistCount > 0 {
+		var allowed []models.ShippingAllowedCountry
+		db.Order("sort_order ASC").Find(&allowed)
+		whitelist = make(map[string]bool, len(allowed))
+		for _, a := range allowed {
+			whitelist[a.CountryCode] = true
+		}
+	}
+
 	out := make([]ShippingCountryPublic, 0, len(tpls))
 	for _, t := range tpls {
+		// If whitelist is enabled, skip countries not in whitelist
+		if whitelist != nil && !whitelist[t.CountryCode] {
+			continue
+		}
 		cur := strings.TrimSpace(t.Currency)
 		if cur == "" {
 			cur = "USD"

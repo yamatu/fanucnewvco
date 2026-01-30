@@ -70,8 +70,27 @@ func ListActiveCarrierShippingCountries(db *gorm.DB, carrier string, serviceCode
 		return nil, err
 	}
 
+	// Check if whitelist is enabled (has any entries)
+	var whitelistCount int64
+	db.Model(&models.ShippingAllowedCountry{}).Count(&whitelistCount)
+
+	// Build whitelist set if enabled
+	var whitelist map[string]bool
+	if whitelistCount > 0 {
+		var allowed []models.ShippingAllowedCountry
+		db.Order("sort_order ASC").Find(&allowed)
+		whitelist = make(map[string]bool, len(allowed))
+		for _, a := range allowed {
+			whitelist[a.CountryCode] = true
+		}
+	}
+
 	out := make([]ShippingCountryPublic, 0, len(tpls))
 	for _, t := range tpls {
+		// If whitelist is enabled, skip countries not in whitelist
+		if whitelist != nil && !whitelist[t.CountryCode] {
+			continue
+		}
 		cur := strings.TrimSpace(t.Currency)
 		if cur == "" {
 			cur = "USD"

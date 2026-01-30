@@ -151,6 +151,8 @@ func ConnectDatabase() {
 			&models.ShippingCarrierTemplate{},
 			&models.ShippingCarrierWeightBracket{},
 			&models.ShippingCarrierQuoteSurcharge{},
+			// Shipping allowed countries whitelist
+			&models.ShippingAllowedCountry{},
 			// Legacy flat shipping rate table (kept for compatibility; not used by new flow)
 			&models.ShippingRate{},
 			&models.WatermarkSetting{},

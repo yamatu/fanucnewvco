@@ -182,6 +182,11 @@ func SetupRoutes(r *gin.Engine) {
 				shippingRates.GET("/import/template", shippingRateController.DownloadTemplate)
 				shippingRates.POST("/import/xlsx", shippingRateController.ImportXLSX)
 				shippingRates.POST("/bulk-delete", middleware.AdminOnly(), shippingRateController.BulkDelete)
+				// Allowed countries whitelist
+				shippingRates.GET("/allowed-countries", shippingRateController.ListAllowedCountries)
+				shippingRates.POST("/allowed-countries", shippingRateController.AddAllowedCountry)
+				shippingRates.DELETE("/allowed-countries/:code", shippingRateController.RemoveAllowedCountry)
+				shippingRates.POST("/allowed-countries/bulk", shippingRateController.BulkSetAllowedCountries)
 			}
 
 			// Order management (admin only)

@@ -25,6 +25,13 @@ export default function AdminShippingRatesPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [replaceMode, setReplaceMode] = useState(true);
   const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
+  const [allowedText, setAllowedText] = useState('');
+
+  const { data: allowedCountries = [], isLoading: allowedLoading } = useQuery({
+    queryKey: [...queryKeys.shippingRates.admin(), 'allowed-countries'],
+    queryFn: () => ShippingRateService.listAllowedCountries(),
+    retry: 1,
+  });
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: [...queryKeys.shippingRates.admin(), { q, mode, carrier, serviceCode }],
@@ -38,6 +45,60 @@ export default function AdminShippingRatesPage() {
   });
 
   const rows = useMemo(() => templates || [], [templates]);
+  const codeToName = useMemo<Record<string, string>>(() => {
+    const m: Record<string, string> = {};
+    for (const r of rows as any[]) {
+      if (r?.country_code && r?.country_name) m[String(r.country_code).toUpperCase()] = String(r.country_name);
+    }
+    for (const a of allowedCountries as any[]) {
+      if (a?.country_code && a?.country_name) m[String(a.country_code).toUpperCase()] = String(a.country_name);
+    }
+    return m;
+  }, [rows, allowedCountries]);
+
+  const parseAllowedInput = (txt: string) => {
+    const parts = String(txt || '')
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const seen = new Set<string>();
+    const out: Array<{ country_code: string; country_name: string; sort_order: number }> = [];
+    for (const p of parts) {
+      const m = p.match(/\b([A-Za-z]{2})\b/);
+      if (!m) continue;
+      const code = m[1].toUpperCase();
+      if (seen.has(code)) continue;
+      seen.add(code);
+      const name = p
+        .replace(m[0], '')
+        .replace(/[-–—:|]+/g, ' ')
+        .trim();
+      out.push({
+        country_code: code,
+        country_name: name || codeToName[code] || code,
+        sort_order: out.length,
+      });
+    }
+    return out;
+  };
+
+  const whitelistMutation = useMutation({
+    mutationFn: (countries: Array<{ country_code: string; country_name?: string; sort_order?: number }>) =>
+      ShippingRateService.bulkSetAllowedCountries(countries),
+    onSuccess: (res: any) => {
+      toast.success(t('shipping.whitelist.updated', locale === 'zh' ? `白名单已更新（${res?.count || 0} 个国家）` : `Whitelist updated (${res?.count || 0})`));
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.shippingRates.admin(), 'allowed-countries'] });
+    },
+    onError: (e: any) => toast.error(e.message || t('shipping.whitelist.updateFailed', locale === 'zh' ? '更新白名单失败' : 'Failed to update whitelist')),
+  });
+
+  const removeAllowedMutation = useMutation({
+    mutationFn: (code: string) => ShippingRateService.removeAllowedCountry(code),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.shippingRates.admin(), 'allowed-countries'] });
+    },
+    onError: (e: any) => toast.error(e.message || t('shipping.whitelist.removeFailed', locale === 'zh' ? '移除失败' : 'Remove failed')),
+  });
 
   const downloadTemplate = async () => {
     try {
@@ -225,6 +286,108 @@ export default function AdminShippingRatesPage() {
         </div>
 
         <div className="bg-white shadow rounded-lg p-6 space-y-4">
+          <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-gray-900">{t('shipping.whitelist.title', locale === 'zh' ? '售卖国家白名单' : 'Selling Countries Whitelist')}</div>
+                <div className="mt-1 text-xs text-gray-600">
+                  {allowedLoading
+                    ? t('common.loading', '加载中...')
+                    : allowedCountries.length > 0
+                      ? (locale === 'zh'
+                        ? `已启用白名单：前台只显示这 ${allowedCountries.length} 个国家。清空白名单=恢复显示全部。`
+                        : `Whitelist enabled: only these ${allowedCountries.length} countries are shown on the storefront. Clear it to show all.`)
+                      : (locale === 'zh'
+                        ? '白名单为空：前台会显示所有已配置的国家。你可以在这里设置只卖到哪些国家。'
+                        : 'Whitelist is empty: storefront shows all configured countries. Set it to restrict selling countries.')}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    const list = parseAllowedInput(allowedText);
+                    whitelistMutation.mutate(list);
+                  }}
+                  disabled={whitelistMutation.isPending}
+                  className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                  title={t('shipping.whitelist.applyHint', locale === 'zh' ? '把下面输入的国家设置为白名单' : 'Apply whitelist from input')}
+                >
+                  {t('shipping.whitelist.apply', locale === 'zh' ? '应用白名单' : 'Apply Whitelist')}
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedCodes.length === 0) {
+                      toast.error(t('shipping.whitelist.selectFirst', locale === 'zh' ? '请先在下方列表勾选国家' : 'Select countries from the list first'));
+                      return;
+                    }
+                    const list = selectedCodes.map((cc, i) => ({
+                      country_code: String(cc).toUpperCase(),
+                      country_name: codeToName[String(cc).toUpperCase()] || String(cc).toUpperCase(),
+                      sort_order: i,
+                    }));
+                    whitelistMutation.mutate(list);
+                  }}
+                  disabled={whitelistMutation.isPending}
+                  className="inline-flex items-center px-3 py-2 text-sm rounded-md border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {t('shipping.whitelist.fromSelected', locale === 'zh' ? '用已选国家设置' : 'Use Selected')}
+                </button>
+                <button
+                  onClick={() => {
+                    if (!window.confirm(t('shipping.whitelist.clearConfirm', locale === 'zh' ? '确定清空白名单吗？清空后前台会显示全部国家。' : 'Clear whitelist? Storefront will show all countries.'))) return;
+                    whitelistMutation.mutate([]);
+                  }}
+                  disabled={whitelistMutation.isPending}
+                  className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-gray-900 text-white hover:bg-black disabled:opacity-50"
+                >
+                  {t('shipping.whitelist.clear', locale === 'zh' ? '清空白名单' : 'Clear')}
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">{t('shipping.whitelist.input', locale === 'zh' ? '输入国家（逗号或换行分隔）' : 'Input countries (comma/newline separated)')}</label>
+                <textarea
+                  value={allowedText}
+                  onChange={(e) => setAllowedText(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder={locale === 'zh'
+                    ? '例如：\nCA Canada\nAU Australia\nDE Germany\nJP Japan\n\n或：CA,AU,DE,JP'
+                    : 'Example:\nCA Canada\nAU Australia\nDE Germany\nJP Japan\n\nOr: CA,AU,DE,JP'}
+                />
+              </div>
+              <div>
+                <div className="text-xs font-medium text-gray-700 mb-1">{t('shipping.whitelist.current', locale === 'zh' ? '当前白名单' : 'Current whitelist')}</div>
+                <div className="rounded-md border border-gray-200 bg-white p-2 h-[110px] overflow-auto">
+                  {allowedLoading ? (
+                    <div className="text-sm text-gray-500">{t('common.loading', '加载中...')}</div>
+                  ) : allowedCountries.length === 0 ? (
+                    <div className="text-sm text-gray-500">{t('shipping.whitelist.empty', locale === 'zh' ? '（空）' : '(empty)')}</div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {allowedCountries.map((c: any) => (
+                        <span key={c.country_code} className="inline-flex items-center gap-2 px-2 py-1 rounded-full border border-gray-200 text-sm">
+                          <span className="font-mono text-gray-900">{c.country_code}</span>
+                          <span className="text-gray-700">{c.country_name}</span>
+                          <button
+                            onClick={() => removeAllowedMutation.mutate(c.country_code)}
+                            className="text-gray-400 hover:text-gray-700"
+                            title={t('common.remove', locale === 'zh' ? '移除' : 'Remove')}
+                            disabled={removeAllowedMutation.isPending}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('shipping.search', '搜索')}</label>

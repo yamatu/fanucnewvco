@@ -41,6 +41,15 @@ export interface ShippingRateImportResult {
   errors: string[];
 }
 
+export interface ShippingAllowedCountry {
+  id: number;
+  country_code: string;
+  country_name: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export class ShippingRateService {
   static async publicCountries(opts?: { carrier?: string; service?: string }): Promise<ShippingRatePublic[]> {
     const qs = new URLSearchParams();
@@ -122,5 +131,24 @@ export class ShippingRateService {
     });
     if (res.data.success && res.data.data) return res.data.data;
     throw new Error(res.data.message || res.data.error || 'Failed to import shipping rates');
+  }
+
+  // Allowed countries whitelist (if non-empty, public countries are restricted)
+  static async listAllowedCountries(): Promise<ShippingAllowedCountry[]> {
+    const res = await apiClient.get<APIResponse<ShippingAllowedCountry[]>>('/admin/shipping-rates/allowed-countries');
+    if (res.data.success && res.data.data) return res.data.data;
+    throw new Error(res.data.message || 'Failed to fetch allowed countries');
+  }
+
+  static async bulkSetAllowedCountries(countries: Array<{ country_code: string; country_name?: string; sort_order?: number }>): Promise<{ count: number }> {
+    const res = await apiClient.post<APIResponse<any>>('/admin/shipping-rates/allowed-countries/bulk', { countries });
+    if (res.data.success && res.data.data) return res.data.data;
+    throw new Error(res.data.message || 'Failed to update allowed countries');
+  }
+
+  static async removeAllowedCountry(code: string): Promise<void> {
+    const res = await apiClient.delete<APIResponse<any>>(`/admin/shipping-rates/allowed-countries/${encodeURIComponent(code)}`);
+    if (res.data.success) return;
+    throw new Error(res.data.message || 'Failed to remove allowed country');
   }
 }
