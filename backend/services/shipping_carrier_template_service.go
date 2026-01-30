@@ -122,8 +122,25 @@ func CalculateCarrierShippingQuote(db *gorm.DB, carrier string, serviceCode stri
 	}
 
 	var tpl models.ShippingCarrierTemplate
-	if err := db.Where("carrier = ? AND service_code = ? AND country_code = ? AND is_active = ?", carrier, serviceCode, cc, true).First(&tpl).Error; err != nil {
-		return ShippingQuoteResult{}, err
+	// If serviceCode is provided, try exact match first.
+	// If not found (or serviceCode is empty), fall back to any active template for the carrier+country.
+	q := db.Where("carrier = ? AND country_code = ? AND is_active = ?", carrier, cc, true)
+	if serviceCode != "" {
+		qExact := q.Where("service_code = ?", serviceCode)
+		if err := qExact.First(&tpl).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// fallback: any service
+				if err2 := q.Order("service_code ASC").First(&tpl).Error; err2 != nil {
+					return ShippingQuoteResult{}, err2
+				}
+			} else {
+				return ShippingQuoteResult{}, err
+			}
+		}
+	} else {
+		if err := q.Order("service_code ASC").First(&tpl).Error; err != nil {
+			return ShippingQuoteResult{}, err
+		}
 	}
 	cur := strings.TrimSpace(tpl.Currency)
 	if cur == "" {

@@ -39,7 +39,19 @@ export default function ShippingQuoteCalculator(props: {
 					service: carrier ? (serviceCode || undefined) : undefined,
 				})) as any as Country[];
 				if (!alive) return;
-				setCountries(Array.isArray(list) ? list : []);
+				const raw = Array.isArray(list) ? list : [];
+				// If multiple carrier service codes exist, /countries can include duplicates.
+				// Deduplicate by country_code for a simpler UX.
+				const seen = new Set<string>();
+				const uniq: Country[] = [];
+				for (const c of raw) {
+					const code = String(c?.country_code || '').toUpperCase();
+					if (!code) continue;
+					if (seen.has(code)) continue;
+					seen.add(code);
+					uniq.push(c);
+				}
+				setCountries(uniq);
 			} catch (e: any) {
 				if (!alive) return;
 				setCountries([]);
@@ -63,10 +75,6 @@ export default function ShippingQuoteCalculator(props: {
 
 	useEffect(() => {
 		// When switching carrier/service, reset selection so list matches.
-		if (carrier && !serviceCode) {
-			// Default to a commonly used service code to avoid 404 (service is required for carrier templates).
-			setServiceCode('IE');
-		}
 		setCountryCode('');
 		setQuote(null);
 		setQuoteError('');
