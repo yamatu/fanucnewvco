@@ -57,10 +57,12 @@ func ListActiveCarrierShippingCountries(db *gorm.DB, carrier string, serviceCode
 	carrier = NormalizeCarrier(carrier)
 	serviceCode = NormalizeServiceCode(serviceCode)
 
-	q := db.Model(&models.ShippingCarrierTemplate{}).Where("is_active = ?", true)
+	baseQ := db.Model(&models.ShippingCarrierTemplate{}).Where("is_active = ?", true)
 	if carrier != "" {
-		q = q.Where("carrier = ?", carrier)
+		baseQ = baseQ.Where("carrier = ?", carrier)
 	}
+
+	q := baseQ
 	if serviceCode != "" {
 		q = q.Where("service_code = ?", serviceCode)
 	}
@@ -68,6 +70,13 @@ func ListActiveCarrierShippingCountries(db *gorm.DB, carrier string, serviceCode
 	var tpls []models.ShippingCarrierTemplate
 	if err := q.Order("country_name ASC").Find(&tpls).Error; err != nil {
 		return nil, err
+	}
+	if serviceCode != "" && len(tpls) == 0 {
+		// ServiceCode is a user-provided hint. If it doesn't match any templates,
+		// fall back to all services so the UI still shows available countries.
+		if err := baseQ.Order("country_name ASC").Find(&tpls).Error; err != nil {
+			return nil, err
+		}
 	}
 
 	// Check if whitelist is enabled (has any entries)
@@ -353,16 +362,16 @@ func GenerateCarrierZoneTemplateXLSX(opts CarrierZoneImportOptions) ([]byte, err
 
 	// 10 example countries (verify zone by your chosen service column)
 	examples := [][]string{
+		{"US", "United States", "2", "US can be zone 1/2. This example uses zone 2 (\u7f8e\u56fd\u5176\u4ed6\u5730\u533a)."},
 		{"CA", "Canada", "N", "Example from FedEx index: Canada -> N"},
 		{"AU", "Australia", "U", "Example from FedEx index: Australia -> U"},
+		{"GB", "United Kingdom", "K", "Example from FedEx index: United Kingdom -> K"},
 		{"DE", "Germany", "K", "Example from FedEx index: Germany -> K"},
 		{"FR", "France", "K", "Example from FedEx index: France -> K"},
 		{"IT", "Italy", "K", "Example from FedEx index: Italy -> K"},
 		{"JP", "Japan", "P", "Example from FedEx index: Japan -> P"},
 		{"BR", "Brazil", "G", "Example from FedEx index: Brazil -> G"},
 		{"IN", "India", "O", "Example from FedEx index: India -> O"},
-		{"VN", "Vietnam", "B", "Example from FedEx index: Vietnam -> B"},
-		{"TH", "Thailand", "R", "Example from FedEx index: Thailand -> R"},
 	}
 	for i, r := range examples {
 		row := i + 2

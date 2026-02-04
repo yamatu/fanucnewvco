@@ -103,16 +103,16 @@
 
 4) 下面给你 10 个例子（这些 Zone 你仍然建议对照你选择的服务列确认一次）：
 
+   - `US` United States -> `2`（美国常见 1/2 两种 Zone，这里示例用 2）
    - `CA` Canada -> `N`
    - `AU` Australia -> `U`
+   - `GB` United Kingdom -> `K`
    - `DE` Germany -> `K`
    - `FR` France -> `K`
    - `IT` Italy -> `K`
    - `JP` Japan -> `P`
    - `BR` Brazil -> `G`
    - `IN` India -> `O`
-   - `VN` Vietnam -> `B`
-   - `TH` Thailand -> `R`
 
 5) 去后台：Admin -> Shipping Rates -> 选择「按承运商」
 6) 填：Carrier= `FEDEX`，ServiceCode= `IP`（你自己定义，用于区分多套模板），Currency= `USD` 或 `CNY`
