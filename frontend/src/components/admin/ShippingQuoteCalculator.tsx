@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Combobox } from '@headlessui/react';
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
@@ -26,6 +26,7 @@ export default function ShippingQuoteCalculator(props: {
 	const [serviceCode, setServiceCode] = useState('');
 	const [countryCode, setCountryCode] = useState('');
 	const [countryQuery, setCountryQuery] = useState('');
+	const countryButtonRef = useRef<HTMLButtonElement | null>(null);
 	const [quote, setQuote] = useState<ShippingQuote | null>(null);
 	const [loadingQuote, setLoadingQuote] = useState(false);
 	const [quoteError, setQuoteError] = useState<string>('');
@@ -201,57 +202,62 @@ export default function ShippingQuoteCalculator(props: {
 					<label className="block text-sm font-medium text-gray-700 mb-1">{t('shipping.calc.country', '国家')}</label>
 					<Combobox
 						value={selectedCountry}
-						onChange={(c) => {
-							const code = String((c as any)?.country_code || '').toUpperCase();
+						onChange={(c: Country | null) => {
+							const code = String(c?.country_code || '').toUpperCase();
 							setCountryCode(code);
 							setCountryQuery('');
 						}}
 						disabled={loadingCountries || countries.length === 0}
 					>
-						<div className="relative">
-							<div className="relative w-full cursor-default overflow-hidden rounded-md bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
-								<Combobox.Input
-									className="w-full px-3 pr-10 py-2 text-sm outline-none"
-									displayValue={(c: any) => (c ? `${c.country_name} (${c.country_code})` : '')}
-									onChange={(event) => setCountryQuery(event.target.value)}
-									placeholder={loadingCountries ? t('common.loading', '加载中...') : t('shipping.calc.countrySearchPh', locale === 'zh' ? '搜索国家（代码/名称）' : 'Search country (code/name)')}
-								/>
-								<Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-3">
-									<ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-								</Combobox.Button>
-							</div>
+						{({ open }) => (
+							<div className="relative">
+								<div className="relative w-full cursor-default overflow-hidden rounded-md bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+									<Combobox.Input
+										className="w-full px-3 pr-10 py-2 text-sm outline-none"
+										displayValue={(c: Country | null) => (c ? `${c.country_name} (${c.country_code})` : '')}
+										onChange={(event) => setCountryQuery(event.target.value)}
+										onFocus={() => {
+											if (!open) countryButtonRef.current?.click();
+										}}
+										placeholder={loadingCountries ? t('common.loading', '加载中...') : t('shipping.calc.countrySearchPh', locale === 'zh' ? '搜索国家（代码/名称）' : 'Search country (code/name)')}
+									/>
+									<Combobox.Button ref={countryButtonRef} className="absolute inset-y-0 right-0 flex items-center pr-3">
+										<ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+									</Combobox.Button>
+								</div>
 
-							<Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 focus:outline-none">
-								{loadingCountries ? (
-									<div className="px-3 py-2 text-gray-500">{t('common.loading', '加载中...')}</div>
-								) : filteredCountries.length === 0 ? (
-									<div className="px-3 py-2 text-gray-500">{t('common.empty', locale === 'zh' ? '无匹配国家' : 'No matches')}</div>
-								) : (
-									filteredCountries.map((c) => (
-										<Combobox.Option
-											key={c.country_code}
-											value={c}
-											className={({ active }) =>
-												`relative cursor-default select-none py-2 pl-9 pr-3 ${active ? 'bg-blue-50 text-blue-900' : 'text-gray-900'}`
-											}
-										>
-											{({ selected }) => (
-												<>
-													<span className={`block truncate ${selected ? 'font-semibold' : 'font-normal'}`}>
-														{c.country_name} ({c.country_code})
-													</span>
-													{selected ? (
-														<span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
-															<CheckIcon className="h-5 w-5" aria-hidden="true" />
+								<Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 focus:outline-none">
+									{loadingCountries ? (
+										<div className="px-3 py-2 text-gray-500">{t('common.loading', '加载中...')}</div>
+									) : filteredCountries.length === 0 ? (
+										<div className="px-3 py-2 text-gray-500">{t('common.empty', locale === 'zh' ? '无匹配国家' : 'No matches')}</div>
+									) : (
+										filteredCountries.map((c) => (
+											<Combobox.Option
+												key={c.country_code}
+												value={c}
+												className={({ active }) =>
+													`relative cursor-default select-none py-2 pl-9 pr-3 ${active ? 'bg-blue-50 text-blue-900' : 'text-gray-900'}`
+												}
+											>
+												{({ selected }) => (
+													<>
+														<span className={`block truncate ${selected ? 'font-semibold' : 'font-normal'}`}>
+															{c.country_name} ({c.country_code})
 														</span>
-													) : null}
-												</>
-											)}
-										</Combobox.Option>
-									))
-								)}
-							</Combobox.Options>
-						</div>
+														{selected ? (
+															<span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
+																<CheckIcon className="h-5 w-5" aria-hidden="true" />
+															</span>
+														) : null}
+													</>
+												)}
+											</Combobox.Option>
+										))
+									)}
+								</Combobox.Options>
+							</div>
+						)}
 					</Combobox>
 				</div>
 

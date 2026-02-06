@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { UseFormRegister, FieldErrors } from 'react-hook-form';
 import { CheckoutFormData } from '@/app/checkout/page';
 import { Combobox } from '@headlessui/react';
@@ -13,14 +13,16 @@ import {
 } from '@heroicons/react/24/outline';
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
 
+type ShippingCountryOption = { country_code: string; country_name: string };
+
 interface CheckoutFormProps {
   register: UseFormRegister<CheckoutFormData>;
   errors: FieldErrors<CheckoutFormData>;
   onSubmit: () => void;
-  isProcessing: boolean;
-  sameAsShipping: boolean;
-  setSameAsShipping: (value: boolean) => void;
-	shippingRates?: Array<{ country_code: string; country_name: string }>;
+	isProcessing: boolean;
+	sameAsShipping: boolean;
+	setSameAsShipping: (value: boolean) => void;
+	shippingRates?: ShippingCountryOption[];
 	shippingRatesLoading?: boolean;
 	shippingCountryValue: string;
 	onShippingCountryChange: (countryCode: string) => void;
@@ -39,6 +41,7 @@ export default function CheckoutForm({
 	onShippingCountryChange,
 }: CheckoutFormProps) {
 	const [countryQuery, setCountryQuery] = useState('');
+	const countryButtonRef = useRef<HTMLButtonElement | null>(null);
 
 	const selectedCountry = useMemo(() => {
 		const code = String(shippingCountryValue || '').toUpperCase();
@@ -160,60 +163,65 @@ export default function CheckoutForm({
 
 		<Combobox
 			value={selectedCountry}
-			onChange={(c) => {
-				const code = String((c as any)?.country_code || '').toUpperCase();
+			onChange={(c: ShippingCountryOption | null) => {
+				const code = String(c?.country_code || '').toUpperCase();
 				onShippingCountryChange(code);
 				setCountryQuery('');
 			}}
 		>
-			<div className="relative">
-				<div className="relative w-full cursor-default overflow-hidden rounded-md bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-amber-500 focus-within:border-amber-500">
-					<MapPinIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-					<Combobox.Input
-						id="shipping_country"
-						className={`w-full pl-10 pr-10 py-2 text-sm outline-none ${
-							errors.shipping_country ? 'border-red-300' : 'border-gray-300'
-						}`}
-						displayValue={(c: any) => (c ? `${c.country_name} (${c.country_code})` : '')}
-						onChange={(event) => setCountryQuery(event.target.value)}
-						placeholder={shippingRatesLoading ? 'Loading countries...' : 'Select or search country'}
-					/>
-					<Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-3">
-						<ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-					</Combobox.Button>
-				</div>
+			{({ open }) => (
+				<div className="relative">
+					<div className="relative w-full cursor-default overflow-hidden rounded-md bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-amber-500 focus-within:border-amber-500">
+						<MapPinIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+						<Combobox.Input
+							id="shipping_country"
+							className={`w-full pl-10 pr-10 py-2 text-sm outline-none ${
+								errors.shipping_country ? 'border-red-300' : 'border-gray-300'
+							}`}
+							displayValue={(c: ShippingCountryOption | null) => (c ? `${c.country_name} (${c.country_code})` : '')}
+							onChange={(event) => setCountryQuery(event.target.value)}
+							onFocus={() => {
+								if (!open) countryButtonRef.current?.click();
+							}}
+							placeholder={shippingRatesLoading ? 'Loading countries...' : 'Select or search country'}
+						/>
+						<Combobox.Button ref={countryButtonRef} className="absolute inset-y-0 right-0 flex items-center pr-3">
+							<ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+						</Combobox.Button>
+					</div>
 
-				<Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 focus:outline-none">
-					{shippingRatesLoading ? (
-						<div className="px-3 py-2 text-gray-500">Loading...</div>
-					) : filteredCountries.length === 0 ? (
-						<div className="px-3 py-2 text-gray-500">No matches</div>
-					) : (
-						filteredCountries.map((c) => (
-							<Combobox.Option
-								key={c.country_code}
-								value={c}
-								className={({ active }) =>
-									`relative cursor-default select-none py-2 pl-9 pr-3 ${active ? 'bg-amber-50 text-amber-900' : 'text-gray-900'}`
-								}
-							>
-								{({ selected }) => (
-									<>
-										<span className={`block truncate ${selected ? 'font-semibold' : 'font-normal'}`}>
-											{c.country_name} ({c.country_code})
-										</span>
-										{selected ? (
-											<span className="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-600">
-												<CheckIcon className="h-5 w-5" aria-hidden="true" />
+					<Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 focus:outline-none">
+						{shippingRatesLoading ? (
+							<div className="px-3 py-2 text-gray-500">Loading...</div>
+						) : filteredCountries.length === 0 ? (
+							<div className="px-3 py-2 text-gray-500">No matches</div>
+						) : (
+							filteredCountries.map((c) => (
+								<Combobox.Option
+									key={c.country_code}
+									value={c}
+									className={({ active }) =>
+										`relative cursor-default select-none py-2 pl-9 pr-3 ${active ? 'bg-amber-50 text-amber-900' : 'text-gray-900'}`
+									}
+								>
+									{({ selected }) => (
+										<>
+											<span className={`block truncate ${selected ? 'font-semibold' : 'font-normal'}`}>
+												{c.country_name} ({c.country_code})
 											</span>
-										) : null}
-									</>
-								)}
-							</Combobox.Option>
-						))
-					)}
-				</Combobox.Options>
-			</div>
+											{selected ? (
+												<span className="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-600">
+													<CheckIcon className="h-5 w-5" aria-hidden="true" />
+												</span>
+											) : null}
+										</>
+									)}
+								</Combobox.Option>
+							))
+						)}
+					</Combobox.Options>
+				</div>
+			)}
 		</Combobox>
 		{errors.shipping_country && (
 		  <p className="mt-1 text-sm text-red-600">{String(errors.shipping_country.message || 'Country is required')}</p>
