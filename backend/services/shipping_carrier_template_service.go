@@ -127,7 +127,7 @@ func CalculateCarrierShippingQuote(db *gorm.DB, carrier string, serviceCode stri
 		weightKg = 0
 	}
 	if weightKg == 0 {
-		return ShippingQuoteResult{CountryCode: cc, Currency: "USD", WeightKg: 0, BillingWeight: 0, RatePerKg: 0, BaseQuote: 0, AdditionalFee: 0, ShippingFee: 0}, nil
+		return ShippingQuoteResult{CountryCode: cc, Currency: "USD", WeightKg: 0, BillingWeight: 0, RatePerKg: 0, BaseQuote: 0, AdditionalFee: 0, ShippingFee: 0, Source: "carrier", Carrier: carrier, ServiceCode: serviceCode}, nil
 	}
 
 	var tpl models.ShippingCarrierTemplate
@@ -246,6 +246,9 @@ func CalculateCarrierShippingQuote(db *gorm.DB, carrier string, serviceCode stri
 		BaseQuote:     baseQuote,
 		AdditionalFee: round2(extra),
 		ShippingFee:   shippingFee,
+		Source:        "carrier",
+		Carrier:       tpl.Carrier,
+		ServiceCode:   tpl.ServiceCode,
 	}, nil
 }
 

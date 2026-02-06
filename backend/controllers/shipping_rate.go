@@ -103,6 +103,11 @@ func (sc *ShippingRateController) PublicQuote(c *gin.Context) {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// Carrier template missing for this country; fall back to default country template.
 			q, err = services.CalculateShippingQuote(db, cc, weight)
+			if err == nil {
+				q.Source = "default_fallback"
+				q.Carrier = services.NormalizeCarrier(carrier)
+				q.ServiceCode = services.NormalizeServiceCode(serviceCode)
+			}
 		}
 	} else {
 		q, err = services.CalculateShippingQuote(db, cc, weight)

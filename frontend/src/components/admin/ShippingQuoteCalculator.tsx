@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { Combobox } from '@headlessui/react';
+import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
 
 import { ShippingRateService, type ShippingQuote } from '@/services/shipping-rate.service';
 import { useAdminI18n } from '@/lib/admin-i18n';
@@ -23,11 +25,28 @@ export default function ShippingQuoteCalculator(props: {
 	const [carrier, setCarrier] = useState('');
 	const [serviceCode, setServiceCode] = useState('');
 	const [countryCode, setCountryCode] = useState('');
+	const [countryQuery, setCountryQuery] = useState('');
 	const [quote, setQuote] = useState<ShippingQuote | null>(null);
 	const [loadingQuote, setLoadingQuote] = useState(false);
 	const [quoteError, setQuoteError] = useState<string>('');
 	const [autoApply, setAutoApply] = useState(true);
 	const [appliedFee, setAppliedFee] = useState(0);
+
+	const selectedCountry = useMemo(() => {
+		const code = String(countryCode || '').toUpperCase();
+		if (!code) return null;
+		return countries.find((c) => String(c.country_code || '').toUpperCase() === code) || null;
+	}, [countries, countryCode]);
+
+	const filteredCountries = useMemo(() => {
+		const q = countryQuery.trim().toLowerCase();
+		if (!q) return countries;
+		return countries.filter((c) => {
+			const code = String(c.country_code || '').toLowerCase();
+			const name = String(c.country_name || '').toLowerCase();
+			return code.includes(q) || name.includes(q);
+		});
+	}, [countryQuery, countries]);
 
 	useEffect(() => {
 		let alive = true;
@@ -76,6 +95,7 @@ export default function ShippingQuoteCalculator(props: {
 	useEffect(() => {
 		// When switching carrier/service, reset selection so list matches.
 		setCountryCode('');
+		setCountryQuery('');
 		setQuote(null);
 		setQuoteError('');
 	}, [carrier, serviceCode]);
@@ -96,7 +116,19 @@ export default function ShippingQuoteCalculator(props: {
 				setQuote(q);
 			} catch (e: any) {
 				if (!alive) return;
-				setQuoteError(e?.message || 'Failed to calculate shipping');
+				const msg = String(e?.message || '');
+				if (/not\s*found|template/i.test(msg)) {
+					setQuoteError(
+						t(
+							'shipping.calc.notFoundHint',
+							locale === 'zh'
+								? '未找到该国家的运费模板。请在 Shipping Rates 导入该国家（或把该国家加入 CountryZones）后重试。'
+								: 'No shipping template found for this country. Import this country in Shipping Rates (or add it to CountryZones) and retry.'
+						)
+					);
+				} else {
+					setQuoteError(msg || 'Failed to calculate shipping');
+				}
 			} finally {
 				if (alive) setLoadingQuote(false);
 			}
@@ -152,29 +184,75 @@ export default function ShippingQuoteCalculator(props: {
 						<option value="DHL">DHL</option>
 					</select>
 					{carrier && (
-						<input
-							value={serviceCode}
-							onChange={(e) => setServiceCode(e.target.value)}
-							className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md"
-							placeholder={t('shipping.calc.servicePh', locale === 'zh' ? '服务代码 (IP/IE...)' : 'Service code (IP/IE...)')}
-						/>
+						<>
+							<input
+								value={serviceCode}
+								onChange={(e) => setServiceCode(e.target.value)}
+								className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md"
+								placeholder={t('shipping.calc.servicePh', locale === 'zh' ? '服务代码（可选，IP/IE...）' : 'Service code (optional, IP/IE...)')}
+							/>
+							<p className="mt-1 text-xs text-gray-500">
+								{t('shipping.calc.serviceHint', locale === 'zh' ? '留空会自动匹配该承运商可用模板；填错不会阻塞计算。' : 'Leave blank to auto-match available templates; mismatches won\'t block calculation.')}
+							</p>
+						</>
 					)}
 				</div>
 				<div>
 					<label className="block text-sm font-medium text-gray-700 mb-1">{t('shipping.calc.country', '国家')}</label>
-					<select
-						value={countryCode}
-						onChange={(e) => setCountryCode(e.target.value)}
-						className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+					<Combobox
+						value={selectedCountry}
+						onChange={(c) => {
+							const code = String((c as any)?.country_code || '').toUpperCase();
+							setCountryCode(code);
+							setCountryQuery('');
+						}}
 						disabled={loadingCountries || countries.length === 0}
 					>
-						<option value="">{loadingCountries ? t('common.loading', '加载中...') : t('shipping.calc.country', '国家')}</option>
-						{countries.map((c) => (
-							<option key={c.country_code} value={c.country_code}>
-								{c.country_name} ({c.country_code})
-							</option>
-						))}
-					</select>
+						<div className="relative">
+							<div className="relative w-full cursor-default overflow-hidden rounded-md bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+								<Combobox.Input
+									className="w-full px-3 pr-10 py-2 text-sm outline-none"
+									displayValue={(c: any) => (c ? `${c.country_name} (${c.country_code})` : '')}
+									onChange={(event) => setCountryQuery(event.target.value)}
+									placeholder={loadingCountries ? t('common.loading', '加载中...') : t('shipping.calc.countrySearchPh', locale === 'zh' ? '搜索国家（代码/名称）' : 'Search country (code/name)')}
+								/>
+								<Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-3">
+									<ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+								</Combobox.Button>
+							</div>
+
+							<Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 focus:outline-none">
+								{loadingCountries ? (
+									<div className="px-3 py-2 text-gray-500">{t('common.loading', '加载中...')}</div>
+								) : filteredCountries.length === 0 ? (
+									<div className="px-3 py-2 text-gray-500">{t('common.empty', locale === 'zh' ? '无匹配国家' : 'No matches')}</div>
+								) : (
+									filteredCountries.map((c) => (
+										<Combobox.Option
+											key={c.country_code}
+											value={c}
+											className={({ active }) =>
+												`relative cursor-default select-none py-2 pl-9 pr-3 ${active ? 'bg-blue-50 text-blue-900' : 'text-gray-900'}`
+											}
+										>
+											{({ selected }) => (
+												<>
+													<span className={`block truncate ${selected ? 'font-semibold' : 'font-normal'}`}>
+														{c.country_name} ({c.country_code})
+													</span>
+													{selected ? (
+														<span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
+															<CheckIcon className="h-5 w-5" aria-hidden="true" />
+														</span>
+													) : null}
+												</>
+											)}
+										</Combobox.Option>
+									))
+								)}
+							</Combobox.Options>
+						</div>
+					</Combobox>
 				</div>
 
 				<div>
@@ -194,8 +272,27 @@ export default function ShippingQuoteCalculator(props: {
 				<div className="mt-3 text-sm text-red-600">{quoteError}</div>
 			)}
 
+			{!loadingCountries && countries.length === 0 && (
+				<div className="mt-3 text-sm text-amber-700">
+					{t(
+						'shipping.calc.noCountriesHint',
+						locale === 'zh'
+							? '当前没有可用国家。请先在运费模板导入国家规则，并检查白名单是否至少包含一个国家。'
+							: 'No available countries. Import shipping templates first and make sure whitelist includes at least one country.'
+					)}
+				</div>
+			)}
+
 			{quote && (
 				<div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 grid grid-cols-1 gap-2 sm:grid-cols-2">
+					<div className="sm:col-span-2">
+						{t('shipping.calc.source', locale === 'zh' ? '运费来源' : 'Rate source')}: 
+						{quote.source === 'carrier'
+							? `${quote.carrier || carrier || 'CARRIER'}${quote.service_code ? ` / ${quote.service_code}` : ''}`
+							: quote.source === 'default_fallback'
+								? t('shipping.calc.sourceFallback', locale === 'zh' ? '承运商模板缺失，已回退到默认国家模板' : 'Carrier template missing, fell back to default country template')
+								: t('shipping.calc.sourceDefault', locale === 'zh' ? '默认国家模板' : 'Default country template')}
+					</div>
 					<div>{t('shipping.calc.ratePerKg', '每公斤价格')}: {Number(quote.rate_per_kg || 0).toFixed(3)}</div>
 					<div>{t('shipping.calc.baseQuote', '基础运费')}: {Number(quote.base_quote || 0).toFixed(2)}</div>
 					<div>{t('shipping.calc.additionalFee', '附加费')}: {Number(quote.additional_fee || 0).toFixed(2)}</div>
@@ -204,6 +301,16 @@ export default function ShippingQuoteCalculator(props: {
 						{w > 0 && w < 21 ? <span className="ml-2 text-gray-500">{t('shipping.calc.roundUpHint', '（<21kg 向上取整）')}</span> : null}
 					</div>
 					<div>{t('shipping.calc.priceWithShipping', '标价 + 运费')}: {nextPriceWithShipping.toFixed(2)}</div>
+					{quote.source === 'default_fallback' && (
+						<div className="sm:col-span-2 text-amber-700">
+							{t(
+								'shipping.calc.fallbackTip',
+								locale === 'zh'
+									? '提示：当前国家未找到该承运商模板。若你需要严格按 FEDEX/DHL 计费，请在运费模板中补该国家的 CountryZones。'
+									: 'Tip: No carrier template for this country. To enforce FEDEX/DHL-only pricing, add this country in carrier CountryZones.'
+							)}
+						</div>
+					)}
 				</div>
 			)}
 

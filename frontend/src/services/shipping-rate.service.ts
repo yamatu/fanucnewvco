@@ -30,6 +30,9 @@ export interface ShippingQuote {
   base_quote: number;
   additional_fee: number;
   shipping_fee: number;
+  source?: 'default' | 'carrier' | 'default_fallback' | string;
+  carrier?: string;
+  service_code?: string;
 }
 
 export interface ShippingRateImportResult {

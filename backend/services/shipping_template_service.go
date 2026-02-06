@@ -32,6 +32,9 @@ type ShippingQuoteResult struct {
 	BaseQuote     float64 `json:"base_quote"`
 	AdditionalFee float64 `json:"additional_fee"`
 	ShippingFee   float64 `json:"shipping_fee"`
+	Source        string  `json:"source,omitempty"`
+	Carrier       string  `json:"carrier,omitempty"`
+	ServiceCode   string  `json:"service_code,omitempty"`
 }
 
 func NormalizeCountryCode(code string) string {
@@ -94,7 +97,7 @@ func CalculateShippingQuote(db *gorm.DB, countryCode string, weightKg float64) (
 		weightKg = 0
 	}
 	if weightKg == 0 {
-		return ShippingQuoteResult{CountryCode: cc, Currency: "USD", WeightKg: 0, BillingWeight: 0, RatePerKg: 0, BaseQuote: 0, AdditionalFee: 0, ShippingFee: 0}, nil
+		return ShippingQuoteResult{CountryCode: cc, Currency: "USD", WeightKg: 0, BillingWeight: 0, RatePerKg: 0, BaseQuote: 0, AdditionalFee: 0, ShippingFee: 0, Source: "default"}, nil
 	}
 
 	var tpl models.ShippingTemplate
@@ -205,6 +208,7 @@ func CalculateShippingQuote(db *gorm.DB, countryCode string, weightKg float64) (
 		BaseQuote:     baseQuote,
 		AdditionalFee: round2(extra),
 		ShippingFee:   shippingFee,
+		Source:        "default",
 	}, nil
 }
 
