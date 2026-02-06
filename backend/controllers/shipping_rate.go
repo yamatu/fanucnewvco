@@ -25,12 +25,30 @@ func (sc *ShippingRateController) PublicCountries(c *gin.Context) {
 	db := config.GetDB()
 	carrier := strings.TrimSpace(c.Query("carrier"))
 	serviceCode := strings.TrimSpace(c.Query("service"))
+	mergeCountries := func(a []services.ShippingCountryPublic, b []services.ShippingCountryPublic) []services.ShippingCountryPublic {
+		m := map[string]services.ShippingCountryPublic{}
+		for _, it := range a {
+			m[strings.ToUpper(it.CountryCode)] = it
+		}
+		for _, it := range b {
+			m[strings.ToUpper(it.CountryCode)] = it
+		}
+		out := make([]services.ShippingCountryPublic, 0, len(m))
+		for _, v := range m {
+			out = append(out, v)
+		}
+		sort.SliceStable(out, func(i, j int) bool {
+			return strings.ToLower(out[i].CountryName) < strings.ToLower(out[j].CountryName)
+		})
+		return out
+	}
+
 	var (
 		list []services.ShippingCountryPublic
 		err  error
 	)
 	if carrier != "" {
-		// Carrier mode: return union of (carrier templates) and (default country templates)
+		// Carrier mode: return union of (carrier templates) and (default country templates).
 		carrierList, e := services.ListActiveCarrierShippingCountries(db, carrier, serviceCode)
 		if e != nil {
 			err = e
@@ -39,27 +57,23 @@ func (sc *ShippingRateController) PublicCountries(c *gin.Context) {
 			if e2 != nil {
 				err = e2
 			} else {
-				// Merge by country code; prefer carrier entry when present.
-				m := map[string]services.ShippingCountryPublic{}
-				for _, it := range defaultList {
-					m[strings.ToUpper(it.CountryCode)] = it
-				}
-				for _, it := range carrierList {
-					m[strings.ToUpper(it.CountryCode)] = it
-				}
-				out := make([]services.ShippingCountryPublic, 0, len(m))
-				for _, v := range m {
-					out = append(out, v)
-				}
-				// Sort by country name for stable UX
-				sort.SliceStable(out, func(i, j int) bool {
-					return strings.ToLower(out[i].CountryName) < strings.ToLower(out[j].CountryName)
-				})
-				list = out
+				list = mergeCountries(defaultList, carrierList)
 			}
 		}
 	} else {
-		list, err = services.ListActiveShippingCountries(db)
+		// No carrier selected (checkout/public default): still include countries that only
+		// have carrier templates, otherwise whitelist countries can appear "missing".
+		defaultList, e1 := services.ListActiveShippingCountries(db)
+		if e1 != nil {
+			err = e1
+		} else {
+			carrierList, e2 := services.ListActiveCarrierShippingCountries(db, "", "")
+			if e2 != nil {
+				err = e2
+			} else {
+				list = mergeCountries(defaultList, carrierList)
+			}
+		}
 	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to fetch countries", Error: err.Error()})
@@ -111,6 +125,28 @@ func (sc *ShippingRateController) PublicQuote(c *gin.Context) {
 		}
 	} else {
 		q, err = services.CalculateShippingQuote(db, cc, weight)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Checkout/public default flow: if default template is missing, try any carrier template.
+			type pair struct {
+				Carrier     string
+				ServiceCode string
+			}
+			var pairs []pair
+			qe := db.Model(&models.ShippingCarrierTemplate{}).
+				Select("carrier, service_code").
+				Where("country_code = ? AND is_active = ?", services.NormalizeCountryCode(cc), true).
+				Group("carrier, service_code").
+				Order("CASE WHEN carrier = 'FEDEX' THEN 0 WHEN carrier = 'DHL' THEN 1 ELSE 9 END, carrier ASC, service_code ASC").
+				Scan(&pairs).Error
+			if qe == nil && len(pairs) > 0 {
+				q, err = services.CalculateCarrierShippingQuote(db, pairs[0].Carrier, pairs[0].ServiceCode, cc, weight)
+				if err == nil {
+					q.Source = "carrier_fallback"
+				}
+			} else if qe != nil {
+				err = qe
+			}
+		}
 	}
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
