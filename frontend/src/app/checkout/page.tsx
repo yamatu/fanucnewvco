@@ -49,6 +49,7 @@ export default function CheckoutPage() {
   const [shippingCountries, setShippingCountries] = useState<Array<{ country_code: string; country_name: string; currency: string }>>([]);
   const [shippingRatesLoading, setShippingRatesLoading] = useState(true);
   const [shippingFee, setShippingFee] = useState<number>(0);
+  const [freeShippingCountryCodes, setFreeShippingCountryCodes] = useState<string[]>([]);
 
   const {
     register,
@@ -101,9 +102,13 @@ export default function CheckoutPage() {
     let alive = true;
     (async () => {
       try {
-        const countries = await ShippingRateService.publicCountries();
+        const [countries, freeCountries] = await Promise.all([
+          ShippingRateService.publicCountries(),
+          ShippingRateService.publicFreeShippingCountries().catch(() => []),
+        ]);
         if (!alive) return;
         setShippingCountries(countries as any);
+        setFreeShippingCountryCodes(freeCountries.map((c) => c.country_code));
       } catch {
         if (!alive) return;
         setShippingCountries([]);
@@ -282,6 +287,8 @@ export default function CheckoutPage() {
                   onCouponApplied={setAppliedCoupon}
                   appliedCoupon={appliedCoupon}
                   customerEmail={watch('customer_email')}
+                  freeShippingCountryCodes={freeShippingCountryCodes}
+                  shippingCountry={shippingCountry}
                 />
               </div>
             </div>

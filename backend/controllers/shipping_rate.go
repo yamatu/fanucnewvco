@@ -156,6 +156,13 @@ func (sc *ShippingRateController) PublicQuote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to calculate shipping", Error: err.Error()})
 		return
 	}
+	// Check if country has free shipping enabled; if so, override shipping fee to $0
+	if services.IsFreeShippingCountry(db, cc) {
+		q.ShippingFee = 0
+		q.BaseQuote = 0
+		q.AdditionalFee = 0
+		q.Source = "free_shipping"
+	}
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: q})
 }
 
@@ -575,4 +582,88 @@ func (sc *ShippingRateController) BulkSetAllowedCountries(c *gin.Context) {
 	}
 	_ = services.ClearRedisByPrefixes(c.Request.Context(), "cache:public:shipping_countries:")
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Whitelist updated", Data: gin.H{"count": len(req.Countries)}})
+}
+
+// ========== Free Shipping Settings ==========
+
+type freeShippingCountryReq struct {
+	CountryCode         string `json:"country_code" binding:"required"`
+	CountryName         string `json:"country_name"`
+	FreeShippingEnabled bool   `json:"free_shipping_enabled"`
+}
+
+type bulkFreeShippingReq struct {
+	Countries []freeShippingCountryReq `json:"countries" binding:"required"`
+}
+
+// Admin: GET /api/v1/admin/shipping-rates/free-shipping
+func (sc *ShippingRateController) GetFreeShippingCountries(c *gin.Context) {
+	db := config.GetDB()
+	var list []models.ShippingFreeSetting
+	if err := db.Order("country_name ASC").Find(&list).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to fetch free shipping settings", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: list})
+}
+
+// Admin: POST /api/v1/admin/shipping-rates/free-shipping
+func (sc *ShippingRateController) SetFreeShippingCountries(c *gin.Context) {
+	var req bulkFreeShippingReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request", Error: err.Error()})
+		return
+	}
+	db := config.GetDB()
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// Clear existing
+		if e := tx.Where("1=1").Delete(&models.ShippingFreeSetting{}).Error; e != nil {
+			return e
+		}
+		// Insert new
+		for _, r := range req.Countries {
+			cc := services.NormalizeCountryCode(r.CountryCode)
+			if cc == "" {
+				continue
+			}
+			name := strings.TrimSpace(r.CountryName)
+			if name == "" {
+				name = cc
+			}
+			entry := models.ShippingFreeSetting{
+				CountryCode:         cc,
+				CountryName:         name,
+				FreeShippingEnabled: r.FreeShippingEnabled,
+			}
+			if e := tx.Create(&entry).Error; e != nil {
+				return e
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to update free shipping settings", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Free shipping settings updated", Data: gin.H{"count": len(req.Countries)}})
+}
+
+// Public: GET /api/v1/public/shipping/free-countries
+func (sc *ShippingRateController) PublicFreeShippingCountries(c *gin.Context) {
+	db := config.GetDB()
+	var list []models.ShippingFreeSetting
+	if err := db.Where("free_shipping_enabled = ?", true).Order("country_name ASC").Find(&list).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to fetch free shipping countries", Error: err.Error()})
+		return
+	}
+	// Return minimal public info
+	type publicEntry struct {
+		CountryCode string `json:"country_code"`
+		CountryName string `json:"country_name"`
+	}
+	out := make([]publicEntry, 0, len(list))
+	for _, s := range list {
+		out = append(out, publicEntry{CountryCode: s.CountryCode, CountryName: s.CountryName})
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: out})
 }

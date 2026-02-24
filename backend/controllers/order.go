@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"fanuc-backend/services"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type OrderController struct{}
@@ -103,8 +105,31 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 	// Initialize amounts
 	discountAmount := 0.0
 	shippingFee := 0.0
-	if totalWeightKg > 0 {
-		quote, shipErr := services.CalculateShippingQuote(config.DB, req.ShippingCountry, totalWeightKg)
+	cc := services.NormalizeCountryCode(req.ShippingCountry)
+
+	// Check free shipping first
+	if services.IsFreeShippingCountry(config.DB, cc) {
+		shippingFee = 0
+	} else if totalWeightKg > 0 {
+		// Use same fallback chain as PublicQuote: default template -> carrier template
+		quote, shipErr := services.CalculateShippingQuote(config.DB, cc, totalWeightKg)
+		if errors.Is(shipErr, gorm.ErrRecordNotFound) {
+			// Default template missing; try any carrier template (prioritize FEDEX)
+			type pair struct {
+				Carrier     string
+				ServiceCode string
+			}
+			var pairs []pair
+			qe := config.DB.Model(&models.ShippingCarrierTemplate{}).
+				Select("carrier, service_code").
+				Where("country_code = ? AND is_active = ?", cc, true).
+				Group("carrier, service_code").
+				Order("CASE WHEN carrier = 'FEDEX' THEN 0 WHEN carrier = 'DHL' THEN 1 ELSE 9 END, carrier ASC, service_code ASC").
+				Scan(&pairs).Error
+			if qe == nil && len(pairs) > 0 {
+				quote, shipErr = services.CalculateCarrierShippingQuote(config.DB, pairs[0].Carrier, pairs[0].ServiceCode, cc, totalWeightKg)
+			}
+		}
 		if shipErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,

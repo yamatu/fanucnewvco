@@ -318,6 +318,22 @@ func matchAdditionalFee(surcharges []models.ShippingQuoteSurcharge, baseQuote fl
 func round2(v float64) float64 { return math.Round(v*100) / 100 }
 func round3(v float64) float64 { return math.Round(v*1000) / 1000 }
 
+// IsFreeShippingCountry returns true if the country has free shipping enabled.
+func IsFreeShippingCountry(db *gorm.DB, countryCode string) bool {
+	if db == nil {
+		return false
+	}
+	cc := NormalizeCountryCode(countryCode)
+	if cc == "" {
+		return false
+	}
+	var setting models.ShippingFreeSetting
+	if err := db.Where("country_code = ? AND free_shipping_enabled = ?", cc, true).First(&setting).Error; err != nil {
+		return false
+	}
+	return true
+}
+
 // XLSX
 
 func GenerateShippingTemplateXLSX_USSample() ([]byte, error) {

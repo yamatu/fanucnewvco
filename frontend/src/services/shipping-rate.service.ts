@@ -53,6 +53,20 @@ export interface ShippingAllowedCountry {
   updated_at: string;
 }
 
+export interface ShippingFreeCountry {
+  country_code: string;
+  country_name: string;
+}
+
+export interface ShippingFreeSetting {
+  id: number;
+  country_code: string;
+  country_name: string;
+  free_shipping_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export class ShippingRateService {
   static async publicCountries(opts?: { carrier?: string; service?: string }): Promise<ShippingRatePublic[]> {
     const qs = new URLSearchParams();
@@ -153,5 +167,24 @@ export class ShippingRateService {
     const res = await apiClient.delete<APIResponse<any>>(`/admin/shipping-rates/allowed-countries/${encodeURIComponent(code)}`);
     if (res.data.success) return;
     throw new Error(res.data.message || 'Failed to remove allowed country');
+  }
+
+  // Free shipping settings
+  static async getFreeShippingCountries(): Promise<ShippingFreeSetting[]> {
+    const res = await apiClient.get<APIResponse<ShippingFreeSetting[]>>('/admin/shipping-rates/free-shipping');
+    if (res.data.success && res.data.data) return res.data.data;
+    throw new Error(res.data.message || 'Failed to fetch free shipping settings');
+  }
+
+  static async setFreeShippingCountries(countries: Array<{ country_code: string; country_name?: string; free_shipping_enabled: boolean }>): Promise<{ count: number }> {
+    const res = await apiClient.post<APIResponse<any>>('/admin/shipping-rates/free-shipping', { countries });
+    if (res.data.success && res.data.data) return res.data.data;
+    throw new Error(res.data.message || 'Failed to update free shipping settings');
+  }
+
+  static async publicFreeShippingCountries(): Promise<ShippingFreeCountry[]> {
+    const res = await apiClient.get<APIResponse<ShippingFreeCountry[]>>('/public/shipping/free-countries');
+    if (res.data.success && res.data.data) return res.data.data;
+    throw new Error(res.data.message || 'Failed to fetch free shipping countries');
   }
 }

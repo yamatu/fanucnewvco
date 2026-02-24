@@ -11,7 +11,7 @@ import {
 
 import AdminLayout from '@/components/admin/AdminLayout';
 import { queryKeys } from '@/lib/react-query';
-import { ShippingRateService } from '@/services/shipping-rate.service';
+import { ShippingRateService, ShippingFreeSetting } from '@/services/shipping-rate.service';
 import { useAdminI18n } from '@/lib/admin-i18n';
 
 export default function AdminShippingRatesPage() {
@@ -26,6 +26,24 @@ export default function AdminShippingRatesPage() {
   const [replaceMode, setReplaceMode] = useState(true);
   const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
   const [allowedText, setAllowedText] = useState('');
+  const [freeShippingCode, setFreeShippingCode] = useState('');
+  const [freeShippingName, setFreeShippingName] = useState('');
+
+  const { data: freeShippingCountries = [], isLoading: freeShippingLoading } = useQuery({
+    queryKey: [...queryKeys.shippingRates.admin(), 'free-shipping'],
+    queryFn: () => ShippingRateService.getFreeShippingCountries(),
+    retry: 1,
+  });
+
+  const freeShippingMutation = useMutation({
+    mutationFn: (countries: Array<{ country_code: string; country_name?: string; free_shipping_enabled: boolean }>) =>
+      ShippingRateService.setFreeShippingCountries(countries),
+    onSuccess: (res: any) => {
+      toast.success(locale === 'zh' ? `免运费设置已更新（${res?.count || 0} 个国家）` : `Free shipping settings updated (${res?.count || 0})`);
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.shippingRates.admin(), 'free-shipping'] });
+    },
+    onError: (e: any) => toast.error(e.message || (locale === 'zh' ? '更新免运费设置失败' : 'Failed to update free shipping settings')),
+  });
 
   const { data: allowedCountries = [], isLoading: allowedLoading } = useQuery({
     queryKey: [...queryKeys.shippingRates.admin(), 'allowed-countries'],
@@ -384,6 +402,123 @@ export default function AdminShippingRatesPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Free Shipping Section */}
+          <div className="rounded-md border border-green-200 bg-green-50 p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-gray-900">{locale === 'zh' ? '免运费设置' : 'Free Shipping Settings'}</div>
+                <div className="mt-1 text-xs text-gray-600">
+                  {freeShippingLoading
+                    ? (locale === 'zh' ? '加载中...' : 'Loading...')
+                    : freeShippingCountries.filter((c: ShippingFreeSetting) => c.free_shipping_enabled).length > 0
+                      ? (locale === 'zh'
+                        ? `已启用免运费：${freeShippingCountries.filter((c: ShippingFreeSetting) => c.free_shipping_enabled).map((c: ShippingFreeSetting) => c.country_code).join(', ')}。`
+                        : `Free shipping enabled for: ${freeShippingCountries.filter((c: ShippingFreeSetting) => c.free_shipping_enabled).map((c: ShippingFreeSetting) => c.country_code).join(', ')}.`)
+                      : (locale === 'zh'
+                        ? '未启用免运费。勾选国家后可为其开启免运费。'
+                        : 'No free shipping enabled. Toggle countries below to enable free shipping.')}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-3">
+              {/* Current free shipping countries */}
+              <div className="flex flex-wrap gap-2">
+                {freeShippingCountries.map((c: ShippingFreeSetting) => (
+                  <label key={c.country_code} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 bg-white text-sm cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={c.free_shipping_enabled}
+                      onChange={() => {
+                        const updated = freeShippingCountries.map((x: ShippingFreeSetting) =>
+                          x.country_code === c.country_code
+                            ? { country_code: x.country_code, country_name: x.country_name, free_shipping_enabled: !x.free_shipping_enabled }
+                            : { country_code: x.country_code, country_name: x.country_name, free_shipping_enabled: x.free_shipping_enabled }
+                        );
+                        freeShippingMutation.mutate(updated);
+                      }}
+                      className="h-4 w-4 text-green-600"
+                      disabled={freeShippingMutation.isPending}
+                    />
+                    <span className="font-mono text-gray-900">{c.country_code}</span>
+                    <span className="text-gray-700">{c.country_name}</span>
+                  </label>
+                ))}
+              </div>
+
+              {/* Add new country */}
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  value={freeShippingCode}
+                  onChange={(e) => setFreeShippingCode(e.target.value.toUpperCase())}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm w-24"
+                  placeholder={locale === 'zh' ? '国家代码' : 'Code (US)'}
+                  maxLength={2}
+                />
+                <input
+                  value={freeShippingName}
+                  onChange={(e) => setFreeShippingName(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder={locale === 'zh' ? '国家名称' : 'Country name'}
+                />
+                <button
+                  onClick={() => {
+                    const code = freeShippingCode.trim().toUpperCase();
+                    if (!code || code.length !== 2) {
+                      toast.error(locale === 'zh' ? '请输入有效的 2 位国家代码' : 'Please enter a valid 2-letter country code');
+                      return;
+                    }
+                    const existing = freeShippingCountries.map((x: ShippingFreeSetting) => ({
+                      country_code: x.country_code,
+                      country_name: x.country_name,
+                      free_shipping_enabled: x.free_shipping_enabled,
+                    }));
+                    if (existing.some((x: { country_code: string }) => x.country_code === code)) {
+                      toast.error(locale === 'zh' ? '该国家已在列表中' : 'Country already exists');
+                      return;
+                    }
+                    existing.push({
+                      country_code: code,
+                      country_name: freeShippingName.trim() || codeToName[code] || code,
+                      free_shipping_enabled: true,
+                    });
+                    freeShippingMutation.mutate(existing);
+                    setFreeShippingCode('');
+                    setFreeShippingName('');
+                  }}
+                  disabled={freeShippingMutation.isPending}
+                  className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  {locale === 'zh' ? '添加免运费国家' : 'Add Free Shipping Country'}
+                </button>
+                <button
+                  onClick={() => {
+                    const code = 'US';
+                    const existing = freeShippingCountries.map((x: ShippingFreeSetting) => ({
+                      country_code: x.country_code,
+                      country_name: x.country_name,
+                      free_shipping_enabled: x.free_shipping_enabled,
+                    }));
+                    if (existing.some((x: { country_code: string }) => x.country_code === code)) {
+                      // Toggle US free shipping on
+                      const updated = existing.map((x: { country_code: string; country_name: string; free_shipping_enabled: boolean }) =>
+                        x.country_code === code ? { ...x, free_shipping_enabled: true } : x
+                      );
+                      freeShippingMutation.mutate(updated);
+                    } else {
+                      existing.push({ country_code: 'US', country_name: 'United States', free_shipping_enabled: true });
+                      freeShippingMutation.mutate(existing);
+                    }
+                  }}
+                  disabled={freeShippingMutation.isPending || freeShippingCountries.some((c: ShippingFreeSetting) => c.country_code === 'US' && c.free_shipping_enabled)}
+                  className="inline-flex items-center px-3 py-2 text-sm rounded-md border border-green-300 bg-white text-green-700 hover:bg-green-50 disabled:opacity-50"
+                >
+                  {locale === 'zh' ? '快速启用 US 免运费' : 'Enable US Free Shipping'}
+                </button>
               </div>
             </div>
           </div>

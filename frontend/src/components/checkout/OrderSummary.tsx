@@ -17,6 +17,8 @@ interface OrderSummaryProps {
   onCouponApplied?: (couponResponse: CouponValidateResponse) => void;
   appliedCoupon?: CouponValidateResponse | null;
   customerEmail?: string;
+  freeShippingCountryCodes?: string[];
+  shippingCountry?: string;
 }
 
 export default function OrderSummary({
@@ -26,14 +28,19 @@ export default function OrderSummary({
   readonly = false,
   onCouponApplied,
   appliedCoupon,
-  customerEmail
+  customerEmail,
+  freeShippingCountryCodes = [],
+  shippingCountry = '',
 }: OrderSummaryProps) {
   const [couponCode, setCouponCode] = useState('');
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
+  const isFreeShipping = shippingCountry && freeShippingCountryCodes.includes(shippingCountry.toUpperCase());
+
   const subtotal = total;
   const discount = appliedCoupon?.discount_amount || 0;
-  const finalTotal = subtotal + Number(shippingFee || 0) - discount;
+  const effectiveShippingFee = isFreeShipping ? 0 : Number(shippingFee || 0);
+  const finalTotal = subtotal + effectiveShippingFee - discount;
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -183,7 +190,11 @@ export default function OrderSummary({
 
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Shipping</span>
-            <span className="text-gray-900">${Number(shippingFee || 0).toFixed(2)}</span>
+            {isFreeShipping ? (
+              <span className="text-green-600 font-medium">Free Shipping</span>
+            ) : (
+              <span className="text-gray-900">${Number(shippingFee || 0).toFixed(2)}</span>
+            )}
           </div>
 
           {discount > 0 && (

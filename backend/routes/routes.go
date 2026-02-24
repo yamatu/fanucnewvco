@@ -74,6 +74,7 @@ func SetupRoutes(r *gin.Engine) {
 			// Shipping (public)
 			public.GET("/shipping/countries", shippingRateController.PublicCountries)
 			public.GET("/shipping/quote", shippingRateController.PublicQuote)
+			public.GET("/shipping/free-countries", shippingRateController.PublicFreeShippingCountries)
 
 			// Product detail endpoints are also cached (same TTL as product list)
 			public.GET("/products/:id", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:product:"), productController.GetProduct)
@@ -187,6 +188,9 @@ func SetupRoutes(r *gin.Engine) {
 				shippingRates.POST("/allowed-countries", shippingRateController.AddAllowedCountry)
 				shippingRates.DELETE("/allowed-countries/:code", shippingRateController.RemoveAllowedCountry)
 				shippingRates.POST("/allowed-countries/bulk", shippingRateController.BulkSetAllowedCountries)
+				// Free shipping settings
+				shippingRates.GET("/free-shipping", shippingRateController.GetFreeShippingCountries)
+				shippingRates.POST("/free-shipping", shippingRateController.SetFreeShippingCountries)
 			}
 
 			// Order management (admin only)
