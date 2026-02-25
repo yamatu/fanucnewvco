@@ -9,14 +9,15 @@ import { useCart } from '@/store/cart.store';
 import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
 
 export function CartSidebar() {
-  const { 
-    isOpen, 
-    closeCart, 
-    items, 
-    total, 
+  const {
+    isOpen,
+    closeCart,
+    items,
+    total,
     itemCount,
-    updateQuantity, 
-    removeItem 
+    updateQuantity,
+    removeItem,
+    clearCart,
   } = useCart();
 
   return (
@@ -54,7 +55,20 @@ export function CartSidebar() {
                         <Dialog.Title className="text-lg font-medium text-gray-900">
                           Shopping Cart ({itemCount} {itemCount === 1 ? 'item' : 'items'})
                         </Dialog.Title>
-                        <div className="ml-3 flex h-7 items-center">
+                        <div className="ml-3 flex h-7 items-center space-x-2">
+                          {items.length > 0 && (
+                            <button
+                              type="button"
+                              className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                              onClick={() => {
+                                if (window.confirm('Clear all items from your cart?')) {
+                                  clearCart();
+                                }
+                              }}
+                            >
+                              Clear All
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="relative -m-2 p-2 text-gray-400 hover:text-gray-500"
@@ -183,13 +197,20 @@ export function CartSidebar() {
                         <p className="mt-0.5 text-sm text-gray-500">
                           Shipping calculated at checkout.
                         </p>
-                        <div className="mt-6">
+                        <div className="mt-6 space-y-3">
                           <Link
-                            href="/checkout"
+                            href="/checkout/guest"
                             className="flex items-center justify-center rounded-md border border-transparent bg-yellow-500 px-6 py-3 text-base font-medium text-black shadow-sm hover:bg-yellow-600 transition-colors"
                             onClick={closeCart}
                           >
-                            Checkout
+                            Buy Now
+                          </Link>
+                          <Link
+                            href="/checkout"
+                            className="flex items-center justify-center rounded-md border border-gray-300 bg-white px-6 py-3 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+                            onClick={closeCart}
+                          >
+                            Checkout with Account
                           </Link>
                         </div>
                         <div className="mt-6 flex justify-center text-center text-sm text-gray-500">
