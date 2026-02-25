@@ -1,0 +1,453 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { toast } from 'react-hot-toast';
+import Link from 'next/link';
+
+import { useCart } from '@/store/cart.store';
+import { OrderService, OrderCreateRequest } from '@/services/order.service';
+import { ShippingRateService } from '@/services/shipping-rate.service';
+import Layout from '@/components/layout/Layout';
+import PayPalCheckout from '@/components/checkout/PayPalCheckout';
+import { formatCurrency } from '@/lib/utils';
+import { Order } from '@/types';
+
+import {
+  ShoppingBagIcon,
+  CreditCardIcon,
+  TruckIcon,
+} from '@heroicons/react/24/outline';
+
+interface GuestCheckoutForm {
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  company?: string;
+  shipping_address: string;
+  shipping_city: string;
+  shipping_state: string;
+  shipping_zip: string;
+  shipping_country: string;
+  billing_address: string;
+  billing_city: string;
+  billing_state: string;
+  billing_zip: string;
+  billing_country: string;
+  notes?: string;
+}
+
+export default function GuestCheckoutPage() {
+  const router = useRouter();
+  const { items, total, clearCart } = useCart();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  const [step, setStep] = useState<'form' | 'payment' | 'success'>('form');
+  const [sameAsShipping, setSameAsShipping] = useState(true);
+
+  const [shippingCountries, setShippingCountries] = useState<Array<{ country_code: string; country_name: string; currency: string }>>([]);
+  const [freeShippingCodes, setFreeShippingCodes] = useState<string[]>([]);
+  const [shippingFee, setShippingFee] = useState(0);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    watch,
+    setValue,
+  } = useForm<GuestCheckoutForm>({
+    defaultValues: {
+      shipping_country: '',
+      billing_country: '',
+    },
+  });
+
+  const shippingCountry = watch('shipping_country');
+  const totalWeightKg = items.reduce((sum, it) => sum + (Number((it.product as any).weight || 0) * Number(it.quantity || 0)), 0);
+
+  // Fetch shipping countries
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [countries, freeCountries] = await Promise.all([
+          ShippingRateService.publicCountries(),
+          ShippingRateService.publicFreeShippingCountries().catch(() => []),
+        ]);
+        if (!alive) return;
+        setShippingCountries(countries as any);
+        setFreeShippingCodes(freeCountries.map((c) => c.country_code));
+      } catch {
+        if (alive) setShippingCountries([]);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // Calculate shipping fee
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!shippingCountry) { setShippingFee(0); return; }
+      if (freeShippingCodes.includes(shippingCountry)) { setShippingFee(0); return; }
+      try {
+        const q = await ShippingRateService.quote(shippingCountry, totalWeightKg || 0.5);
+        if (alive) setShippingFee(Number(q.shipping_fee || 0));
+      } catch {
+        if (alive) setShippingFee(0);
+      }
+    })();
+    return () => { alive = false; };
+  }, [shippingCountry, totalWeightKg, freeShippingCodes]);
+
+  // Redirect if cart is empty
+  useEffect(() => {
+    if (items.length === 0 && step !== 'success') {
+      router.push('/products');
+    }
+  }, [items, router, step]);
+
+  // Sync billing from shipping
+  useEffect(() => {
+    if (sameAsShipping) {
+      setValue('billing_address', watch('shipping_address'));
+      setValue('billing_city', watch('shipping_city'));
+      setValue('billing_state', watch('shipping_state'));
+      setValue('billing_zip', watch('shipping_zip'));
+      setValue('billing_country', shippingCountry);
+    }
+  }, [sameAsShipping, watch('shipping_address'), watch('shipping_city'), watch('shipping_state'), watch('shipping_zip'), shippingCountry]);
+
+  const onSubmit = async (data: GuestCheckoutForm) => {
+    setIsProcessing(true);
+    try {
+      const billingParts = [
+        data.billing_address,
+        data.billing_city,
+        data.billing_state,
+        data.billing_zip,
+      ].filter(Boolean);
+      const shippingParts = [
+        data.shipping_address,
+        data.shipping_city,
+        data.shipping_state,
+        data.shipping_zip,
+      ].filter(Boolean);
+
+      const orderData: OrderCreateRequest = {
+        customer_name: data.customer_name,
+        customer_email: data.customer_email,
+        customer_phone: data.customer_phone,
+        shipping_address: shippingParts.join(', '),
+        shipping_country: data.shipping_country,
+        billing_address: billingParts.join(', '),
+        notes: [data.company ? `Company: ${data.company}` : '', data.notes || ''].filter(Boolean).join('\n'),
+        items: items.map(item => ({
+          product_id: item.product.id,
+          quantity: item.quantity,
+          unit_price: item.product.price,
+        })),
+      };
+
+      const order = await OrderService.createOrder(orderData);
+      setCurrentOrder(order);
+      setStep('payment');
+      toast.success('Order created! Please complete payment.');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create order');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePaymentSuccess = async (paymentData: any) => {
+    if (!currentOrder) return;
+    setIsProcessing(true);
+    try {
+      await OrderService.processPayment(currentOrder.id, {
+        payment_method: 'paypal',
+        payment_data: paymentData,
+      });
+      setStep('success');
+      clearCart();
+      toast.success('Payment completed successfully!');
+    } catch (error: any) {
+      toast.error(error.message || 'Payment processing failed');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePaymentError = (error: any) => {
+    console.error('Payment error:', error);
+    toast.error('Payment failed. Please try again.');
+  };
+
+  const isFreeShipping = freeShippingCodes.includes(shippingCountry);
+  const grandTotal = total + (isFreeShipping ? 0 : shippingFee);
+
+  if (items.length === 0 && step !== 'success') return null;
+
+  return (
+    <Layout>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Progress Steps */}
+          <div className="mb-8">
+            <div className="flex items-center justify-center space-x-4">
+              {['Order Details', 'Payment', 'Complete'].map((label, i) => {
+                const stepIdx = step === 'form' ? 0 : step === 'payment' ? 1 : 2;
+                const done = i < stepIdx;
+                const active = i === stepIdx;
+                return (
+                  <div key={label} className="flex items-center">
+                    {i > 0 && <div className={`w-8 h-0.5 mr-4 ${done || active ? 'bg-yellow-500' : 'bg-gray-200'}`} />}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${active ? 'bg-yellow-100 text-yellow-700' : done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                      {i + 1}
+                    </div>
+                    <span className="ml-2 text-sm font-medium">{label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {step === 'form' && (
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Form Section */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Contact Info */}
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                        <input {...register('customer_name', { required: 'Name is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" />
+                        {errors.customer_name && <p className="mt-1 text-sm text-red-600">{errors.customer_name.message}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                        <input type="email" {...register('customer_email', { required: 'Email is required', pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" />
+                        {errors.customer_email && <p className="mt-1 text-sm text-red-600">{errors.customer_email.message}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                        <input type="tel" {...register('customer_phone', { required: 'Phone is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" />
+                        {errors.customer_phone && <p className="mt-1 text-sm text-red-600">{errors.customer_phone.message}</p>}
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Company (optional)</label>
+                        <input {...register('company')} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Shipping Address */}
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Shipping Address</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Street Address *</label>
+                        <input {...register('shipping_address', { required: 'Address is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" />
+                        {errors.shipping_address && <p className="mt-1 text-sm text-red-600">{errors.shipping_address.message}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                        <input {...register('shipping_city', { required: 'City is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" />
+                        {errors.shipping_city && <p className="mt-1 text-sm text-red-600">{errors.shipping_city.message}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">State / Province</label>
+                        <input {...register('shipping_state')} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">ZIP / Postal Code *</label>
+                        <input {...register('shipping_zip', { required: 'ZIP code is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" />
+                        {errors.shipping_zip && <p className="mt-1 text-sm text-red-600">{errors.shipping_zip.message}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Country *</label>
+                        <select {...register('shipping_country', { required: 'Country is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500">
+                          <option value="">Select country</option>
+                          {shippingCountries.map(c => (
+                            <option key={c.country_code} value={c.country_code}>{c.country_name}</option>
+                          ))}
+                        </select>
+                        {errors.shipping_country && <p className="mt-1 text-sm text-red-600">{errors.shipping_country.message}</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Billing Address */}
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold text-gray-900">Billing Address</h2>
+                      <label className="flex items-center text-sm text-gray-600 cursor-pointer">
+                        <input type="checkbox" checked={sameAsShipping} onChange={(e) => setSameAsShipping(e.target.checked)} className="mr-2 rounded border-gray-300 text-yellow-500 focus:ring-yellow-500" />
+                        Same as shipping
+                      </label>
+                    </div>
+                    {!sameAsShipping && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="sm:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Street Address *</label>
+                          <input {...register('billing_address', { required: !sameAsShipping ? 'Address is required' : false })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                          <input {...register('billing_city', { required: !sameAsShipping ? 'City is required' : false })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">State / Province</label>
+                          <input {...register('billing_state')} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">ZIP / Postal Code *</label>
+                          <input {...register('billing_zip', { required: !sameAsShipping ? 'ZIP is required' : false })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Country *</label>
+                          <select {...register('billing_country', { required: !sameAsShipping ? 'Country is required' : false })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500">
+                            <option value="">Select country</option>
+                            {shippingCountries.map(c => (
+                              <option key={c.country_code} value={c.country_code}>{c.country_name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                    {sameAsShipping && (
+                      <p className="text-sm text-gray-500">Billing address will be the same as your shipping address.</p>
+                    )}
+                  </div>
+
+                  {/* Notes */}
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Notes (optional)</h2>
+                    <textarea {...register('notes')} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500" placeholder="Any special instructions..." />
+                  </div>
+                </div>
+
+                {/* Order Summary Sidebar */}
+                <div>
+                  <div className="bg-white rounded-lg shadow-sm p-6 sticky top-24">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
+                    <div className="space-y-3 mb-4">
+                      {items.map((item) => (
+                        <div key={item.product.id} className="flex justify-between text-sm">
+                          <span className="text-gray-600 truncate mr-2">{item.product.name} x{item.quantity}</span>
+                          <span className="font-medium whitespace-nowrap">{formatCurrency(item.product.price * item.quantity)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="border-t pt-3 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Subtotal</span>
+                        <span>{formatCurrency(total)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 flex items-center"><TruckIcon className="h-4 w-4 mr-1" />Shipping</span>
+                        {shippingCountry ? (
+                          isFreeShipping ? (
+                            <span className="text-green-600 font-medium">Free</span>
+                          ) : (
+                            <span>{formatCurrency(shippingFee)}</span>
+                          )
+                        ) : (
+                          <span className="text-gray-400 text-xs">Select country</span>
+                        )}
+                      </div>
+                      <div className="flex justify-between text-base font-semibold border-t pt-2">
+                        <span>Total</span>
+                        <span className="text-yellow-700">{formatCurrency(grandTotal)}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isProcessing}
+                      className="w-full mt-6 bg-yellow-500 text-black py-3 px-4 rounded-md font-semibold hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isProcessing ? 'Processing...' : 'Place Order & Pay'}
+                    </button>
+                    <p className="mt-3 text-xs text-gray-500 text-center">
+                      A confirmation email with your order number will be sent to your email address.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {step === 'payment' && currentOrder && (
+            <div className="max-w-2xl mx-auto">
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex items-center mb-6">
+                  <CreditCardIcon className="h-6 w-6 text-yellow-600 mr-2" />
+                  <h2 className="text-xl font-semibold text-gray-900">Payment</h2>
+                </div>
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                  <h3 className="font-medium text-blue-900 mb-1">Order #{currentOrder.order_number}</h3>
+                  <p className="text-blue-700 text-sm">Total: <span className="font-semibold">${currentOrder.total_amount.toFixed(2)}</span></p>
+                </div>
+                <PayPalCheckout
+                  amount={currentOrder.total_amount}
+                  currency="USD"
+                  onSuccess={handlePaymentSuccess}
+                  onError={handlePaymentError}
+                  disabled={isProcessing}
+                />
+                {isProcessing && (
+                  <div className="mt-4 flex items-center justify-center text-gray-500">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600 mr-2" />
+                    Processing payment...
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {step === 'success' && currentOrder && (
+            <div className="max-w-2xl mx-auto text-center">
+              <div className="bg-white rounded-lg shadow-sm p-8">
+                <div className="flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mx-auto mb-6">
+                  <ShoppingBagIcon className="h-8 w-8 text-green-600" />
+                </div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">Order Placed Successfully!</h1>
+                <p className="text-gray-600 mb-2">Thank you for your purchase. A confirmation email has been sent to your email address.</p>
+                <p className="text-gray-600 mb-6">You can use the order number below to track your order status.</p>
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Order Number:</span>
+                      <div className="font-semibold text-lg">{currentOrder.order_number}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Total Amount:</span>
+                      <div className="font-semibold">${currentOrder.total_amount.toFixed(2)}</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <Link
+                    href={`/orders/track/${currentOrder.order_number}`}
+                    className="block w-full bg-yellow-500 text-black py-2 px-4 rounded-md hover:bg-yellow-600 font-semibold text-center"
+                  >
+                    Track My Order
+                  </Link>
+                  <Link
+                    href="/products"
+                    className="block w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-200 text-center"
+                  >
+                    Continue Shopping
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </Layout>
+  );
+}

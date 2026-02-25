@@ -323,6 +323,8 @@ export interface ProductCreateRequest {
   brand: string;
   model: string;
   part_number: string;
+  warranty_period?: string;
+  lead_time?: string;
   category_id: number;
   is_active: boolean;
   is_featured: boolean;

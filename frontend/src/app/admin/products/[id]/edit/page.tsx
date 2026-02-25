@@ -108,6 +108,10 @@ export default function EditProductPage() {
       setValue('is_featured', product.is_featured);
       setValue('stock_quantity', product.stock_quantity);
 		setValue('weight', (product as any).weight ?? undefined);
+      setValue('brand' as any, (product as any).brand || '');
+      setValue('part_number' as any, (product as any).part_number || product.sku);
+      setValue('warranty_period' as any, (product as any).warranty_period || '12 months');
+      setValue('lead_time' as any, (product as any).lead_time || '3-7 days');
 
       // Convert image_urls to the expected format for editing
       try {
@@ -391,9 +395,11 @@ export default function EditProductPage() {
 			stock_quantity: Number(data.stock_quantity),
 			weight: weightNum,
 			dimensions: existing.dimensions || '',
-			brand: (existing.brand || 'FANUC').trim(),
-			model: (existing.model || data.sku).trim(),
-			part_number: (existing.part_number || data.sku).trim(),
+			brand: ((data as any).brand || '').trim(),
+			model: data.sku.trim(),
+			part_number: ((data as any).part_number || data.sku).trim(),
+			warranty_period: ((data as any).warranty_period || '12 months').trim(),
+			lead_time: ((data as any).lead_time || '3-7 days').trim(),
 			category_id: catId,
 			is_active: data.is_active,
 			is_featured: data.is_featured,
@@ -583,6 +589,54 @@ export default function EditProductPage() {
 					{errors.weight && (
 						<p className="mt-1 text-sm text-red-600">{String(errors.weight.message)}</p>
 					)}
+				  </div>
+
+				  <div>
+					<label htmlFor="brand" className="block text-sm font-medium text-gray-700 mb-1">
+						{locale === 'zh' ? '品牌' : 'Brand'}
+					</label>
+					<input
+						{...register('brand' as any)}
+						type="text"
+						className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+						placeholder={locale === 'zh' ? '例如：FANUC, Allen-Bradley, Siemens' : 'e.g., FANUC, Allen-Bradley, Siemens'}
+					/>
+				  </div>
+
+				  <div>
+					<label htmlFor="part_number" className="block text-sm font-medium text-gray-700 mb-1">
+						{locale === 'zh' ? '零件号' : 'Part Number'}
+					</label>
+					<input
+						{...register('part_number' as any)}
+						type="text"
+						className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+						placeholder={locale === 'zh' ? '例如：A02B-0120-C041' : 'e.g., A02B-0120-C041'}
+					/>
+				  </div>
+
+				  <div>
+					<label htmlFor="warranty_period" className="block text-sm font-medium text-gray-700 mb-1">
+						{locale === 'zh' ? '质保期' : 'Warranty Period'}
+					</label>
+					<input
+						{...register('warranty_period' as any)}
+						type="text"
+						className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+						placeholder={locale === 'zh' ? '例如：12 months' : 'e.g., 12 months'}
+					/>
+				  </div>
+
+				  <div>
+					<label htmlFor="lead_time" className="block text-sm font-medium text-gray-700 mb-1">
+						{locale === 'zh' ? '交货期' : 'Lead Time'}
+					</label>
+					<input
+						{...register('lead_time' as any)}
+						type="text"
+						className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+						placeholder={locale === 'zh' ? '例如：3-7 days' : 'e.g., 3-7 days'}
+					/>
 				  </div>
 
                   <div className="sm:col-span-2">

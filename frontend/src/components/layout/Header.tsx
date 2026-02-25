@@ -307,6 +307,13 @@ export function Header() {
                     >
                       Support Tickets
                     </Link>
+                    <Link
+                      href="/track-order"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Track Order
+                    </Link>
                     <hr className="my-1" />
                     <button
                       onClick={handleLogout}
@@ -330,6 +337,12 @@ export function Header() {
                   className="px-3 py-2 text-sm font-medium text-white bg-yellow-500 rounded-md hover:bg-yellow-600 transition-colors"
                 >
                   Register
+                </Link>
+                <Link
+                  href="/track-order"
+                  className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Track Order
                 </Link>
               </div>
             )}
@@ -388,6 +401,17 @@ export function Header() {
                 </button>
               </form>
               {renderSuggestions()}
+            </div>
+
+            {/* Mobile Track Order */}
+            <div className="pt-4 border-t border-gray-200">
+              <Link
+                href="/track-order"
+                className="block w-full text-center px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Track Order
+              </Link>
             </div>
           </div>
         </div>

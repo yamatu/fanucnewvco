@@ -214,6 +214,8 @@ type ProductCreateRequest struct {
 	Brand            string                  `json:"brand"`
 	Model            string                  `json:"model"`
 	PartNumber       string                  `json:"part_number"`
+	WarrantyPeriod   string                  `json:"warranty_period"`
+	LeadTime         string                  `json:"lead_time"`
 	CategoryID       uint                    `json:"category_id" binding:"required"`
 	IsActive         bool                    `json:"is_active"`
 	IsFeatured       bool                    `json:"is_featured"`
