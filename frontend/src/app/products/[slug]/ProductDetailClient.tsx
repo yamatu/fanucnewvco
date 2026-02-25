@@ -117,8 +117,8 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
       return null;
     };
     const node = findById(tree);
-    if (node?.path) return `/${node.path}`;
-    if (product?.category?.slug) return `/${product.category.slug}`;
+    if (node?.path) return `/categories/${node.path}`;
+    if (product?.category?.slug) return `/categories/${product.category.slug}`;
     return null;
   };
 
