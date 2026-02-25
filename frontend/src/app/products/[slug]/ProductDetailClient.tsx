@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -16,13 +16,16 @@ import {
   ShieldCheckIcon,
   ArrowLeftIcon,
   TagIcon,
-  BuildingOfficeIcon
+  BuildingOfficeIcon,
+  GlobeAltIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid, StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import Layout from '@/components/layout/Layout';
 import ProductImageViewer from '@/components/product/ProductImageViewer';
 import ProductSEO from '@/components/seo/ProductSEO';
-import { ProductService, CategoryService } from '@/services';
+import { ProductService, CategoryService, ShippingRateService } from '@/services';
+import type { ShippingRatePublic, ShippingQuote } from '@/services/shipping-rate.service';
 import { queryKeys } from '@/lib/react-query';
 import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, getProductImageUrlByIndex, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
@@ -36,6 +39,13 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
+
+  const [shippingCountry, setShippingCountry] = useState('');
+  const [shippingCountries, setShippingCountries] = useState<ShippingRatePublic[]>([]);
+  const [freeShippingCodes, setFreeShippingCodes] = useState<Set<string>>(new Set());
+  const [shippingQuote, setShippingQuote] = useState<ShippingQuote | null>(null);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingError, setShippingError] = useState('');
 
   const { addItem } = useCartStore();
 
@@ -104,6 +114,50 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
     if (product?.category?.slug) return `/${product.category.slug}`;
     return null;
   };
+
+  // Fetch shipping countries + free shipping list on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [countries, freeCountries] = await Promise.all([
+          ShippingRateService.publicCountries(),
+          ShippingRateService.publicFreeShippingCountries(),
+        ]);
+        if (cancelled) return;
+        setShippingCountries(countries);
+        setFreeShippingCodes(new Set(freeCountries.map(c => c.country_code)));
+      } catch {
+        // silently fail — calculator just won't show countries
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Auto-calculate shipping when country changes
+  useEffect(() => {
+    if (!shippingCountry || !product) return;
+    if (freeShippingCodes.has(shippingCountry)) {
+      setShippingQuote(null);
+      setShippingError('');
+      return;
+    }
+    let cancelled = false;
+    setShippingLoading(true);
+    setShippingError('');
+    (async () => {
+      try {
+        const weight = product.weight || 0.5;
+        const quote = await ShippingRateService.quote(shippingCountry, weight);
+        if (!cancelled) setShippingQuote(quote);
+      } catch {
+        if (!cancelled) setShippingError('Unable to calculate shipping for this destination');
+      } finally {
+        if (!cancelled) setShippingLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [shippingCountry, product, freeShippingCodes]);
 
   const handleAddToCart = () => {
     if (product) {
@@ -268,8 +322,23 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
                 )}
               </div>
 
+              {/* Actions — moved above specs */}
+              <div className="mt-6 flex space-x-3">
+                <button
+                  onClick={handleAddToCart}
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-black bg-yellow-500 hover:bg-yellow-600"
+                >
+                  <ShoppingCartIcon className="h-5 w-5 mr-2" />
+                  Add to Cart
+                </button>
+                <button className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                  <HeartIcon className="h-5 w-5 mr-2" />
+                  Add to Favorites
+                </button>
+              </div>
+
               {/* Key specs */}
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-white p-4">
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-white p-4">
                 <div className="text-sm">
                   <div className="text-xs text-gray-500">Brand</div>
                   <div className="font-medium text-gray-900">{product.brand || brandName || '-'}</div>
@@ -288,24 +357,102 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
                 </div>
               </div>
 
-              {/* Description */}
-              <div className="mt-6">
-                <div className="text-base text-gray-700 whitespace-pre-line leading-relaxed">{descriptionToShow}</div>
+              {/* Shipping Calculator */}
+              {shippingCountries.length > 0 && (
+                <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 flex items-center mb-3">
+                    <TruckIcon className="h-4 w-4 mr-2 text-yellow-600" />
+                    Shipping Estimate
+                  </h3>
+                  <select
+                    value={shippingCountry}
+                    onChange={(e) => setShippingCountry(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 py-2 px-3 text-sm text-gray-900 focus:border-yellow-500 focus:ring-yellow-500"
+                  >
+                    <option value="">Select your country</option>
+                    {shippingCountries.map((c) => (
+                      <option key={c.country_code} value={c.country_code}>
+                        {c.country_name}
+                      </option>
+                    ))}
+                  </select>
+                  {shippingCountry && (
+                    <div className="mt-3">
+                      {shippingLoading ? (
+                        <div className="flex items-center text-sm text-gray-500">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600 mr-2" />
+                          Calculating...
+                        </div>
+                      ) : shippingError ? (
+                        <p className="text-sm text-red-600">{shippingError}</p>
+                      ) : freeShippingCodes.has(shippingCountry) ? (
+                        <div className="flex items-center text-sm font-medium text-green-700">
+                          <CheckIcon className="h-4 w-4 mr-1" />
+                          Free Shipping
+                        </div>
+                      ) : shippingQuote ? (
+                        <div className="text-sm text-gray-900">
+                          <span className="font-medium">
+                            {shippingQuote.currency === 'USD' ? '$' : shippingQuote.currency + ' '}
+                            {shippingQuote.shipping_fee.toFixed(2)}
+                          </span>
+                          <span className="text-gray-500 ml-1">
+                            (weight: {shippingQuote.weight_kg}kg)
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Stock & Availability */}
+              <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+                <div className="flex items-center text-sm">
+                  {product.stock_quantity && product.stock_quantity > 0 ? (
+                    <>
+                      <CheckIcon className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
+                      <span className="text-green-700 font-medium">In Stock</span>
+                      <span className="text-gray-500 ml-1">— Ready to ship</span>
+                    </>
+                  ) : (
+                    <>
+                      <ClockIcon className="h-4 w-4 text-yellow-600 mr-2 flex-shrink-0" />
+                      <span className="text-yellow-700 font-medium">Available to Order</span>
+                      <span className="text-gray-500 ml-1">— {product.lead_time || '3-7 days'} lead time</span>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <TruckIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+                  Worldwide shipping available
+                </div>
               </div>
 
-              {/* Actions */}
-              <div className="mt-8 flex space-x-3">
-                <button
-                  onClick={handleAddToCart}
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-black bg-yellow-500 hover:bg-yellow-600"
-                >
-                  <ShoppingCartIcon className="h-5 w-5 mr-2" />
-                  Add to Cart
-                </button>
-                <button className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                  <HeartIcon className="h-5 w-5 mr-2" />
-                  Add to Favorites
-                </button>
+              {/* Trust Badges */}
+              <div className="mt-6 grid grid-cols-3 gap-3">
+                <div className="flex flex-col items-center text-center p-3 rounded-lg bg-gray-50">
+                  <ShieldCheckIcon className="h-6 w-6 text-yellow-600 mb-1" />
+                  <span className="text-xs font-medium text-gray-700">{product.warranty_period || '12 Month'} Warranty</span>
+                </div>
+                <div className="flex flex-col items-center text-center p-3 rounded-lg bg-gray-50">
+                  <GlobeAltIcon className="h-6 w-6 text-yellow-600 mb-1" />
+                  <span className="text-xs font-medium text-gray-700">Worldwide Shipping</span>
+                </div>
+                <div className="flex flex-col items-center text-center p-3 rounded-lg bg-gray-50">
+                  <CheckIcon className="h-6 w-6 text-yellow-600 mb-1" />
+                  <span className="text-xs font-medium text-gray-700">Quality Tested</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Product Description — full width below the grid */}
+          <div className="mt-12">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Description</h2>
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="text-base text-gray-700 whitespace-pre-line leading-relaxed max-w-none">
+                {descriptionToShow}
               </div>
             </div>
           </div>
