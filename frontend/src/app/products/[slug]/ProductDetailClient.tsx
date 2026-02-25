@@ -181,22 +181,22 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
     : getDefaultProductImageWithSku(product.sku, '/images/default-product.jpg');
 
   const categoryName = product.category?.name || 'Part';
-  const brandName = product.brand || 'FANUC';
-  const computedHeading = `${brandName} ${product.sku || ''} ${categoryName}`.trim();
+  const brandName = product.brand || '';
+  const computedHeading = product.name || `${brandName} ${product.sku || ''} ${categoryName}`.trim();
 
   const getFallbackDescription = () => {
     const sku = product.sku || '';
     const price = product.price ? formatCurrency(product.price) : '';
     const stockText = product.stock_quantity && product.stock_quantity > 0 ? 'In stock and ready to ship.' : 'Available for order with fast handling.';
     const templates: Record<string, string> = {
-      'Power Supply': `${brandName} ${sku} Power Supply Unit delivers reliable power for FANUC CNC systems. Industrial-grade design with short-circuit protection and status indicators. ${stockText} ${price ? `Priced at ${price}.` : ''}`,
-      'Servo': `${brandName} ${sku} Servo component provides precise motion control with advanced feedback and fault diagnostics. Ideal for high-precision CNC applications. ${stockText} ${price ? `Current price: ${price}.` : ''}`,
-      'Motor': `${brandName} ${sku} Motor ensures high-efficiency performance and stable torque for continuous operation in demanding environments. ${stockText}`,
-      'Interface': `${brandName} ${sku} Interface Board ensures robust signal processing and EMI protection, enabling reliable communication in automation systems. ${stockText}`,
-      'PCB': `${brandName} ${sku} Control PCB for CNC systems, engineered for reliability and long service life. ${stockText}`,
+      'Power Supply': `${brandName ? brandName + ' ' : ''}${sku} Power Supply Unit delivers reliable power for CNC systems. Industrial-grade design with short-circuit protection and status indicators. ${stockText} ${price ? `Priced at ${price}.` : ''}`,
+      'Servo': `${brandName ? brandName + ' ' : ''}${sku} Servo component provides precise motion control with advanced feedback and fault diagnostics. Ideal for high-precision CNC applications. ${stockText} ${price ? `Current price: ${price}.` : ''}`,
+      'Motor': `${brandName ? brandName + ' ' : ''}${sku} Motor ensures high-efficiency performance and stable torque for continuous operation in demanding environments. ${stockText}`,
+      'Interface': `${brandName ? brandName + ' ' : ''}${sku} Interface Board ensures robust signal processing and EMI protection, enabling reliable communication in automation systems. ${stockText}`,
+      'PCB': `${brandName ? brandName + ' ' : ''}${sku} Control PCB for CNC systems, engineered for reliability and long service life. ${stockText}`,
     };
     const key = Object.keys(templates).find(k => categoryName.toLowerCase().includes(k.toLowerCase()));
-    return key ? templates[key] : `${brandName} ${sku} ${categoryName} for CNC and industrial automation. ${stockText}`;
+    return key ? templates[key] : `${brandName ? brandName + ' ' : ''}${sku} ${categoryName} for CNC and industrial automation. ${stockText}`;
   };
 
   const descriptionToShow = product.description && product.description.trim().length > 0
@@ -272,7 +272,7 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-white p-4">
                 <div className="text-sm">
                   <div className="text-xs text-gray-500">Brand</div>
-                  <div className="font-medium text-gray-900">{product.brand || brandName}</div>
+                  <div className="font-medium text-gray-900">{product.brand || brandName || '-'}</div>
                 </div>
                 <div className="text-sm">
                   <div className="text-xs text-gray-500">Part No.</div>

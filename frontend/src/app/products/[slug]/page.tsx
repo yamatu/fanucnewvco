@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
     if (!product) {
       return {
-        title: 'Product Not Found | Vcocnc FANUC Parts',
+        title: 'Product Not Found | Vcocnc',
         description: 'The requested product could not be found.',
       };
     }
@@ -52,20 +52,20 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       url: typeof img === 'string' ? img : img?.url || '/images/default-product.svg',
       width: 800,
       height: 600,
-      alt: `${product.name} - ${product.sku} FANUC Part Image`,
+      alt: `${product.name} - ${product.sku} Part Image`,
     }));
 
-    const baseDescription = product.description || `${product.name} (${product.sku}) - Professional FANUC part available at Vcocnc.`;
-    const enhancedDescription = `${baseDescription} ${product.stock_quantity > 0 ? 'In stock' : 'Available'} and ready to ship worldwide. ${product.category?.name || 'Industrial automation'} component with ${product.price ? `competitive pricing at ${product.price}` : 'competitive pricing'}. Professional FANUC parts supplier since 2005.`;
+    const baseDescription = product.description || `${product.name} (${product.sku}) - Professional industrial part available at Vcocnc.`;
+    const enhancedDescription = `${baseDescription} ${product.stock_quantity > 0 ? 'In stock' : 'Available'} and ready to ship worldwide. ${product.category?.name || 'Industrial automation'} component with ${product.price ? `competitive pricing at ${product.price}` : 'competitive pricing'}. Professional parts supplier since 2005.`;
 
     const metaTitle = (product.meta_title || '').trim();
     const metaDescription = (product.meta_description || '').trim();
     const metaKeywords = (product.meta_keywords || '').trim();
 
     return {
-      title: metaTitle || `FANUC ${product.sku} ${product.category?.name || 'Part'} - Vcocnc`,
+      title: metaTitle || `${product.name} - ${product.sku} | Vcocnc`,
       description: metaDescription || enhancedDescription,
-      keywords: metaKeywords || [product.name, product.sku, 'FANUC parts', product.category?.name].filter(Boolean).join(', '),
+      keywords: metaKeywords || [product.name, product.sku, product.brand, product.category?.name].filter(Boolean).join(', '),
       openGraph: {
         title: metaTitle || `${product.name} - ${product.sku}`,
         description: metaDescription || enhancedDescription,
@@ -85,15 +85,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         'product:price:amount': product.price?.toString() || '',
         'product:price:currency': 'USD',
         'product:availability': product.stock_quantity > 0 ? 'in stock' : 'available',
-        'product:brand': product.brand || 'FANUC',
+        'product:brand': product.brand || '',
         'product:category': product.category?.name || 'Industrial Automation',
       },
     };
   } catch (error) {
     console.error('Error generating product metadata:', error);
     return {
-      title: 'Product | Vcocnc FANUC Parts',
-      description: 'Professional FANUC parts and industrial automation components.',
+      title: 'Product | Vcocnc',
+      description: 'Professional industrial automation parts and components.',
     };
   }
 }

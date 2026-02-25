@@ -14,8 +14,8 @@ export async function generateMetadata({ searchParams }: {
   const categoryId = params.category_id || params.category;
   const search = params.search;
 
-  let title = 'FANUC Parts & Industrial Automation Components';
-  let description = 'Professional FANUC CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.';
+  let title = 'Industrial Automation Parts & Components | Vcocnc';
+  let description = 'Professional CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.';
 
   // Try to get category info for better SEO
   if (categoryId) {
@@ -33,8 +33,8 @@ export async function generateMetadata({ searchParams }: {
       };
       const category: any = findById(categories as any, String(categoryId));
       if (category) {
-        title = `${category.name} - FANUC Parts | Vcocnc`;
-        description = `Professional ${category.name} for FANUC CNC systems. High-quality industrial automation components with worldwide shipping.`;
+        title = `${category.name} - Parts | Vcocnc`;
+        description = `Professional ${category.name} for CNC systems. High-quality industrial automation components with worldwide shipping.`;
         const catUrl = `${getSiteUrl()}/categories/${category.path || category.slug}`;
         // Prefer canonical to dedicated category page
         return {
@@ -42,7 +42,7 @@ export async function generateMetadata({ searchParams }: {
           description,
           robots: { index: false, follow: true },
           keywords: [
-            'FANUC parts', 'CNC parts', 'industrial automation', 'servo motors', 'PCB boards',
+            'CNC parts', 'industrial automation', 'servo motors', 'PCB boards',
             'I/O modules', 'control units', category.name
           ].filter(Boolean).join(', '),
           openGraph: {
@@ -62,8 +62,8 @@ export async function generateMetadata({ searchParams }: {
   }
 
   if (search) {
-    title = `Search: ${search} - FANUC Parts | Vcocnc`;
-    description = `Search results for "${search}" in FANUC parts and industrial automation components. Professional supplier since 2005.`;
+    title = `Search: ${search} - Parts | Vcocnc`;
+    description = `Search results for "${search}" in industrial automation parts and components. Professional supplier since 2005.`;
   }
 
   // For search result pages, avoid indexing but allow following links
@@ -76,7 +76,7 @@ export async function generateMetadata({ searchParams }: {
     description,
     robots,
     keywords: [
-      'FANUC parts', 'CNC parts', 'industrial automation', 'servo motors', 'PCB boards',
+      'CNC parts', 'industrial automation', 'servo motors', 'PCB boards',
       'I/O modules', 'control units', search
     ].filter(Boolean).join(', '),
     openGraph: {
@@ -161,8 +161,8 @@ export default async function ProductsPage({
     return {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
-      "name": "FANUC Parts & Industrial Automation Components",
-      "description": "Professional FANUC CNC parts supplier since 2005. Browse our extensive catalog of servo motors, PCB boards, I/O modules, and control units.",
+      "name": "Industrial Automation Parts & Components",
+      "description": "Professional CNC parts supplier since 2005. Browse our extensive catalog of servo motors, PCB boards, I/O modules, and control units.",
       "url": `${baseUrl}/products`,
       "mainEntity": {
         "@type": "ItemList",
@@ -173,11 +173,11 @@ export default async function ProductsPage({
           "item": {
             "@type": "Product",
             "name": product.name,
-            "description": product.description || `${product.name} - Professional FANUC part`,
+            "description": product.description || `${product.name} - Professional industrial part`,
             "sku": product.sku,
             "brand": {
               "@type": "Brand",
-              "name": product.brand || "FANUC"
+              "name": product.brand || "Vcocnc"
             },
             "image": product.image_urls && product.image_urls.length > 0
               ? product.image_urls[0]

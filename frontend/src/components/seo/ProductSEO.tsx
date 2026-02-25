@@ -20,12 +20,12 @@ export function ProductSEO({ product, category, categoryBreadcrumb }: ProductSEO
     "description": product.meta_description || product.description || product.short_description,
     "brand": {
       "@type": "Brand",
-      "name": product.brand || "FANUC"
+      "name": product.brand || "Vcocnc"
     },
     "manufacturer": {
       "@type": "Organization",
-      "name": product.brand || "FANUC",
-      "url": "https://www.fanuc.com"
+      "name": product.brand || "Vcocnc",
+      "url": "https://www.vcocncspare.com"
     },
     "category": category?.name || "Industrial Automation",
     "image": product.images?.map(img => typeof img === 'string' ? img : img.url) || 
@@ -64,7 +64,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb }: ProductSEO
           "@type": "Person",
           "name": "Industrial Engineer"
         },
-        "reviewBody": `High quality ${product.brand || 'FANUC'} part. Excellent performance and reliability for industrial automation applications.`
+        "reviewBody": `High quality ${product.brand || ''} part. Excellent performance and reliability for industrial automation applications.`
       }
     ]
   };
@@ -111,15 +111,15 @@ export function ProductSEO({ product, category, categoryBreadcrumb }: ProductSEO
         "name": `What is the ${product.sku} used for?`,
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": `The ${product.name} (${product.sku}) is a ${product.brand || 'FANUC'} industrial automation component used in CNC machines and robotic systems for precise control and operation.`
+          "text": `The ${product.name} (${product.sku}) is a ${product.brand || ''} industrial automation component used in CNC machines and robotic systems for precise control and operation.`
         }
       },
       {
         "@type": "Question",
-        "name": `Is the ${product.sku} compatible with FANUC systems?`,
+        "name": `Is the ${product.sku} compatible with my CNC system?`,
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": `Yes, the ${product.name} is designed to be fully compatible with FANUC CNC systems and industrial automation equipment.`
+          "text": `Yes, the ${product.name} is designed to be compatible with major CNC systems and industrial automation equipment.`
         }
       },
       {
@@ -177,7 +177,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb }: ProductSEO
             "name": "Vcocnc",
             "url": "https://www.vcocncspare.com",
             "logo": "https://www.vcocncspare.com/images/logo.png",
-            "description": "Leading supplier of FANUC CNC parts and industrial automation components since 2005.",
+            "description": "Leading supplier of CNC parts and industrial automation components since 2005.",
             "address": {
               "@type": "PostalAddress",
               "addressCountry": "CN",
