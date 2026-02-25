@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   Bars3Icon,
@@ -17,10 +18,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { useCart } from '@/store/cart.store';
 import { useCustomer } from '@/store/customer.store';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency, getProductImageUrl, getDefaultProductImageWithSku, toProductPathId } from '@/lib/utils';
 import { CartSidebar } from '@/components/cart/CartSidebar';
 import { Category } from '@/types';
-import { CategoryService } from '@/services';
+import { CategoryService, ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 
 const navigation = [
@@ -36,6 +37,11 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileSearchDropdownRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
   const { itemCount, toggleCart } = useCart();
   const { isAuthenticated, customer, logout } = useCustomer();
@@ -46,13 +52,115 @@ export function Header() {
     router.push('/');
   };
 
+  const fetchSuggestions = useCallback((query: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!query.trim() || query.trim().length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    setSuggestionsLoading(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await ProductService.searchProducts(query.trim(), { page_size: 3 });
+        setSuggestions(res.data || []);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setSuggestionsLoading(false);
+      }
+    }, 300);
+  }, []);
+
+  const handleSearchInput = (value: string) => {
+    setSearchQuery(value);
+    fetchSuggestions(value);
+  };
+
+  // Close desktop search dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+        setSuggestions([]);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
       setSearchOpen(false);
       setSearchQuery('');
+      setSuggestions([]);
+      setMobileMenuOpen(false);
     }
+  };
+
+  const handleSuggestionClick = () => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    setSuggestions([]);
+    setMobileMenuOpen(false);
+  };
+
+  const renderSuggestions = () => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) return null;
+    return (
+      <div className="border-t border-gray-100 mt-2 pt-2">
+        {suggestionsLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-600" />
+          </div>
+        ) : suggestions.length > 0 ? (
+          <div className="space-y-1">
+            {suggestions.map((p: any) => {
+              const imgSrc = getProductImageUrl(
+                (p.image_urls && p.image_urls.length > 0) ? p.image_urls : (p.images || []),
+                getDefaultProductImageWithSku(p.sku)
+              );
+              return (
+                <Link
+                  key={p.id}
+                  href={`/products/${toProductPathId(p.sku)}`}
+                  onClick={handleSuggestionClick}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-yellow-50 transition-colors"
+                >
+                  <div className="h-12 w-12 flex-shrink-0 rounded-md bg-gray-100 overflow-hidden">
+                    <Image
+                      src={imgSrc}
+                      alt={p.name}
+                      width={48}
+                      height={48}
+                      className="h-full w-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
+                    <p className="text-xs text-gray-500">SKU: {p.sku}</p>
+                  </div>
+                  <div className="text-sm font-semibold text-yellow-700 whitespace-nowrap">
+                    {formatCurrency(p.price)}
+                  </div>
+                </Link>
+              );
+            })}
+            <Link
+              href={`/products?search=${encodeURIComponent(searchQuery.trim())}`}
+              onClick={handleSuggestionClick}
+              className="block text-center text-sm text-yellow-600 hover:text-yellow-700 font-medium py-2"
+            >
+              View all results
+            </Link>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500 text-center py-3">No products found</p>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -119,23 +227,23 @@ export function Header() {
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
             {/* Search */}
-            <div className="relative">
+            <div className="relative" ref={searchDropdownRef}>
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
                 className="p-2 text-gray-600 hover:text-yellow-600 transition-colors"
               >
                 <MagnifyingGlassIcon className="h-6 w-6" />
               </button>
-              
+
               {searchOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
+                <div className="absolute right-0 top-full mt-2 w-96 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
                   <form onSubmit={handleSearch}>
                     <div className="flex">
                       <input
                         type="text"
                         placeholder="Search products..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => handleSearchInput(e.target.value)}
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
                         autoFocus
                       />
@@ -147,6 +255,7 @@ export function Header() {
                       </button>
                     </div>
                   </form>
+                  {renderSuggestions()}
                 </div>
               )}
             </div>
@@ -262,13 +371,13 @@ export function Header() {
             })}
             
             {/* Mobile Search */}
-            <div className="pt-4 border-t border-gray-200">
+            <div className="pt-4 border-t border-gray-200" ref={mobileSearchDropdownRef}>
               <form onSubmit={handleSearch} className="flex">
                 <input
                   type="text"
                   placeholder="Search products..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleSearchInput(e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 />
                 <button
@@ -278,6 +387,7 @@ export function Header() {
                   Search
                 </button>
               </form>
+              {renderSuggestions()}
             </div>
           </div>
         </div>
