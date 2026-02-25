@@ -301,7 +301,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                   {sortedProducts.map((product: any) => (
                     <div key={product.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
                       <div className="relative">
-                        <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-t-lg bg-gray-200">
+                        <Link href={`/products/${toProductPathId(product.sku)}`} className="block aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-t-lg bg-gray-200">
                           <Image
                             src={getProductImageUrl(
                               (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
@@ -316,7 +316,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                             loading="lazy"
                             unoptimized
                           />
-                        </div>
+                        </Link>
 
                         <button
                           onClick={() => toggleFavorite(product.id)}
@@ -377,7 +377,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                   {sortedProducts.map((product: any) => (
                     <div key={product.id} className="bg-white rounded-lg shadow p-6">
                       <div className="flex items-center space-x-6">
-                        <div className="flex-shrink-0">
+                        <Link href={`/products/${toProductPathId(product.sku)}`} className="flex-shrink-0">
                           <Image
                             src={getProductImageUrl(
                               (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
@@ -391,7 +391,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                             loading="lazy"
                             unoptimized
                           />
-                        </div>
+                        </Link>
 
                         <div className="flex-1 min-w-0">
                           <h3 className="text-lg font-medium text-gray-900 mb-1">
