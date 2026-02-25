@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
@@ -18,6 +18,7 @@ import {
   ShoppingBagIcon,
   CreditCardIcon,
   TruckIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 
 interface GuestCheckoutForm {
@@ -62,6 +63,48 @@ export default function GuestCheckoutPage() {
       billing_country: '',
     },
   });
+
+  // Searchable country combobox state
+  const [shipCountrySearch, setShipCountrySearch] = useState('');
+  const [shipCountryOpen, setShipCountryOpen] = useState(false);
+  const shipCountryRef = useRef<HTMLDivElement>(null);
+  const [billCountrySearch, setBillCountrySearch] = useState('');
+  const [billCountryOpen, setBillCountryOpen] = useState(false);
+  const billCountryRef = useRef<HTMLDivElement>(null);
+
+  const filteredShipCountries = useMemo(() => {
+    if (!shipCountrySearch.trim()) return shippingCountries;
+    const q = shipCountrySearch.toLowerCase();
+    return shippingCountries.filter(c => c.country_name.toLowerCase().includes(q) || c.country_code.toLowerCase().includes(q));
+  }, [shippingCountries, shipCountrySearch]);
+
+  const filteredBillCountries = useMemo(() => {
+    if (!billCountrySearch.trim()) return shippingCountries;
+    const q = billCountrySearch.toLowerCase();
+    return shippingCountries.filter(c => c.country_name.toLowerCase().includes(q) || c.country_code.toLowerCase().includes(q));
+  }, [shippingCountries, billCountrySearch]);
+
+  // Click outside handlers
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (shipCountryRef.current && !shipCountryRef.current.contains(e.target as Node)) setShipCountryOpen(false);
+      if (billCountryRef.current && !billCountryRef.current.contains(e.target as Node)) setBillCountryOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selectShipCountry = useCallback((code: string, name: string) => {
+    setValue('shipping_country', code, { shouldDirty: true, shouldValidate: true });
+    setShipCountrySearch(name);
+    setShipCountryOpen(false);
+  }, [setValue]);
+
+  const selectBillCountry = useCallback((code: string, name: string) => {
+    setValue('billing_country', code, { shouldDirty: true, shouldValidate: true });
+    setBillCountrySearch(name);
+    setBillCountryOpen(false);
+  }, [setValue]);
 
   const shippingCountry = watch('shipping_country');
   const totalWeightKg = items.reduce((sum, it) => sum + (Number((it.product as any).weight || 0) * Number(it.quantity || 0)), 0);
@@ -109,15 +152,20 @@ export default function GuestCheckoutPage() {
   }, [items, router, step]);
 
   // Sync billing from shipping
+  const watchedShipAddr = watch('shipping_address');
+  const watchedShipCity = watch('shipping_city');
+  const watchedShipState = watch('shipping_state');
+  const watchedShipZip = watch('shipping_zip');
+
   useEffect(() => {
     if (sameAsShipping) {
-      setValue('billing_address', watch('shipping_address'));
-      setValue('billing_city', watch('shipping_city'));
-      setValue('billing_state', watch('shipping_state'));
-      setValue('billing_zip', watch('shipping_zip'));
+      setValue('billing_address', watchedShipAddr);
+      setValue('billing_city', watchedShipCity);
+      setValue('billing_state', watchedShipState);
+      setValue('billing_zip', watchedShipZip);
       setValue('billing_country', shippingCountry);
     }
-  }, [sameAsShipping, watch('shipping_address'), watch('shipping_city'), watch('shipping_state'), watch('shipping_zip'), shippingCountry]);
+  }, [sameAsShipping, watchedShipAddr, watchedShipCity, watchedShipState, watchedShipZip, shippingCountry, setValue]);
 
   const onSubmit = async (data: GuestCheckoutForm) => {
     setIsProcessing(true);
@@ -269,12 +317,36 @@ export default function GuestCheckoutPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Country *</label>
-                        <select {...register('shipping_country', { required: 'Country is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500">
-                          <option value="">Select country</option>
-                          {shippingCountries.map(c => (
-                            <option key={c.country_code} value={c.country_code}>{c.country_name}</option>
-                          ))}
-                        </select>
+                        <input type="hidden" {...register('shipping_country', { required: 'Country is required' })} />
+                        <div className="relative" ref={shipCountryRef}>
+                          <div className="relative">
+                            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                            <input
+                              type="text"
+                              placeholder="Search country..."
+                              value={shipCountrySearch}
+                              onChange={(e) => { setShipCountrySearch(e.target.value); setShipCountryOpen(true); if (!e.target.value) setValue('shipping_country', '', { shouldValidate: true }); }}
+                              onFocus={() => setShipCountryOpen(true)}
+                              className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500"
+                            />
+                            {shipCountrySearch && (
+                              <button type="button" onClick={() => { setShipCountrySearch(''); setValue('shipping_country', '', { shouldValidate: true }); setShipCountryOpen(false); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/></svg>
+                              </button>
+                            )}
+                          </div>
+                          {shipCountryOpen && (
+                            <ul className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                              {filteredShipCountries.length === 0 ? (
+                                <li className="px-3 py-2 text-sm text-gray-500">No countries found</li>
+                              ) : filteredShipCountries.map(c => (
+                                <li key={c.country_code} onClick={() => selectShipCountry(c.country_code, c.country_name)} className={`cursor-pointer px-3 py-2 text-sm hover:bg-yellow-50 ${shippingCountry === c.country_code ? 'bg-yellow-50 font-medium' : ''}`}>
+                                  {c.country_name}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
                         {errors.shipping_country && <p className="mt-1 text-sm text-red-600">{errors.shipping_country.message}</p>}
                       </div>
                     </div>
@@ -309,12 +381,36 @@ export default function GuestCheckoutPage() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Country *</label>
-                          <select {...register('billing_country', { required: !sameAsShipping ? 'Country is required' : false })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500">
-                            <option value="">Select country</option>
-                            {shippingCountries.map(c => (
-                              <option key={c.country_code} value={c.country_code}>{c.country_name}</option>
-                            ))}
-                          </select>
+                          <input type="hidden" {...register('billing_country', { required: !sameAsShipping ? 'Country is required' : false })} />
+                          <div className="relative" ref={billCountryRef}>
+                            <div className="relative">
+                              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                              <input
+                                type="text"
+                                placeholder="Search country..."
+                                value={billCountrySearch}
+                                onChange={(e) => { setBillCountrySearch(e.target.value); setBillCountryOpen(true); if (!e.target.value) setValue('billing_country', '', { shouldValidate: true }); }}
+                                onFocus={() => setBillCountryOpen(true)}
+                                className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500"
+                              />
+                              {billCountrySearch && (
+                                <button type="button" onClick={() => { setBillCountrySearch(''); setValue('billing_country', '', { shouldValidate: true }); setBillCountryOpen(false); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/></svg>
+                                </button>
+                              )}
+                            </div>
+                            {billCountryOpen && (
+                              <ul className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                                {filteredBillCountries.length === 0 ? (
+                                  <li className="px-3 py-2 text-sm text-gray-500">No countries found</li>
+                                ) : filteredBillCountries.map(c => (
+                                  <li key={c.country_code} onClick={() => selectBillCountry(c.country_code, c.country_name)} className="cursor-pointer px-3 py-2 text-sm hover:bg-yellow-50">
+                                    {c.country_name}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
