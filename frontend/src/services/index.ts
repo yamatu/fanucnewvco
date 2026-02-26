@@ -16,6 +16,7 @@ import { HotlinkService as HotlinkServiceDefault } from './hotlink.service';
 import { PayPalService as PayPalServiceDefault } from './paypal.service';
 import { EmailService as EmailServiceDefault } from './email.service';
 import { ShippingRateService as ShippingRateServiceDefault } from './shipping-rate.service';
+import { AnalyticsService as AnalyticsServiceDefault } from './analytics.service';
 
 // Export all services
 export const AuthService = AuthServiceDefault;
@@ -35,6 +36,7 @@ export const HotlinkService = HotlinkServiceDefault;
 export const PayPalService = PayPalServiceDefault;
 export const EmailService = EmailServiceDefault;
 export const ShippingRateService = ShippingRateServiceDefault;
+export const AnalyticsService = AnalyticsServiceDefault;
 
 // Export types
 export type { ProductFilters } from './product.service';
@@ -58,6 +60,16 @@ export type {
   ContactStats
 } from './contact.service';
 export type { MediaAsset, MediaListResponse, MediaUploadResponse } from './media.service';
+export type {
+  AnalyticsOverview,
+  VisitorLog as VisitorLogEntry,
+  VisitorListResponse,
+  CountryData,
+  PageData,
+  TrendData,
+  AnalyticsSettings,
+  AnalyticsFilters,
+} from './analytics.service';
 
 // API Service class that combines all services
 export class ApiService {
@@ -77,6 +89,7 @@ export class ApiService {
   static hotlink = HotlinkService;
   static email = EmailService;
   static shippingRates = ShippingRateService;
+  static analytics = AnalyticsService;
 }
 
 export default ApiService;

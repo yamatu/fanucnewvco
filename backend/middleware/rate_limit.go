@@ -13,9 +13,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// getClientIP returns a best-effort client IP. We prefer X-Forwarded-For (first value)
-// because this service typically sits behind Nginx.
-func getClientIP(c *gin.Context) string {
+// GetClientIP returns a best-effort client IP.
+// Priority: CF-Connecting-IP (Cloudflare) > X-Forwarded-For (first value) > Gin default.
+func GetClientIP(c *gin.Context) string {
+	// Cloudflare sets this header to the true client IP
+	if cfIP := strings.TrimSpace(c.GetHeader("CF-Connecting-IP")); cfIP != "" {
+		return cfIP
+	}
 	// Prefer X-Forwarded-For if present
 	xff := c.GetHeader("X-Forwarded-For")
 	if xff != "" {
@@ -28,6 +32,11 @@ func getClientIP(c *gin.Context) string {
 		}
 	}
 	return c.ClientIP()
+}
+
+// getClientIP is an unexported alias for backward compatibility within this file.
+func getClientIP(c *gin.Context) string {
+	return GetClientIP(c)
 }
 
 func getLoginLimitPerMinute() int {

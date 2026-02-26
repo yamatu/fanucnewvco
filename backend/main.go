@@ -80,12 +80,14 @@ func main() {
 	}
 	r.Use(gin.Recovery())
 	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.AnalyticsMiddleware())
 
 	// Setup routes
 	routes.SetupRoutes(r)
 
 	// Background jobs (best-effort)
 	services.StartCloudflareAutoPurgeScheduler()
+	services.StartAnalyticsCleanupScheduler()
 
 	// Get host and port from environment
 	host := os.Getenv("HOST")

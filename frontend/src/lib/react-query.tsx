@@ -134,6 +134,16 @@ export const queryKeys = {
   },
 
   // Analytics
+  analytics: {
+    all: () => ['analytics'] as const,
+    overview: (filters: any) => [...queryKeys.analytics.all(), 'overview', filters] as const,
+    visitors: (filters: any) => [...queryKeys.analytics.all(), 'visitors', filters] as const,
+    countries: (filters: any) => [...queryKeys.analytics.all(), 'countries', filters] as const,
+    pages: (filters: any) => [...queryKeys.analytics.all(), 'pages', filters] as const,
+    trends: (filters: any) => [...queryKeys.analytics.all(), 'trends', filters] as const,
+    settings: () => [...queryKeys.analytics.all(), 'settings'] as const,
+  },
+
   // Contact Messages
   contacts: {
     all: () => ['contacts'] as const,

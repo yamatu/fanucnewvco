@@ -158,6 +158,8 @@ func ConnectDatabase() {
 			// Legacy flat shipping rate table (kept for compatibility; not used by new flow)
 			&models.ShippingRate{},
 			&models.WatermarkSetting{},
+			&models.VisitorLog{},
+			&models.AnalyticsSetting{},
 		}
 		for _, m := range modelsToMigrate {
 			// GORM may try to "DROP FOREIGN KEY <uni_xxx>" on existing tables (a known benign issue when

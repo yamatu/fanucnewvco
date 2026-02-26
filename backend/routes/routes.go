@@ -41,6 +41,7 @@ func SetupRoutes(r *gin.Engine) {
 	cacheController := &controllers.CacheController{}
 	hotlinkController := &controllers.HotlinkController{}
 	payPalController := &controllers.PayPalController{}
+	analyticsController := &controllers.AnalyticsController{}
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -288,7 +289,21 @@ func SetupRoutes(r *gin.Engine) {
 				paypal.PUT("/settings", payPalController.UpdateSettings)
 			}
 
-			// Email settings + marketing (admin only)
+			// Visitor Analytics (editor/admin for reads, admin-only for cleanup)
+		analytics := admin.Group("/analytics")
+		analytics.Use(middleware.EditorOrAdmin())
+		{
+			analytics.GET("/overview", analyticsController.GetOverview)
+			analytics.GET("/visitors", analyticsController.GetVisitors)
+			analytics.GET("/countries", analyticsController.GetCountries)
+			analytics.GET("/pages", analyticsController.GetPages)
+			analytics.GET("/trends", analyticsController.GetTrends)
+			analytics.GET("/settings", analyticsController.GetSettings)
+			analytics.PUT("/settings", analyticsController.UpdateSettings)
+			analytics.DELETE("/cleanup", middleware.AdminOnly(), analyticsController.ManualCleanup)
+		}
+
+		// Email settings + marketing (admin only)
 			email := admin.Group("/email")
 			email.Use(middleware.AdminOnly())
 			{
