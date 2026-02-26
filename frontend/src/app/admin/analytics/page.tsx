@@ -1,24 +1,16 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/react-query';
 import { AnalyticsService } from '@/services/analytics.service';
 import type {
-  AnalyticsOverview,
-  VisitorLog,
-  CountryData,
-  PageData,
-  TrendData,
   AnalyticsSettings,
   AnalyticsFilters,
 } from '@/services/analytics.service';
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  ZoomableGroup,
-} from 'react-simple-maps';
+import { geoNaturalEarth1, geoPath, type GeoPermissibleObjects } from 'd3-geo';
+import { feature } from 'topojson-client';
+import type { Topology, GeometryCollection } from 'topojson-specification';
 import {
   LineChart,
   Line,
@@ -40,38 +32,156 @@ const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
 
-// ISO Alpha-2 -> ISO Alpha-3 mapping (for react-simple-maps which uses Alpha-3)
-const alpha2ToAlpha3: Record<string, string> = {
-  AF:'AFG',AL:'ALB',DZ:'DZA',AD:'AND',AO:'AGO',AG:'ATG',AR:'ARG',AM:'ARM',AU:'AUS',AT:'AUT',
-  AZ:'AZE',BS:'BHS',BH:'BHR',BD:'BGD',BB:'BRB',BY:'BLR',BE:'BEL',BZ:'BLZ',BJ:'BEN',BT:'BTN',
-  BO:'BOL',BA:'BIH',BW:'BWA',BR:'BRA',BN:'BRN',BG:'BGR',BF:'BFA',BI:'BDI',KH:'KHM',CM:'CMR',
-  CA:'CAN',CV:'CPV',CF:'CAF',TD:'TCD',CL:'CHL',CN:'CHN',CO:'COL',KM:'COM',CG:'COG',CD:'COD',
-  CR:'CRI',CI:'CIV',HR:'HRV',CU:'CUB',CY:'CYP',CZ:'CZE',DK:'DNK',DJ:'DJI',DM:'DMA',DO:'DOM',
-  EC:'ECU',EG:'EGY',SV:'SLV',GQ:'GNQ',ER:'ERI',EE:'EST',ET:'ETH',FJ:'FJI',FI:'FIN',FR:'FRA',
-  GA:'GAB',GM:'GMB',GE:'GEO',DE:'DEU',GH:'GHA',GR:'GRC',GD:'GRD',GT:'GTM',GN:'GIN',GW:'GNB',
-  GY:'GUY',HT:'HTI',HN:'HND',HU:'HUN',IS:'ISL',IN:'IND',ID:'IDN',IR:'IRN',IQ:'IRQ',IE:'IRL',
-  IL:'ISR',IT:'ITA',JM:'JAM',JP:'JPN',JO:'JOR',KZ:'KAZ',KE:'KEN',KI:'KIR',KP:'PRK',KR:'KOR',
-  KW:'KWT',KG:'KGZ',LA:'LAO',LV:'LVA',LB:'LBN',LS:'LSO',LR:'LBR',LY:'LBY',LI:'LIE',LT:'LTU',
-  LU:'LUX',MK:'MKD',MG:'MDG',MW:'MWI',MY:'MYS',MV:'MDV',ML:'MLI',MT:'MLT',MH:'MHL',MR:'MRT',
-  MU:'MUS',MX:'MEX',FM:'FSM',MD:'MDA',MC:'MCO',MN:'MNG',ME:'MNE',MA:'MAR',MZ:'MOZ',MM:'MMR',
-  NA:'NAM',NR:'NRU',NP:'NPL',NL:'NLD',NZ:'NZL',NI:'NIC',NE:'NER',NG:'NGA',NO:'NOR',OM:'OMN',
-  PK:'PAK',PW:'PLW',PA:'PAN',PG:'PNG',PY:'PRY',PE:'PER',PH:'PHL',PL:'POL',PT:'PRT',QA:'QAT',
-  RO:'ROU',RU:'RUS',RW:'RWA',KN:'KNA',LC:'LCA',VC:'VCT',WS:'WSM',SM:'SMR',ST:'STP',SA:'SAU',
-  SN:'SEN',RS:'SRB',SC:'SYC',SL:'SLE',SG:'SGP',SK:'SVK',SI:'SVN',SB:'SLB',SO:'SOM',ZA:'ZAF',
-  SS:'SSD',ES:'ESP',LK:'LKA',SD:'SDN',SR:'SUR',SZ:'SWZ',SE:'SWE',CH:'CHE',SY:'SYR',TW:'TWN',
-  TJ:'TJK',TZ:'TZA',TH:'THA',TL:'TLS',TG:'TGO',TO:'TON',TT:'TTO',TN:'TUN',TR:'TUR',TM:'TKM',
-  TV:'TUV',UG:'UGA',UA:'UKR',AE:'ARE',GB:'GBR',US:'USA',UY:'URY',UZ:'UZB',VU:'VUT',VE:'VEN',
-  VN:'VNM',YE:'YEM',ZM:'ZMB',ZW:'ZWE',PS:'PSE',XK:'XKX',
+// world-atlas uses numeric IDs that map to ISO 3166-1 numeric codes.
+// We build a numeric -> alpha2 lookup so we can join with our API data.
+const numericToAlpha2: Record<string, string> = {
+  '004':'AF','008':'AL','012':'DZ','020':'AD','024':'AO','028':'AG','032':'AR','051':'AM',
+  '036':'AU','040':'AT','031':'AZ','044':'BS','048':'BH','050':'BD','052':'BB','112':'BY',
+  '056':'BE','084':'BZ','204':'BJ','064':'BT','068':'BO','070':'BA','072':'BW','076':'BR',
+  '096':'BN','100':'BG','854':'BF','108':'BI','116':'KH','120':'CM','124':'CA','132':'CV',
+  '140':'CF','148':'TD','152':'CL','156':'CN','170':'CO','174':'KM','178':'CG','180':'CD',
+  '188':'CR','384':'CI','191':'HR','192':'CU','196':'CY','203':'CZ','208':'DK','262':'DJ',
+  '212':'DM','214':'DO','218':'EC','818':'EG','222':'SV','226':'GQ','232':'ER','233':'EE',
+  '231':'ET','242':'FJ','246':'FI','250':'FR','266':'GA','270':'GM','268':'GE','276':'DE',
+  '288':'GH','300':'GR','308':'GD','320':'GT','324':'GN','624':'GW','328':'GY','332':'HT',
+  '340':'HN','348':'HU','352':'IS','356':'IN','360':'ID','364':'IR','368':'IQ','372':'IE',
+  '376':'IL','380':'IT','388':'JM','392':'JP','400':'JO','398':'KZ','404':'KE','296':'KI',
+  '408':'KP','410':'KR','414':'KW','417':'KG','418':'LA','428':'LV','422':'LB','426':'LS',
+  '430':'LR','434':'LY','438':'LI','440':'LT','442':'LU','807':'MK','450':'MG','454':'MW',
+  '458':'MY','462':'MV','466':'ML','470':'MT','584':'MH','478':'MR','480':'MU','484':'MX',
+  '583':'FM','498':'MD','492':'MC','496':'MN','499':'ME','504':'MA','508':'MZ','104':'MM',
+  '516':'NA','520':'NR','524':'NP','528':'NL','554':'NZ','558':'NI','562':'NE','566':'NG',
+  '578':'NO','512':'OM','586':'PK','585':'PW','591':'PA','598':'PG','600':'PY','604':'PE',
+  '608':'PH','616':'PL','620':'PT','634':'QA','642':'RO','643':'RU','646':'RW','659':'KN',
+  '662':'LC','670':'VC','882':'WS','674':'SM','678':'ST','682':'SA','686':'SN','688':'RS',
+  '690':'SC','694':'SL','702':'SG','703':'SK','705':'SI','090':'SB','706':'SO','710':'ZA',
+  '728':'SS','724':'ES','144':'LK','729':'SD','740':'SR','748':'SZ','752':'SE','756':'CH',
+  '760':'SY','158':'TW','762':'TJ','834':'TZ','764':'TH','626':'TL','768':'TG','776':'TO',
+  '780':'TT','788':'TN','792':'TR','795':'TM','798':'TV','800':'UG','804':'UA','784':'AE',
+  '826':'GB','840':'US','858':'UY','860':'UZ','548':'VU','862':'VE','704':'VN','887':'YE',
+  '894':'ZM','716':'ZW','275':'PS','-99':'XK',
 };
+
+interface GeoFeature {
+  type: string;
+  id: string;
+  properties: { name: string };
+  geometry: GeoPermissibleObjects;
+}
 
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+// ---------------------------------------------------------------------------
+// World Map component using d3-geo + topojson-client (no React peer dep)
+// ---------------------------------------------------------------------------
+
+function WorldMap({
+  countryData,
+}: {
+  countryData: Record<string, { count: number; name: string }>;
+}) {
+  const [features, setFeatures] = useState<GeoFeature[]>([]);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [tooltipContent, setTooltipContent] = useState('');
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(GEO_URL)
+      .then((r) => r.json())
+      .then((topo: Topology) => {
+        if (cancelled) return;
+        const geojson = feature(topo, topo.objects.countries as GeometryCollection);
+        setFeatures(geojson.features as unknown as GeoFeature[]);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const maxCount = useMemo(() => {
+    const vals = Object.values(countryData).map((v) => v.count);
+    return vals.length > 0 ? Math.max(...vals, 1) : 1;
+  }, [countryData]);
+
+  const projection = useMemo(
+    () => geoNaturalEarth1().scale(147).translate([480, 250]).rotate([-10, 0, 0]),
+    []
+  );
+  const pathGen = useMemo(() => geoPath().projection(projection), [projection]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    setTooltipPos({ x: e.clientX - rect.left + 12, y: e.clientY - rect.top - 20 });
+  }, []);
+
+  if (features.length === 0) {
+    return <div className="h-64 flex items-center justify-center text-gray-400">Loading map...</div>;
+  }
+
+  return (
+    <div ref={containerRef} className="relative" onMouseMove={handleMouseMove}>
+      {tooltipContent && tooltipPos && (
+        <div
+          className="absolute z-50 bg-gray-900 text-white text-xs px-2 py-1 rounded pointer-events-none whitespace-nowrap"
+          style={{ left: tooltipPos.x, top: tooltipPos.y }}
+        >
+          {tooltipContent}
+        </div>
+      )}
+      <svg viewBox="0 0 960 500" className="w-full h-auto">
+        {features.map((f) => {
+          const id = f.id;
+          const alpha2 = numericToAlpha2[id];
+          const entry = alpha2 ? countryData[alpha2] : undefined;
+          const intensity = entry ? Math.min(entry.count / maxCount, 1) : 0;
+          const isHovered = hoveredId === id;
+          const fill = isHovered
+            ? '#2563EB'
+            : intensity > 0
+              ? `rgba(59, 130, 246, ${0.15 + intensity * 0.85})`
+              : '#E5E7EB';
+          const d = pathGen(f.geometry as GeoPermissibleObjects);
+          if (!d) return null;
+          return (
+            <path
+              key={id}
+              d={d}
+              fill={fill}
+              stroke={isHovered ? '#1D4ED8' : '#D1D5DB'}
+              strokeWidth={isHovered ? 1 : 0.5}
+              onMouseEnter={() => {
+                setHoveredId(id);
+                if (entry) {
+                  setTooltipContent(`${entry.name}: ${entry.count.toLocaleString()} visitors`);
+                } else {
+                  setTooltipContent(f.properties?.name || '');
+                }
+              }}
+              onMouseLeave={() => {
+                setHoveredId(null);
+                setTooltipContent('');
+                setTooltipPos(null);
+              }}
+              style={{ cursor: 'pointer' }}
+            />
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main Analytics Page
+// ---------------------------------------------------------------------------
+
 export default function AnalyticsPage() {
   const queryClient = useQueryClient();
 
-  // Date range: default last 30 days
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -80,25 +190,18 @@ export default function AnalyticsPage() {
   const [endDate, setEndDate] = useState(() => formatDate(new Date()));
   const [includeBots, setIncludeBots] = useState(false);
 
-  // Visitor table filters
   const [visitorPage, setVisitorPage] = useState(1);
   const [visitorIP, setVisitorIP] = useState('');
   const [visitorCountry, setVisitorCountry] = useState('');
   const [visitorBotFilter, setVisitorBotFilter] = useState('');
 
-  // Settings
   const [cleanupDate, setCleanupDate] = useState('');
-
-  // Map tooltip
-  const [tooltipContent, setTooltipContent] = useState('');
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
 
   const baseFilters: AnalyticsFilters = useMemo(
     () => ({ start: startDate, end: endDate }),
     [startDate, endDate]
   );
 
-  // Queries
   const { data: overview, isLoading: overviewLoading } = useQuery({
     queryKey: queryKeys.analytics.overview(baseFilters),
     queryFn: () => AnalyticsService.getOverview(baseFilters),
@@ -141,7 +244,6 @@ export default function AnalyticsPage() {
     queryFn: () => AnalyticsService.getSettings(),
   });
 
-  // Mutations
   const updateSettingsMutation = useMutation({
     mutationFn: (data: Partial<Pick<AnalyticsSettings, 'retention_days' | 'auto_cleanup_enabled' | 'tracking_enabled'>>) =>
       AnalyticsService.updateSettings(data),
@@ -161,25 +263,18 @@ export default function AnalyticsPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  // Build country map lookup { alpha3 -> count }
-  const countryMap = useMemo(() => {
+  // Build country map { alpha2 -> { count, name } } for the WorldMap component
+  const countryMapData = useMemo(() => {
     if (!countries) return {};
     const m: Record<string, { count: number; name: string }> = {};
     for (const c of countries) {
-      const a3 = alpha2ToAlpha3[c.country_code];
-      if (a3) {
-        m[a3] = { count: c.count, name: c.country };
+      if (c.country_code) {
+        m[c.country_code] = { count: c.count, name: c.country };
       }
     }
     return m;
   }, [countries]);
 
-  const maxCount = useMemo(() => {
-    if (!countries || countries.length === 0) return 1;
-    return Math.max(...countries.map((c) => c.count), 1);
-  }, [countries]);
-
-  // Pie chart data for bot vs human
   const botPieData = useMemo(() => {
     if (!overview) return [];
     const humans = overview.total_visitors - overview.total_bots;
@@ -188,25 +283,6 @@ export default function AnalyticsPage() {
       { name: 'Bot', value: overview.total_bots },
     ];
   }, [overview]);
-
-  const handleMouseEnter = useCallback((geo: any) => {
-    const a3 = geo.properties?.ISO_A3 || geo.id;
-    const entry = countryMap[a3];
-    if (entry) {
-      setTooltipContent(`${entry.name}: ${entry.count} visitors`);
-    } else {
-      setTooltipContent(geo.properties?.NAME || '');
-    }
-  }, [countryMap]);
-
-  const handleMouseLeave = useCallback(() => {
-    setTooltipContent('');
-    setTooltipPos(null);
-  }, []);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    setTooltipPos({ x: e.clientX, y: e.clientY });
-  }, []);
 
   return (
     <div className="space-y-6">
@@ -240,87 +316,16 @@ export default function AnalyticsPage() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Visitors"
-          value={overview?.total_visitors ?? '-'}
-          loading={overviewLoading}
-          color="blue"
-        />
-        <StatCard
-          label="Unique IPs"
-          value={overview?.unique_ips ?? '-'}
-          loading={overviewLoading}
-          color="green"
-        />
-        <StatCard
-          label="Bot %"
-          value={overview ? `${overview.bot_percentage.toFixed(1)}%` : '-'}
-          loading={overviewLoading}
-          color="yellow"
-        />
-        <StatCard
-          label="Top Country"
-          value={overview?.top_country ? `${overview.top_country} (${overview.top_country_count})` : '-'}
-          loading={overviewLoading}
-          color="purple"
-        />
+        <StatCard label="Total Visitors" value={overview?.total_visitors ?? '-'} loading={overviewLoading} color="blue" />
+        <StatCard label="Unique IPs" value={overview?.unique_ips ?? '-'} loading={overviewLoading} color="green" />
+        <StatCard label="Bot %" value={overview ? `${overview.bot_percentage.toFixed(1)}%` : '-'} loading={overviewLoading} color="yellow" />
+        <StatCard label="Top Country" value={overview?.top_country ? `${overview.top_country} (${overview.top_country_count})` : '-'} loading={overviewLoading} color="purple" />
       </div>
 
       {/* World Map */}
       <div className="bg-white rounded-lg shadow p-4">
         <h3 className="text-lg font-semibold mb-3">Visitor Geography</h3>
-        <div className="relative" onMouseMove={handleMouseMove}>
-          {tooltipContent && tooltipPos && (
-            <div
-              className="fixed z-50 bg-gray-900 text-white text-xs px-2 py-1 rounded pointer-events-none"
-              style={{ left: tooltipPos.x + 12, top: tooltipPos.y - 20 }}
-            >
-              {tooltipContent}
-            </div>
-          )}
-          <ComposableMap
-            projectionConfig={{ rotate: [-10, 0, 0], scale: 147 }}
-            style={{ width: '100%', height: 'auto' }}
-          >
-            <ZoomableGroup>
-              <Geographies geography={GEO_URL}>
-                {({ geographies }: { geographies: any[] }) =>
-                  geographies.map((geo) => {
-                    const a3 = geo.properties?.ISO_A3 || geo.id;
-                    const entry = countryMap[a3];
-                    const intensity = entry ? Math.min(entry.count / maxCount, 1) : 0;
-                    return (
-                      <Geography
-                        key={geo.rsmKey}
-                        geography={geo}
-                        onMouseEnter={() => handleMouseEnter(geo)}
-                        onMouseLeave={handleMouseLeave}
-                        style={{
-                          default: {
-                            fill: intensity > 0
-                              ? `rgba(59, 130, 246, ${0.15 + intensity * 0.85})`
-                              : '#E5E7EB',
-                            stroke: '#D1D5DB',
-                            strokeWidth: 0.5,
-                            outline: 'none',
-                          },
-                          hover: {
-                            fill: '#2563EB',
-                            stroke: '#1D4ED8',
-                            strokeWidth: 1,
-                            outline: 'none',
-                          },
-                          pressed: { outline: 'none' },
-                        }}
-                      />
-                    );
-                  })
-                }
-              </Geographies>
-            </ZoomableGroup>
-          </ComposableMap>
-        </div>
-        {/* Country legend table */}
+        <WorldMap countryData={countryMapData} />
         {countries && countries.length > 0 && (
           <div className="mt-4 max-h-48 overflow-y-auto">
             <table className="min-w-full text-sm">
@@ -345,7 +350,6 @@ export default function AnalyticsPage() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Traffic Trends */}
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-lg font-semibold mb-3">Daily Traffic Trends</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -362,7 +366,6 @@ export default function AnalyticsPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Bot vs Human Pie */}
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-lg font-semibold mb-3">Bot vs Human Traffic</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -474,7 +477,6 @@ export default function AnalyticsPage() {
           </table>
         </div>
 
-        {/* Pagination */}
         {visitors && visitors.total_pages > 1 && (
           <div className="flex items-center justify-between mt-4">
             <span className="text-sm text-gray-500">
@@ -551,7 +553,6 @@ export default function AnalyticsPage() {
               </p>
             )}
 
-            {/* Manual Cleanup */}
             <div className="flex items-end gap-3 pt-2 border-t border-gray-100">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -586,10 +587,6 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Stat Card component
-// ---------------------------------------------------------------------------
 
 function StatCard({
   label,
