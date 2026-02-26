@@ -6,6 +6,7 @@ import (
 	"fanuc-backend/services"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -379,6 +380,264 @@ func (ac *AnalyticsController) ManualCleanup(c *gin.Context) {
 }
 
 // ---------------------------------------------------------------------------
+// GET /admin/analytics/country-visitors?country=US&start=&end=&page=&page_size=
+// Returns visitor IPs for a specific country (click-through from map)
+// ---------------------------------------------------------------------------
+
+type countryVisitorRow struct {
+	IPAddress  string `json:"ip_address"`
+	City       string `json:"city"`
+	Region     string `json:"region"`
+	VisitCount int64  `json:"visit_count"`
+	LastVisit  string `json:"last_visit"`
+}
+
+func (ac *AnalyticsController) GetCountryVisitors(c *gin.Context) {
+	db := config.GetDB()
+	if db == nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database not initialized"})
+		return
+	}
+
+	country := c.Query("country")
+	if country == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Missing 'country' parameter"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	start, end := parseDateRange(c)
+	q := db.Model(&models.VisitorLog{}).Where("country_code = ? AND is_bot = ?", country, false)
+	if start != nil {
+		q = q.Where("created_at >= ?", *start)
+	}
+	if end != nil {
+		q = q.Where("created_at <= ?", *end)
+	}
+
+	// Count distinct IPs for pagination
+	var totalDistinct int64
+	db.Raw("SELECT COUNT(DISTINCT ip_address) FROM visitor_logs WHERE country_code = ? AND is_bot = ?"+
+		dateWhereSuffix(start, end), country, false).Scan(&totalDistinct)
+
+	var rows []countryVisitorRow
+	q.Select("ip_address, city, region, COUNT(*) as visit_count, MAX(created_at) as last_visit").
+		Group("ip_address, city, region").
+		Order("visit_count DESC").
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
+		Find(&rows)
+
+	totalPages := int(totalDistinct) / pageSize
+	if int(totalDistinct)%pageSize > 0 {
+		totalPages++
+	}
+
+	c.JSON(http.StatusOK, models.APIResponse{
+		Success: true,
+		Message: "OK",
+		Data: gin.H{
+			"country":     country,
+			"data":        rows,
+			"page":        page,
+			"page_size":   pageSize,
+			"total":       totalDistinct,
+			"total_pages": totalPages,
+		},
+	})
+}
+
+// ---------------------------------------------------------------------------
+// GET /admin/analytics/product-skus?start=&end=&country=&limit=20
+// Returns hot product SKUs extracted from /products/<sku> paths, grouped by
+// visit count. Optionally filter by country to see which SKUs each country likes.
+// ---------------------------------------------------------------------------
+
+type productSKUData struct {
+	SKU         string `json:"sku"`
+	Path        string `json:"path"`
+	Count       int64  `json:"count"`
+	UniqueIPs   int64  `json:"unique_ips"`
+	TopCountry  string `json:"top_country"`
+}
+
+func (ac *AnalyticsController) GetProductSKUs(c *gin.Context) {
+	db := config.GetDB()
+	if db == nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database not initialized"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+
+	start, end := parseDateRange(c)
+	q := db.Model(&models.VisitorLog{}).
+		Where("is_bot = ? AND path LIKE ?", false, "/products/%")
+	if start != nil {
+		q = q.Where("created_at >= ?", *start)
+	}
+	if end != nil {
+		q = q.Where("created_at <= ?", *end)
+	}
+	if country := c.Query("country"); country != "" {
+		q = q.Where("country_code = ?", country)
+	}
+
+	type rawRow struct {
+		Path      string `json:"path"`
+		Count     int64  `json:"count"`
+		UniqueIPs int64  `json:"unique_ips"`
+	}
+	var raw []rawRow
+	q.Select("path, COUNT(*) as count, COUNT(DISTINCT ip_address) as unique_ips").
+		Group("path").
+		Order("count DESC").
+		Limit(limit).
+		Find(&raw)
+
+	// Extract SKU from path and find top country per path
+	result := make([]productSKUData, 0, len(raw))
+	for _, r := range raw {
+		sku := extractSKUFromPath(r.Path)
+		if sku == "" {
+			continue
+		}
+
+		// Find top country for this product path
+		var topC struct {
+			CountryCode string `json:"country_code"`
+		}
+		subQ := db.Model(&models.VisitorLog{}).
+			Where("path = ? AND is_bot = ? AND country_code != ''", r.Path, false)
+		if start != nil {
+			subQ = subQ.Where("created_at >= ?", *start)
+		}
+		if end != nil {
+			subQ = subQ.Where("created_at <= ?", *end)
+		}
+		subQ.Select("country_code").
+			Group("country_code").
+			Order("COUNT(*) DESC").
+			Limit(1).
+			Scan(&topC)
+
+		result = append(result, productSKUData{
+			SKU:        sku,
+			Path:       r.Path,
+			Count:      r.Count,
+			UniqueIPs:  r.UniqueIPs,
+			TopCountry: topC.CountryCode,
+		})
+	}
+
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: result})
+}
+
+// ---------------------------------------------------------------------------
+// GET /admin/analytics/country-skus?start=&end=&limit=10
+// Returns top countries with their favorite SKUs
+// ---------------------------------------------------------------------------
+
+type countrySKUData struct {
+	CountryCode string   `json:"country_code"`
+	Country     string   `json:"country"`
+	TotalViews  int64    `json:"total_views"`
+	TopSKUs     []skuHit `json:"top_skus"`
+}
+
+type skuHit struct {
+	SKU   string `json:"sku"`
+	Path  string `json:"path"`
+	Count int64  `json:"count"`
+}
+
+func (ac *AnalyticsController) GetCountrySKUs(c *gin.Context) {
+	db := config.GetDB()
+	if db == nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database not initialized"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if limit < 1 || limit > 50 {
+		limit = 10
+	}
+
+	start, end := parseDateRange(c)
+
+	// Get top countries by product page views
+	type topCountryRow struct {
+		CountryCode string `json:"country_code"`
+		Country     string `json:"country"`
+		TotalViews  int64  `json:"total_views"`
+	}
+	var topCountries []topCountryRow
+	q := db.Model(&models.VisitorLog{}).
+		Where("is_bot = ? AND path LIKE ? AND country_code != ''", false, "/products/%")
+	if start != nil {
+		q = q.Where("created_at >= ?", *start)
+	}
+	if end != nil {
+		q = q.Where("created_at <= ?", *end)
+	}
+	q.Select("country_code, country, COUNT(*) as total_views").
+		Group("country_code, country").
+		Order("total_views DESC").
+		Limit(limit).
+		Find(&topCountries)
+
+	// For each country get top 5 SKUs
+	result := make([]countrySKUData, 0, len(topCountries))
+	for _, tc := range topCountries {
+		type pathRow struct {
+			Path  string `json:"path"`
+			Count int64  `json:"count"`
+		}
+		var paths []pathRow
+		sq := db.Model(&models.VisitorLog{}).
+			Where("is_bot = ? AND path LIKE ? AND country_code = ?", false, "/products/%", tc.CountryCode)
+		if start != nil {
+			sq = sq.Where("created_at >= ?", *start)
+		}
+		if end != nil {
+			sq = sq.Where("created_at <= ?", *end)
+		}
+		sq.Select("path, COUNT(*) as count").
+			Group("path").
+			Order("count DESC").
+			Limit(5).
+			Find(&paths)
+
+		skus := make([]skuHit, 0, len(paths))
+		for _, p := range paths {
+			sku := extractSKUFromPath(p.Path)
+			if sku != "" {
+				skus = append(skus, skuHit{SKU: sku, Path: p.Path, Count: p.Count})
+			}
+		}
+		result = append(result, countrySKUData{
+			CountryCode: tc.CountryCode,
+			Country:     tc.Country,
+			TotalViews:  tc.TotalViews,
+			TopSKUs:     skus,
+		})
+	}
+
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: result})
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -397,4 +656,30 @@ func parseDateRange(c *gin.Context) (*time.Time, *time.Time) {
 		}
 	}
 	return start, end
+}
+
+// extractSKUFromPath converts "/products/a16b-3200-0100" to "A16B-3200-0100".
+func extractSKUFromPath(p string) string {
+	p = strings.TrimPrefix(p, "/products/")
+	p = strings.TrimSuffix(p, "/")
+	if p == "" || p == "products" {
+		return ""
+	}
+	// If it still contains a slash it's not a simple product slug
+	if strings.Contains(p, "/") {
+		return ""
+	}
+	return strings.ToUpper(p)
+}
+
+// dateWhereSuffix builds a raw SQL suffix for date filters (used by raw queries).
+func dateWhereSuffix(start, end *time.Time) string {
+	s := ""
+	if start != nil {
+		s += " AND created_at >= '" + start.Format("2006-01-02 15:04:05") + "'"
+	}
+	if end != nil {
+		s += " AND created_at <= '" + end.Format("2006-01-02 15:04:05") + "'"
+	}
+	return s
 }

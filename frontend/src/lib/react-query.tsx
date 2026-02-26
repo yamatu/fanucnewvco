@@ -141,6 +141,9 @@ export const queryKeys = {
     countries: (filters: any) => [...queryKeys.analytics.all(), 'countries', filters] as const,
     pages: (filters: any) => [...queryKeys.analytics.all(), 'pages', filters] as const,
     trends: (filters: any) => [...queryKeys.analytics.all(), 'trends', filters] as const,
+    countryVisitors: (filters: any) => [...queryKeys.analytics.all(), 'country-visitors', filters] as const,
+    productSKUs: (filters: any) => [...queryKeys.analytics.all(), 'product-skus', filters] as const,
+    countrySKUs: (filters: any) => [...queryKeys.analytics.all(), 'country-skus', filters] as const,
     settings: () => [...queryKeys.analytics.all(), 'settings'] as const,
   },
 

@@ -43,8 +43,42 @@ func shouldSkipTracking(urlPath string) bool {
 	return false
 }
 
+// isPrivateIP returns true for loopback, link-local, and RFC-1918 addresses.
+func isPrivateIP(ip string) bool {
+	if ip == "" || ip == "127.0.0.1" || ip == "::1" || ip == "0.0.0.0" {
+		return true
+	}
+	if strings.HasPrefix(ip, "192.168.") || strings.HasPrefix(ip, "10.") {
+		return true
+	}
+	// 172.16.0.0 – 172.31.255.255
+	if strings.HasPrefix(ip, "172.") {
+		parts := strings.SplitN(ip, ".", 3)
+		if len(parts) >= 2 {
+			var second int
+			for _, ch := range parts[1] {
+				if ch >= '0' && ch <= '9' {
+					second = second*10 + int(ch-'0')
+				} else {
+					break
+				}
+			}
+			if second >= 16 && second <= 31 {
+				return true
+			}
+		}
+	}
+	// fe80:: link-local, fc00::/7 unique-local
+	lower := strings.ToLower(ip)
+	if strings.HasPrefix(lower, "fe80:") || strings.HasPrefix(lower, "fc") || strings.HasPrefix(lower, "fd") {
+		return true
+	}
+	return false
+}
+
 // AnalyticsMiddleware records page visits in a non-blocking goroutine.
 // It captures request data before c.Next() and writes the log asynchronously.
+// Private/internal IPs are silently skipped.
 func AnalyticsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		urlPath := c.Request.URL.Path
@@ -56,6 +90,13 @@ func AnalyticsMiddleware() gin.HandlerFunc {
 
 		// Capture data before handler runs
 		ip := GetClientIP(c)
+
+		// Skip private/internal IPs entirely – only track public visitors
+		if isPrivateIP(ip) {
+			c.Next()
+			return
+		}
+
 		ua := c.GetHeader("User-Agent")
 		method := c.Request.Method
 		referer := c.GetHeader("Referer")

@@ -80,6 +80,44 @@ export interface AnalyticsFilters {
   limit?: number;
 }
 
+export interface CountryVisitorRow {
+  ip_address: string;
+  city: string;
+  region: string;
+  visit_count: number;
+  last_visit: string;
+}
+
+export interface CountryVisitorsResponse {
+  country: string;
+  data: CountryVisitorRow[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+}
+
+export interface ProductSKUData {
+  sku: string;
+  path: string;
+  count: number;
+  unique_ips: number;
+  top_country: string;
+}
+
+export interface SKUHit {
+  sku: string;
+  path: string;
+  count: number;
+}
+
+export interface CountrySKUData {
+  country_code: string;
+  country: string;
+  total_views: number;
+  top_skus: SKUHit[];
+}
+
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
@@ -170,6 +208,45 @@ export class AnalyticsService {
     );
     if (response.data.success && response.data.data) return response.data.data;
     throw new Error(response.data.message || 'Failed to cleanup data');
+  }
+
+  static async getCountryVisitors(filters?: AnalyticsFilters): Promise<CountryVisitorsResponse> {
+    const params = new URLSearchParams();
+    if (filters?.country) params.set('country', filters.country);
+    if (filters?.start) params.set('start', filters.start);
+    if (filters?.end) params.set('end', filters.end);
+    if (filters?.page) params.set('page', String(filters.page));
+    if (filters?.page_size) params.set('page_size', String(filters.page_size));
+    const qs = params.toString();
+    const url = `/admin/analytics/country-visitors${qs ? '?' + qs : ''}`;
+    const response = await apiClient.get<APIResponse<CountryVisitorsResponse>>(url);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to fetch country visitors');
+  }
+
+  static async getProductSKUs(filters?: AnalyticsFilters): Promise<ProductSKUData[]> {
+    const params = new URLSearchParams();
+    if (filters?.start) params.set('start', filters.start);
+    if (filters?.end) params.set('end', filters.end);
+    if (filters?.country) params.set('country', filters.country);
+    if (filters?.limit) params.set('limit', String(filters.limit));
+    const qs = params.toString();
+    const url = `/admin/analytics/product-skus${qs ? '?' + qs : ''}`;
+    const response = await apiClient.get<APIResponse<ProductSKUData[]>>(url);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to fetch product SKUs');
+  }
+
+  static async getCountrySKUs(filters?: AnalyticsFilters): Promise<CountrySKUData[]> {
+    const params = new URLSearchParams();
+    if (filters?.start) params.set('start', filters.start);
+    if (filters?.end) params.set('end', filters.end);
+    if (filters?.limit) params.set('limit', String(filters.limit));
+    const qs = params.toString();
+    const url = `/admin/analytics/country-skus${qs ? '?' + qs : ''}`;
+    const response = await apiClient.get<APIResponse<CountrySKUData[]>>(url);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to fetch country SKUs');
   }
 }
 
