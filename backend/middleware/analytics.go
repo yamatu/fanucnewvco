@@ -6,6 +6,8 @@ import (
 	"fanuc-backend/services"
 	"path"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -76,9 +78,57 @@ func isPrivateIP(ip string) bool {
 	return false
 }
 
+// ---------------------------------------------------------------------------
+// Per-IP rate limiter – prevents a single IP from flooding the visitor_logs
+// table (e.g. DDoS or scraping). Allows at most maxHitsPerWindow hits per IP
+// within the sliding window. Excess requests are silently not logged.
+// ---------------------------------------------------------------------------
+
+const (
+	ipRateWindow        = 1 * time.Minute
+	ipRateMaxHits       = 30 // max logged requests per IP per minute
+	ipRateCleanInterval = 5 * time.Minute
+)
+
+type ipRateEntry struct {
+	count     int
+	windowEnd time.Time
+}
+
+var (
+	ipRateMap     = make(map[string]*ipRateEntry)
+	ipRateMu      sync.Mutex
+	ipRateLastGC  time.Time
+)
+
+// ipRateAllow returns true if the IP has not exceeded the logging rate limit.
+func ipRateAllow(ip string) bool {
+	now := time.Now()
+	ipRateMu.Lock()
+	defer ipRateMu.Unlock()
+
+	// Periodic garbage collection
+	if now.Sub(ipRateLastGC) > ipRateCleanInterval {
+		for k, v := range ipRateMap {
+			if now.After(v.windowEnd) {
+				delete(ipRateMap, k)
+			}
+		}
+		ipRateLastGC = now
+	}
+
+	entry, exists := ipRateMap[ip]
+	if !exists || now.After(entry.windowEnd) {
+		ipRateMap[ip] = &ipRateEntry{count: 1, windowEnd: now.Add(ipRateWindow)}
+		return true
+	}
+	entry.count++
+	return entry.count <= ipRateMaxHits
+}
+
 // AnalyticsMiddleware records page visits in a non-blocking goroutine.
-// It captures request data before c.Next() and writes the log asynchronously.
-// Private/internal IPs are tracked with source="internal"; public IPs with source="public".
+// Private/internal IPs are silently skipped.
+// Per-IP rate limiting prevents storage abuse from floods/attacks.
 func AnalyticsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		urlPath := c.Request.URL.Path
@@ -90,9 +140,11 @@ func AnalyticsMiddleware() gin.HandlerFunc {
 
 		// Capture data before handler runs
 		ip := GetClientIP(c)
-		source := "public"
+
+		// Skip private/internal IPs entirely – only track public visitors
 		if isPrivateIP(ip) {
-			source = "internal"
+			c.Next()
+			return
 		}
 
 		ua := c.GetHeader("User-Agent")
@@ -100,6 +152,11 @@ func AnalyticsMiddleware() gin.HandlerFunc {
 		referer := c.GetHeader("Referer")
 
 		c.Next()
+
+		// Per-IP rate limit check – don't log if this IP is flooding
+		if !ipRateAllow(ip) {
+			return
+		}
 
 		statusCode := c.Writer.Status()
 
@@ -117,15 +174,7 @@ func AnalyticsMiddleware() gin.HandlerFunc {
 			}
 
 			isBot, botName := services.DetectBot(ua)
-
-			// Only do GeoIP lookup for public IPs
-			var geo *services.GeoIPResult
-			if source == "public" {
-				geo = services.LookupGeoIP(ip)
-			}
-			if geo == nil {
-				geo = &services.GeoIPResult{}
-			}
+			geo := services.LookupGeoIP(ip)
 
 			log := models.VisitorLog{
 				IPAddress:   ip,
@@ -142,7 +191,6 @@ func AnalyticsMiddleware() gin.HandlerFunc {
 				IsBot:       isBot,
 				BotName:     botName,
 				Referer:     referer,
-				Source:      source,
 			}
 			_ = db.Create(&log).Error
 		}()

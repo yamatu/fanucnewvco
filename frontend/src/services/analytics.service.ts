@@ -30,7 +30,6 @@ export interface VisitorLog {
   is_bot: boolean;
   bot_name: string;
   referer: string;
-  source: string;
   created_at: string;
 }
 
@@ -76,7 +75,6 @@ export interface AnalyticsFilters {
   country?: string;
   is_bot?: string;
   ip?: string;
-  source?: string;
   page?: number;
   page_size?: number;
   limit?: number;
@@ -129,7 +127,6 @@ export class AnalyticsService {
     const params = new URLSearchParams();
     if (filters?.start) params.set('start', filters.start);
     if (filters?.end) params.set('end', filters.end);
-    if (filters?.source) params.set('source', filters.source);
     const qs = params.toString();
     const url = `/admin/analytics/overview${qs ? '?' + qs : ''}`;
     const response = await apiClient.get<APIResponse<AnalyticsOverview>>(url);
@@ -144,7 +141,6 @@ export class AnalyticsService {
     if (filters?.country) params.set('country', filters.country);
     if (filters?.is_bot !== undefined) params.set('is_bot', filters.is_bot);
     if (filters?.ip) params.set('ip', filters.ip);
-    if (filters?.source) params.set('source', filters.source);
     if (filters?.page) params.set('page', String(filters.page));
     if (filters?.page_size) params.set('page_size', String(filters.page_size));
     const qs = params.toString();
@@ -159,7 +155,6 @@ export class AnalyticsService {
     if (filters?.start) params.set('start', filters.start);
     if (filters?.end) params.set('end', filters.end);
     if (filters?.is_bot !== undefined) params.set('is_bot', filters.is_bot);
-    if (filters?.source) params.set('source', filters.source);
     const qs = params.toString();
     const url = `/admin/analytics/countries${qs ? '?' + qs : ''}`;
     const response = await apiClient.get<APIResponse<CountryData[]>>(url);
@@ -172,7 +167,6 @@ export class AnalyticsService {
     if (filters?.start) params.set('start', filters.start);
     if (filters?.end) params.set('end', filters.end);
     if (filters?.limit) params.set('limit', String(filters.limit));
-    if (filters?.source) params.set('source', filters.source);
     const qs = params.toString();
     const url = `/admin/analytics/pages${qs ? '?' + qs : ''}`;
     const response = await apiClient.get<APIResponse<PageData[]>>(url);
@@ -184,7 +178,6 @@ export class AnalyticsService {
     const params = new URLSearchParams();
     if (filters?.start) params.set('start', filters.start);
     if (filters?.end) params.set('end', filters.end);
-    if (filters?.source) params.set('source', filters.source);
     const qs = params.toString();
     const url = `/admin/analytics/trends${qs ? '?' + qs : ''}`;
     const response = await apiClient.get<APIResponse<TrendData[]>>(url);

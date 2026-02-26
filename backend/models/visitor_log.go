@@ -19,7 +19,6 @@ type VisitorLog struct {
 	IsBot       bool      `gorm:"index" json:"is_bot"`
 	BotName     string    `gorm:"size:100" json:"bot_name"`
 	Referer     string    `gorm:"size:1000" json:"referer"`
-	Source      string    `gorm:"size:20;index;default:public" json:"source"` // "public" or "internal"
 	CreatedAt   time.Time `gorm:"index" json:"created_at"`
 }
 

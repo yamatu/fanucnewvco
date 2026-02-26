@@ -56,24 +56,10 @@ interface AdminLayoutProps {
 
 function AdminLayoutInner({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.localStorage.getItem('admin-sidebar-collapsed') === 'true';
-    }
-    return false;
-  });
   const pathname = usePathname();
   const { user } = useAuth();
   const logoutMutation = useLogout();
   const { locale, setLocale, t } = useAdminI18n();
-
-  const toggleCollapse = () => {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      try { window.localStorage.setItem('admin-sidebar-collapsed', String(next)); } catch {}
-      return next;
-    });
-  };
 
   const mainRef = useRef<HTMLElement | null>(null);
 
@@ -136,25 +122,16 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
         )}
 
         {/* Sidebar */}
-        <div className={`fixed inset-y-0 left-0 z-50 bg-white shadow-lg transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
-          sidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
-        } w-64 ${
+        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
-          <div className={`flex items-center h-16 border-b border-gray-200 ${sidebarCollapsed ? 'justify-center px-2' : 'justify-between px-6'}`}>
-            {!sidebarCollapsed && (
-              <div className="flex items-center space-x-3">
-                <div className="bg-blue-600 text-white px-3 py-1 rounded font-bold text-lg">
-                  FANUC
-                </div>
-                <span className="text-gray-900 font-semibold">{t('admin.panel', '管理后台')}</span>
+          <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-600 text-white px-3 py-1 rounded font-bold text-lg">
+                FANUC
               </div>
-            )}
-            {sidebarCollapsed && (
-              <div className="bg-blue-600 text-white px-2 py-1 rounded font-bold text-sm">
-                F
-              </div>
-            )}
+              <span className="text-gray-900 font-semibold">{t('admin.panel', '管理后台')}</span>
+            </div>
             <button
               className="lg:hidden"
               onClick={() => setSidebarOpen(false)}
@@ -163,20 +140,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
             </button>
           </div>
 
-          {/* Collapse toggle (desktop only) */}
-          <button
-            onClick={toggleCollapse}
-            className="hidden lg:flex items-center justify-center w-full py-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors border-b border-gray-100"
-            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {sidebarCollapsed ? (
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-            ) : (
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7M19 19l-7-7 7-7" /></svg>
-            )}
-          </button>
-
-          <nav className={`mt-2 ${sidebarCollapsed ? 'px-1' : 'px-3'}`}>
+          <nav className="mt-6 px-3">
             <div className="space-y-1">
               {navigation.map((item) => {
                 const isActive = pathname === item.href;
@@ -185,20 +149,19 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
                     key={item.href}
                     href={item.href}
                     prefetch={false}
-                    className={`group flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-2 text-sm font-medium rounded-md transition-colors ${
+                    className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                       isActive
                         ? 'bg-blue-100 text-blue-700'
                         : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                     }`}
                     onClick={() => setSidebarOpen(false)}
-                    title={sidebarCollapsed ? t(item.key, item.name) : undefined}
                   >
                     <item.icon
-                      className={`${sidebarCollapsed ? '' : 'mr-3'} h-5 w-5 ${
+                      className={`mr-3 h-5 w-5 ${
                         isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
                       }`}
                     />
-                    {!sidebarCollapsed && t(item.key, item.name)}
+                    {t(item.key, item.name)}
                   </Link>
                 );
               })}
@@ -206,27 +169,24 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
           </nav>
 
           {/* User info at bottom */}
-          <div className={`absolute bottom-0 left-0 right-0 border-t border-gray-200 ${sidebarCollapsed ? 'p-2' : 'p-4'}`}>
-            {!sidebarCollapsed && (
-              <div className="flex items-center space-x-3 mb-3">
-                <UserCircleIcon className="h-8 w-8 text-gray-400" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {user?.full_name || user?.username}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {user?.role}
-                  </p>
-                </div>
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+            <div className="flex items-center space-x-3 mb-3">
+              <UserCircleIcon className="h-8 w-8 text-gray-400" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {user?.full_name || user?.username}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {user?.role}
+                </p>
               </div>
-            )}
+            </div>
             <button
               onClick={handleLogout}
-              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors`}
-              title={sidebarCollapsed ? t('action.signOut', 'Sign out') : undefined}
+              className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
             >
-              <ArrowRightOnRectangleIcon className={`${sidebarCollapsed ? '' : 'mr-3'} h-4 w-4`} />
-              {!sidebarCollapsed && t('action.signOut', 'Sign out')}
+              <ArrowRightOnRectangleIcon className="mr-3 h-4 w-4" />
+              {t('action.signOut', 'Sign out')}
             </button>
           </div>
         </div>

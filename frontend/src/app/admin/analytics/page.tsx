@@ -8,6 +8,7 @@ import type {
   AnalyticsSettings,
   AnalyticsFilters,
 } from '@/services/analytics.service';
+import AdminLayout from '@/components/admin/AdminLayout';
 import { geoNaturalEarth1, geoPath, type GeoPermissibleObjects } from 'd3-geo';
 import { feature } from 'topojson-client';
 import type { Topology, GeometryCollection } from 'topojson-specification';
@@ -171,7 +172,6 @@ export default function AnalyticsPage() {
   const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return formatDate(d); });
   const [endDate, setEndDate] = useState(() => formatDate(new Date()));
   const [includeBots, setIncludeBots] = useState(false);
-  const [sourceFilter, setSourceFilter] = useState(''); // '' = all, 'public', 'internal'
 
   // Country drill-down
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -190,7 +190,7 @@ export default function AnalyticsPage() {
   // Settings
   const [cleanupDate, setCleanupDate] = useState('');
 
-  const baseFilters: AnalyticsFilters = useMemo(() => ({ start: startDate, end: endDate, source: sourceFilter || undefined }), [startDate, endDate, sourceFilter]);
+  const baseFilters: AnalyticsFilters = useMemo(() => ({ start: startDate, end: endDate }), [startDate, endDate]);
 
   // Queries
   const { data: overview, isLoading: overviewLoading } = useQuery({
@@ -277,6 +277,7 @@ export default function AnalyticsPage() {
   }, []);
 
   return (
+    <AdminLayout>
     <div className="space-y-6">
         {/* Header + Filters */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -285,11 +286,6 @@ export default function AnalyticsPage() {
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-md text-sm" />
             <span className="text-gray-500">to</span>
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-md text-sm" />
-            <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-md text-sm">
-              <option value="">All Traffic</option>
-              <option value="public">Public Only</option>
-              <option value="internal">Internal/API Only</option>
-            </select>
             <label className="flex items-center gap-1.5 text-sm text-gray-600">
               <input type="checkbox" checked={includeBots} onChange={(e) => setIncludeBots(e.target.checked)} className="rounded border-gray-300" />
               Include bots
@@ -523,7 +519,7 @@ export default function AnalyticsPage() {
               <thead>
                 <tr className="text-left text-gray-500 border-b">
                   <th className="pb-2 font-medium">IP</th><th className="pb-2 font-medium">Country</th><th className="pb-2 font-medium">City</th>
-                  <th className="pb-2 font-medium">Path</th><th className="pb-2 font-medium">Source</th><th className="pb-2 font-medium">Bot</th><th className="pb-2 font-medium">Time</th>
+                  <th className="pb-2 font-medium">Path</th><th className="pb-2 font-medium">Bot</th><th className="pb-2 font-medium">Time</th>
                 </tr>
               </thead>
               <tbody>
@@ -538,11 +534,6 @@ export default function AnalyticsPage() {
                       ) : v.path}
                     </td>
                     <td className="py-2">
-                      {v.source === 'internal'
-                        ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">Internal</span>
-                        : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Public</span>}
-                    </td>
-                    <td className="py-2">
                       {v.is_bot
                         ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">{v.bot_name || 'Bot'}</span>
                         : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Human</span>}
@@ -551,7 +542,7 @@ export default function AnalyticsPage() {
                   </tr>
                 ))}
                 {(!visitors?.data || visitors.data.length === 0) && (
-                  <tr><td colSpan={7} className="py-8 text-center text-gray-400">No visitor records found</td></tr>
+                  <tr><td colSpan={6} className="py-8 text-center text-gray-400">No visitor records found</td></tr>
                 )}
               </tbody>
             </table>
@@ -610,6 +601,7 @@ export default function AnalyticsPage() {
         </div>
 
     </div>
+    </AdminLayout>
   );
 }
 
