@@ -59,20 +59,7 @@ function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-// ---------------------------------------------------------------------------
-// Sidebar sections definition
-// ---------------------------------------------------------------------------
-const SECTIONS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'map', label: 'Geography Map' },
-  { id: 'country-detail', label: 'Country Visitors' },
-  { id: 'trends', label: 'Traffic Trends' },
-  { id: 'products', label: 'Hot Products (SKU)' },
-  { id: 'country-skus', label: 'Country SKU Preferences' },
-  { id: 'pages', label: 'Top Pages' },
-  { id: 'visitors', label: 'Visitor Log' },
-  { id: 'settings', label: 'Settings' },
-] as const;
+// (no in-page sidebar – the admin layout sidebar handles navigation)
 
 // ---------------------------------------------------------------------------
 // World Map
@@ -179,12 +166,12 @@ function WorldMap({
 // ---------------------------------------------------------------------------
 export default function AnalyticsPage() {
   const queryClient = useQueryClient();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Date filters
   const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return formatDate(d); });
   const [endDate, setEndDate] = useState(() => formatDate(new Date()));
   const [includeBots, setIncludeBots] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState(''); // '' = all, 'public', 'internal'
 
   // Country drill-down
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -203,10 +190,7 @@ export default function AnalyticsPage() {
   // Settings
   const [cleanupDate, setCleanupDate] = useState('');
 
-  // Section refs for scroll-to
-  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  const baseFilters: AnalyticsFilters = useMemo(() => ({ start: startDate, end: endDate }), [startDate, endDate]);
+  const baseFilters: AnalyticsFilters = useMemo(() => ({ start: startDate, end: endDate, source: sourceFilter || undefined }), [startDate, endDate, sourceFilter]);
 
   // Queries
   const { data: overview, isLoading: overviewLoading } = useQuery({
@@ -290,44 +274,10 @@ export default function AnalyticsPage() {
     setSelectedCountry(code);
     setSelectedCountryName(name);
     setCountryVisitorPage(1);
-    // Scroll to country-detail section
-    setTimeout(() => sectionRefs.current['country-detail']?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-  }, []);
-
-  const scrollToSection = useCallback((id: string) => {
-    sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
   return (
-    <div className="flex gap-0">
-      {/* Collapsible Sidebar */}
-      <div className={`shrink-0 transition-all duration-200 ${sidebarOpen ? 'w-48' : 'w-8'}`}>
-        <div className="sticky top-0">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="flex items-center justify-center w-8 h-8 rounded bg-gray-100 hover:bg-gray-200 text-gray-500 text-sm"
-            title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-          >
-            {sidebarOpen ? '\u2039' : '\u203A'}
-          </button>
-          {sidebarOpen && (
-            <nav className="mt-2 space-y-0.5">
-              {SECTIONS.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => scrollToSection(s.id)}
-                  className="block w-full text-left px-2 py-1.5 text-xs text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded transition-colors truncate"
-                >
-                  {s.label}
-                </button>
-              ))}
-            </nav>
-          )}
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1 min-w-0 space-y-6">
+    <div className="space-y-6">
         {/* Header + Filters */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-2xl font-bold text-gray-900">Visitor Analytics</h2>
@@ -335,6 +285,11 @@ export default function AnalyticsPage() {
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-md text-sm" />
             <span className="text-gray-500">to</span>
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-md text-sm" />
+            <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-md text-sm">
+              <option value="">All Traffic</option>
+              <option value="public">Public Only</option>
+              <option value="internal">Internal/API Only</option>
+            </select>
             <label className="flex items-center gap-1.5 text-sm text-gray-600">
               <input type="checkbox" checked={includeBots} onChange={(e) => setIncludeBots(e.target.checked)} className="rounded border-gray-300" />
               Include bots
@@ -343,7 +298,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Overview */}
-        <div ref={(el) => { sectionRefs.current['overview'] = el; }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total Visitors" value={overview?.total_visitors ?? '-'} loading={overviewLoading} color="blue" />
           <StatCard label="Unique IPs" value={overview?.unique_ips ?? '-'} loading={overviewLoading} color="green" />
           <StatCard label="Bot %" value={overview ? `${overview.bot_percentage.toFixed(1)}%` : '-'} loading={overviewLoading} color="yellow" />
@@ -351,7 +306,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* World Map */}
-        <div ref={(el) => { sectionRefs.current['map'] = el; }} className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-lg font-semibold mb-1">Visitor Geography</h3>
           <p className="text-xs text-gray-400 mb-3">Click a country on the map to see visitor IPs below</p>
           <WorldMap countryData={countryMapData} onCountryClick={handleCountryClick} selectedCountry={selectedCountry} />
@@ -377,7 +332,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Country Visitors Detail (drill-down) */}
-        <div ref={(el) => { sectionRefs.current['country-detail'] = el; }} className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold">
               {selectedCountry ? `${selectedCountryName} (${selectedCountry}) - Visitor IPs` : 'Country Visitors'}
@@ -433,7 +388,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Charts Row */}
-        <div ref={(el) => { sectionRefs.current['trends'] = el; }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-lg shadow p-4">
             <h3 className="text-lg font-semibold mb-3">Daily Traffic Trends</h3>
             <ResponsiveContainer width="100%" height={300}>
@@ -463,7 +418,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Hot Products (SKU) */}
-        <div ref={(el) => { sectionRefs.current['products'] = el; }} className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <h3 className="text-lg font-semibold">Hot Products (SKU)</h3>
             <div className="flex items-center gap-2">
@@ -508,7 +463,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Country SKU Preferences */}
-        <div ref={(el) => { sectionRefs.current['country-skus'] = el; }} className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-lg font-semibold mb-3">Country SKU Preferences</h3>
           <p className="text-xs text-gray-400 mb-4">Which SKUs each country is most interested in</p>
           {countrySKUs && countrySKUs.length > 0 ? (
@@ -538,7 +493,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Top Pages */}
-        <div ref={(el) => { sectionRefs.current['pages'] = el; }} className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-lg font-semibold mb-3">Top 10 Visited Pages</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={pages ?? []} layout="vertical">
@@ -552,7 +507,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Visitor Logs Table */}
-        <div ref={(el) => { sectionRefs.current['visitors'] = el; }} className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-lg font-semibold mb-3">Visitor Log</h3>
           <div className="flex flex-wrap gap-3 mb-4">
             <input type="text" placeholder="Filter by IP..." value={visitorIP} onChange={(e) => { setVisitorIP(e.target.value); setVisitorPage(1); }} className="px-3 py-1.5 border border-gray-300 rounded-md text-sm w-40" />
@@ -568,7 +523,7 @@ export default function AnalyticsPage() {
               <thead>
                 <tr className="text-left text-gray-500 border-b">
                   <th className="pb-2 font-medium">IP</th><th className="pb-2 font-medium">Country</th><th className="pb-2 font-medium">City</th>
-                  <th className="pb-2 font-medium">Path</th><th className="pb-2 font-medium">Bot</th><th className="pb-2 font-medium">Time</th>
+                  <th className="pb-2 font-medium">Path</th><th className="pb-2 font-medium">Source</th><th className="pb-2 font-medium">Bot</th><th className="pb-2 font-medium">Time</th>
                 </tr>
               </thead>
               <tbody>
@@ -583,6 +538,11 @@ export default function AnalyticsPage() {
                       ) : v.path}
                     </td>
                     <td className="py-2">
+                      {v.source === 'internal'
+                        ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">Internal</span>
+                        : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Public</span>}
+                    </td>
+                    <td className="py-2">
                       {v.is_bot
                         ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">{v.bot_name || 'Bot'}</span>
                         : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Human</span>}
@@ -591,7 +551,7 @@ export default function AnalyticsPage() {
                   </tr>
                 ))}
                 {(!visitors?.data || visitors.data.length === 0) && (
-                  <tr><td colSpan={6} className="py-8 text-center text-gray-400">No visitor records found</td></tr>
+                  <tr><td colSpan={7} className="py-8 text-center text-gray-400">No visitor records found</td></tr>
                 )}
               </tbody>
             </table>
@@ -608,7 +568,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Settings Panel */}
-        <div ref={(el) => { sectionRefs.current['settings'] = el; }} className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-lg font-semibold mb-4">Analytics Settings</h3>
           {settings && (
             <div className="space-y-4">
@@ -649,7 +609,6 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-      </div>
     </div>
   );
 }

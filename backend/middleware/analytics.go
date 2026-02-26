@@ -78,7 +78,7 @@ func isPrivateIP(ip string) bool {
 
 // AnalyticsMiddleware records page visits in a non-blocking goroutine.
 // It captures request data before c.Next() and writes the log asynchronously.
-// Private/internal IPs are silently skipped.
+// Private/internal IPs are tracked with source="internal"; public IPs with source="public".
 func AnalyticsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		urlPath := c.Request.URL.Path
@@ -90,11 +90,9 @@ func AnalyticsMiddleware() gin.HandlerFunc {
 
 		// Capture data before handler runs
 		ip := GetClientIP(c)
-
-		// Skip private/internal IPs entirely – only track public visitors
+		source := "public"
 		if isPrivateIP(ip) {
-			c.Next()
-			return
+			source = "internal"
 		}
 
 		ua := c.GetHeader("User-Agent")
@@ -119,7 +117,15 @@ func AnalyticsMiddleware() gin.HandlerFunc {
 			}
 
 			isBot, botName := services.DetectBot(ua)
-			geo := services.LookupGeoIP(ip)
+
+			// Only do GeoIP lookup for public IPs
+			var geo *services.GeoIPResult
+			if source == "public" {
+				geo = services.LookupGeoIP(ip)
+			}
+			if geo == nil {
+				geo = &services.GeoIPResult{}
+			}
 
 			log := models.VisitorLog{
 				IPAddress:   ip,
@@ -136,6 +142,7 @@ func AnalyticsMiddleware() gin.HandlerFunc {
 				IsBot:       isBot,
 				BotName:     botName,
 				Referer:     referer,
+				Source:      source,
 			}
 			_ = db.Create(&log).Error
 		}()

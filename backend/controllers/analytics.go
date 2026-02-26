@@ -43,6 +43,9 @@ func (ac *AnalyticsController) GetOverview(c *gin.Context) {
 	if end != nil {
 		q = q.Where("created_at <= ?", *end)
 	}
+	if source := c.Query("source"); source != "" {
+		q = q.Where("source = ?", source)
+	}
 
 	var total int64
 	q.Count(&total)
@@ -70,6 +73,9 @@ func (ac *AnalyticsController) GetOverview(c *gin.Context) {
 	}
 	if end != nil {
 		subQ = subQ.Where("created_at <= ?", *end)
+	}
+	if source := c.Query("source"); source != "" {
+		subQ = subQ.Where("source = ?", source)
 	}
 	subQ.Select("country_code, COUNT(*) as cnt").
 		Where("country_code != ''").
@@ -125,6 +131,9 @@ func (ac *AnalyticsController) GetVisitors(c *gin.Context) {
 	}
 	if ip := c.Query("ip"); ip != "" {
 		q = q.Where("ip_address LIKE ?", "%"+ip+"%")
+	}
+	if source := c.Query("source"); source != "" {
+		q = q.Where("source = ?", source)
 	}
 
 	var total int64
@@ -184,6 +193,9 @@ func (ac *AnalyticsController) GetCountries(c *gin.Context) {
 	if isBot == "false" || isBot == "0" {
 		q = q.Where("is_bot = ?", false)
 	}
+	if source := c.Query("source"); source != "" {
+		q = q.Where("source = ?", source)
+	}
 
 	var countries []countryData
 	q.Select("country, country_code, COUNT(*) as count").
@@ -223,6 +235,9 @@ func (ac *AnalyticsController) GetPages(c *gin.Context) {
 	if end != nil {
 		q = q.Where("created_at <= ?", *end)
 	}
+	if source := c.Query("source"); source != "" {
+		q = q.Where("source = ?", source)
+	}
 
 	var pages []pageData
 	q.Select("path, COUNT(*) as count").
@@ -259,6 +274,9 @@ func (ac *AnalyticsController) GetTrends(c *gin.Context) {
 	}
 	if end != nil {
 		q = q.Where("created_at <= ?", *end)
+	}
+	if source := c.Query("source"); source != "" {
+		q = q.Where("source = ?", source)
 	}
 
 	var trends []trendData
