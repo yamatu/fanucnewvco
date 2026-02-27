@@ -446,3 +446,72 @@ export interface CouponUsage {
   discount_amount: number;
   created_at: string;
 }
+
+// ---------------------------------------------------------------------------
+// News / Articles
+// ---------------------------------------------------------------------------
+
+export interface Article {
+  id: number;
+  title: string;
+  slug: string;
+  summary: string;
+  content: string;
+  featured_image: string;
+  image_urls: string[] | string;
+  is_published: boolean;
+  is_featured: boolean;
+  meta_title: string;
+  meta_description: string;
+  meta_keywords: string;
+  author_id: number;
+  author?: AdminUser;
+  view_count: number;
+  sort_order: number;
+  published_at?: string;
+  created_at: string;
+  updated_at: string;
+  translations?: ArticleTranslation[];
+}
+
+export interface ArticleTranslation {
+  id: number;
+  article_id: number;
+  language_code: string;
+  title: string;
+  slug: string;
+  summary: string;
+  content: string;
+  meta_title: string;
+  meta_description: string;
+  meta_keywords: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ArticleCreateRequest {
+  title: string;
+  slug?: string;
+  summary?: string;
+  content: string;
+  featured_image?: string;
+  image_urls?: string[];
+  is_published: boolean;
+  is_featured: boolean;
+  meta_title?: string;
+  meta_description?: string;
+  meta_keywords?: string;
+  sort_order?: number;
+  translations?: ArticleTranslationReq[];
+}
+
+export interface ArticleTranslationReq {
+  language_code: string;
+  title: string;
+  slug?: string;
+  summary?: string;
+  content?: string;
+  meta_title?: string;
+  meta_description?: string;
+  meta_keywords?: string;
+}

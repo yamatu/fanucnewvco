@@ -42,6 +42,7 @@ func SetupRoutes(r *gin.Engine) {
 	hotlinkController := &controllers.HotlinkController{}
 	payPalController := &controllers.PayPalController{}
 	analyticsController := &controllers.AnalyticsController{}
+	newsController := &controllers.NewsController{}
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -105,6 +106,11 @@ func SetupRoutes(r *gin.Engine) {
 			// Email (public)
 			public.GET("/email/config", emailController.GetPublicConfig)
 			public.POST("/email/send-code", emailController.SendCode)
+
+			// News / Articles (public read access)
+			public.GET("/news", newsController.GetPublicArticles)
+			public.GET("/news/:id", newsController.GetPublicArticle)
+			public.GET("/news/slug/:slug", newsController.GetPublicArticleBySlug)
 		}
 
 		// Authentication routes
@@ -304,6 +310,17 @@ func SetupRoutes(r *gin.Engine) {
 			analytics.GET("/settings", analyticsController.GetSettings)
 			analytics.PUT("/settings", analyticsController.UpdateSettings)
 			analytics.DELETE("/cleanup", middleware.AdminOnly(), analyticsController.ManualCleanup)
+		}
+
+		// News / Article management (editor/admin)
+		news := admin.Group("/news")
+		news.Use(middleware.EditorOrAdmin())
+		{
+			news.GET("", newsController.GetArticles)
+			news.GET("/:id", newsController.GetArticle)
+			news.POST("", newsController.CreateArticle)
+			news.PUT("/:id", newsController.UpdateArticle)
+			news.DELETE("/:id", middleware.AdminOnly(), newsController.DeleteArticle)
 		}
 
 		// Email settings + marketing (admin only)

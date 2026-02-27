@@ -173,6 +173,16 @@ export const queryKeys = {
     public: () => [...queryKeys.shippingRates.all(), 'public'] as const,
     admin: () => [...queryKeys.shippingRates.all(), 'admin'] as const,
   },
+
+  // News / Articles
+  news: {
+    all: () => ['news'] as const,
+    lists: () => [...queryKeys.news.all(), 'list'] as const,
+    list: (filters: any) => [...queryKeys.news.lists(), filters] as const,
+    details: () => [...queryKeys.news.all(), 'detail'] as const,
+    detail: (id: number) => [...queryKeys.news.details(), id] as const,
+    detailBySlug: (slug: string) => [...queryKeys.news.details(), 'slug', slug] as const,
+  },
 };
 
 export default ReactQueryProvider;

@@ -17,6 +17,7 @@ import { PayPalService as PayPalServiceDefault } from './paypal.service';
 import { EmailService as EmailServiceDefault } from './email.service';
 import { ShippingRateService as ShippingRateServiceDefault } from './shipping-rate.service';
 import { AnalyticsService as AnalyticsServiceDefault } from './analytics.service';
+import { NewsService as NewsServiceDefault } from './news.service';
 
 // Export all services
 export const AuthService = AuthServiceDefault;
@@ -37,6 +38,7 @@ export const PayPalService = PayPalServiceDefault;
 export const EmailService = EmailServiceDefault;
 export const ShippingRateService = ShippingRateServiceDefault;
 export const AnalyticsService = AnalyticsServiceDefault;
+export const NewsService = NewsServiceDefault;
 
 // Export types
 export type { ProductFilters } from './product.service';
@@ -70,6 +72,7 @@ export type {
   AnalyticsSettings,
   AnalyticsFilters,
 } from './analytics.service';
+export type { NewsFilters } from './news.service';
 
 // API Service class that combines all services
 export class ApiService {
@@ -90,6 +93,7 @@ export class ApiService {
   static email = EmailService;
   static shippingRates = ShippingRateService;
   static analytics = AnalyticsService;
+  static news = NewsService;
 }
 
 export default ApiService;

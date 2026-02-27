@@ -24,7 +24,8 @@ import {
   ArrowPathIcon,
   CreditCardIcon,
   TruckIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  NewspaperIcon
 } from '@heroicons/react/24/outline';
 import { useAuth, useLogout } from '@/hooks/useAuth';
 import AuthGuard from '@/components/auth/AuthGuard';
@@ -48,6 +49,7 @@ const navigation = [
   { key: 'nav.paypal', name: 'PayPal', href: '/admin/paypal', icon: CreditCardIcon },
   { key: 'nav.analytics', name: 'Visitor Analytics', href: '/admin/analytics', icon: ChartBarIcon },
   { key: 'nav.homepage', name: 'Homepage Content', href: '/admin/homepage', icon: DocumentTextIcon },
+  { key: 'nav.news', name: 'News & Articles', href: '/admin/news', icon: NewspaperIcon },
 ];
 
 interface AdminLayoutProps {

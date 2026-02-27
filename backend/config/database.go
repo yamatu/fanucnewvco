@@ -160,6 +160,9 @@ func ConnectDatabase() {
 			&models.WatermarkSetting{},
 			&models.VisitorLog{},
 			&models.AnalyticsSetting{},
+			// News / Articles
+			&models.Article{},
+			&models.ArticleTranslation{},
 		}
 		for _, m := range modelsToMigrate {
 			// GORM may try to "DROP FOREIGN KEY <uni_xxx>" on existing tables (a known benign issue when
