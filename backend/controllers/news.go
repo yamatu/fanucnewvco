@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fanuc-backend/config"
 	"fanuc-backend/models"
+	"fanuc-backend/services"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -14,19 +15,18 @@ import (
 	"gorm.io/gorm"
 )
 
-// NewsController provides CRUD endpoints for news articles.
 type NewsController struct{}
 
-// helper: preload relations
 func withArticlePreloads(db *gorm.DB) *gorm.DB {
-	return db.Preload("Author").Preload("Translations")
+	return db.Preload("Author").Preload("Translations").Preload("FeaturedMedia")
 }
 
-// slugify creates a URL-safe slug from a title string.
+var nonSlugChars = regexp.MustCompile(`[^a-z0-9]+`)
+var multiSlashes = regexp.MustCompile(`/+`)
+
 func slugify(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
-	re := regexp.MustCompile(`[^a-z0-9]+`)
-	s = re.ReplaceAllString(s, "-")
+	s = nonSlugChars.ReplaceAllString(s, "-")
 	s = strings.Trim(s, "-")
 	if s == "" {
 		s = "article"
@@ -34,7 +34,31 @@ func slugify(s string) string {
 	return s
 }
 
-// ensureUniqueSlug appends -2, -3, … if the slug already exists.
+func normalizeCustomPath(path string) string {
+	path = strings.TrimSpace(path)
+	path = strings.ReplaceAll(path, "\\", "/")
+	path = strings.Trim(path, "/")
+	path = multiSlashes.ReplaceAllString(path, "/")
+	if path == "" {
+		return ""
+	}
+
+	parts := strings.Split(path, "/")
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		part = slugify(part)
+		if part != "" {
+			cleaned = append(cleaned, part)
+		}
+	}
+
+	return strings.Join(cleaned, "/")
+}
+
 func ensureUniqueSlug(db *gorm.DB, slug string, excludeID uint) string {
 	base := slug
 	suffix := 1
@@ -53,9 +77,180 @@ func ensureUniqueSlug(db *gorm.DB, slug string, excludeID uint) string {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// PUBLIC: GET /public/news?page=&page_size=&search=
-// ---------------------------------------------------------------------------
+func ensureUniqueCustomPath(db *gorm.DB, path string, excludeID uint) string {
+	base := path
+	suffix := 1
+	for {
+		var count int64
+		q := db.Model(&models.Article{}).Where("custom_path = ?", path)
+		if excludeID > 0 {
+			q = q.Where("id != ?", excludeID)
+		}
+		q.Count(&count)
+		if count == 0 {
+			return path
+		}
+		suffix++
+		path = base + "-" + strconv.Itoa(suffix)
+	}
+}
+
+func getArticlePublicPath(article models.Article) string {
+	if strings.TrimSpace(article.CustomPath) != "" {
+		return "/" + strings.Trim(article.CustomPath, "/")
+	}
+	return "/news/" + article.Slug
+}
+
+func parseStringArrayJSON(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return []string{}
+	}
+	var out []string
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return []string{}
+	}
+	return out
+}
+
+func parseUintArrayJSON(raw string) []uint {
+	if strings.TrimSpace(raw) == "" {
+		return []uint{}
+	}
+	var out []uint
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return []uint{}
+	}
+	return out
+}
+
+func resolveMediaURLs(db *gorm.DB, featuredMediaID *uint, galleryMediaIDs []uint) (string, []string) {
+	featuredURL := ""
+	if featuredMediaID != nil && *featuredMediaID > 0 {
+		var featured models.MediaAsset
+		if err := db.First(&featured, *featuredMediaID).Error; err == nil {
+			featuredURL = featured.ToResponse().URL
+		}
+	}
+
+	if len(galleryMediaIDs) == 0 {
+		return featuredURL, []string{}
+	}
+
+	var assets []models.MediaAsset
+	if err := db.Where("id IN ?", galleryMediaIDs).Find(&assets).Error; err != nil {
+		return featuredURL, []string{}
+	}
+
+	byID := make(map[uint]string, len(assets))
+	for _, a := range assets {
+		byID[a.ID] = a.ToResponse().URL
+	}
+
+	galleryURLs := make([]string, 0, len(galleryMediaIDs))
+	for _, id := range galleryMediaIDs {
+		if u, ok := byID[id]; ok && strings.TrimSpace(u) != "" {
+			galleryURLs = append(galleryURLs, u)
+		}
+	}
+
+	return featuredURL, galleryURLs
+}
+
+func createSEORedirect(db *gorm.DB, oldPath, newPath string) {
+	oldPath = strings.TrimSpace(oldPath)
+	newPath = strings.TrimSpace(newPath)
+	if oldPath == "" || newPath == "" || oldPath == newPath {
+		return
+	}
+
+	var redirect models.SEORedirect
+	err := db.Where("old_url = ?", oldPath).First(&redirect).Error
+	if err == nil {
+		db.Model(&redirect).Updates(map[string]interface{}{
+			"new_url":       newPath,
+			"redirect_type": "301",
+			"is_active":     true,
+		})
+		return
+	}
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return
+	}
+
+	db.Create(&models.SEORedirect{
+		OldURL:       oldPath,
+		NewURL:       newPath,
+		RedirectType: "301",
+		IsActive:     true,
+	})
+}
+
+type ArticleResponse struct {
+	ID              uint                        `json:"id"`
+	Title           string                      `json:"title"`
+	Slug            string                      `json:"slug"`
+	CustomPath      string                      `json:"custom_path"`
+	PublicPath      string                      `json:"public_path"`
+	Summary         string                      `json:"summary"`
+	Content         string                      `json:"content"`
+	FeaturedImage   string                      `json:"featured_image"`
+	FeaturedMediaID *uint                       `json:"featured_media_id"`
+	FeaturedMedia   *models.MediaAsset          `json:"featured_media,omitempty"`
+	ImageURLs       []string                    `json:"image_urls"`
+	GalleryMediaIDs []uint                      `json:"gallery_media_ids"`
+	IsPublished     bool                        `json:"is_published"`
+	IsFeatured      bool                        `json:"is_featured"`
+	MetaTitle       string                      `json:"meta_title"`
+	MetaDescription string                      `json:"meta_description"`
+	MetaKeywords    string                      `json:"meta_keywords"`
+	AuthorID        uint                        `json:"author_id"`
+	Author          models.AdminUser            `json:"author"`
+	ViewCount       int                         `json:"view_count"`
+	SortOrder       int                         `json:"sort_order"`
+	PublishedAt     *time.Time                  `json:"published_at"`
+	CreatedAt       time.Time                   `json:"created_at"`
+	UpdatedAt       time.Time                   `json:"updated_at"`
+	Translations    []models.ArticleTranslation `json:"translations,omitempty"`
+}
+
+func toArticleResponse(article models.Article) ArticleResponse {
+	return ArticleResponse{
+		ID:              article.ID,
+		Title:           article.Title,
+		Slug:            article.Slug,
+		CustomPath:      article.CustomPath,
+		PublicPath:      getArticlePublicPath(article),
+		Summary:         article.Summary,
+		Content:         article.Content,
+		FeaturedImage:   article.FeaturedImage,
+		FeaturedMediaID: article.FeaturedMediaID,
+		FeaturedMedia:   article.FeaturedMedia,
+		ImageURLs:       parseStringArrayJSON(article.ImageURLs),
+		GalleryMediaIDs: parseUintArrayJSON(article.GalleryMediaIDs),
+		IsPublished:     article.IsPublished,
+		IsFeatured:      article.IsFeatured,
+		MetaTitle:       article.MetaTitle,
+		MetaDescription: article.MetaDescription,
+		MetaKeywords:    article.MetaKeywords,
+		AuthorID:        article.AuthorID,
+		Author:          article.Author,
+		ViewCount:       article.ViewCount,
+		SortOrder:       article.SortOrder,
+		PublishedAt:     article.PublishedAt,
+		CreatedAt:       article.CreatedAt,
+		UpdatedAt:       article.UpdatedAt,
+		Translations:    article.Translations,
+	}
+}
+
+func toArticleResponses(articles []models.Article) []ArticleResponse {
+	out := make([]ArticleResponse, 0, len(articles))
+	for _, article := range articles {
+		out = append(out, toArticleResponse(article))
+	}
+	return out
+}
 
 func (nc *NewsController) GetPublicArticles(c *gin.Context) {
 	db := config.GetDB()
@@ -77,7 +272,7 @@ func (nc *NewsController) GetPublicArticles(c *gin.Context) {
 
 	if search := c.Query("search"); search != "" {
 		like := "%" + search + "%"
-		q = q.Where("title LIKE ? OR summary LIKE ?", like, like)
+		q = q.Where("title LIKE ? OR summary LIKE ? OR custom_path LIKE ?", like, like, like)
 	}
 	if c.Query("is_featured") == "true" {
 		q = q.Where("is_featured = ?", true)
@@ -101,7 +296,7 @@ func (nc *NewsController) GetPublicArticles(c *gin.Context) {
 		Success: true,
 		Message: "OK",
 		Data: models.PaginationResponse{
-			Data:       articles,
+			Data:       toArticleResponses(articles),
 			Page:       page,
 			PageSize:   pageSize,
 			Total:      total,
@@ -109,10 +304,6 @@ func (nc *NewsController) GetPublicArticles(c *gin.Context) {
 		},
 	})
 }
-
-// ---------------------------------------------------------------------------
-// PUBLIC: GET /public/news/:id
-// ---------------------------------------------------------------------------
 
 func (nc *NewsController) GetPublicArticle(c *gin.Context) {
 	db := config.GetDB()
@@ -133,15 +324,11 @@ func (nc *NewsController) GetPublicArticle(c *gin.Context) {
 		return
 	}
 
-	// Increment view count
 	db.Model(&article).UpdateColumn("view_count", gorm.Expr("view_count + 1"))
+	article.ViewCount++
 
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: article})
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: toArticleResponse(article)})
 }
-
-// ---------------------------------------------------------------------------
-// PUBLIC: GET /public/news/slug/:slug
-// ---------------------------------------------------------------------------
 
 func (nc *NewsController) GetPublicArticleBySlug(c *gin.Context) {
 	db := config.GetDB()
@@ -157,15 +344,36 @@ func (nc *NewsController) GetPublicArticleBySlug(c *gin.Context) {
 		return
 	}
 
-	// Increment view count
 	db.Model(&article).UpdateColumn("view_count", gorm.Expr("view_count + 1"))
+	article.ViewCount++
 
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: article})
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: toArticleResponse(article)})
 }
 
-// ---------------------------------------------------------------------------
-// ADMIN: GET /admin/news?page=&page_size=&search=&is_published=
-// ---------------------------------------------------------------------------
+func (nc *NewsController) GetPublicArticleByPath(c *gin.Context) {
+	db := config.GetDB()
+	if db == nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database not initialized"})
+		return
+	}
+
+	path := normalizeCustomPath(c.Param("path"))
+	if path == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid path"})
+		return
+	}
+
+	var article models.Article
+	if err := withArticlePreloads(db).Where("custom_path = ? AND is_published = ?", path, true).First(&article).Error; err != nil {
+		c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Article not found"})
+		return
+	}
+
+	db.Model(&article).UpdateColumn("view_count", gorm.Expr("view_count + 1"))
+	article.ViewCount++
+
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: toArticleResponse(article)})
+}
 
 func (nc *NewsController) GetArticles(c *gin.Context) {
 	db := config.GetDB()
@@ -187,7 +395,7 @@ func (nc *NewsController) GetArticles(c *gin.Context) {
 
 	if search := c.Query("search"); search != "" {
 		like := "%" + search + "%"
-		q = q.Where("title LIKE ? OR summary LIKE ? OR content LIKE ?", like, like, like)
+		q = q.Where("title LIKE ? OR summary LIKE ? OR content LIKE ? OR slug LIKE ? OR custom_path LIKE ?", like, like, like, like, like)
 	}
 	if pub := c.Query("is_published"); pub != "" {
 		q = q.Where("is_published = ?", pub == "true" || pub == "1")
@@ -214,7 +422,7 @@ func (nc *NewsController) GetArticles(c *gin.Context) {
 		Success: true,
 		Message: "OK",
 		Data: models.PaginationResponse{
-			Data:       articles,
+			Data:       toArticleResponses(articles),
 			Page:       page,
 			PageSize:   pageSize,
 			Total:      total,
@@ -222,10 +430,6 @@ func (nc *NewsController) GetArticles(c *gin.Context) {
 		},
 	})
 }
-
-// ---------------------------------------------------------------------------
-// ADMIN: GET /admin/news/:id
-// ---------------------------------------------------------------------------
 
 func (nc *NewsController) GetArticle(c *gin.Context) {
 	db := config.GetDB()
@@ -246,12 +450,8 @@ func (nc *NewsController) GetArticle(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: article})
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: toArticleResponse(article)})
 }
-
-// ---------------------------------------------------------------------------
-// ADMIN: POST /admin/news
-// ---------------------------------------------------------------------------
 
 func (nc *NewsController) CreateArticle(c *gin.Context) {
 	db := config.GetDB()
@@ -266,21 +466,41 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 		return
 	}
 
-	// Slug
 	slug := req.Slug
 	if slug == "" {
 		slug = slugify(req.Title)
 	}
-	slug = ensureUniqueSlug(db, slug, 0)
+	slug = ensureUniqueSlug(db, slugify(slug), 0)
 
-	// Image URLs JSON
-	imageURLsJSON := "[]"
-	if len(req.ImageURLs) > 0 {
-		b, _ := json.Marshal(req.ImageURLs)
-		imageURLsJSON = string(b)
+	customPath := normalizeCustomPath(req.CustomPath)
+	if customPath != "" {
+		customPath = ensureUniqueCustomPath(db, customPath, 0)
 	}
 
-	// Author from JWT context
+	featuredImage := strings.TrimSpace(req.FeaturedImage)
+	imageURLs := req.ImageURLs
+	mediaFeaturedURL, mediaGalleryURLs := resolveMediaURLs(db, req.FeaturedMediaID, req.GalleryMediaIDs)
+	if featuredImage == "" && mediaFeaturedURL != "" {
+		featuredImage = mediaFeaturedURL
+	}
+	if len(imageURLs) == 0 && len(mediaGalleryURLs) > 0 {
+		imageURLs = mediaGalleryURLs
+	}
+
+	imageURLsJSON := "[]"
+	if len(imageURLs) > 0 {
+		if b, err := json.Marshal(imageURLs); err == nil {
+			imageURLsJSON = string(b)
+		}
+	}
+
+	galleryMediaIDsJSON := "[]"
+	if len(req.GalleryMediaIDs) > 0 {
+		if b, err := json.Marshal(req.GalleryMediaIDs); err == nil {
+			galleryMediaIDsJSON = string(b)
+		}
+	}
+
 	userID, _ := c.Get("userID")
 	authorID := uint(0)
 	switch v := userID.(type) {
@@ -299,10 +519,13 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 	article := models.Article{
 		Title:           req.Title,
 		Slug:            slug,
+		CustomPath:      customPath,
 		Summary:         req.Summary,
 		Content:         req.Content,
-		FeaturedImage:   req.FeaturedImage,
+		FeaturedImage:   featuredImage,
+		FeaturedMediaID: req.FeaturedMediaID,
 		ImageURLs:       imageURLsJSON,
+		GalleryMediaIDs: galleryMediaIDsJSON,
 		IsPublished:     req.IsPublished,
 		IsFeatured:      req.IsFeatured,
 		MetaTitle:       req.MetaTitle,
@@ -318,7 +541,6 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 		return
 	}
 
-	// Translations
 	for _, tr := range req.Translations {
 		trSlug := tr.Slug
 		if trSlug == "" {
@@ -328,7 +550,7 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 			ArticleID:       article.ID,
 			LanguageCode:    tr.LanguageCode,
 			Title:           tr.Title,
-			Slug:            trSlug,
+			Slug:            slugify(trSlug),
 			Summary:         tr.Summary,
 			Content:         tr.Content,
 			MetaTitle:       tr.MetaTitle,
@@ -338,15 +560,11 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 		db.Create(&trans)
 	}
 
-	// Reload with preloads
 	withArticlePreloads(db).First(&article, article.ID)
+	services.InvalidatePublicCaches(c.Request.Context(), "news:create", []string{"/news", getArticlePublicPath(article)})
 
-	c.JSON(http.StatusCreated, models.APIResponse{Success: true, Message: "Article created", Data: article})
+	c.JSON(http.StatusCreated, models.APIResponse{Success: true, Message: "Article created", Data: toArticleResponse(article)})
 }
-
-// ---------------------------------------------------------------------------
-// ADMIN: PUT /admin/news/:id
-// ---------------------------------------------------------------------------
 
 func (nc *NewsController) UpdateArticle(c *gin.Context) {
 	db := config.GetDB()
@@ -366,6 +584,7 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 		c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Article not found"})
 		return
 	}
+	oldPath := getArticlePublicPath(article)
 
 	var req models.ArticleCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -373,40 +592,68 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 		return
 	}
 
-	// Slug
 	slug := req.Slug
 	if slug == "" {
 		slug = slugify(req.Title)
 	}
-	slug = ensureUniqueSlug(db, slug, article.ID)
+	slug = ensureUniqueSlug(db, slugify(slug), article.ID)
 
-	// Image URLs JSON
-	imageURLsJSON := "[]"
-	if len(req.ImageURLs) > 0 {
-		b, _ := json.Marshal(req.ImageURLs)
-		imageURLsJSON = string(b)
+	customPath := normalizeCustomPath(req.CustomPath)
+	if customPath != "" {
+		customPath = ensureUniqueCustomPath(db, customPath, article.ID)
 	}
 
-	// Handle published_at
-	if req.IsPublished && article.PublishedAt == nil {
-		now := time.Now()
-		article.PublishedAt = &now
+	featuredImage := strings.TrimSpace(req.FeaturedImage)
+	imageURLs := req.ImageURLs
+	mediaFeaturedURL, mediaGalleryURLs := resolveMediaURLs(db, req.FeaturedMediaID, req.GalleryMediaIDs)
+	if featuredImage == "" && mediaFeaturedURL != "" {
+		featuredImage = mediaFeaturedURL
+	}
+	if len(imageURLs) == 0 && len(mediaGalleryURLs) > 0 {
+		imageURLs = mediaGalleryURLs
+	}
+
+	imageURLsJSON := "[]"
+	if len(imageURLs) > 0 {
+		if b, err := json.Marshal(imageURLs); err == nil {
+			imageURLsJSON = string(b)
+		}
+	}
+
+	galleryMediaIDsJSON := "[]"
+	if len(req.GalleryMediaIDs) > 0 {
+		if b, err := json.Marshal(req.GalleryMediaIDs); err == nil {
+			galleryMediaIDsJSON = string(b)
+		}
+	}
+
+	var publishedAt *time.Time
+	if req.IsPublished {
+		if article.PublishedAt != nil {
+			publishedAt = article.PublishedAt
+		} else {
+			now := time.Now()
+			publishedAt = &now
+		}
 	}
 
 	updates := map[string]interface{}{
-		"title":            req.Title,
-		"slug":             slug,
-		"summary":          req.Summary,
-		"content":          req.Content,
-		"featured_image":   req.FeaturedImage,
-		"image_urls":       imageURLsJSON,
-		"is_published":     req.IsPublished,
-		"is_featured":      req.IsFeatured,
-		"meta_title":       req.MetaTitle,
-		"meta_description": req.MetaDescription,
-		"meta_keywords":    req.MetaKeywords,
-		"sort_order":       req.SortOrder,
-		"published_at":     article.PublishedAt,
+		"title":             req.Title,
+		"slug":              slug,
+		"custom_path":       customPath,
+		"summary":           req.Summary,
+		"content":           req.Content,
+		"featured_image":    featuredImage,
+		"featured_media_id": req.FeaturedMediaID,
+		"image_urls":        imageURLsJSON,
+		"gallery_media_ids": galleryMediaIDsJSON,
+		"is_published":      req.IsPublished,
+		"is_featured":       req.IsFeatured,
+		"meta_title":        req.MetaTitle,
+		"meta_description":  req.MetaDescription,
+		"meta_keywords":     req.MetaKeywords,
+		"sort_order":        req.SortOrder,
+		"published_at":      publishedAt,
 	}
 
 	if err := db.Model(&article).Updates(updates).Error; err != nil {
@@ -414,7 +661,6 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 		return
 	}
 
-	// Replace translations
 	db.Where("article_id = ?", article.ID).Delete(&models.ArticleTranslation{})
 	for _, tr := range req.Translations {
 		trSlug := tr.Slug
@@ -425,7 +671,7 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 			ArticleID:       article.ID,
 			LanguageCode:    tr.LanguageCode,
 			Title:           tr.Title,
-			Slug:            trSlug,
+			Slug:            slugify(trSlug),
 			Summary:         tr.Summary,
 			Content:         tr.Content,
 			MetaTitle:       tr.MetaTitle,
@@ -435,15 +681,15 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 		db.Create(&trans)
 	}
 
-	// Reload
 	withArticlePreloads(db).First(&article, article.ID)
+	newPath := getArticlePublicPath(article)
+	if article.IsPublished {
+		createSEORedirect(db, oldPath, newPath)
+	}
+	services.InvalidatePublicCaches(c.Request.Context(), "news:update", []string{"/news", oldPath, newPath})
 
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Article updated", Data: article})
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Article updated", Data: toArticleResponse(article)})
 }
-
-// ---------------------------------------------------------------------------
-// ADMIN: DELETE /admin/news/:id
-// ---------------------------------------------------------------------------
 
 func (nc *NewsController) DeleteArticle(c *gin.Context) {
 	db := config.GetDB()
@@ -464,9 +710,10 @@ func (nc *NewsController) DeleteArticle(c *gin.Context) {
 		return
 	}
 
-	// Delete translations first
+	oldPath := getArticlePublicPath(article)
 	db.Where("article_id = ?", article.ID).Delete(&models.ArticleTranslation{})
 	db.Delete(&article)
+	services.InvalidatePublicCaches(c.Request.Context(), "news:delete", []string{"/news", oldPath})
 
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Article deleted"})
 }

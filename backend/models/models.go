@@ -481,26 +481,30 @@ type BulkOptimizationRequest struct {
 
 // Article represents a news/blog article with SEO and markdown support.
 type Article struct {
-	ID               uint                 `json:"id" gorm:"primaryKey"`
-	Title            string               `json:"title" gorm:"size:255;not null"`
-	Slug             string               `json:"slug" gorm:"size:255;uniqueIndex;not null"`
-	Summary          string               `json:"summary" gorm:"type:text"`
-	Content          string               `json:"content" gorm:"type:longtext;not null"`
-	FeaturedImage    string               `json:"featured_image" gorm:"type:text"`
-	ImageURLs        string               `json:"image_urls" gorm:"type:json"`
-	IsPublished      bool                 `json:"is_published" gorm:"default:false;index"`
-	IsFeatured       bool                 `json:"is_featured" gorm:"default:false;index"`
-	MetaTitle        string               `json:"meta_title" gorm:"size:255"`
-	MetaDescription  string               `json:"meta_description" gorm:"type:text"`
-	MetaKeywords     string               `json:"meta_keywords" gorm:"type:text"`
-	AuthorID         uint                 `json:"author_id" gorm:"not null;index"`
-	Author           AdminUser            `json:"author" gorm:"foreignKey:AuthorID"`
-	ViewCount        int                  `json:"view_count" gorm:"default:0"`
-	SortOrder        int                  `json:"sort_order" gorm:"default:0;index"`
-	PublishedAt      *time.Time           `json:"published_at"`
-	CreatedAt        time.Time            `json:"created_at"`
-	UpdatedAt        time.Time            `json:"updated_at"`
-	Translations     []ArticleTranslation `json:"translations,omitempty" gorm:"foreignKey:ArticleID"`
+	ID              uint                 `json:"id" gorm:"primaryKey"`
+	Title           string               `json:"title" gorm:"size:255;not null"`
+	Slug            string               `json:"slug" gorm:"size:255;uniqueIndex;not null"`
+	CustomPath      string               `json:"custom_path" gorm:"size:500;uniqueIndex"`
+	Summary         string               `json:"summary" gorm:"type:text"`
+	Content         string               `json:"content" gorm:"type:longtext;not null"`
+	FeaturedImage   string               `json:"featured_image" gorm:"type:text"`
+	FeaturedMediaID *uint                `json:"featured_media_id" gorm:"index"`
+	FeaturedMedia   *MediaAsset          `json:"featured_media,omitempty" gorm:"foreignKey:FeaturedMediaID"`
+	ImageURLs       string               `json:"image_urls" gorm:"type:json"`
+	GalleryMediaIDs string               `json:"gallery_media_ids" gorm:"type:json"`
+	IsPublished     bool                 `json:"is_published" gorm:"default:false;index"`
+	IsFeatured      bool                 `json:"is_featured" gorm:"default:false;index"`
+	MetaTitle       string               `json:"meta_title" gorm:"size:255"`
+	MetaDescription string               `json:"meta_description" gorm:"type:text"`
+	MetaKeywords    string               `json:"meta_keywords" gorm:"type:text"`
+	AuthorID        uint                 `json:"author_id" gorm:"not null;index"`
+	Author          AdminUser            `json:"author" gorm:"foreignKey:AuthorID"`
+	ViewCount       int                  `json:"view_count" gorm:"default:0"`
+	SortOrder       int                  `json:"sort_order" gorm:"default:0;index"`
+	PublishedAt     *time.Time           `json:"published_at"`
+	CreatedAt       time.Time            `json:"created_at"`
+	UpdatedAt       time.Time            `json:"updated_at"`
+	Translations    []ArticleTranslation `json:"translations,omitempty" gorm:"foreignKey:ArticleID"`
 }
 
 func (Article) TableName() string { return "articles" }
@@ -525,19 +529,22 @@ func (ArticleTranslation) TableName() string { return "article_translations" }
 
 // ArticleCreateRequest represents the request body for creating/updating an article.
 type ArticleCreateRequest struct {
-	Title           string                    `json:"title" binding:"required"`
-	Slug            string                    `json:"slug"`
-	Summary         string                    `json:"summary"`
-	Content         string                    `json:"content" binding:"required"`
-	FeaturedImage   string                    `json:"featured_image"`
-	ImageURLs       []string                  `json:"image_urls"`
-	IsPublished     bool                      `json:"is_published"`
-	IsFeatured      bool                      `json:"is_featured"`
-	MetaTitle       string                    `json:"meta_title"`
-	MetaDescription string                    `json:"meta_description"`
-	MetaKeywords    string                    `json:"meta_keywords"`
-	SortOrder       int                       `json:"sort_order"`
-	Translations    []ArticleTranslationReq   `json:"translations"`
+	Title           string                  `json:"title" binding:"required"`
+	Slug            string                  `json:"slug"`
+	CustomPath      string                  `json:"custom_path"`
+	Summary         string                  `json:"summary"`
+	Content         string                  `json:"content" binding:"required"`
+	FeaturedImage   string                  `json:"featured_image"`
+	FeaturedMediaID *uint                   `json:"featured_media_id"`
+	ImageURLs       []string                `json:"image_urls"`
+	GalleryMediaIDs []uint                  `json:"gallery_media_ids"`
+	IsPublished     bool                    `json:"is_published"`
+	IsFeatured      bool                    `json:"is_featured"`
+	MetaTitle       string                  `json:"meta_title"`
+	MetaDescription string                  `json:"meta_description"`
+	MetaKeywords    string                  `json:"meta_keywords"`
+	SortOrder       int                     `json:"sort_order"`
+	Translations    []ArticleTranslationReq `json:"translations"`
 }
 
 // ArticleTranslationReq represents article translation in request.

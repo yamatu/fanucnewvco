@@ -93,6 +93,10 @@ func (sc *SitemapController) GetXMLSitemap(c *gin.Context) {
 		xml += fmt.Sprintf("  <sitemap>\n    <loc>%s/xmlsitemap.php?type=brand&amp;page=1</loc>\n    <lastmod>%s</lastmod>\n  </sitemap>\n",
 			baseURL, time.Now().UTC().Format(time.RFC3339))
 
+		// News / Articles
+		xml += fmt.Sprintf("  <sitemap>\n    <loc>%s/xmlsitemap.php?type=news&amp;page=1</loc>\n    <lastmod>%s</lastmod>\n  </sitemap>\n",
+			baseURL, time.Now().UTC().Format(time.RFC3339))
+
 		xml += "</sitemapindex>"
 		c.String(http.StatusOK, xml)
 		return
@@ -108,6 +112,7 @@ func (sc *SitemapController) GetXMLSitemap(c *gin.Context) {
 		}{
 			{Loc: fmt.Sprintf("%s/", baseURL), Changefreq: "daily", Priority: "1.0", Lastmod: time.Now().UTC().Format(time.RFC3339)},
 			{Loc: fmt.Sprintf("%s/products", baseURL), Changefreq: "hourly", Priority: "0.9", Lastmod: time.Now().UTC().Format(time.RFC3339)},
+			{Loc: fmt.Sprintf("%s/news", baseURL), Changefreq: "daily", Priority: "0.8", Lastmod: time.Now().UTC().Format(time.RFC3339)},
 			{Loc: fmt.Sprintf("%s/about", baseURL), Changefreq: "monthly", Priority: "0.8", Lastmod: time.Now().AddDate(0, 0, -7).UTC().Format(time.RFC3339)},
 			{Loc: fmt.Sprintf("%s/contact", baseURL), Changefreq: "monthly", Priority: "0.8", Lastmod: time.Now().AddDate(0, 0, -7).UTC().Format(time.RFC3339)},
 			{Loc: fmt.Sprintf("%s/faq", baseURL), Changefreq: "monthly", Priority: "0.7", Lastmod: time.Now().AddDate(0, 0, -14).UTC().Format(time.RFC3339)},
@@ -215,6 +220,38 @@ func (sc *SitemapController) GetXMLSitemap(c *gin.Context) {
 			loc := fmt.Sprintf("%s/products?brand=%s", baseURL, brand)
 			xml += fmt.Sprintf("  <url>\n    <loc>%s</loc>\n    <lastmod>%s</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n",
 				loc, time.Now().UTC().Format(time.RFC3339))
+		}
+		xml += "</urlset>"
+		c.String(http.StatusOK, xml)
+		return
+
+	case "news":
+		db := config.GetDB()
+		var articles []models.Article
+		if err := db.Where("is_published = ?", true).Order("published_at DESC, created_at DESC").Find(&articles).Error; err != nil {
+			c.String(http.StatusOK, emptyURLSet())
+			return
+		}
+		xml := "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+		xml += "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
+		// News listing page
+		xml += fmt.Sprintf("  <url>\n    <loc>%s/news</loc>\n    <lastmod>%s</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n",
+			baseURL, time.Now().UTC().Format(time.RFC3339))
+		for _, a := range articles {
+			lastmod := a.UpdatedAt.UTC().Format(time.RFC3339)
+			if a.PublishedAt != nil && !a.PublishedAt.IsZero() {
+				lastmod = a.PublishedAt.UTC().Format(time.RFC3339)
+			}
+			if !a.UpdatedAt.IsZero() {
+				lastmod = a.UpdatedAt.UTC().Format(time.RFC3339)
+			}
+			priority := "0.7"
+			if a.IsFeatured {
+				priority = "0.8"
+			}
+			loc := fmt.Sprintf("%s/news/%s", baseURL, a.Slug)
+			xml += fmt.Sprintf("  <url>\n    <loc>%s</loc>\n    <lastmod>%s</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>%s</priority>\n  </url>\n",
+				loc, lastmod, priority)
 		}
 		xml += "</urlset>"
 		c.String(http.StatusOK, xml)

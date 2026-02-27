@@ -109,6 +109,7 @@ func SetupRoutes(r *gin.Engine) {
 
 			// News / Articles (public read access)
 			public.GET("/news", newsController.GetPublicArticles)
+			public.GET("/news/path/*path", newsController.GetPublicArticleByPath)
 			public.GET("/news/:id", newsController.GetPublicArticle)
 			public.GET("/news/slug/:slug", newsController.GetPublicArticleBySlug)
 		}
@@ -296,34 +297,34 @@ func SetupRoutes(r *gin.Engine) {
 			}
 
 			// Visitor Analytics (editor/admin for reads, admin-only for cleanup)
-		analytics := admin.Group("/analytics")
-		analytics.Use(middleware.EditorOrAdmin())
-		{
-			analytics.GET("/overview", analyticsController.GetOverview)
-			analytics.GET("/visitors", analyticsController.GetVisitors)
-			analytics.GET("/countries", analyticsController.GetCountries)
-			analytics.GET("/pages", analyticsController.GetPages)
-			analytics.GET("/trends", analyticsController.GetTrends)
-			analytics.GET("/country-visitors", analyticsController.GetCountryVisitors)
-			analytics.GET("/product-skus", analyticsController.GetProductSKUs)
-			analytics.GET("/country-skus", analyticsController.GetCountrySKUs)
-			analytics.GET("/settings", analyticsController.GetSettings)
-			analytics.PUT("/settings", analyticsController.UpdateSettings)
-			analytics.DELETE("/cleanup", middleware.AdminOnly(), analyticsController.ManualCleanup)
-		}
+			analytics := admin.Group("/analytics")
+			analytics.Use(middleware.EditorOrAdmin())
+			{
+				analytics.GET("/overview", analyticsController.GetOverview)
+				analytics.GET("/visitors", analyticsController.GetVisitors)
+				analytics.GET("/countries", analyticsController.GetCountries)
+				analytics.GET("/pages", analyticsController.GetPages)
+				analytics.GET("/trends", analyticsController.GetTrends)
+				analytics.GET("/country-visitors", analyticsController.GetCountryVisitors)
+				analytics.GET("/product-skus", analyticsController.GetProductSKUs)
+				analytics.GET("/country-skus", analyticsController.GetCountrySKUs)
+				analytics.GET("/settings", analyticsController.GetSettings)
+				analytics.PUT("/settings", analyticsController.UpdateSettings)
+				analytics.DELETE("/cleanup", middleware.AdminOnly(), analyticsController.ManualCleanup)
+			}
 
-		// News / Article management (editor/admin)
-		news := admin.Group("/news")
-		news.Use(middleware.EditorOrAdmin())
-		{
-			news.GET("", newsController.GetArticles)
-			news.GET("/:id", newsController.GetArticle)
-			news.POST("", newsController.CreateArticle)
-			news.PUT("/:id", newsController.UpdateArticle)
-			news.DELETE("/:id", middleware.AdminOnly(), newsController.DeleteArticle)
-		}
+			// News / Article management (editor/admin)
+			news := admin.Group("/news")
+			news.Use(middleware.EditorOrAdmin())
+			{
+				news.GET("", newsController.GetArticles)
+				news.GET("/:id", newsController.GetArticle)
+				news.POST("", newsController.CreateArticle)
+				news.PUT("/:id", newsController.UpdateArticle)
+				news.DELETE("/:id", middleware.AdminOnly(), newsController.DeleteArticle)
+			}
 
-		// Email settings + marketing (admin only)
+			// Email settings + marketing (admin only)
 			email := admin.Group("/email")
 			email.Use(middleware.AdminOnly())
 			{

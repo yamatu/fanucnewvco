@@ -52,6 +52,7 @@ export default function SitemapManagementPage() {
     { name: 'Static Pages', url: `${baseUrl}/sitemap-static.xml`, description: 'All static pages' },
     { name: 'Categories', url: `${baseUrl}/sitemap-categories.xml`, description: 'All category pages' },
     { name: 'Products Index', url: `${baseUrl}/sitemap-products-index.xml`, description: 'Product sitemap index' },
+    { name: 'News & Articles', url: `${baseUrl}/sitemap-news.xml`, description: 'All published articles' },
   ];
 
   return (
