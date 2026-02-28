@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useIsFetching } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/react-query';
 import { AnalyticsService } from '@/services/analytics.service';
 import type {
@@ -238,10 +238,15 @@ export default function AnalyticsPage() {
     queryKey: queryKeys.analytics.visitors(visitorFilters),
     queryFn: () => AnalyticsService.getVisitors(visitorFilters),
   });
+  const isAnalyticsRefreshing = useIsFetching({ queryKey: queryKeys.analytics.all() }) > 0;
   const { data: settings } = useQuery({
     queryKey: queryKeys.analytics.settings(),
     queryFn: () => AnalyticsService.getSettings(),
   });
+
+  const handleRefreshAnalytics = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all() });
+  }, [queryClient]);
 
   // Mutations
   const updateSettingsMutation = useMutation({
@@ -504,7 +509,16 @@ export default function AnalyticsPage() {
 
         {/* Visitor Logs Table */}
         <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-semibold mb-3">Visitor Log</h3>
+          <div className="flex items-center justify-between mb-3 gap-3">
+            <h3 className="text-lg font-semibold">Visitor Log</h3>
+            <button
+              onClick={handleRefreshAnalytics}
+              disabled={isAnalyticsRefreshing}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isAnalyticsRefreshing ? 'Refreshing...' : 'Refresh Data'}
+            </button>
+          </div>
           <div className="flex flex-wrap gap-3 mb-4">
             <input type="text" placeholder="Filter by IP..." value={visitorIP} onChange={(e) => { setVisitorIP(e.target.value); setVisitorPage(1); }} className="px-3 py-1.5 border border-gray-300 rounded-md text-sm w-40" />
             <input type="text" placeholder="Country code..." value={visitorCountry} onChange={(e) => { setVisitorCountry(e.target.value.toUpperCase()); setVisitorPage(1); }} className="px-3 py-1.5 border border-gray-300 rounded-md text-sm w-32" />

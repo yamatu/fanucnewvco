@@ -5,11 +5,14 @@ import (
 	"fanuc-backend/models"
 	"fanuc-backend/services"
 	"net/http"
+	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // AnalyticsController provides admin endpoints for visitor analytics.
@@ -20,12 +23,12 @@ type AnalyticsController struct{}
 // ---------------------------------------------------------------------------
 
 type analyticsOverviewResponse struct {
-	TotalVisitors int64   `json:"total_visitors"`
-	UniqueIPs     int64   `json:"unique_ips"`
-	TotalBots     int64   `json:"total_bots"`
-	BotPercentage float64 `json:"bot_percentage"`
-	TopCountry    string  `json:"top_country"`
-	TopCountryCount int64 `json:"top_country_count"`
+	TotalVisitors   int64   `json:"total_visitors"`
+	UniqueIPs       int64   `json:"unique_ips"`
+	TotalBots       int64   `json:"total_bots"`
+	BotPercentage   float64 `json:"bot_percentage"`
+	TopCountry      string  `json:"top_country"`
+	TopCountryCount int64   `json:"top_country_count"`
 }
 
 func (ac *AnalyticsController) GetOverview(c *gin.Context) {
@@ -462,11 +465,19 @@ func (ac *AnalyticsController) GetCountryVisitors(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 type productSKUData struct {
-	SKU         string `json:"sku"`
+	SKU        string `json:"sku"`
+	Path       string `json:"path"`
+	Count      int64  `json:"count"`
+	UniqueIPs  int64  `json:"unique_ips"`
+	TopCountry string `json:"top_country"`
+}
+
+type productVisitRow struct {
 	Path        string `json:"path"`
-	Count       int64  `json:"count"`
-	UniqueIPs   int64  `json:"unique_ips"`
-	TopCountry  string `json:"top_country"`
+	Referer     string `json:"referer"`
+	IPAddress   string `json:"ip_address"`
+	Country     string `json:"country"`
+	CountryCode string `json:"country_code"`
 }
 
 func (ac *AnalyticsController) GetProductSKUs(c *gin.Context) {
@@ -483,7 +494,8 @@ func (ac *AnalyticsController) GetProductSKUs(c *gin.Context) {
 
 	start, end := parseDateRange(c)
 	q := db.Model(&models.VisitorLog{}).
-		Where("is_bot = ? AND path LIKE ?", false, "/products/%")
+		Where("is_bot = ?", false).
+		Where("(path LIKE ? OR path LIKE ? OR referer LIKE ?)", "/products/%", "/api/v1/public/products%", "%/products/%")
 	if start != nil {
 		q = q.Where("created_at >= ?", *start)
 	}
@@ -491,54 +503,82 @@ func (ac *AnalyticsController) GetProductSKUs(c *gin.Context) {
 		q = q.Where("created_at <= ?", *end)
 	}
 	if country := c.Query("country"); country != "" {
-		q = q.Where("country_code = ?", country)
+		q = q.Where("country_code = ?", strings.ToUpper(strings.TrimSpace(country)))
 	}
 
-	type rawRow struct {
-		Path      string `json:"path"`
-		Count     int64  `json:"count"`
-		UniqueIPs int64  `json:"unique_ips"`
+	resolver, err := loadProductSKUResolver(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to build SKU resolver", Error: err.Error()})
+		return
 	}
-	var raw []rawRow
-	q.Select("path, COUNT(*) as count, COUNT(DISTINCT ip_address) as unique_ips").
-		Group("path").
-		Order("count DESC").
-		Limit(limit).
-		Find(&raw)
 
-	// Extract SKU from path and find top country per path
-	result := make([]productSKUData, 0, len(raw))
-	for _, r := range raw {
-		sku := extractSKUFromPath(r.Path)
+	var logs []productVisitRow
+	if err := q.Select("path, referer, ip_address, country, country_code").Find(&logs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to fetch product logs", Error: err.Error()})
+		return
+	}
+
+	type skuAgg struct {
+		Count        int64
+		UniqueIPs    map[string]struct{}
+		CountryCount map[string]int64
+	}
+	aggBySKU := make(map[string]*skuAgg)
+
+	for _, row := range logs {
+		sku := resolveSKUFromVisitorLog(row.Path, row.Referer, resolver)
 		if sku == "" {
 			continue
 		}
 
-		// Find top country for this product path
-		var topC struct {
-			CountryCode string `json:"country_code"`
+		agg, ok := aggBySKU[sku]
+		if !ok {
+			agg = &skuAgg{
+				UniqueIPs:    map[string]struct{}{},
+				CountryCount: map[string]int64{},
+			}
+			aggBySKU[sku] = agg
 		}
-		subQ := db.Model(&models.VisitorLog{}).
-			Where("path = ? AND is_bot = ? AND country_code != ''", r.Path, false)
-		if start != nil {
-			subQ = subQ.Where("created_at >= ?", *start)
+		agg.Count++
+		if row.IPAddress != "" {
+			agg.UniqueIPs[row.IPAddress] = struct{}{}
 		}
-		if end != nil {
-			subQ = subQ.Where("created_at <= ?", *end)
+		if row.CountryCode != "" {
+			cc := strings.ToUpper(strings.TrimSpace(row.CountryCode))
+			agg.CountryCount[cc]++
 		}
-		subQ.Select("country_code").
-			Group("country_code").
-			Order("COUNT(*) DESC").
-			Limit(1).
-			Scan(&topC)
+	}
 
+	result := make([]productSKUData, 0, len(aggBySKU))
+	for sku, agg := range aggBySKU {
+		topCountry := ""
+		var topCountryCount int64
+		for countryCode, count := range agg.CountryCount {
+			if count > topCountryCount {
+				topCountryCount = count
+				topCountry = countryCode
+			}
+		}
 		result = append(result, productSKUData{
 			SKU:        sku,
-			Path:       r.Path,
-			Count:      r.Count,
-			UniqueIPs:  r.UniqueIPs,
-			TopCountry: topC.CountryCode,
+			Path:       "/products/" + normalizeProductPathID(sku),
+			Count:      agg.Count,
+			UniqueIPs:  int64(len(agg.UniqueIPs)),
+			TopCountry: topCountry,
 		})
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Count == result[j].Count {
+			if result[i].UniqueIPs == result[j].UniqueIPs {
+				return result[i].SKU < result[j].SKU
+			}
+			return result[i].UniqueIPs > result[j].UniqueIPs
+		}
+		return result[i].Count > result[j].Count
+	})
+	if len(result) > limit {
+		result = result[:limit]
 	}
 
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: result})
@@ -575,62 +615,114 @@ func (ac *AnalyticsController) GetCountrySKUs(c *gin.Context) {
 	}
 
 	start, end := parseDateRange(c)
-
-	// Get top countries by product page views
-	type topCountryRow struct {
-		CountryCode string `json:"country_code"`
-		Country     string `json:"country"`
-		TotalViews  int64  `json:"total_views"`
-	}
-	var topCountries []topCountryRow
 	q := db.Model(&models.VisitorLog{}).
-		Where("is_bot = ? AND path LIKE ? AND country_code != ''", false, "/products/%")
+		Where("is_bot = ? AND country_code != ''", false).
+		Where("(path LIKE ? OR path LIKE ? OR referer LIKE ?)", "/products/%", "/api/v1/public/products%", "%/products/%")
 	if start != nil {
 		q = q.Where("created_at >= ?", *start)
 	}
 	if end != nil {
 		q = q.Where("created_at <= ?", *end)
 	}
-	q.Select("country_code, country, COUNT(*) as total_views").
-		Group("country_code, country").
-		Order("total_views DESC").
-		Limit(limit).
-		Find(&topCountries)
 
-	// For each country get top 5 SKUs
-	result := make([]countrySKUData, 0, len(topCountries))
-	for _, tc := range topCountries {
-		type pathRow struct {
-			Path  string `json:"path"`
-			Count int64  `json:"count"`
-		}
-		var paths []pathRow
-		sq := db.Model(&models.VisitorLog{}).
-			Where("is_bot = ? AND path LIKE ? AND country_code = ?", false, "/products/%", tc.CountryCode)
-		if start != nil {
-			sq = sq.Where("created_at >= ?", *start)
-		}
-		if end != nil {
-			sq = sq.Where("created_at <= ?", *end)
-		}
-		sq.Select("path, COUNT(*) as count").
-			Group("path").
-			Order("count DESC").
-			Limit(5).
-			Find(&paths)
+	resolver, err := loadProductSKUResolver(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to build SKU resolver", Error: err.Error()})
+		return
+	}
 
-		skus := make([]skuHit, 0, len(paths))
-		for _, p := range paths {
-			sku := extractSKUFromPath(p.Path)
-			if sku != "" {
-				skus = append(skus, skuHit{SKU: sku, Path: p.Path, Count: p.Count})
+	var logs []productVisitRow
+	if err := q.Select("path, referer, country, country_code").Find(&logs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to fetch product logs", Error: err.Error()})
+		return
+	}
+
+	type countryAgg struct {
+		Country   string
+		Total     int64
+		SKUCounts map[string]int64
+	}
+	aggByCountry := make(map[string]*countryAgg)
+
+	for _, row := range logs {
+		sku := resolveSKUFromVisitorLog(row.Path, row.Referer, resolver)
+		if sku == "" {
+			continue
+		}
+
+		countryCode := strings.ToUpper(strings.TrimSpace(row.CountryCode))
+		if countryCode == "" {
+			continue
+		}
+		agg, ok := aggByCountry[countryCode]
+		if !ok {
+			agg = &countryAgg{Country: row.Country, SKUCounts: map[string]int64{}}
+			aggByCountry[countryCode] = agg
+		}
+		if agg.Country == "" && row.Country != "" {
+			agg.Country = row.Country
+		}
+		agg.Total++
+		agg.SKUCounts[sku]++
+	}
+
+	type countryItem struct {
+		CountryCode string
+		Agg         *countryAgg
+	}
+	countries := make([]countryItem, 0, len(aggByCountry))
+	for code, agg := range aggByCountry {
+		countries = append(countries, countryItem{CountryCode: code, Agg: agg})
+	}
+	sort.Slice(countries, func(i, j int) bool {
+		if countries[i].Agg.Total == countries[j].Agg.Total {
+			return countries[i].CountryCode < countries[j].CountryCode
+		}
+		return countries[i].Agg.Total > countries[j].Agg.Total
+	})
+	if len(countries) > limit {
+		countries = countries[:limit]
+	}
+
+	result := make([]countrySKUData, 0, len(countries))
+	for _, item := range countries {
+		type skuItem struct {
+			SKU   string
+			Count int64
+		}
+		skuItems := make([]skuItem, 0, len(item.Agg.SKUCounts))
+		for sku, count := range item.Agg.SKUCounts {
+			skuItems = append(skuItems, skuItem{SKU: sku, Count: count})
+		}
+		sort.Slice(skuItems, func(i, j int) bool {
+			if skuItems[i].Count == skuItems[j].Count {
+				return skuItems[i].SKU < skuItems[j].SKU
 			}
+			return skuItems[i].Count > skuItems[j].Count
+		})
+		if len(skuItems) > 5 {
+			skuItems = skuItems[:5]
 		}
+
+		topSKUs := make([]skuHit, 0, len(skuItems))
+		for _, skuItem := range skuItems {
+			topSKUs = append(topSKUs, skuHit{
+				SKU:   skuItem.SKU,
+				Path:  "/products/" + normalizeProductPathID(skuItem.SKU),
+				Count: skuItem.Count,
+			})
+		}
+
+		countryName := strings.TrimSpace(item.Agg.Country)
+		if countryName == "" {
+			countryName = item.CountryCode
+		}
+
 		result = append(result, countrySKUData{
-			CountryCode: tc.CountryCode,
-			Country:     tc.Country,
-			TotalViews:  tc.TotalViews,
-			TopSKUs:     skus,
+			CountryCode: item.CountryCode,
+			Country:     countryName,
+			TotalViews:  item.Agg.Total,
+			TopSKUs:     topSKUs,
 		})
 	}
 
@@ -640,6 +732,230 @@ func (ac *AnalyticsController) GetCountrySKUs(c *gin.Context) {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+type productSKUResolver struct {
+	byPathID      map[string]string
+	bySlug        map[string]string
+	sortedPathIDs []string
+}
+
+func loadProductSKUResolver(db *gorm.DB) (*productSKUResolver, error) {
+	type productRef struct {
+		SKU  string `json:"sku"`
+		Slug string `json:"slug"`
+	}
+
+	var refs []productRef
+	if err := db.Model(&models.Product{}).Select("sku, slug").Find(&refs).Error; err != nil {
+		return nil, err
+	}
+
+	resolver := &productSKUResolver{
+		byPathID:      make(map[string]string, len(refs)),
+		bySlug:        make(map[string]string, len(refs)),
+		sortedPathIDs: make([]string, 0, len(refs)),
+	}
+	seenPathID := make(map[string]struct{}, len(refs))
+
+	for _, ref := range refs {
+		sku := strings.ToUpper(strings.TrimSpace(ref.SKU))
+		if sku == "" {
+			continue
+		}
+
+		pathID := normalizeProductPathID(sku)
+		if pathID != "" {
+			if _, exists := resolver.byPathID[pathID]; !exists {
+				resolver.byPathID[pathID] = sku
+			}
+			if _, exists := seenPathID[pathID]; !exists {
+				seenPathID[pathID] = struct{}{}
+				resolver.sortedPathIDs = append(resolver.sortedPathIDs, pathID)
+			}
+		}
+
+		slugKey := strings.ToLower(strings.TrimSpace(ref.Slug))
+		if slugKey != "" {
+			if _, exists := resolver.bySlug[slugKey]; !exists {
+				resolver.bySlug[slugKey] = sku
+			}
+		}
+	}
+
+	sort.Slice(resolver.sortedPathIDs, func(i, j int) bool {
+		if len(resolver.sortedPathIDs[i]) == len(resolver.sortedPathIDs[j]) {
+			return resolver.sortedPathIDs[i] < resolver.sortedPathIDs[j]
+		}
+		return len(resolver.sortedPathIDs[i]) > len(resolver.sortedPathIDs[j])
+	})
+
+	return resolver, nil
+}
+
+func normalizeProductPathID(value string) string {
+	s := strings.TrimSpace(value)
+	if s == "" {
+		return ""
+	}
+	s = strings.ReplaceAll(s, "\\", "-")
+	s = strings.ReplaceAll(s, "/", "-")
+	if strings.ContainsAny(s, " \t\n\r") {
+		s = strings.Join(strings.Fields(s), "-")
+	}
+	s = strings.Trim(s, "-")
+	return strings.ToUpper(s)
+}
+
+func (r *productSKUResolver) resolve(candidate string) string {
+	if r == nil {
+		return ""
+	}
+
+	pathID := normalizeProductPathID(candidate)
+	if pathID == "" {
+		return ""
+	}
+
+	if sku, ok := r.byPathID[pathID]; ok {
+		return sku
+	}
+
+	if strings.HasPrefix(pathID, "FANUC-") {
+		trimmed := strings.TrimPrefix(pathID, "FANUC-")
+		if sku, ok := r.byPathID[trimmed]; ok {
+			return sku
+		}
+		pathID = trimmed
+	}
+
+	for _, knownPathID := range r.sortedPathIDs {
+		if strings.HasPrefix(pathID, knownPathID+"-") {
+			return r.byPathID[knownPathID]
+		}
+	}
+
+	slugKey := strings.ToLower(strings.Trim(strings.TrimSpace(candidate), "/"))
+	if slugKey != "" {
+		if sku, ok := r.bySlug[slugKey]; ok {
+			return sku
+		}
+	}
+
+	return ""
+}
+
+func resolveSKUFromVisitorLog(pathValue, referer string, resolver *productSKUResolver) string {
+	candidates := []string{
+		extractProductTokenFromURLLike(pathValue),
+		extractProductTokenFromURLLike(referer),
+	}
+
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		if sku := resolver.resolve(candidate); sku != "" {
+			return sku
+		}
+	}
+
+	if sku := extractSKUFromPath(pathValue); sku != "" {
+		return sku
+	}
+	if sku := extractSKUFromPath(referer); sku != "" {
+		return sku
+	}
+
+	return ""
+}
+
+func extractProductTokenFromURLLike(raw string) string {
+	pathValue, query := parseURLLike(raw)
+	if pathValue == "" {
+		return ""
+	}
+
+	cleanPath := strings.TrimSpace(pathValue)
+	cleanPath = strings.TrimSuffix(cleanPath, "/")
+
+	extractSegment := func(prefix string) string {
+		segment := strings.TrimPrefix(cleanPath, prefix)
+		segment = strings.Trim(segment, "/")
+		if idx := strings.Index(segment, "/"); idx >= 0 {
+			segment = segment[:idx]
+		}
+		if decoded, err := url.PathUnescape(segment); err == nil {
+			segment = decoded
+		}
+		return strings.TrimSpace(segment)
+	}
+
+	if strings.HasPrefix(cleanPath, "/products/") {
+		return extractSegment("/products/")
+	}
+
+	if strings.HasPrefix(cleanPath, "/api/v1/public/products/sku/") {
+		return extractSegment("/api/v1/public/products/sku/")
+	}
+
+	if cleanPath == "/api/v1/public/products/sku" {
+		return strings.TrimSpace(query.Get("sku"))
+	}
+
+	if cleanPath == "/api/v1/public/products" || strings.HasPrefix(cleanPath, "/api/v1/public/products/") {
+		if sku := strings.TrimSpace(query.Get("sku")); sku != "" {
+			return sku
+		}
+		if search := strings.TrimSpace(query.Get("search")); looksLikeSKUQuery(search) {
+			return search
+		}
+	}
+
+	return ""
+}
+
+func looksLikeSKUQuery(value string) bool {
+	v := strings.TrimSpace(value)
+	if len(v) < 4 || len(v) > 120 {
+		return false
+	}
+
+	hasLetter := false
+	hasDigit := false
+	for _, ch := range v {
+		switch {
+		case ch >= 'a' && ch <= 'z', ch >= 'A' && ch <= 'Z':
+			hasLetter = true
+		case ch >= '0' && ch <= '9':
+			hasDigit = true
+		case ch == '-', ch == '_', ch == '/', ch == '\\', ch == '.', ch == ' ':
+			// allowed SKU separators
+		default:
+			return false
+		}
+	}
+	return hasLetter && hasDigit
+}
+
+func parseURLLike(raw string) (string, url.Values) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "", url.Values{}
+	}
+
+	if u, err := url.Parse(v); err == nil {
+		return u.Path, u.Query()
+	}
+
+	pathValue := v
+	queryValue := ""
+	if idx := strings.Index(pathValue, "?"); idx >= 0 {
+		queryValue = pathValue[idx+1:]
+		pathValue = pathValue[:idx]
+	}
+	parsedQuery, _ := url.ParseQuery(queryValue)
+	return pathValue, parsedQuery
+}
 
 func parseDateRange(c *gin.Context) (*time.Time, *time.Time) {
 	var start, end *time.Time
@@ -660,14 +976,17 @@ func parseDateRange(c *gin.Context) (*time.Time, *time.Time) {
 
 // extractSKUFromPath converts "/products/a16b-3200-0100" to "A16B-3200-0100".
 func extractSKUFromPath(p string) string {
-	p = strings.TrimPrefix(p, "/products/")
-	p = strings.TrimSuffix(p, "/")
-	if p == "" || p == "products" {
+	pathValue, _ := parseURLLike(p)
+	if !strings.HasPrefix(pathValue, "/products/") {
 		return ""
 	}
-	// If it still contains a slash it's not a simple product slug
-	if strings.Contains(p, "/") {
+	p = strings.TrimPrefix(pathValue, "/products/")
+	p = strings.Trim(p, "/")
+	if p == "" || strings.Contains(p, "/") {
 		return ""
+	}
+	if decoded, err := url.PathUnescape(p); err == nil {
+		p = decoded
 	}
 	return strings.ToUpper(p)
 }

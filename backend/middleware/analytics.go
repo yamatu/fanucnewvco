@@ -14,6 +14,7 @@ import (
 
 // skipPrefixes lists URL path prefixes that should NOT be tracked.
 var skipPrefixes = []string{
+	"/api/",
 	"/uploads/",
 	"/health",
 	"/api/v1/admin/",
@@ -43,6 +44,86 @@ func shouldSkipTracking(urlPath string) bool {
 		}
 	}
 	return false
+}
+
+// shouldTrackAPIPath keeps tracking for selected public product APIs so SKU
+// analytics can still work when traffic goes through backend API endpoints.
+func shouldTrackAPIPath(urlPath string) bool {
+	return strings.HasPrefix(urlPath, "/api/v1/public/products")
+}
+
+func normalizeProductPathToken(token string) string {
+	t := strings.TrimSpace(token)
+	if t == "" {
+		return ""
+	}
+	t = strings.ReplaceAll(t, "\\", "-")
+	t = strings.ReplaceAll(t, "/", "-")
+	if strings.ContainsAny(t, " \t\n\r") {
+		t = strings.Join(strings.Fields(t), "-")
+	}
+	t = strings.Trim(t, "-")
+	return strings.ToUpper(t)
+}
+
+func extractProductTokenFromReferer(referer string) string {
+	if referer == "" {
+		return ""
+	}
+	lower := strings.ToLower(referer)
+	idx := strings.Index(lower, "/products/")
+	if idx < 0 {
+		return ""
+	}
+	segment := referer[idx+len("/products/"):]
+	if qIdx := strings.IndexAny(segment, "?#"); qIdx >= 0 {
+		segment = segment[:qIdx]
+	}
+	if slashIdx := strings.Index(segment, "/"); slashIdx >= 0 {
+		segment = segment[:slashIdx]
+	}
+	return strings.TrimSpace(segment)
+}
+
+func deriveTrackedPath(urlPath string, querySku string, referer string) string {
+	if strings.HasPrefix(urlPath, "/products/") {
+		segment := strings.Trim(strings.TrimPrefix(urlPath, "/products/"), "/")
+		if segment != "" {
+			if i := strings.Index(segment, "/"); i >= 0 {
+				segment = segment[:i]
+			}
+			if normalized := normalizeProductPathToken(segment); normalized != "" {
+				return "/products/" + normalized
+			}
+		}
+		return urlPath
+	}
+
+	if !shouldTrackAPIPath(urlPath) {
+		return urlPath
+	}
+
+	if normalized := normalizeProductPathToken(querySku); normalized != "" {
+		return "/products/" + normalized
+	}
+
+	if strings.HasPrefix(urlPath, "/api/v1/public/products/sku/") {
+		segment := strings.Trim(strings.TrimPrefix(urlPath, "/api/v1/public/products/sku/"), "/")
+		if i := strings.Index(segment, "/"); i >= 0 {
+			segment = segment[:i]
+		}
+		if normalized := normalizeProductPathToken(segment); normalized != "" {
+			return "/products/" + normalized
+		}
+	}
+
+	if refToken := extractProductTokenFromReferer(referer); refToken != "" {
+		if normalized := normalizeProductPathToken(refToken); normalized != "" {
+			return "/products/" + normalized
+		}
+	}
+
+	return urlPath
 }
 
 // isPrivateIP returns true for loopback, link-local, and RFC-1918 addresses.
@@ -96,9 +177,9 @@ type ipRateEntry struct {
 }
 
 var (
-	ipRateMap     = make(map[string]*ipRateEntry)
-	ipRateMu      sync.Mutex
-	ipRateLastGC  time.Time
+	ipRateMap    = make(map[string]*ipRateEntry)
+	ipRateMu     sync.Mutex
+	ipRateLastGC time.Time
 )
 
 // ipRateAllow returns true if the IP has not exceeded the logging rate limit.
@@ -132,8 +213,9 @@ func ipRateAllow(ip string) bool {
 func AnalyticsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		urlPath := c.Request.URL.Path
+		forceTrack := shouldTrackAPIPath(urlPath)
 
-		if shouldSkipTracking(urlPath) {
+		if shouldSkipTracking(urlPath) && !forceTrack {
 			c.Next()
 			return
 		}
@@ -150,6 +232,8 @@ func AnalyticsMiddleware() gin.HandlerFunc {
 		ua := c.GetHeader("User-Agent")
 		method := c.Request.Method
 		referer := c.GetHeader("Referer")
+		querySku := c.Query("sku")
+		trackedPath := deriveTrackedPath(urlPath, querySku, referer)
 
 		c.Next()
 
@@ -184,7 +268,7 @@ func AnalyticsMiddleware() gin.HandlerFunc {
 				City:        geo.City,
 				Latitude:    geo.Lat,
 				Longitude:   geo.Lon,
-				Path:        urlPath,
+				Path:        trackedPath,
 				Method:      method,
 				StatusCode:  statusCode,
 				UserAgent:   ua,

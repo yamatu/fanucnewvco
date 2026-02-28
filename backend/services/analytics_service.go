@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -124,31 +125,73 @@ func LookupGeoIP(ip string) *GeoIPResult {
 // Bot detection
 // ---------------------------------------------------------------------------
 
-var botPatterns = []string{
+var strongBotPatterns = []string{
 	"googlebot", "bingbot", "yandexbot", "baiduspider", "duckduckbot",
 	"slurp", "sogou", "exabot", "facebot", "facebookexternalhit",
 	"ia_archiver", "alexabot", "mj12bot", "ahrefsbot", "semrushbot",
 	"dotbot", "rogerbot", "seznambot", "twitterbot", "linkedinbot",
-	"crawler", "spider", "bot/", "bot;", "crawl",
-	"selenium", "puppeteer", "headlesschrome", "phantomjs",
-	"curl/", "wget/", "python-requests", "python-urllib",
-	"java/", "httpclient", "okhttp", "go-http-client",
-	"apachebench", "loadrunner", "jmeter",
-	"monitoring", "pingdom", "uptimerobot", "site24x7",
+	"applebot", "petalbot", "bytespider", "ccbot", "gptbot",
+	"headlesschrome", "phantomjs", "selenium", "puppeteer", "playwright",
+	"scrapy", "httpclient", "apachebench", "loadrunner", "jmeter",
+	"uptimerobot", "pingdom", "site24x7", "statuscake", "datadog",
 }
+
+var automationClientPatterns = []string{
+	"curl/", "wget/", "python-requests", "python-urllib",
+	"go-http-client", "java/", "okhttp", "aiohttp", "libwww-perl",
+	"node-fetch", "axios/", "postmanruntime", "insomnia/",
+}
+
+var browserLikePatterns = []string{
+	"mozilla/5.0", "applewebkit/", "chrome/", "safari/", "firefox/", "edg/", "opr/",
+}
+
+var genericBotTokenRegex = regexp.MustCompile(`\b(bot|crawler|spider|crawl|scrape)\b`)
 
 // DetectBot checks the User-Agent for known bot patterns.
 // Returns (isBot, botName).
 func DetectBot(ua string) (bool, string) {
+	ua = strings.TrimSpace(ua)
 	if ua == "" {
 		return true, "empty-ua"
 	}
 	lower := strings.ToLower(ua)
-	for _, pattern := range botPatterns {
+
+	for _, pattern := range strongBotPatterns {
 		if strings.Contains(lower, pattern) {
 			return true, pattern
 		}
 	}
+
+	if genericBotTokenRegex.FindString(lower) != "" {
+		return true, "generic-bot-token"
+	}
+
+	hasAutomationClient := false
+	for _, pattern := range automationClientPatterns {
+		if strings.Contains(lower, pattern) {
+			hasAutomationClient = true
+			break
+		}
+	}
+
+	hasBrowserSignature := false
+	for _, pattern := range browserLikePatterns {
+		if strings.Contains(lower, pattern) {
+			hasBrowserSignature = true
+			break
+		}
+	}
+
+	if hasAutomationClient && !hasBrowserSignature {
+		return true, "automation-client"
+	}
+
+	// Extremely short user-agents are usually machine-generated.
+	if len(lower) < 12 {
+		return true, "short-ua"
+	}
+
 	return false, ""
 }
 
