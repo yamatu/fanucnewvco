@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, ReactNode } from 'react';
+import { useEffect, useRef, useState, ReactNode, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -27,9 +27,14 @@ import {
   ChartBarIcon,
   NewspaperIcon
 } from '@heroicons/react/24/outline';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth, useLogout } from '@/hooks/useAuth';
 import AuthGuard from '@/components/auth/AuthGuard';
 import { useAdminI18n } from '@/lib/admin-i18n';
+import { queryKeys } from '@/lib/react-query';
+import { Order } from '@/types';
+import { OrderService } from '@/services';
+import { formatCurrency } from '@/lib/utils';
 
 const navigation = [
   { key: 'nav.dashboard', name: 'Dashboard', href: '/admin', icon: HomeIcon },
@@ -56,14 +61,20 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
+const LAST_SEEN_ORDER_ID_KEY = 'fanuc_admin_last_seen_order_id';
+
 function AdminLayoutInner({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [lastSeenOrderId, setLastSeenOrderId] = useState<number | null>(null);
+  const [notificationStateReady, setNotificationStateReady] = useState(false);
   const pathname = usePathname();
   const { user } = useAuth();
   const logoutMutation = useLogout();
   const { locale, setLocale, t } = useAdminI18n();
 
   const mainRef = useRef<HTMLElement | null>(null);
+  const notificationPanelRef = useRef<HTMLDivElement | null>(null);
 
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -71,6 +82,79 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
 
   // Make nested routes (e.g. /admin/products/new, /admin/products/[id]/edit) still show the parent title.
   const activeNav = navigation.find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
+
+  const { data: recentOrdersData, isFetching: isRecentOrdersFetching } = useQuery({
+    queryKey: queryKeys.orders.recent(),
+    queryFn: () => OrderService.getOrders({ page: 1, page_size: 20 }),
+    enabled: !!user,
+    refetchInterval: 30000,
+    refetchIntervalInBackground: true,
+    staleTime: 5000,
+  });
+
+  const recentOrders = useMemo<Order[]>(() => recentOrdersData?.data ?? [], [recentOrdersData]);
+
+  const persistLastSeenOrderId = useCallback((orderId: number) => {
+    setLastSeenOrderId(orderId);
+    try {
+      window.localStorage.setItem(LAST_SEEN_ORDER_ID_KEY, String(orderId));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const markOrderNotificationsAsRead = useCallback(() => {
+    if (!notificationStateReady || recentOrders.length === 0) {
+      return;
+    }
+
+    const newestOrderId = recentOrders[0].id;
+    if (!Number.isFinite(newestOrderId) || newestOrderId <= 0) {
+      return;
+    }
+    if (lastSeenOrderId !== null && newestOrderId <= lastSeenOrderId) {
+      return;
+    }
+
+    persistLastSeenOrderId(newestOrderId);
+  }, [notificationStateReady, recentOrders, lastSeenOrderId, persistLastSeenOrderId]);
+
+  const closeNotificationPanel = useCallback(() => {
+    setIsNotificationOpen(false);
+    markOrderNotificationsAsRead();
+  }, [markOrderNotificationsAsRead]);
+
+  const handleNotificationToggle = useCallback(() => {
+    setIsNotificationOpen((prev) => {
+      if (prev) {
+        markOrderNotificationsAsRead();
+        return false;
+      }
+      return true;
+    });
+  }, [markOrderNotificationsAsRead]);
+
+  const newOrders = useMemo<Order[]>(() => {
+    if (!notificationStateReady || lastSeenOrderId === null) {
+      return [];
+    }
+    return recentOrders.filter((order) => order.id > lastSeenOrderId);
+  }, [notificationStateReady, lastSeenOrderId, recentOrders]);
+
+  const unreadOrderCount = newOrders.length;
+
+  const formatNotificationTime = useCallback((createdAt: string) => {
+    const date = new Date(createdAt);
+    if (Number.isNaN(date.getTime())) {
+      return createdAt;
+    }
+    return date.toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }, [locale]);
 
   // Persist and restore scroll position for admin pages.
   useEffect(() => {
@@ -110,6 +194,65 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
       }
     };
   }, [pathname]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(LAST_SEEN_ORDER_ID_KEY);
+      if (raw !== null) {
+        const parsed = Number(raw);
+        if (Number.isFinite(parsed) && parsed > 0) {
+          setLastSeenOrderId(parsed);
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setNotificationStateReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!notificationStateReady || lastSeenOrderId !== null || recentOrders.length === 0) {
+      return;
+    }
+
+    const newestOrderId = recentOrders[0].id;
+    if (!Number.isFinite(newestOrderId) || newestOrderId <= 0) {
+      return;
+    }
+
+    persistLastSeenOrderId(newestOrderId);
+  }, [notificationStateReady, lastSeenOrderId, recentOrders, persistLastSeenOrderId]);
+
+  useEffect(() => {
+    if (!isNotificationOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!notificationPanelRef.current) {
+        return;
+      }
+      if (notificationPanelRef.current.contains(event.target as Node)) {
+        return;
+      }
+      closeNotificationPanel();
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeNotificationPanel();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isNotificationOpen, closeNotificationPanel]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -213,10 +356,91 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
 
               <div className="flex items-center space-x-4">
                 {/* Notifications */}
-                <button className="relative p-2 text-gray-400 hover:text-gray-500">
-                  <BellIcon className="h-6 w-6" />
-                  <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400"></span>
-                </button>
+                <div className="relative" ref={notificationPanelRef}>
+                  <button
+                    onClick={handleNotificationToggle}
+                    className="relative p-2 text-gray-400 hover:text-gray-500"
+                    aria-haspopup="menu"
+                    aria-expanded={isNotificationOpen}
+                    aria-label={t('orders.notice.button', locale === 'zh' ? '订单提醒' : 'Order notifications')}
+                    title={t('orders.notice.button', locale === 'zh' ? '订单提醒' : 'Order notifications')}
+                  >
+                    <BellIcon className="h-6 w-6" />
+                    {unreadOrderCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 font-semibold text-center">
+                        {unreadOrderCount > 99 ? '99+' : unreadOrderCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {isNotificationOpen && (
+                    <div className="absolute right-0 z-50 mt-2 w-80 sm:w-96 rounded-lg border border-gray-200 bg-white shadow-xl">
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                        <h3 className="text-sm font-semibold text-gray-900">
+                          {t('orders.notice.title', locale === 'zh' ? '新订单提醒' : 'New Order Alerts')}
+                        </h3>
+                        {isRecentOrdersFetching && (
+                          <span className="text-xs text-gray-400">{t('orders.notice.refreshing', locale === 'zh' ? '刷新中...' : 'Refreshing...')}</span>
+                        )}
+                      </div>
+
+                      <div className="max-h-80 overflow-y-auto">
+                        {newOrders.length > 0 ? (
+                          <ul className="divide-y divide-gray-100">
+                            {newOrders.slice(0, 10).map((order) => (
+                              <li key={order.id}>
+                                <Link
+                                  href={`/admin/orders/${order.id}`}
+                                  prefetch={false}
+                                  onClick={closeNotificationPanel}
+                                  className="block px-4 py-3 hover:bg-gray-50"
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                        #{order.order_number || order.id}
+                                      </p>
+                                      <p className="text-xs text-gray-500 truncate">{order.customer_name || order.customer_email}</p>
+                                    </div>
+                                    <p className="text-xs font-medium text-green-600 whitespace-nowrap">
+                                      {formatCurrency(order.total_amount || 0, order.currency || 'USD')}
+                                    </p>
+                                  </div>
+                                  <p className="mt-1 text-xs text-gray-400">
+                                    {formatNotificationTime(order.created_at)}
+                                  </p>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="px-4 py-8 text-sm text-center text-gray-500">
+                            {t('orders.notice.empty', locale === 'zh' ? '没有新的内容' : 'No new content')}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between px-4 py-2 border-t border-gray-100 bg-gray-50">
+                        <Link
+                          href="/admin/orders"
+                          prefetch={false}
+                          onClick={closeNotificationPanel}
+                          className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                        >
+                          {t('orders.notice.viewAll', locale === 'zh' ? '查看全部订单' : 'View all orders')}
+                        </Link>
+                        {newOrders.length > 0 && (
+                          <button
+                            onClick={closeNotificationPanel}
+                            className="text-xs font-medium text-gray-500 hover:text-gray-700"
+                          >
+                            {t('orders.notice.markRead', locale === 'zh' ? '标记为已读' : 'Mark as read')}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Language */}
                 <div className="flex items-center space-x-2">
