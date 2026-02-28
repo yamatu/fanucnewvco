@@ -6,6 +6,16 @@ import { EmailService } from '@/services';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -44,12 +54,12 @@ export default function ForgotPasswordPage() {
     if (cooldown > 0) return;
     setSending(true);
     try {
-      await EmailService.sendCode({ email: e, purpose: 'reset' });
+      await EmailService.requestPasswordReset(e);
       toast.success('Reset code sent');
       setCooldown(resendSeconds);
       setStep('confirm');
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to send code');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to send code'));
     } finally {
       setSending(false);
     }
@@ -64,11 +74,16 @@ export default function ForgotPasswordPage() {
 
     setResetting(true);
     try {
-      await EmailService.confirmPasswordReset({ email: e, code: code.trim(), new_password: newPassword });
+      await EmailService.confirmPasswordReset({
+        email: e,
+        code: code.trim(),
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      });
       toast.success('Password updated. You can now sign in.');
       window.location.href = `/login?returnUrl=/account`;
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to reset password');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to reset password'));
     } finally {
       setResetting(false);
     }

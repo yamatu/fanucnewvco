@@ -118,6 +118,8 @@ func SetupRoutes(r *gin.Engine) {
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/login", middleware.LoginRateLimitMiddleware(), authController.Login)
+			auth.POST("/password-reset/request", middleware.LoginRateLimitMiddleware(), authController.RequestPasswordReset)
+			auth.POST("/password-reset/confirm", authController.ConfirmPasswordReset)
 
 			// Protected auth routes
 			authProtected := auth.Group("")

@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 
 // Define protected routes
 const protectedRoutes = ['/admin'];
-const authRoutes = ['/admin/login'];
+const authRoutes = ['/admin/login', '/admin/forgot-password'];
 
 // List of search engine crawlers
 const SEARCH_ENGINE_BOTS = [

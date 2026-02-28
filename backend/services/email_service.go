@@ -268,8 +268,9 @@ func sendResendEmail(db *gorm.DB, s *models.EmailSetting, opts EmailSendOptions)
 type VerificationPurpose string
 
 const (
-	PurposeRegister VerificationPurpose = "register"
-	PurposeReset    VerificationPurpose = "reset"
+	PurposeRegister   VerificationPurpose = "register"
+	PurposeReset      VerificationPurpose = "reset"
+	PurposeAdminReset VerificationPurpose = "admin_reset"
 )
 
 func GenerateVerificationCode() (string, error) {
@@ -291,10 +292,18 @@ func CreateAndSendVerificationCode(db *gorm.DB, email string, purpose Verificati
 	if !s.Enabled {
 		return errors.New("email is disabled")
 	}
+	if !s.VerificationEnabled {
+		return errors.New("email verification is disabled")
+	}
+
+	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+	if normalizedEmail == "" {
+		return errors.New("email is required")
+	}
 
 	// basic resend throttling
 	var last models.EmailVerificationCode
-	if err := db.Where("email = ? AND purpose = ?", email, string(purpose)).Order("created_at DESC").First(&last).Error; err == nil {
+	if err := db.Where("email = ? AND purpose = ?", normalizedEmail, string(purpose)).Order("created_at DESC").First(&last).Error; err == nil {
 		min := s.CodeResendSeconds
 		if min <= 0 {
 			min = 60
@@ -317,7 +326,7 @@ func CreateAndSendVerificationCode(db *gorm.DB, email string, purpose Verificati
 		expMin = 10
 	}
 	rec := models.EmailVerificationCode{
-		Email:     email,
+		Email:     normalizedEmail,
 		Purpose:   string(purpose),
 		CodeHash:  string(hash),
 		ExpiresAt: time.Now().Add(time.Duration(expMin) * time.Minute),
@@ -327,7 +336,7 @@ func CreateAndSendVerificationCode(db *gorm.DB, email string, purpose Verificati
 	}
 
 	subject := "Your Vcocnc verification code"
-	if purpose == PurposeReset {
+	if purpose == PurposeReset || purpose == PurposeAdminReset {
 		subject = "Reset your Vcocnc password"
 	}
 
@@ -351,16 +360,25 @@ func CreateAndSendVerificationCode(db *gorm.DB, email string, purpose Verificati
 		"X-Entity-Ref-ID": fmt.Sprintf("verify:%s:%d", string(purpose), rec.ID),
 	}
 
-	return SendEmail(db, EmailSendOptions{To: email, Subject: subject, Text: text, HTML: html, Headers: headers})
+	return SendEmail(db, EmailSendOptions{To: normalizedEmail, Subject: subject, Text: text, HTML: html, Headers: headers})
 }
 
 func VerifyEmailCode(db *gorm.DB, email string, purpose VerificationPurpose, code string) error {
+	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+	if normalizedEmail == "" {
+		return errors.New("invalid or expired code")
+	}
+	normalizedCode := strings.TrimSpace(code)
+	if normalizedCode == "" {
+		return errors.New("invalid or expired code")
+	}
+
 	var rec models.EmailVerificationCode
-	if err := db.Where("email = ? AND purpose = ? AND used_at IS NULL AND expires_at > ?", email, string(purpose), time.Now()).
+	if err := db.Where("email = ? AND purpose = ? AND used_at IS NULL AND expires_at > ?", normalizedEmail, string(purpose), time.Now()).
 		Order("created_at DESC").First(&rec).Error; err != nil {
 		return errors.New("invalid or expired code")
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(rec.CodeHash), []byte(code)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(rec.CodeHash), []byte(normalizedCode)); err != nil {
 		return errors.New("invalid or expired code")
 	}
 	now := time.Now()

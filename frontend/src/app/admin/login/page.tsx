@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useLogin } from '@/hooks/useAuth';
@@ -11,7 +11,6 @@ import { useAdminI18n } from '@/lib/admin-i18n';
 export default function AdminLoginPage() {
   const { t } = useAdminI18n();
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
   const loginMutation = useLogin();
 
   const {
@@ -123,9 +122,9 @@ export default function AdminLoginPage() {
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+                <Link href="/admin/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
                   {t('admin.login.forgot', 'Forgot your password?')}
-                </a>
+                </Link>
               </div>
             </div>
 

@@ -1,10 +1,13 @@
 package controllers
 
 import (
+	"errors"
 	"fanuc-backend/config"
 	"fanuc-backend/models"
+	"fanuc-backend/services"
 	"fanuc-backend/utils"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +15,17 @@ import (
 )
 
 type AuthController struct{}
+
+type adminPasswordResetRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+type adminPasswordResetConfirmRequest struct {
+	Email           string `json:"email" binding:"required,email"`
+	Code            string `json:"code" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=6"`
+	ConfirmPassword string `json:"confirm_password" binding:"required,min=6"`
+}
 
 // Login handles user authentication
 func (ac *AuthController) Login(c *gin.Context) {
@@ -83,6 +97,91 @@ func (ac *AuthController) Login(c *gin.Context) {
 		Message: "Login successful",
 		Data:    response,
 	})
+}
+
+// RequestPasswordReset sends an admin password reset code to email.
+// Public endpoint. Returns generic success to avoid account enumeration.
+func (ac *AuthController) RequestPasswordReset(c *gin.Context) {
+	var req adminPasswordResetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request", Error: err.Error()})
+		return
+	}
+
+	db := config.GetDB()
+	setting, err := services.GetOrCreateEmailSetting(db)
+	if err != nil || !setting.Enabled || !setting.VerificationEnabled {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Password reset via email is currently disabled", Error: "email_verification_disabled"})
+		return
+	}
+
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	if email == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Email is required", Error: "email_required"})
+		return
+	}
+
+	var user models.AdminUser
+	err = db.Where("email = ? AND is_active = ?", email, true).First(&user).Error
+	if err == nil {
+		_ = services.CreateAndSendVerificationCode(db, email, services.PurposeAdminReset)
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to process reset request", Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "If the email exists, a reset code has been sent"})
+}
+
+// ConfirmPasswordReset verifies reset code and sets a new admin password.
+// Public endpoint.
+func (ac *AuthController) ConfirmPasswordReset(c *gin.Context) {
+	var req adminPasswordResetConfirmRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request", Error: err.Error()})
+		return
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Passwords do not match", Error: "password_mismatch"})
+		return
+	}
+
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	if email == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Email is required", Error: "email_required"})
+		return
+	}
+
+	db := config.GetDB()
+	if err := services.VerifyEmailCode(db, email, services.PurposeAdminReset, strings.TrimSpace(req.Code)); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid or expired verification code", Error: "invalid_code"})
+		return
+	}
+
+	var user models.AdminUser
+	if err := db.Where("email = ? AND is_active = ?", email, true).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Account not found", Error: "account_not_found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database error", Error: err.Error()})
+		return
+	}
+
+	hashedPassword, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to process password", Error: err.Error()})
+		return
+	}
+
+	user.PasswordHash = hashedPassword
+	if err := db.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to update password", Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Password reset successful"})
 }
 
 // GetProfile returns current user profile

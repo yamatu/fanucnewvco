@@ -56,7 +56,7 @@ export class EmailService {
     if (!res.data.success) throw new Error(res.data.message || res.data.error || 'Failed to request reset');
   }
 
-  static async confirmPasswordReset(payload: { email: string; code: string; new_password: string }): Promise<void> {
+  static async confirmPasswordReset(payload: { email: string; code: string; new_password: string; confirm_password: string }): Promise<void> {
     const res = await apiClient.post<APIResponse<void>>('/customer/password-reset/confirm', payload);
     if (!res.data.success) throw new Error(res.data.message || res.data.error || 'Failed to reset password');
   }

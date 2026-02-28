@@ -75,6 +75,27 @@ export class AuthService {
     }
   }
 
+  // Admin forgot password: request verification code
+  static async requestPasswordReset(email: string): Promise<void> {
+    const response = await apiClient.post<APIResponse<void>>('/auth/password-reset/request', { email });
+    if (!response.data.success) {
+      throw new Error(response.data.message || response.data.error || 'Failed to request password reset');
+    }
+  }
+
+  // Admin forgot password: confirm verification code and update password
+  static async confirmPasswordReset(payload: {
+    email: string;
+    code: string;
+    new_password: string;
+    confirm_password: string;
+  }): Promise<void> {
+    const response = await apiClient.post<APIResponse<void>>('/auth/password-reset/confirm', payload);
+    if (!response.data.success) {
+      throw new Error(response.data.message || response.data.error || 'Failed to reset password');
+    }
+  }
+
   // Check if user is authenticated
   static isAuthenticated(): boolean {
     return authUtils.isAuthenticated();
