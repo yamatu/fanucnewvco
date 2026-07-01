@@ -43,6 +43,11 @@ type EmailSetting struct {
 	// Admin notification recipients (comma/newline separated emails)
 	OrderNotificationEmails string `json:"order_notification_emails" gorm:"type:text"`
 
+	ContactNotificationsEnabled bool `json:"contact_notifications_enabled" gorm:"default:true"`
+	// Admin contact message notification recipients (comma/newline separated emails).
+	// Falls back to order_notification_emails, then from_email, when empty.
+	ContactNotificationEmails string `json:"contact_notification_emails" gorm:"type:text"`
+
 	CodeExpiryMinutes int `json:"code_expiry_minutes" gorm:"default:10"`
 	CodeResendSeconds int `json:"code_resend_seconds" gorm:"default:60"`
 

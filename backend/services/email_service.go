@@ -151,6 +151,8 @@ func GetOrCreateEmailSetting(db *gorm.DB) (*models.EmailSetting, error) {
 				OrderCreatedNotificationsEnabled: false,
 				OrderPaidNotificationsEnabled:    false,
 				OrderNotificationEmails:          "",
+				ContactNotificationsEnabled:      true,
+				ContactNotificationEmails:        "",
 			}
 			if e := db.Create(&s).Error; e != nil {
 				return nil, e
@@ -162,11 +164,21 @@ func GetOrCreateEmailSetting(db *gorm.DB) (*models.EmailSetting, error) {
 	return &s, nil
 }
 
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
 type EmailSendOptions struct {
 	To      string
 	Subject string
 	Text    string
 	HTML    string
+	ReplyTo string
 	Headers map[string]string
 }
 
@@ -204,8 +216,12 @@ func SendEmail(db *gorm.DB, opts EmailSendOptions) error {
 	msg.SetHeader("From", msg.FormatAddress(s.FromEmail, s.FromName))
 	msg.SetHeader("To", opts.To)
 	msg.SetHeader("Subject", opts.Subject)
-	if s.ReplyTo != "" {
-		msg.SetHeader("Reply-To", s.ReplyTo)
+	replyTo := strings.TrimSpace(opts.ReplyTo)
+	if replyTo == "" {
+		replyTo = strings.TrimSpace(s.ReplyTo)
+	}
+	if replyTo != "" {
+		msg.SetHeader("Reply-To", replyTo)
 	}
 	for k, v := range opts.Headers {
 		msg.SetHeader(k, v)
@@ -258,7 +274,7 @@ func sendResendEmail(db *gorm.DB, s *models.EmailSetting, opts EmailSendOptions)
 		Subject: opts.Subject,
 		HTML:    opts.HTML,
 		Text:    opts.Text,
-		ReplyTo: s.ReplyTo,
+		ReplyTo: firstNonEmpty(strings.TrimSpace(opts.ReplyTo), strings.TrimSpace(s.ReplyTo)),
 		Headers: opts.Headers,
 	}
 	_, err = client.SendEmail(req)
