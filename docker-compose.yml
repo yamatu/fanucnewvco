@@ -164,6 +164,9 @@ services:
         NEXT_PUBLIC_SITE_DESCRIPTION: ${NEXT_PUBLIC_SITE_DESCRIPTION:-Professional FANUC Parts and Equipment Sales}
         NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
         NEXT_PUBLIC_PAYPAL_ENVIRONMENT: ${NEXT_PUBLIC_PAYPAL_ENVIRONMENT:-sandbox}
+        # Keep Next.js Docker builds inside small VPS memory limits.
+        NEXT_BUILD_WORKER_COUNT: ${NEXT_BUILD_WORKER_COUNT:-1}
+        NEXT_BUILD_NODE_OPTIONS: "${NEXT_BUILD_NODE_OPTIONS:---max-old-space-size=768}"
     container_name: fanuc_frontend
     environment:
       NODE_ENV: production
