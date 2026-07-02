@@ -1,10 +1,24 @@
 import path from 'node:path';
 import type { NextConfig } from "next";
 
+const configuredBuildWorkerCount = Number.parseInt(process.env.NEXT_BUILD_WORKER_COUNT || '', 10);
+const buildWorkerCount =
+  Number.isFinite(configuredBuildWorkerCount) && configuredBuildWorkerCount > 0
+    ? configuredBuildWorkerCount
+    : undefined;
+
 const nextConfig: NextConfig = {
   output: 'standalone',
   compress: true,
   generateEtags: true,
+
+  ...(buildWorkerCount
+    ? {
+        experimental: {
+          cpus: buildWorkerCount,
+        },
+      }
+    : {}),
 
   // Silence workspace root inference warning when monorepo-like structure exists
   // @ts-expect-error - supported by Next runtime, may not be in TS types
