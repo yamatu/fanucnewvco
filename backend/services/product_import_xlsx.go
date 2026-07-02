@@ -34,16 +34,18 @@ type ProductImportOptions struct {
 }
 
 type ProductImportRow struct {
-	RowNumber int
-	Model     string
-	Price     float64
-	Quantity  int
-	WeightKg  float64
+	RowNumber    int
+	Model        string
+	Price        float64
+	Quantity     int
+	WeightKg     float64
+	CategoryName string
 }
 
 type ProductImportItem struct {
 	RowNumber int    `json:"row_number"`
 	Model     string `json:"model"`
+	Category  string `json:"category,omitempty"`
 	Action    string `json:"action"` // created | updated | skipped | failed
 	ProductID uint   `json:"product_id,omitempty"`
 	SKU       string `json:"sku,omitempty"`
@@ -57,6 +59,7 @@ type ProductImportResult struct {
 	Updated    int                 `json:"updated"`
 	Skipped    int                 `json:"skipped"`
 	Failed     int                 `json:"failed"`
+	Categories int                 `json:"created_categories"`
 	Items      []ProductImportItem `json:"items"`
 	Template   string              `json:"template"` // template identifier
 	Overwrite  bool                `json:"overwrite"`
@@ -84,6 +87,7 @@ type ProductImportTaskSnapshot struct {
 	Updated       int                     `json:"updated"`
 	Skipped       int                     `json:"skipped"`
 	Failed        int                     `json:"failed"`
+	Categories    int                     `json:"created_categories"`
 	Message       string                  `json:"message,omitempty"`
 	Result        *ProductImportResult    `json:"result,omitempty"`
 	StartedAt     *time.Time              `json:"started_at,omitempty"`
@@ -130,7 +134,7 @@ func GenerateProductImportTemplateXLSX(brand string) ([]byte, error) {
 	sheet := "Products"
 	f.SetSheetName("Sheet1", sheet)
 
-	headers := []string{"型号(Model)", "价格(Price)", "数量(Quantity)", "重量kg(WeightKg)"}
+	headers := []string{"型号(Model)", "价格(Price)", "数量(Quantity)", "重量kg(WeightKg)", "分类(Category)"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		_ = f.SetCellValue(sheet, cell, h)
@@ -139,11 +143,13 @@ func GenerateProductImportTemplateXLSX(brand string) ([]byte, error) {
 	_ = f.SetCellValue(sheet, "B2", 1200)
 	_ = f.SetCellValue(sheet, "C2", 5)
 	_ = f.SetCellValue(sheet, "D2", 1.2)
+	_ = f.SetCellValue(sheet, "E2", "Servo Motors")
 
 	_ = f.SetColWidth(sheet, "A", "A", 24)
 	_ = f.SetColWidth(sheet, "B", "B", 14)
 	_ = f.SetColWidth(sheet, "C", "C", 14)
 	_ = f.SetColWidth(sheet, "D", "D", 16)
+	_ = f.SetColWidth(sheet, "E", "E", 24)
 	_ = f.SetPanes(sheet, &excelize.Panes{Freeze: true, Split: true, YSplit: 1, ActivePane: "bottomLeft"})
 
 	headerStyle, _ := f.NewStyle(&excelize.Style{
@@ -151,7 +157,7 @@ func GenerateProductImportTemplateXLSX(brand string) ([]byte, error) {
 		Fill:   excelize.Fill{Type: "pattern", Color: []string{"#F3F4F6"}, Pattern: 1},
 		Border: []excelize.Border{{Type: "bottom", Color: "#E5E7EB", Style: 1}},
 	})
-	_ = f.SetCellStyle(sheet, "A1", "D1", headerStyle)
+	_ = f.SetCellStyle(sheet, "A1", "E1", headerStyle)
 
 	buf, err := f.WriteToBuffer()
 	if err != nil {
@@ -202,7 +208,7 @@ func StartProductImportTask(ctx context.Context, db *gorm.DB, src io.Reader, fil
 		Result: ProductImportResult{
 			Brand:      brand,
 			Items:      make([]ProductImportItem, 0, productImportRecentItems),
-			Template:   "model_price_quantity_v1",
+			Template:   "model_price_quantity_category_v2",
 			Overwrite:  opts.Overwrite,
 			CreatedNew: opts.CreateMissing,
 		},
@@ -294,7 +300,7 @@ func runProductImportTask(ctx context.Context, db *gorm.DB, taskID string, opts 
 			t.CompletedAt = &finishedAt
 			t.UpdatedAt = finishedAt
 		})
-		if res.Created > 0 || res.Updated > 0 {
+		if res.Created > 0 || res.Updated > 0 || res.Categories > 0 {
 			InvalidatePublicCaches(context.Background(), "product:import:xlsx", nil)
 			TriggerNextRevalidate(nil, nil, true)
 		}
@@ -326,7 +332,7 @@ func processProductImportFile(ctx context.Context, db *gorm.DB, filePath string,
 		Brand:      brand,
 		TotalRows:  totalRows,
 		Items:      make([]ProductImportItem, 0, minInt(totalRows, productImportRecentItems)),
-		Template:   "model_price_quantity_v1",
+		Template:   "model_price_quantity_category_v2",
 		Overwrite:  opts.Overwrite,
 		CreatedNew: opts.CreateMissing,
 	}
@@ -335,7 +341,7 @@ func processProductImportFile(ctx context.Context, db *gorm.DB, filePath string,
 		return res, nil
 	}
 
-	catBySlug, defaultCategoryID := loadImportCategories(db, brand)
+	categoryResolver := loadImportCategoryResolver(db, brand)
 	rows, err := f.Rows(sheet)
 	if err != nil {
 		return res, err
@@ -350,7 +356,7 @@ func processProductImportFile(ctx context.Context, db *gorm.DB, filePath string,
 		if len(batch) == 0 {
 			return nil
 		}
-		if err := applyImportBatch(ctx, db, batch, opts, catBySlug, defaultCategoryID, &res); err != nil {
+		if err := applyImportBatch(ctx, db, batch, opts, categoryResolver, &res); err != nil {
 			return err
 		}
 		processed += len(batch)
@@ -421,7 +427,8 @@ func countImportRows(f *excelize.File, sheet string) (int, error) {
 		priceStr := getCol(cols, headerMap.Price)
 		qtyStr := getCol(cols, headerMap.Qty)
 		weightStr := getCol(cols, headerMap.Weight)
-		if model == "" && strings.TrimSpace(priceStr) == "" && strings.TrimSpace(qtyStr) == "" && strings.TrimSpace(weightStr) == "" {
+		categoryStr := getCol(cols, headerMap.Category)
+		if model == "" && strings.TrimSpace(priceStr) == "" && strings.TrimSpace(qtyStr) == "" && strings.TrimSpace(weightStr) == "" && strings.TrimSpace(categoryStr) == "" {
 			continue
 		}
 		total++
@@ -430,14 +437,15 @@ func countImportRows(f *excelize.File, sheet string) (int, error) {
 }
 
 type importHeaderMap struct {
-	Model  int
-	Price  int
-	Qty    int
-	Weight int
+	Model    int
+	Price    int
+	Qty      int
+	Weight   int
+	Category int
 }
 
 func detectImportHeader(header []string) importHeaderMap {
-	m := importHeaderMap{Model: 0, Price: 1, Qty: 2, Weight: 3}
+	m := importHeaderMap{Model: 0, Price: 1, Qty: 2, Weight: 3, Category: -1}
 	for i, h := range header {
 		key := strings.ToLower(strings.TrimSpace(h))
 		key = strings.ReplaceAll(key, " ", "")
@@ -453,6 +461,9 @@ func detectImportHeader(header []string) importHeaderMap {
 		if strings.Contains(key, "weight") || strings.Contains(key, "重量") || strings.Contains(key, "kg") {
 			m.Weight = i
 		}
+		if strings.Contains(key, "分类") || strings.Contains(key, "类别") || strings.Contains(key, "category") || strings.Contains(key, "categorytype") || key == "type" || key == "类型" {
+			m.Category = i
+		}
 	}
 	return m
 }
@@ -462,8 +473,9 @@ func parseImportRow(cols []string, headerMap importHeaderMap, rowNo int) (Produc
 	priceStr := getCol(cols, headerMap.Price)
 	qtyStr := getCol(cols, headerMap.Qty)
 	weightStr := getCol(cols, headerMap.Weight)
+	categoryName := strings.TrimSpace(getCol(cols, headerMap.Category))
 
-	if model == "" && strings.TrimSpace(priceStr) == "" && strings.TrimSpace(qtyStr) == "" && strings.TrimSpace(weightStr) == "" {
+	if model == "" && strings.TrimSpace(priceStr) == "" && strings.TrimSpace(qtyStr) == "" && strings.TrimSpace(weightStr) == "" && categoryName == "" {
 		return ProductImportRow{}, false, nil
 	}
 
@@ -481,42 +493,47 @@ func parseImportRow(cols []string, headerMap importHeaderMap, rowNo int) (Produc
 	}
 
 	return ProductImportRow{
-		RowNumber: rowNo,
-		Model:     model,
-		Price:     price,
-		Quantity:  qty,
-		WeightKg:  wkg,
+		RowNumber:    rowNo,
+		Model:        model,
+		Price:        price,
+		Quantity:     qty,
+		WeightKg:     wkg,
+		CategoryName: categoryName,
 	}, true, nil
 }
 
-func applyImportBatch(ctx context.Context, db *gorm.DB, batch []ProductImportRow, opts ProductImportOptions, catBySlug map[string]uint, defaultCategoryID uint, res *ProductImportResult) error {
+func applyImportBatch(ctx context.Context, db *gorm.DB, batch []ProductImportRow, opts ProductImportOptions, categories *importCategoryResolver, res *ProductImportResult) error {
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, row := range batch {
 			model := NormalizeProductModel(row.Model)
 			if model == "" {
-				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: row.Model, Action: "failed", Message: "model is empty"})
+				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: row.Model, Category: row.CategoryName, Action: "failed", Message: "model is empty"})
 				continue
 			}
 
 			product, found, findErr := findProductByModelOrSKU(tx, model)
 			if findErr != nil {
-				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Action: "failed", Message: findErr.Error()})
+				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Category: row.CategoryName, Action: "failed", Message: findErr.Error()})
 				continue
 			}
 
 			enr, eerr := EnrichProductByBrand(opts.Brand, model)
 			if eerr != nil {
-				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Action: "failed", Message: eerr.Error()})
+				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Category: row.CategoryName, Action: "failed", Message: eerr.Error()})
 				continue
 			}
 
-			categoryID := defaultCategoryID
-			if id, ok := catBySlug[enr.CategorySlug]; ok && id > 0 {
-				categoryID = id
+			if !found && !opts.CreateMissing {
+				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Category: row.CategoryName, Action: "skipped", Message: "product not found"})
+				continue
 			}
-			if categoryID == 0 {
-				categoryID = defaultCategoryID
+
+			categoryID, categoryLabel, createdCategories, categoryErr := categories.resolve(tx, row.CategoryName, enr.CategorySlug)
+			if categoryErr != nil {
+				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Category: row.CategoryName, Action: "failed", Message: categoryErr.Error()})
+				continue
 			}
+			res.Categories += createdCategories
 
 			if found {
 				updates := map[string]any{
@@ -555,7 +572,9 @@ func applyImportBatch(ctx context.Context, db *gorm.DB, batch []ProductImportRow
 				if strings.TrimSpace(product.PartNumber) == "" {
 					updates["part_number"] = model
 				}
-				if product.CategoryID == 0 && categoryID > 0 {
+				if row.CategoryName != "" && categoryID > 0 {
+					updates["category_id"] = categoryID
+				} else if product.CategoryID == 0 && categoryID > 0 {
 					updates["category_id"] = categoryID
 				}
 				if opts.Overwrite && categoryID > 0 {
@@ -563,15 +582,10 @@ func applyImportBatch(ctx context.Context, db *gorm.DB, batch []ProductImportRow
 				}
 
 				if e := tx.Model(&models.Product{}).Where("id = ?", product.ID).Updates(updates).Error; e != nil {
-					appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Action: "failed", ProductID: product.ID, SKU: product.SKU, Message: e.Error()})
+					appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Category: categoryLabel, Action: "failed", ProductID: product.ID, SKU: product.SKU, Message: e.Error()})
 					continue
 				}
-				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Action: "updated", ProductID: product.ID, SKU: product.SKU, Message: "updated"})
-				continue
-			}
-
-			if !opts.CreateMissing {
-				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Action: "skipped", Message: "product not found"})
+				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Category: categoryLabel, Action: "updated", ProductID: product.ID, SKU: product.SKU, Message: productImportMessage("updated", categoryLabel, createdCategories)})
 				continue
 			}
 
@@ -610,13 +624,24 @@ func applyImportBatch(ctx context.Context, db *gorm.DB, batch []ProductImportRow
 			}
 
 			if e := tx.Select("SKU", "Name", "Slug", "ShortDescription", "Description", "Price", "StockQuantity", "Weight", "Brand", "Model", "PartNumber", "CategoryID", "IsActive", "IsFeatured", "MetaTitle", "MetaDescription", "MetaKeywords", "ImageURLs").Create(&p).Error; e != nil {
-				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Action: "failed", Message: e.Error()})
+				appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Category: categoryLabel, Action: "failed", Message: e.Error()})
 				continue
 			}
-			appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Action: "created", ProductID: p.ID, SKU: p.SKU, Message: "created"})
+			appendImportItem(res, ProductImportItem{RowNumber: row.RowNumber, Model: model, Category: categoryLabel, Action: "created", ProductID: p.ID, SKU: p.SKU, Message: productImportMessage("created", categoryLabel, createdCategories)})
 		}
 		return nil
 	})
+}
+
+func productImportMessage(action string, category string, createdCategories int) string {
+	parts := []string{action}
+	if strings.TrimSpace(category) != "" {
+		parts = append(parts, "category: "+strings.TrimSpace(category))
+	}
+	if createdCategories > 0 {
+		parts = append(parts, fmt.Sprintf("new categories: %d", createdCategories))
+	}
+	return strings.Join(parts, "; ")
 }
 
 func appendImportItem(res *ProductImportResult, item ProductImportItem) {
@@ -658,22 +683,270 @@ func updateTaskProgress(task *productImportTask, res ProductImportResult, proces
 	})
 }
 
-func loadImportCategories(db *gorm.DB, brand string) (map[string]uint, uint) {
-	catBySlug := map[string]uint{}
+type importCategoryResolver struct {
+	bySlug            map[string]uint
+	byName            map[string]uint
+	byPath            map[string]uint
+	byParentSlug      map[string]uint
+	byParentName      map[string]uint
+	pathByID          map[uint]string
+	namePathByID      map[uint]string
+	defaultCategoryID uint
+}
+
+func loadImportCategoryResolver(db *gorm.DB, brand string) *importCategoryResolver {
+	resolver := &importCategoryResolver{
+		bySlug:       map[string]uint{},
+		byName:       map[string]uint{},
+		byPath:       map[string]uint{},
+		byParentSlug: map[string]uint{},
+		byParentName: map[string]uint{},
+		pathByID:     map[uint]string{},
+		namePathByID: map[uint]string{},
+	}
+
 	var cats []models.Category
-	if e := db.Model(&models.Category{}).Where("is_active = ?", true).Find(&cats).Error; e == nil {
+	if e := db.Model(&models.Category{}).Find(&cats).Error; e == nil {
 		for _, c := range cats {
-			catBySlug[c.Slug] = c.ID
+			resolver.addCategory(c)
 		}
 	}
-	defaultCategoryID := uint(0)
+
 	defaultCategorySlug := InferProductCategory(brand, "").CategorySlug
-	if id, ok := catBySlug[defaultCategorySlug]; ok {
-		defaultCategoryID = id
-	} else if len(cats) > 0 {
-		defaultCategoryID = cats[0].ID
+	for _, c := range cats {
+		if c.IsActive && strings.EqualFold(strings.TrimSpace(c.Slug), defaultCategorySlug) {
+			resolver.defaultCategoryID = c.ID
+			break
+		}
 	}
-	return catBySlug, defaultCategoryID
+	if resolver.defaultCategoryID == 0 {
+		for _, c := range cats {
+			if c.IsActive {
+				resolver.defaultCategoryID = c.ID
+				break
+			}
+		}
+	}
+	if resolver.defaultCategoryID == 0 && len(cats) > 0 {
+		resolver.defaultCategoryID = cats[0].ID
+	}
+
+	return resolver
+}
+
+func (r *importCategoryResolver) addCategory(category models.Category) {
+	if r == nil || category.ID == 0 {
+		return
+	}
+
+	slug := strings.ToLower(strings.TrimSpace(category.Slug))
+	nameKey := importCategoryLookupKey(category.Name)
+	parentKey := importCategoryParentKey(category.ParentID)
+	if slug != "" {
+		r.bySlug[slug] = category.ID
+		r.byParentSlug[parentKey+"|"+slug] = category.ID
+	}
+	if nameKey != "" {
+		if _, exists := r.byName[nameKey]; !exists {
+			r.byName[nameKey] = category.ID
+		}
+		r.byParentName[parentKey+"|"+nameKey] = category.ID
+	}
+
+	path := slug
+	namePath := nameKey
+	if category.ParentID != nil {
+		if parentPath := r.pathByID[*category.ParentID]; parentPath != "" && slug != "" {
+			path = parentPath + "/" + slug
+		}
+		if parentNamePath := r.namePathByID[*category.ParentID]; parentNamePath != "" && nameKey != "" {
+			namePath = parentNamePath + "/" + nameKey
+		}
+	}
+	if path != "" {
+		r.pathByID[category.ID] = path
+		r.byPath[path] = category.ID
+	}
+	if namePath != "" {
+		r.namePathByID[category.ID] = namePath
+		r.byPath[namePath] = category.ID
+	}
+}
+
+func (r *importCategoryResolver) resolve(tx *gorm.DB, customCategory string, inferredSlug string) (uint, string, int, error) {
+	customCategory = strings.TrimSpace(customCategory)
+	if customCategory == "" {
+		slug := strings.ToLower(strings.TrimSpace(inferredSlug))
+		if r != nil {
+			if id, ok := r.bySlug[slug]; ok && id > 0 {
+				return id, "", 0, nil
+			}
+			return r.defaultCategoryID, "", 0, nil
+		}
+		return 0, "", 0, nil
+	}
+
+	if r == nil {
+		return 0, customCategory, 0, errors.New("category resolver is nil")
+	}
+
+	if id := r.lookup(customCategory); id > 0 {
+		return id, customCategory, 0, nil
+	}
+
+	id, created, err := r.createPath(tx, customCategory)
+	if err != nil {
+		return 0, customCategory, 0, err
+	}
+	return id, customCategory, created, nil
+}
+
+func (r *importCategoryResolver) lookup(category string) uint {
+	category = strings.TrimSpace(category)
+	if category == "" {
+		return 0
+	}
+
+	pathKey := importCategoryPathKey(category)
+	if id, ok := r.byPath[pathKey]; ok {
+		return id
+	}
+	slugPathKey := importCategorySlugPathKey(category)
+	if id, ok := r.byPath[slugPathKey]; ok {
+		return id
+	}
+	slug := importCategorySlug(category)
+	if id, ok := r.bySlug[slug]; ok {
+		return id
+	}
+	nameKey := importCategoryLookupKey(category)
+	if id, ok := r.byName[nameKey]; ok {
+		return id
+	}
+	return 0
+}
+
+func (r *importCategoryResolver) createPath(tx *gorm.DB, categoryPath string) (uint, int, error) {
+	segments := importCategoryPathSegments(categoryPath)
+	if len(segments) == 0 {
+		return 0, 0, errors.New("category is empty")
+	}
+
+	var parentID *uint
+	var currentID uint
+	created := 0
+	for _, segment := range segments {
+		name := strings.TrimSpace(segment)
+		if name == "" {
+			continue
+		}
+
+		parentKey := importCategoryParentKey(parentID)
+		slug := importCategorySlug(name)
+		nameKey := importCategoryLookupKey(name)
+		if id, ok := r.byParentSlug[parentKey+"|"+slug]; ok && id > 0 {
+			currentID = id
+			parentID = &currentID
+			continue
+		}
+		if id, ok := r.byParentName[parentKey+"|"+nameKey]; ok && id > 0 {
+			currentID = id
+			parentID = &currentID
+			continue
+		}
+
+		baseSlug := slug
+		if baseSlug == "" {
+			baseSlug = "category"
+		}
+		uniqueSlug := utils.GenerateUniqueSlug(baseSlug, func(s string) bool {
+			var count int64
+			tx.Model(&models.Category{}).Where("slug = ?", s).Count(&count)
+			return count > 0
+		})
+		category := models.Category{
+			Name:        name,
+			Slug:        uniqueSlug,
+			Description: fmt.Sprintf("Auto-created from product import category: %s", categoryPath),
+			ParentID:    parentID,
+			IsActive:    true,
+		}
+		if err := tx.Create(&category).Error; err != nil {
+			return 0, created, err
+		}
+
+		r.addCategory(category)
+		created++
+		currentID = category.ID
+		parentID = &currentID
+	}
+
+	return currentID, created, nil
+}
+
+func importCategoryLookupKey(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = strings.Join(strings.Fields(s), " ")
+	return s
+}
+
+func importCategorySlug(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	return utils.GenerateSlug(s)
+}
+
+func importCategoryPathKey(s string) string {
+	segments := importCategoryPathSegments(s)
+	keys := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		key := importCategoryLookupKey(segment)
+		if key != "" {
+			keys = append(keys, key)
+		}
+	}
+	return strings.Join(keys, "/")
+}
+
+func importCategorySlugPathKey(s string) string {
+	segments := importCategoryPathSegments(s)
+	keys := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		key := importCategorySlug(segment)
+		if key != "" {
+			keys = append(keys, key)
+		}
+	}
+	return strings.Join(keys, "/")
+}
+
+func importCategoryPathSegments(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	replacer := strings.NewReplacer("＞", ">", "›", ">", "|", ">")
+	s = replacer.Replace(s)
+	if strings.Contains(s, ">") {
+		parts := strings.Split(s, ">")
+		out := make([]string, 0, len(parts))
+		for _, part := range parts {
+			if trimmed := strings.TrimSpace(part); trimmed != "" {
+				out = append(out, trimmed)
+			}
+		}
+		return out
+	}
+	return []string{s}
+}
+
+func importCategoryParentKey(parentID *uint) string {
+	if parentID == nil || *parentID == 0 {
+		return "0"
+	}
+	return strconv.FormatUint(uint64(*parentID), 10)
 }
 
 func parseFloatCell(s string) (float64, error) {
@@ -848,6 +1121,7 @@ func (t *productImportTask) snapshot() ProductImportTaskSnapshot {
 		Updated:       result.Updated,
 		Skipped:       result.Skipped,
 		Failed:        result.Failed,
+		Categories:    result.Categories,
 		Message:       t.Message,
 		CreatedAt:     t.CreatedAt,
 		UpdatedAt:     t.UpdatedAt,
