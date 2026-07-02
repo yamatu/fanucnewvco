@@ -313,49 +313,110 @@ func createDefaultCategories() {
 	}
 
 	// Create default categories
+	fanucParent := models.Category{
+		Name:        "Fanuc",
+		Slug:        "fanuc",
+		Description: "FANUC CNC and industrial automation parts",
+		SortOrder:   1,
+		IsActive:    true,
+	}
+	if err := DB.Create(&fanucParent).Error; err != nil {
+		log.Printf("Error creating category %s: %v", fanucParent.Name, err)
+		return
+	}
+
+	abParent := models.Category{
+		Name:        "AB",
+		Slug:        "ab",
+		Description: "Allen-Bradley industrial automation parts",
+		SortOrder:   2,
+		IsActive:    true,
+	}
+	_ = DB.Create(&abParent).Error
+
+	mitsubishiParent := models.Category{
+		Name:        "Mitsubishi",
+		Slug:        "mitsubishi",
+		Description: "Mitsubishi PLC, servo, HMI, and drive parts",
+		SortOrder:   3,
+		IsActive:    true,
+	}
+	_ = DB.Create(&mitsubishiParent).Error
+
 	categories := []models.Category{
 		{
-			Name:        "PCB Boards",
-			Slug:        "pcb-boards",
-			Description: "FANUC PCB Boards and Circuit Boards",
+			Name:        "FANUC CNC System Parts",
+			Slug:        "fanuc-cnc-system-parts",
+			Description: "FANUC CNC controllers, control units, and system modules",
+			ParentID:    &fanucParent.ID,
 			SortOrder:   1,
 			IsActive:    true,
 		},
 		{
-			Name:        "I/O Modules",
-			Slug:        "io-modules",
-			Description: "FANUC Input/Output Modules",
+			Name:        "FANUC Servo Amplifier / Drive",
+			Slug:        "fanuc-servo-amplifier-drive",
+			Description: "FANUC servo amplifiers and servo drives",
+			ParentID:    &fanucParent.ID,
 			SortOrder:   2,
 			IsActive:    true,
 		},
 		{
-			Name:        "Servo Motors",
-			Slug:        "servo-motors",
-			Description: "FANUC Servo Motors and Drives",
+			Name:        "FANUC Spindle Amplifier / Drive",
+			Slug:        "fanuc-spindle-amplifier-drive",
+			Description: "FANUC spindle amplifiers and spindle drives",
+			ParentID:    &fanucParent.ID,
 			SortOrder:   3,
 			IsActive:    true,
 		},
 		{
-			Name:        "Control Units",
-			Slug:        "control-units",
-			Description: "FANUC Control Units and Controllers",
+			Name:        "FANUC Servo Motor",
+			Slug:        "fanuc-servo-motor",
+			Description: "FANUC AC servo motors",
+			ParentID:    &fanucParent.ID,
 			SortOrder:   4,
 			IsActive:    true,
 		},
 		{
-			Name:        "Power Supplies",
-			Slug:        "power-supplies",
-			Description: "FANUC Power Supply Units",
+			Name:        "FANUC Spindle Motor",
+			Slug:        "fanuc-spindle-motor",
+			Description: "FANUC spindle motors",
+			ParentID:    &fanucParent.ID,
 			SortOrder:   5,
 			IsActive:    true,
 		},
 		{
-			Name:        "Cables & Connectors",
-			Slug:        "cables-connectors",
-			Description: "FANUC Cables and Connector Components",
+			Name:        "FANUC Power Supply",
+			Slug:        "fanuc-power-supply",
+			Description: "FANUC power supply units and power components",
+			ParentID:    &fanucParent.ID,
 			SortOrder:   6,
 			IsActive:    true,
 		},
+		{Name: "FANUC PCB / Control Board", Slug: "fanuc-pcb-control-board", Description: "FANUC PCB, control, CPU, axis, and memory boards", ParentID: &fanucParent.ID, SortOrder: 7, IsActive: true},
+		{Name: "FANUC I/O Module", Slug: "fanuc-i-o-module", Description: "FANUC I/O modules and input/output units", ParentID: &fanucParent.ID, SortOrder: 8, IsActive: true},
+		{Name: "FANUC Operator Panel & MDI", Slug: "fanuc-operator-panel-mdi", Description: "FANUC operator panels, MDI units, and teach pendants", ParentID: &fanucParent.ID, SortOrder: 9, IsActive: true},
+		{Name: "FANUC Display / Monitor", Slug: "fanuc-display-monitor", Description: "FANUC LCD, CRT, display, and monitor parts", ParentID: &fanucParent.ID, SortOrder: 10, IsActive: true},
+		{Name: "FANUC Encoder / Feedback", Slug: "fanuc-encoder-feedback", Description: "FANUC encoders, pulsecoders, and feedback parts", ParentID: &fanucParent.ID, SortOrder: 11, IsActive: true},
+		{Name: "FANUC Cables & Connectors", Slug: "fanuc-cables-connectors", Description: "FANUC cables, connectors, plugs, sockets, and harnesses", ParentID: &fanucParent.ID, SortOrder: 12, IsActive: true},
+		{Name: "FANUC Memory / Storage", Slug: "fanuc-memory-storage", Description: "FANUC memory cards, SRAM, ROM, and storage parts", ParentID: &fanucParent.ID, SortOrder: 13, IsActive: true},
+		{Name: "FANUC Battery", Slug: "fanuc-battery", Description: "FANUC batteries and backup battery parts", ParentID: &fanucParent.ID, SortOrder: 14, IsActive: true},
+		{Name: "FANUC Filters / Fan Unit / Cooling", Slug: "fanuc-filters-fan-unit-cooling", Description: "FANUC fans, filters, cooling units, and thermal parts", ParentID: &fanucParent.ID, SortOrder: 15, IsActive: true},
+		{Name: "FANUC Accessories & Others", Slug: "fanuc-accessories-others", Description: "FANUC accessories, mechanical parts, and miscellaneous spare parts", ParentID: &fanucParent.ID, SortOrder: 16, IsActive: true},
+		{Name: "Variable Frequency Drive", Slug: "variable-frequency-drive", Description: "Allen-Bradley and industrial variable frequency drives", ParentID: &abParent.ID, SortOrder: 1, IsActive: true},
+		{Name: "A Series", Slug: "a-series", Description: "Mitsubishi A Series PLC modules and accessories", ParentID: &mitsubishiParent.ID, SortOrder: 1, IsActive: true},
+		{Name: "FX Series", Slug: "fx-series", Description: "Mitsubishi FX Series PLC modules", ParentID: &mitsubishiParent.ID, SortOrder: 2, IsActive: true},
+		{Name: "MELSERVO HC", Slug: "melservo-hc", Description: "Mitsubishi MELSERVO HC servo motors", ParentID: &mitsubishiParent.ID, SortOrder: 3, IsActive: true},
+		{Name: "HF Series", Slug: "hf-series", Description: "Mitsubishi HF Series servo motors", ParentID: &mitsubishiParent.ID, SortOrder: 4, IsActive: true},
+		{Name: "HG Series", Slug: "hg-series", Description: "Mitsubishi HG Series servo motors", ParentID: &mitsubishiParent.ID, SortOrder: 5, IsActive: true},
+		{Name: "MELSERVO MR-J2", Slug: "melservo-mr-j2", Description: "Mitsubishi MELSERVO MR-J2 servo amplifiers", ParentID: &mitsubishiParent.ID, SortOrder: 6, IsActive: true},
+		{Name: "FREQROL FR", Slug: "freqrol-fr", Description: "Mitsubishi FREQROL FR inverters", ParentID: &mitsubishiParent.ID, SortOrder: 7, IsActive: true},
+		{Name: "MELSERVO MR-J3", Slug: "melservo-mr-j3", Description: "Mitsubishi MELSERVO MR-J3 servo amplifiers", ParentID: &mitsubishiParent.ID, SortOrder: 8, IsActive: true},
+		{Name: "Melsec-Q", Slug: "melsec-q", Description: "Mitsubishi Melsec-Q PLC modules", ParentID: &mitsubishiParent.ID, SortOrder: 9, IsActive: true},
+		{Name: "MDS Servo Drives", Slug: "mds-servo-drives", Description: "Mitsubishi MDS servo drives", ParentID: &mitsubishiParent.ID, SortOrder: 10, IsActive: true},
+		{Name: "GOT1000", Slug: "got1000", Description: "Mitsubishi GOT1000 HMI panels", ParentID: &mitsubishiParent.ID, SortOrder: 11, IsActive: true},
+		{Name: "MELSERVO MR-J4", Slug: "melservo-mr-j4", Description: "Mitsubishi MELSERVO MR-J4 servo amplifiers", ParentID: &mitsubishiParent.ID, SortOrder: 12, IsActive: true},
+		{Name: "Tamagawa", Slug: "tamagawa", Description: "Tamagawa encoders and sensors", SortOrder: 4, IsActive: true},
+		{Name: "SICK", Slug: "sick", Description: "SICK sensors and automation parts", SortOrder: 5, IsActive: true},
 	}
 
 	for _, category := range categories {

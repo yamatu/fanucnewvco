@@ -52,7 +52,7 @@ services:
       GIN_MODE: release
       HOST: 0.0.0.0
       PORT: 8080
-
+      
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: ${MYSQL_USER:-fanuc}
@@ -62,7 +62,7 @@ services:
       # CORS: allow the browser origin(s) you access the site from.
       # If you run Nginx on the host for TLS, set CORS_ORIGINS to your domain(s).
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
-
+      CORS_EXTENSION_ORIGINS: "chrome-extension://fmdjodgbjajecbnghigkhbbchlpcggio"
       # Redis (rate limit + cache)
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
