@@ -343,6 +343,15 @@ func createDefaultCategories() {
 	}
 	_ = DB.Create(&mitsubishiParent).Error
 
+	tamagawaParent := models.Category{
+		Name:        "Tamagawa",
+		Slug:        "tamagawa",
+		Description: "Tamagawa encoders, resolvers, servo motors, and motion control parts",
+		SortOrder:   4,
+		IsActive:    true,
+	}
+	_ = DB.Create(&tamagawaParent).Error
+
 	categories := []models.Category{
 		{
 			Name:        "FANUC CNC System Parts",
@@ -415,7 +424,11 @@ func createDefaultCategories() {
 		{Name: "MDS Servo Drives", Slug: "mds-servo-drives", Description: "Mitsubishi MDS servo drives", ParentID: &mitsubishiParent.ID, SortOrder: 10, IsActive: true},
 		{Name: "GOT1000", Slug: "got1000", Description: "Mitsubishi GOT1000 HMI panels", ParentID: &mitsubishiParent.ID, SortOrder: 11, IsActive: true},
 		{Name: "MELSERVO MR-J4", Slug: "melservo-mr-j4", Description: "Mitsubishi MELSERVO MR-J4 servo amplifiers", ParentID: &mitsubishiParent.ID, SortOrder: 12, IsActive: true},
-		{Name: "Tamagawa", Slug: "tamagawa", Description: "Tamagawa encoders and sensors", SortOrder: 4, IsActive: true},
+		{Name: "Tamagawa Rotary Encoders", Slug: "tamagawa-rotary-encoders", Description: "Tamagawa rotary encoders, pulse generators, and FA-CODER feedback units", ParentID: &tamagawaParent.ID, SortOrder: 1, IsActive: true},
+		{Name: "Tamagawa Absolute Encoders", Slug: "tamagawa-absolute-encoders", Description: "Tamagawa absolute encoders and serial feedback devices", ParentID: &tamagawaParent.ID, SortOrder: 2, IsActive: true},
+		{Name: "Tamagawa Resolvers / Smartsyn", Slug: "tamagawa-resolvers-smartsyn", Description: "Tamagawa Smartsyn brushless resolvers and synchro feedback parts", ParentID: &tamagawaParent.ID, SortOrder: 3, IsActive: true},
+		{Name: "Tamagawa Servo Motors", Slug: "tamagawa-servo-motors", Description: "Tamagawa AC servo motors and TBL-i motion parts", ParentID: &tamagawaParent.ID, SortOrder: 4, IsActive: true},
+		{Name: "Tamagawa Servo Drivers", Slug: "tamagawa-servo-drivers", Description: "Tamagawa servo drivers and motion control amplifiers", ParentID: &tamagawaParent.ID, SortOrder: 5, IsActive: true},
 		{Name: "SICK", Slug: "sick", Description: "SICK sensors and automation parts", SortOrder: 5, IsActive: true},
 	}
 

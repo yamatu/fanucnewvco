@@ -102,7 +102,7 @@ func InferProductCategory(brand string, model string) ProductCategoryInference {
 	case "allen-bradley":
 		return inferAllenBradleyCategoryInference(normalizedModel)
 	case "tamagawa":
-		return ProductCategoryInference{BrandKey: "tamagawa", BrandName: "Tamagawa", PartType: "Encoder / Feedback", CategorySlug: "tamagawa", MatchRule: "brand:tamagawa"}
+		return inferTamagawaCategoryInference(normalizedModel)
 	case "sick":
 		return inferSickCategoryInference(normalizedModel)
 	default:
@@ -181,6 +181,24 @@ func inferAllenBradleyCategoryInference(model string) ProductCategoryInference {
 		return ProductCategoryInference{BrandKey: "allen-bradley", BrandName: "Allen-Bradley", PartType: "Variable Frequency Drive", CategorySlug: "variable-frequency-drive", MatchRule: "allen-bradley:powerflex"}
 	}
 	return ProductCategoryInference{BrandKey: "allen-bradley", BrandName: "Allen-Bradley", PartType: "Industrial Automation Part", CategorySlug: "ab", MatchRule: "allen-bradley:fallback"}
+}
+
+func inferTamagawaCategoryInference(model string) ProductCategoryInference {
+	upper := NormalizeProductModel(model)
+	switch {
+	case strings.HasPrefix(upper, "TA") || strings.HasPrefix(upper, "TAD"):
+		return ProductCategoryInference{BrandKey: "tamagawa", BrandName: "Tamagawa", PartType: "Servo Driver", CategorySlug: "tamagawa-servo-drivers", MatchRule: "tamagawa:servo-driver"}
+	case strings.HasPrefix(upper, "TS45") || strings.HasPrefix(upper, "TS46") || strings.HasPrefix(upper, "450") || strings.HasPrefix(upper, "451"):
+		return ProductCategoryInference{BrandKey: "tamagawa", BrandName: "Tamagawa", PartType: "Servo Motor", CategorySlug: "tamagawa-servo-motors", MatchRule: "tamagawa:servo-motor"}
+	case strings.HasPrefix(upper, "TS26") || strings.HasPrefix(upper, "TS24"):
+		return ProductCategoryInference{BrandKey: "tamagawa", BrandName: "Tamagawa", PartType: "Resolver / Smartsyn", CategorySlug: "tamagawa-resolvers-smartsyn", MatchRule: "tamagawa:resolver"}
+	case strings.HasPrefix(upper, "TS56") || strings.HasPrefix(upper, "TS57"):
+		return ProductCategoryInference{BrandKey: "tamagawa", BrandName: "Tamagawa", PartType: "Absolute Encoder", CategorySlug: "tamagawa-absolute-encoders", MatchRule: "tamagawa:absolute-encoder"}
+	case strings.HasPrefix(upper, "TS52") || strings.HasPrefix(upper, "AU") || strings.HasPrefix(upper, "OIH"):
+		return ProductCategoryInference{BrandKey: "tamagawa", BrandName: "Tamagawa", PartType: "Rotary Encoder", CategorySlug: "tamagawa-rotary-encoders", MatchRule: "tamagawa:rotary-encoder"}
+	default:
+		return ProductCategoryInference{BrandKey: "tamagawa", BrandName: "Tamagawa", PartType: "Encoder / Motion Control Part", CategorySlug: "tamagawa", MatchRule: "tamagawa:fallback"}
+	}
 }
 
 func inferSickCategoryInference(model string) ProductCategoryInference {

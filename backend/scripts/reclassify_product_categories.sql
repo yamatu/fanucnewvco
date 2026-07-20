@@ -23,7 +23,15 @@ JOIN (
           WHEN base.model_key REGEXP '^(20|22)' OR base.text_key LIKE '%POWERFLEX%' THEN 'variable-frequency-drive'
           ELSE 'ab'
         END
-      WHEN base.brand_key = 'tamagawa' THEN 'tamagawa'
+      WHEN base.brand_key = 'tamagawa' THEN
+        CASE
+          WHEN base.model_key REGEXP '^(TA|TAD)' THEN 'tamagawa-servo-drivers'
+          WHEN base.model_key REGEXP '^(TS45|TS46|450|451)' THEN 'tamagawa-servo-motors'
+          WHEN base.model_key REGEXP '^(TS26|TS24)' THEN 'tamagawa-resolvers-smartsyn'
+          WHEN base.model_key REGEXP '^(TS56|TS57)' THEN 'tamagawa-absolute-encoders'
+          WHEN base.model_key REGEXP '^(TS52|AU|OIH)' THEN 'tamagawa-rotary-encoders'
+          ELSE 'tamagawa'
+        END
       WHEN base.brand_key = 'sick' THEN 'sick'
       WHEN base.brand_key = 'fanuc' OR base.model_key REGEXP '^(A02B|A03B|A04B|A05B|A06B|A08B|A13B|A14B|A16B|A17B|A18B|A20B|A230|A250|A290|A300|A370|A660|A860|A9[078]L)' THEN
         CASE
