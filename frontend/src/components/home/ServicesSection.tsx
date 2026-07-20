@@ -1,5 +1,3 @@
-'use client';
-
 import Link from 'next/link';
 import type { HomepageContent } from '@/types';
 import { 
@@ -56,7 +54,7 @@ export function ServicesSection({ content }: Props) {
       : base.ctaPrimary,
   };
   return (
-    <section className="py-20 bg-slate-50">
+    <section className="home-deferred-section py-20 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">

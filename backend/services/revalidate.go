@@ -75,6 +75,7 @@ func doRevalidateRequest(endpoint, secret, path, tag string) {
 		return
 	}
 
+	// #nosec G704 -- endpoint is built only from the server-controlled FRONTEND_URL setting.
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		log.Printf("revalidate: failed to create request: %v", err)
@@ -83,6 +84,7 @@ func doRevalidateRequest(endpoint, secret, path, tag string) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Revalidate-Secret", secret)
 
+	// #nosec G704 -- the request target is trusted deployment configuration, not request input.
 	resp, err := httpClientRevalidate.Do(req)
 	if err != nil {
 		log.Printf("revalidate: request failed (tag=%s, path=%s): %v", tag, path, err)

@@ -7,10 +7,10 @@ services:
       - "--character-set-server=utf8mb4"
       - "--collation-server=utf8mb4_unicode_ci"
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_root_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-vibocnc_sales}
       MYSQL_USER: ${MYSQL_USER:-vibocnc}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change_me_db_password}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -52,20 +52,20 @@ services:
       GIN_MODE: release
       HOST: 0.0.0.0
       PORT: 8080
-      SITE_URL: ${SITE_URL:-http://localhost:3000}
-      BASE_URL: ${BASE_URL:-http://localhost:8080}
+      SITE_URL: ${SITE_URL:-https://www.vibocnc.com}
+      BASE_URL: ${BASE_URL:-https://www.vibocnc.com}
       FRONTEND_URL: ${FRONTEND_URL:-http://frontend:3000}
       REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
 
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: ${MYSQL_USER:-vibocnc}
-      DB_PASSWORD: ${MYSQL_PASSWORD:-change_me_db_password}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set}
       DB_NAME: ${MYSQL_DATABASE:-vibocnc_sales}
 
       # CORS: allow the browser origin(s) you access the site from.
       # If you run Nginx on the host for TLS, set CORS_ORIGINS to your domain(s).
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://www.vibocnc.com}
 
       # Redis (rate limit + cache)
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
@@ -80,7 +80,7 @@ services:
       CACHE_TTL_HOMEPAGE_SECONDS: ${CACHE_TTL_HOMEPAGE_SECONDS:-120}
       CACHE_TTL_PRODUCTS_SECONDS: ${CACHE_TTL_PRODUCTS_SECONDS:-60}
 
-      JWT_SECRET: ${JWT_SECRET:-please_change_me_in_production}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
       JWT_EXPIRES_HOURS: ${JWT_EXPIRES_HOURS:-24}
       CUSTOMER_JWT_EXPIRES_HOURS: ${CUSTOMER_JWT_EXPIRES_HOURS:-168}
 
@@ -124,7 +124,7 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: ${MYSQL_USER:-vibocnc}
-      DB_PASSWORD: ${MYSQL_PASSWORD:-change_me_db_password}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set}
       DB_NAME: ${MYSQL_DATABASE:-vibocnc_sales}
       DB_AUTO_MIGRATE: "true"
       SEO_OPTIMIZER_BRAND: ${SEO_OPTIMIZER_BRAND:-FANUC}
@@ -163,7 +163,7 @@ services:
         # SSR 端访问后端用 service 名；浏览器端走 /api/v1 相对路径（由“宿主机 Nginx”反代）
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://backend:8080}
         # 对外站点 URL。生产默认应指向真实域名，避免 canonical / og:url 退回开发地址。
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://www.vibocnc.com}
         NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-VIBO CNC}
         NEXT_PUBLIC_SITE_DESCRIPTION: ${NEXT_PUBLIC_SITE_DESCRIPTION:-Industrial automation components and CNC spare parts}
         NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
@@ -173,10 +173,10 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      SITE_URL: ${SITE_URL:-http://localhost:3000}
+      SITE_URL: ${SITE_URL:-https://www.vibocnc.com}
       # Also pass these at runtime so dynamic routes (robots/sitemaps/SSR) can read them without rebuild.
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://backend:8080}
-      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://www.vibocnc.com}
       NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-VIBO CNC}
       NEXT_PUBLIC_SITE_DESCRIPTION: ${NEXT_PUBLIC_SITE_DESCRIPTION:-Industrial automation components and CNC spare parts}
       NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}

@@ -1,4 +1,5 @@
 import { getSiteUrl } from '@/lib/url';
+import { SITE_NAME } from '@/lib/seo';
 
 export function generateOrganizationSchema() {
   const baseUrl = getSiteUrl();
@@ -7,9 +8,8 @@ export function generateOrganizationSchema() {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${baseUrl}/#organization`,
-    "name": "VIBO CNC",
-    "alternateName": "VIBO CNC Industrial Automation",
-    "description": "Professional FANUC CNC parts supplier since 2005. Leading provider of industrial automation components with over 100,000 items in stock.",
+    "name": SITE_NAME,
+    "description": "CNC and industrial automation parts supply from VIBO CNC.",
     "url": baseUrl,
     "logo": {
       "@type": "ImageObject",
@@ -17,90 +17,13 @@ export function generateOrganizationSchema() {
       "width": 512,
       "height": 512
     },
-    "image": [
-      {
-        "@type": "ImageObject",
-        "url": `${baseUrl}/images/company-banner.jpg`,
-        "width": 1200,
-        "height": 630
-      }
-    ],
-    "foundingDate": "2005",
-    "founder": {
-      "@type": "Person",
-      "name": "VIBO CNC Founder"
-    },
-    "numberOfEmployees": {
-      "@type": "QuantitativeValue",
-      "value": 50
-    },
-    "address": {
-      "@type": "PostalAddress",
-      "streetAddress": process.env.NEXT_PUBLIC_COMPANY_STREET || "Industrial Park Road",
-      "addressLocality": process.env.NEXT_PUBLIC_COMPANY_CITY || "Kunshan",
-      "addressRegion": process.env.NEXT_PUBLIC_COMPANY_REGION || "Jiangsu",
-      "postalCode": process.env.NEXT_PUBLIC_COMPANY_POSTAL_CODE || "215300",
-      "addressCountry": process.env.NEXT_PUBLIC_COMPANY_COUNTRY_CODE || "CN"
-    },
-    "contactPoint": [
-      {
-        "@type": "ContactPoint",
-        "contactType": "sales",
-        "telephone": "+86-13348028050",
-        "email": "sales@vibocnc.com",
-
-        "availableLanguage": ["en", "zh"],
-        "areaServed": "Worldwide"
-      },
-      {
-        "@type": "ContactPoint",
-        "contactType": "technical support",
-        "telephone": "+86-13348028050",
-        "email": "sales@vibocnc.com",
-
-        "availableLanguage": ["en", "zh"],
-        "areaServed": "Worldwide"
-      }
-    ],
-    "sameAs": [
-      "https://www.linkedin.com/company/vibocnc",
-      "https://twitter.com/vibocnc"
-    ],
-    "slogan": "Your Trusted FANUC Parts Partner Since 2005",
-    "knowsAbout": [
-      "FANUC CNC parts",
-      "Industrial automation",
-      "Servo motors",
-      "PCB boards",
-      "I/O modules",
-      "Control units",
-      "Power supplies",
-      "CNC machine maintenance",
-      "Factory automation"
-    ],
-    "makesOffer": {
-      "@type": "Offer",
-      "itemOffered": {
-        "@type": "Service",
-        "name": "FANUC Parts Supply and Technical Support",
-        "description": "Comprehensive FANUC parts supply with worldwide shipping and technical support"
-      },
-      "areaServed": "Worldwide",
-      "eligibleCustomerType": [
-        "Business",
-        "Industrial"
-      ]
-    },
-    "award": [
-      "Top 3 FANUC Supplier in China",
-      "ISO 9001:2015 Certified",
-      "Authorized FANUC Distributor"
-    ],
-    "hasCredential": [
-      "ISO 9001:2015 Quality Management System",
-      "CE Certification",
-      "FANUC Authorized Distributor Certificate"
-    ]
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "sales",
+      "telephone": "+86-13348028050",
+      "email": "sales@vibocnc.com",
+      "availableLanguage": ["en", "zh"]
+    }
   };
 }
 
@@ -111,14 +34,13 @@ export function generateWebsiteSchema() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "@id": `${baseUrl}/#website`,
-    "name": "VIBO CNC FANUC Parts",
-    "alternateName": "FANUC Parts & Industrial Automation Components",
+    "name": SITE_NAME,
     "url": baseUrl,
-    "description": "Professional FANUC CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.",
+    "description": "CNC and industrial automation parts supply from VIBO CNC.",
     "publisher": {
       "@type": "Organization",
       "@id": `${baseUrl}/#organization`,
-      "name": "VIBO CNC",
+      "name": SITE_NAME,
       "url": baseUrl
     },
     "mainEntity": {
@@ -270,62 +192,5 @@ export function generateFAQSchema() {
         }
       }
     ]
-  };
-}
-
-export function generateLocalBusinessSchema() {
-  const baseUrl = getSiteUrl();
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "LocalBusiness",
-    "@id": `${baseUrl}/#organization`,
-    "name": "VIBO CNC",
-    "image": [
-      `${baseUrl}/images/company-banner.jpg`,
-      `${baseUrl}/android-chrome-512x512.png`
-    ],
-    "telephone": "+86-13348028050",
-    "email": "sales@vibocnc.com",
-
-    "address": {
-      "@type": "PostalAddress",
-      "streetAddress": process.env.NEXT_PUBLIC_COMPANY_STREET || "Industrial Park Road",
-      "addressLocality": process.env.NEXT_PUBLIC_COMPANY_CITY || "Kunshan",
-      "addressRegion": process.env.NEXT_PUBLIC_COMPANY_REGION || "Jiangsu",
-      "postalCode": process.env.NEXT_PUBLIC_COMPANY_POSTAL_CODE || "215300",
-      "addressCountry": process.env.NEXT_PUBLIC_COMPANY_COUNTRY_CODE || "CN"
-    },
-    "geo": {
-      "@type": "GeoCoordinates",
-      "latitude": 31.3888,
-      "longitude": 120.9625
-    },
-    "url": baseUrl,
-    "openingHoursSpecification": [
-      {
-        "@type": "OpeningHoursSpecification",
-        "dayOfWeek": [
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday"
-        ],
-        "opens": "08:00",
-        "closes": "18:00"
-      }
-    ],
-    "priceRange": "$$",
-    "currenciesAccepted": "USD,EUR,CNY",
-    "paymentAccepted": "PayPal,Bank Transfer,Credit Card",
-    "areaServed": {
-      "@type": "Place",
-      "name": "Worldwide"
-    },
-    "serviceArea": {
-      "@type": "Place",
-      "name": "Worldwide"
-    }
   };
 }

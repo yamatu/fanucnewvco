@@ -42,7 +42,7 @@ export default function SimpleContentSection({
   const unoptimized = imageUrl.startsWith('/uploads/');
 
   return (
-    <section className="py-16 bg-white">
+    <section className="home-deferred-section py-16 bg-white">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
           <div className="space-y-4">
@@ -69,7 +69,15 @@ export default function SimpleContentSection({
 
           {imageUrl ? (
             <div className="relative w-full aspect-[16/10] rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-              <Image src={imageUrl} alt={title || 'section image'} fill className="object-cover" unoptimized={unoptimized} />
+              <Image
+                src={imageUrl}
+                alt={title || 'section image'}
+                width={1280}
+                height={800}
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="h-full w-full object-cover"
+                unoptimized={unoptimized}
+              />
             </div>
           ) : null}
         </div>

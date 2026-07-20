@@ -440,9 +440,12 @@ export default Header;
 
 // --- Categories Dropdown (desktop) ---
 function CategoriesDropdown() {
+  const [shouldLoad, setShouldLoad] = useState(false);
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: queryKeys.categories.tree(),
     queryFn: () => CategoryService.getCategories(),
+    enabled: shouldLoad,
+    staleTime: 5 * 60 * 1000,
   });
 
   const [hoverPath, setHoverPath] = useState<number[]>([]);
@@ -475,7 +478,11 @@ function CategoriesDropdown() {
   };
 
   return (
-    <div className="relative group">
+    <div
+      className="relative group"
+      onMouseEnter={() => setShouldLoad(true)}
+      onFocusCapture={() => setShouldLoad(true)}
+    >
       <Link
         href="/categories"
         className="text-sm font-semibold uppercase tracking-wide text-slate-700 hover:text-orange-600 transition-colors duration-200 py-2 px-1 block"
@@ -532,6 +539,8 @@ function MobileCategoriesMenu({ onNavigate }: { onNavigate: () => void }) {
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: queryKeys.categories.tree(),
     queryFn: () => CategoryService.getCategories(),
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
   });
 
   const [openIds, setOpenIds] = useState<Set<number>>(new Set());

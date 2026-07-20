@@ -2,17 +2,21 @@ import type { Metadata } from 'next';
 import PublicLayout from '@/components/layout/PublicLayout';
 import { generateFAQSchema, generateBreadcrumbSchema } from '@/lib/structured-data';
 import { getSiteUrl } from '@/lib/url';
+import { buildStaticPageMetadata } from '@/lib/seo';
+
+const FAQ_DESCRIPTION =
+  'Find answers to common questions about FANUC parts, shipping, warranty, technical support, and more. Professional industrial automation support from VIBO CNC.';
 
 export const metadata: Metadata = {
-  title: 'FAQ - Frequently Asked Questions | VIBO CNC FANUC Parts',
-  description: 'Find answers to common questions about FANUC parts, shipping, warranty, technical support, and more. Professional industrial automation support from VIBO CNC.',
-  keywords: 'FANUC parts FAQ, industrial automation support, CNC parts questions, technical support, warranty information, FANUC shipping, FANUC compatibility',
+  ...buildStaticPageMetadata(
+    '/faq',
+    'FAQ - Frequently Asked Questions',
+    FAQ_DESCRIPTION,
+    'FANUC parts FAQ, industrial automation support, CNC parts questions, technical support, warranty information, FANUC shipping, FANUC compatibility',
+  ),
   robots: {
     index: true,
     follow: true,
-  },
-  alternates: {
-    canonical: `${getSiteUrl()}/faq`,
   },
 };
 

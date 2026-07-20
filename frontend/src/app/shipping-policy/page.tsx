@@ -4,7 +4,7 @@ import { buildStaticPageMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildStaticPageMetadata(
   '/shipping-policy',
-  'Shipping Policy | VIBO CNC',
+  'Shipping Policy',
   'Shipping times, availability, destinations and packaging details for VIBO CNC orders.',
   'shipping policy, FANUC parts shipping, CNC parts delivery, worldwide shipping, VIBO CNC shipping'
 );

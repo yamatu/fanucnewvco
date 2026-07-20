@@ -1,13 +1,14 @@
 import { Metadata } from 'next';
 import Layout from '@/components/layout/Layout';
 import Link from 'next/link';
+import { withSiteName } from '@/lib/seo';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service | VIBO CNC - FANUC CNC Parts & Automation Components',
+  title: 'Terms of Service',
   description: 'Read our terms and conditions for purchasing FANUC CNC parts and automation components from VIBO CNC. Learn about our policies and guidelines.',
   keywords: 'terms of service, conditions, FANUC parts, CNC components, automation, VIBO CNC, purchase policy',
   openGraph: {
-    title: 'Terms of Service | VIBO CNC',
+    title: withSiteName('Terms of Service'),
     description: 'Read our terms and conditions for purchasing FANUC CNC parts and automation components.',
     type: 'website',
     url: 'https://www.vibocnc.com/terms',

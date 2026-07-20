@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { ProductService, CategoryService } from '@/services';
 import type { Category, Product } from '@/types';
 import { getSiteUrl } from '@/lib/url';
+import { withSiteName } from '@/lib/seo';
 import { toProductPathId } from '@/lib/utils';
 import ProductsPageClient from './ProductsPageClient';
 import ScrollRestorer from '@/components/common/ScrollRestorer';
@@ -98,7 +99,7 @@ export async function generateMetadata({ searchParams }: {
   const searchQuery = getFirstParamValue(params.search);
   const hasSearch = !!searchQuery;
 
-  let title = 'Industrial Automation Parts & Components | VIBO CNC';
+  let title = 'Industrial Automation Parts & Components';
   let description = 'Professional CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.';
   const baseUrl = getSiteUrl();
 
@@ -107,7 +108,7 @@ export async function generateMetadata({ searchParams }: {
     const categoryPath = getCategoryPath(category);
 
     if (category && categoryPath) {
-      title = `${category.name} - Parts | VIBO CNC`;
+      title = `${category.name} - Parts`;
       description = `Professional ${category.name} for CNC systems. High-quality industrial automation components with worldwide shipping.`;
       const catUrl = `${baseUrl}${categoryPath}`;
 
@@ -120,7 +121,7 @@ export async function generateMetadata({ searchParams }: {
           'I/O modules', 'control units', category.name,
         ].filter(Boolean).join(', '),
         openGraph: {
-          title,
+          title: withSiteName(title),
           description,
           type: 'website',
           url: catUrl,
@@ -133,7 +134,7 @@ export async function generateMetadata({ searchParams }: {
   }
 
   if (hasSearch) {
-    title = `Search: ${searchQuery} - Parts | VIBO CNC`;
+    title = `Search: ${searchQuery} - Parts`;
     description = `Search results for "${searchQuery}" in industrial automation parts and components. Professional supplier since 2005.`;
   }
 
@@ -146,7 +147,7 @@ export async function generateMetadata({ searchParams }: {
       'I/O modules', 'control units', searchQuery,
     ].filter(Boolean).join(', '),
     openGraph: {
-      title,
+      title: withSiteName(title),
       description,
       type: 'website',
       url: `${baseUrl}/products`,

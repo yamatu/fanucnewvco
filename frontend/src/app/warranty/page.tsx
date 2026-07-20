@@ -4,7 +4,7 @@ import { buildStaticPageMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildStaticPageMetadata(
   '/warranty',
-  'Warranty | VIBO CNC',
+  'Warranty',
   'Warranty information for VIBO CNC products and services.',
   'warranty information, FANUC warranty, CNC parts support, VIBO CNC'
 );

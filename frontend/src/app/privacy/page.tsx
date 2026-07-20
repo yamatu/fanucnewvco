@@ -1,13 +1,14 @@
 import { Metadata } from 'next';
 import Layout from '@/components/layout/Layout';
 import Link from 'next/link';
+import { withSiteName } from '@/lib/seo';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | VIBO CNC - FANUC CNC Parts & Automation Components',
+  title: 'Privacy Policy',
   description: 'Learn about how VIBO CNC protects your privacy and handles your personal information when you shop for FANUC CNC parts and automation components.',
   keywords: 'privacy policy, data protection, FANUC parts, CNC components, automation, VIBO CNC',
   openGraph: {
-    title: 'Privacy Policy | VIBO CNC',
+    title: withSiteName('Privacy Policy'),
     description: 'Learn about how VIBO CNC protects your privacy and handles your personal information.',
     type: 'website',
     url: 'https://www.vibocnc.com/privacy',

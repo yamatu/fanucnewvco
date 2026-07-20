@@ -96,18 +96,20 @@ type aliMailSendMessageRequest struct {
 	SaveToSentItems bool `json:"saveToSentItems"`
 }
 
-func NewAliMailClient(endpoint, clientID, clientSecret string) *AliMailClient {
+func NewAliMailClient(endpoint, clientID, clientSecret string) (*AliMailClient, error) {
+	normalizedEndpoint, err := normalizeAliMailEndpoint(endpoint)
+	if err != nil {
+		return nil, err
+	}
 	return &AliMailClient{
-		Endpoint:     normalizeAliMailEndpoint(endpoint),
+		Endpoint:     normalizedEndpoint,
 		ClientID:     strings.TrimSpace(clientID),
 		ClientSecret: strings.TrimSpace(clientSecret),
-		HTTPClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-	}
+		HTTPClient:   newPublicHTTPClient(30 * time.Second),
+	}, nil
 }
 
-func normalizeAliMailEndpoint(endpoint string) string {
+func normalizeAliMailEndpoint(endpoint string) (string, error) {
 	endpoint = strings.TrimSpace(endpoint)
 	if endpoint == "" {
 		endpoint = defaultAliMailEndpoint
@@ -115,7 +117,21 @@ func normalizeAliMailEndpoint(endpoint string) string {
 	if !strings.Contains(endpoint, "://") {
 		endpoint = "https://" + endpoint
 	}
-	return strings.TrimRight(endpoint, "/")
+	parsed, err := validatePublicHTTPURL(endpoint)
+	if err != nil {
+		return "", fmt.Errorf("invalid alimail endpoint: %w", err)
+	}
+	if parsed.Scheme != "https" {
+		return "", errors.New("alimail endpoint must use https")
+	}
+	if parsed.Path != "" && parsed.Path != "/" {
+		return "", errors.New("alimail endpoint must not include a path")
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", errors.New("alimail endpoint must not include a query or fragment")
+	}
+	parsed.Path = ""
+	return strings.TrimRight(parsed.String(), "/"), nil
 }
 
 func (c *AliMailClient) cacheKey() string {
@@ -348,11 +364,7 @@ func (c *AliMailClient) DownloadAttachment(ctx context.Context, accountEmail, me
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	httpClient := c.HTTPClient
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-	resp, err := httpClient.Do(req)
+	resp, err := c.execute(req)
 	if err != nil {
 		return nil, "", "", err
 	}
@@ -376,11 +388,7 @@ func (c *AliMailClient) DownloadAttachment(ctx context.Context, accountEmail, me
 }
 
 func (c *AliMailClient) do(req *http.Request) ([]byte, int, error) {
-	httpClient := c.HTTPClient
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-	resp, err := httpClient.Do(req)
+	resp, err := c.execute(req)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -390,6 +398,22 @@ func (c *AliMailClient) do(req *http.Request) ([]byte, int, error) {
 		return nil, resp.StatusCode, err
 	}
 	return body, resp.StatusCode, nil
+}
+
+func (c *AliMailClient) execute(req *http.Request) (*http.Response, error) {
+	if req == nil || req.URL == nil {
+		return nil, errors.New("alimail request URL is required")
+	}
+	if _, err := validatePublicHTTPURL(req.URL.String()); err != nil {
+		return nil, fmt.Errorf("blocked alimail request: %w", err)
+	}
+	httpClient := c.HTTPClient
+	if httpClient == nil {
+		httpClient = newPublicHTTPClient(30 * time.Second)
+	}
+	// #nosec G704 -- the URL is validated above and the transport revalidates
+	// resolved IPs during dialing and every redirect via newPublicHTTPClient.
+	return httpClient.Do(req)
 }
 
 func sendAliMailEmail(s *models.EmailSetting, opts EmailSendOptions) error {
@@ -447,7 +471,10 @@ func sendAliMailEmail(s *models.EmailSetting, opts EmailSendOptions) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 
-	client := NewAliMailClient(s.AliMailEndpoint, s.AliMailClientID, secret)
+	client, err := NewAliMailClient(s.AliMailEndpoint, s.AliMailClientID, secret)
+	if err != nil {
+		return err
+	}
 	draftID, err := client.CreateDraft(ctx, accountEmail, payload)
 	if err != nil {
 		return err

@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { ProductService } from '@/services';
 import { getProductBySkuCached } from '@/services/product.server';
 import { getSiteUrl } from '@/lib/url';
+import { withSiteName, withoutSiteNameSuffix } from '@/lib/seo';
 import { toProductPathId } from '@/lib/utils';
 import type { Product, ProductImage } from '@/types';
 import ProductDetailClient from './ProductDetailClient';
@@ -86,7 +87,7 @@ function toAbsoluteUrl(url: string | undefined, baseUrl: string): string {
 }
 
 function buildMetadataTitle(product: Product): string {
-  const explicit = trimMetaTitle(product.meta_title || '', 69);
+  const explicit = trimMetaTitle(withoutSiteNameSuffix(product.meta_title || ''), 58);
   if (explicit) return explicit;
 
   const brand = getProductBrand(product);
@@ -103,7 +104,7 @@ function buildMetadataTitle(product: Product): string {
   if (!title) {
     title = [product.sku, product.category?.name || 'industrial automation part'].filter(Boolean).join(' ');
   }
-  return trimMetaTitle(`${title} | VIBO CNC`, 69);
+  return trimMetaTitle(title, 58);
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -166,6 +167,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const metaDescription = trimMetaDescription(product.meta_description || '', 160);
     const metaKeywords = (product.meta_keywords || '').trim();
     const title = buildMetadataTitle(product);
+    const socialTitle = withSiteName(title);
 
     return {
       title,
@@ -184,7 +186,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         },
       },
       openGraph: {
-        title,
+        title: socialTitle,
         description: metaDescription || enhancedDescription,
         type: 'website',
         url: canonicalUrl,
@@ -194,7 +196,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       alternates: { canonical: canonicalUrl },
       twitter: {
         card: 'summary_large_image',
-        title,
+        title: socialTitle,
         description: metaDescription || enhancedDescription,
         images: images.map(i => i.url),
         creator: '@vibocnc',
@@ -213,7 +215,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   } catch (error) {
     console.error('Error generating product metadata:', error);
     return {
-      title: 'Product | VIBO CNC',
+      title: 'Product',
       description: 'Professional industrial automation parts and components.',
     };
   }

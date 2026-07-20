@@ -77,6 +77,7 @@ func (uc *UploadController) BatchUploadImages(c *gin.Context) {
 	}
 
 	// Ensure upload directory exists
+	// #nosec G703 -- uploadPath is server-controlled UPLOAD_PATH configuration.
 	if err := os.MkdirAll(uploadPath, 0755); err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,

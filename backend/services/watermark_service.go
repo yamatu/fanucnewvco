@@ -223,7 +223,10 @@ func loadMediaAssetImage(asset *models.MediaAsset) (image.Image, error) {
 		return nil, errors.New("asset is nil")
 	}
 	root := getUploadRootForServices()
-	full := filepath.Join(root, filepath.FromSlash(asset.RelativePath))
+	full, err := utils.SafeExistingPath(root, asset.RelativePath)
+	if err != nil {
+		return nil, err
+	}
 	b, err := os.ReadFile(full)
 	if err != nil {
 		return nil, err

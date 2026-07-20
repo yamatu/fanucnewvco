@@ -4,7 +4,7 @@ import { buildStaticPageMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildStaticPageMetadata(
   '/docs',
-  'Documentation | VIBO CNC',
+  'Documentation',
   'Documentation and technical resources for VIBO CNC products.',
   'documentation, FANUC manuals, CNC technical resources, product documents, VIBO CNC docs'
 );

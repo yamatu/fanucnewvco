@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -87,7 +88,11 @@ func CORSMiddleware() gin.HandlerFunc {
 		MaxAge:           12 * time.Hour,
 	}
 
-	if allowAll {
+	if allowAll && !isDev {
+		log.Print("CORS_ORIGINS=* is not allowed in production when credentials are enabled")
+		config.AllowOrigins = nil
+		config.AllowOriginFunc = func(string) bool { return false }
+	} else if allowAll {
 		// With credentials, we can't use "*" as a literal allowed origin; instead echo the request origin.
 		config.AllowOrigins = nil
 		config.AllowOriginFunc = func(origin string) bool { return true }

@@ -50,9 +50,10 @@ export function WorkshopSection({ content }: Props) {
     headerTitle: content?.title || base.headerTitle,
     headerDescription: content?.description || base.headerDescription,
   };
+  const activeFacility = data.facilities[activeTab] || data.facilities[0];
 
   return (
-    <section className="py-20 bg-white">
+    <section className="home-deferred-section py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
@@ -85,29 +86,22 @@ export function WorkshopSection({ content }: Props) {
 
           {/* Tab Content */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-lg overflow-hidden">
-            {data.facilities.map((facility: any, index: number) => (
+            {activeFacility ? (
               <div
-                key={facility.id}
-                className={`${activeTab === index ? 'block' : 'hidden'}`}
+                key={activeFacility.id}
               >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                   {/* Image */}
                   <div className="relative h-96 lg:h-auto">
                     <Image
-                      src={facility.image}
-                      alt={facility.title}
-                      fill
+                      src={activeFacility.image}
+                      alt={activeFacility.title}
+                      width={960}
+                      height={640}
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 50vw"
-                      className="object-cover"
-                      unoptimized={typeof facility.image === 'string' && facility.image.startsWith('/uploads/')}
-                      onError={() => {
-                        console.error('Image failed to load:', facility.image);
-                        // 可以设置备用图片
-                      }}
-                      onLoad={() => {
-                        console.log('Image loaded successfully:', facility.image);
-                      }}
-                      priority={activeTab === index}
+                      className="h-full w-full object-cover"
+                      unoptimized={typeof activeFacility.image === 'string' && activeFacility.image.startsWith('/uploads/')}
+                      loading="lazy"
                     />
                   </div>
 
@@ -116,21 +110,21 @@ export function WorkshopSection({ content }: Props) {
                     <div className="flex items-center mb-6">
                       <div className="bg-blue-50 p-3 rounded-lg mr-4">
                         {(() => {
-                          const Icon = ICONS[String(facility.icon)] || BeakerIcon;
+                          const Icon = ICONS[String(activeFacility.icon)] || BeakerIcon;
                           return <Icon className="h-8 w-8 text-[#003a78]" />;
                         })()}
                       </div>
                       <h3 className="text-2xl font-bold text-slate-950">
-                        {facility.title}
+                        {activeFacility.title}
                       </h3>
                     </div>
 
                     <p className="text-slate-600 text-lg mb-8 leading-relaxed">
-                      {facility.description}
+                      {activeFacility.description}
                     </p>
 
                     <div className="space-y-4">
-                      {(facility.features || []).map((feature: any, featureIndex: number) => (
+                      {(activeFacility.features || []).map((feature: any, featureIndex: number) => (
                         <div key={featureIndex} className="flex items-center">
                           <CheckCircleIcon className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
                           <span className="text-slate-700">{feature}</span>
@@ -140,7 +134,7 @@ export function WorkshopSection({ content }: Props) {
                   </div>
                 </div>
               </div>
-            ))}
+            ) : null}
           </div>
         </div>
 

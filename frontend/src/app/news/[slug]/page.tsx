@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getSiteUrl } from '@/lib/url';
+import { SITE_NAME, withSiteName, withoutSiteNameSuffix } from '@/lib/seo';
 import { NewsService } from '@/services/news.service';
 import ArticleDetailClient from './ArticleDetailClient';
 
@@ -18,7 +19,8 @@ export async function generateMetadata({
     const baseUrl = getSiteUrl();
     const canonicalUrl = `${baseUrl}/news/${article.slug}`;
 
-    const metaTitle = (article.meta_title || '').trim() || `${article.title} | VIBO CNC`;
+    const metaTitle = withoutSiteNameSuffix((article.meta_title || '').trim() || article.title);
+    const socialTitle = withSiteName(metaTitle);
     const metaDescription =
       (article.meta_description || '').trim() ||
       article.summary ||
@@ -34,26 +36,26 @@ export async function generateMetadata({
       description: metaDescription,
       keywords: metaKeywords,
       openGraph: {
-        title: metaTitle,
+        title: socialTitle,
         description: metaDescription,
         type: 'article',
         url: canonicalUrl,
         images,
         publishedTime: article.published_at || article.created_at,
         modifiedTime: article.updated_at,
-        authors: article.author?.full_name ? [article.author.full_name] : ['VIBO CNC'],
+        ...(article.author?.full_name ? { authors: [article.author.full_name] } : {}),
       },
       alternates: { canonical: canonicalUrl },
       twitter: {
         card: 'summary_large_image',
-        title: metaTitle,
+        title: socialTitle,
         description: metaDescription,
         images,
       },
     };
   } catch {
     return {
-      title: 'Article Not Found | VIBO CNC',
+      title: 'Article Not Found',
       description: 'The requested article could not be found.',
     };
   }
@@ -83,13 +85,18 @@ export default async function ArticlePage({
     datePublished: article.published_at || article.created_at,
     dateModified: article.updated_at,
     url: `${baseUrl}/news/${article.slug}`,
-    author: {
-      '@type': 'Person',
-      name: article.author?.full_name || 'VIBO CNC',
-    },
+    ...(article.author?.full_name
+      ? {
+          author: {
+            '@type': 'Person',
+            name: article.author.full_name,
+          },
+        }
+      : {}),
     publisher: {
       '@type': 'Organization',
-      name: 'VIBO CNC',
+      '@id': `${baseUrl}/#organization`,
+      name: SITE_NAME,
       url: baseUrl,
     },
     mainEntityOfPage: {

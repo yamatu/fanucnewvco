@@ -1,23 +1,23 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { ReactQueryProvider } from "@/lib/react-query";
 import { Toaster } from "react-hot-toast";
 import Clarity from "@/components/analytics/Clarity";
-import { getRequestBaseUrl } from "@/lib/request-url";
+import { getSiteUrl } from "@/lib/url";
+import { SITE_NAME } from "@/lib/seo";
 
-const inter = Inter({ subsets: ["latin"] });
+const SITE_DESCRIPTION =
+  "Source CNC and industrial automation parts from VIBO CNC, including servo motors, PCB boards, I/O modules, control units and power supplies.";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const siteUrl = await getRequestBaseUrl();
+  const siteUrl = getSiteUrl();
   return {
     metadataBase: new URL(siteUrl),
     title: {
-      default: "Industrial Automation Components | VIBO CNC",
-      template: "%s | VIBO CNC",
+      default: `Industrial Automation Components | ${SITE_NAME}`,
+      template: `%s | ${SITE_NAME}`,
     },
-    description:
-      "Professional CNC and industrial automation parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units and power supplies.",
+    description: SITE_DESCRIPTION,
     keywords: [
       "FANUC parts",
       "CNC parts",
@@ -33,9 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
       "industrial spare parts",
       "CNC machine parts",
     ].join(", "),
-    authors: [{ name: "VIBO CNC", url: "https://www.vibocnc.com" }],
-    creator: "VIBO CNC Industrial Automation",
-    publisher: "VIBO CNC",
+    publisher: SITE_NAME,
     robots: {
       index: true,
       follow: true,
@@ -50,10 +48,9 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       type: "website",
       locale: "en_US",
-      siteName: "VIBO CNC",
-      title: "Industrial Automation Components | VIBO CNC",
-      description:
-        "Professional CNC and industrial automation parts supplier since 2005. 100,000+ items in stock, worldwide shipping.",
+      siteName: SITE_NAME,
+      title: `Industrial Automation Components | ${SITE_NAME}`,
+      description: SITE_DESCRIPTION,
       images: [
         {
           url: "/images/og-image.jpg",
@@ -65,8 +62,8 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: "Industrial Automation Components | VIBO CNC",
-      description: "Professional CNC and industrial automation parts supplier since 2005. 100,000+ items in stock, worldwide shipping.",
+      title: `Industrial Automation Components | ${SITE_NAME}`,
+      description: SITE_DESCRIPTION,
       images: ["/images/og-image.jpg"],
     },
     verification: {
@@ -90,7 +87,7 @@ export default function RootLayout({
         <link rel="manifest" href="/site.webmanifest" />
         <meta name="theme-color" content="#0f766e" />
       </head>
-      <body className={`${inter.className} antialiased`}>
+      <body className="antialiased">
         <ReactQueryProvider>
           <Clarity />
           {children}

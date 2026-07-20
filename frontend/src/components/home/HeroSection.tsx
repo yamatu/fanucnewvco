@@ -9,6 +9,10 @@ import { DEFAULT_HERO_DATA, type HeroSectionData } from '@/lib/homepage-defaults
 
 type Props = { content?: HomepageContent | null };
 
+function normalizeBrandName(text: string): string {
+  return text.replace(/\bvibo\s*cnc\b/gi, 'VIBO CNC');
+}
+
 function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
   const raw = (content as any)?.data;
   const parsed = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
@@ -30,7 +34,13 @@ function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
     slides[0] = s0;
   }
 
-  return { slides, autoPlayMs };
+  return {
+    slides: slides.map((slide) => ({
+      ...slide,
+      title: normalizeBrandName(String(slide.title || '')),
+    })),
+    autoPlayMs,
+  };
 }
 
 export function HeroSection({ content }: Props) {
@@ -39,10 +49,16 @@ export function HeroSection({ content }: Props) {
   const autoPlayMs = heroData.autoPlayMs || 6000;
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+  const activeSlide = slides[currentSlide] || slides[0] || DEFAULT_HERO_DATA.slides[0];
+  const fallbackImage =
+    DEFAULT_HERO_DATA.slides[currentSlide % DEFAULT_HERO_DATA.slides.length]?.image ||
+    DEFAULT_HERO_DATA.slides[0].image;
+  const imageSrc = failedImages.has(activeSlide.image) ? fallbackImage : activeSlide.image;
 
   // Auto-play functionality
   useEffect(() => {
-    if (!isAutoPlaying) return;
+    if (!isAutoPlaying || slides.length <= 1) return;
 
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
@@ -68,83 +84,62 @@ export function HeroSection({ content }: Props) {
 
   return (
     <section className="relative w-full h-[72vh] min-h-[560px] max-h-[780px] flex items-center overflow-hidden bg-slate-950">
-      {/* Background Images */}
-      {slides.map((slide, index) => (
-        <div
-          key={slide.id ?? index}
-          className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${
-            index === currentSlide ? 'opacity-100' : 'opacity-0'
-          }`}
-        >
-          <Image
-            src={slide.image}
-            alt={slide.title}
-            fill
-            className="object-cover w-full h-full"
-            style={{
-              objectPosition: 'center center',
-              objectFit: 'cover'
-            }}
-            sizes="100vw"
-            priority={index === 0}
-            unoptimized={typeof slide.image === 'string' && slide.image.startsWith('/uploads/')}
-            onError={(e) => {
-              console.error('Image failed to load:', slide.image);
-              // 设置备用图片
-              const target = e.currentTarget as HTMLImageElement;
-              target.src = 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=1920&h=1080';
-            }}
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(15,23,42,0.92)_0%,rgba(15,23,42,0.74)_42%,rgba(15,23,42,0.28)_100%)]" />
-          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-slate-950/75 to-transparent" />
-        </div>
-      ))}
+      <div className="absolute inset-0 h-full w-full">
+        <Image
+          key={imageSrc}
+          src={imageSrc}
+          alt={activeSlide.title}
+          width={1920}
+          height={1080}
+          className="h-full w-full object-cover"
+          sizes="100vw"
+          priority={currentSlide === 0}
+          fetchPriority={currentSlide === 0 ? 'high' : 'auto'}
+          unoptimized={imageSrc.startsWith('/uploads/')}
+          onError={() => {
+            if (imageSrc === fallbackImage) return;
+            setFailedImages((current) => new Set(current).add(activeSlide.image));
+          }}
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(15,23,42,0.92)_0%,rgba(15,23,42,0.74)_42%,rgba(15,23,42,0.28)_100%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-slate-950/75 to-transparent" />
+      </div>
 
       {/* Content */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {slides.map((slide, index) => (
-          <div
-            key={slide.id ?? index}
-            className={`max-w-3xl transition-all duration-1000 ${
-              index === currentSlide
-                ? 'opacity-100 transform translate-y-0'
-                : 'opacity-0 transform translate-y-8'
-            }`}
-            style={{ display: index === currentSlide ? 'block' : 'none' }}
-          >
+          <div key={activeSlide.id ?? currentSlide} className="max-w-3xl">
             <div className="mb-6 inline-flex items-center border border-orange-300/40 bg-slate-950/45 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-orange-100 backdrop-blur">
               Industrial Automation Supply
             </div>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-black mb-6 leading-[0.98] text-white">
-              {slide.title}
+              {activeSlide.title}
             </h1>
 
-            <h2 className="text-xl md:text-2xl font-semibold mb-6 text-orange-200">
-              {slide.subtitle}
-            </h2>
+            <p className="text-xl md:text-2xl font-semibold mb-6 text-orange-200">
+              {activeSlide.subtitle}
+            </p>
 
             <p className="text-base md:text-lg mb-10 max-w-2xl leading-8 text-slate-200">
-              {slide.description}
+              {activeSlide.description}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <Link
-                href={slide.cta.primary.href}
+                href={activeSlide.cta.primary.href}
                 className="inline-flex justify-center bg-orange-500 hover:bg-[#003a78] text-white px-7 py-3 rounded-md text-base font-semibold transition-colors shadow-lg shadow-teal-950/30"
               >
-                {slide.cta.primary.text}
+                {activeSlide.cta.primary.text}
               </Link>
 
               <Link
-                href={slide.cta.secondary.href}
+                href={activeSlide.cta.secondary.href}
                 className="inline-flex justify-center border border-white/60 text-white hover:bg-white hover:text-slate-950 px-7 py-3 rounded-md text-base font-semibold transition-colors"
               >
-                {slide.cta.secondary.text}
+                {activeSlide.cta.secondary.text}
               </Link>
             </div>
           </div>
-        ))}
       </div>
 
       {/* Navigation Arrows */}

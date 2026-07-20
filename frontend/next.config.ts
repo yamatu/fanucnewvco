@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   compress: true,
   generateEtags: true,
+  poweredByHeader: false,
 
   // Silence workspace root inference warning when monorepo-like structure exists
   // @ts-expect-error - supported by Next runtime, may not be in TS types
@@ -57,22 +58,6 @@ const nextConfig: NextConfig = {
 
   async headers() {
     return [
-      {
-        source: '/_next/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
-        ],
-      },
-      {
-        source: '/api/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
-        ],
-      },
       {
         source: '/:indexnowKey([A-Za-z0-9_-]{8,128}).txt',
         headers: [

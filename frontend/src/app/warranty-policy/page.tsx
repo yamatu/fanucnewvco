@@ -4,7 +4,7 @@ import { buildStaticPageMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildStaticPageMetadata(
   '/warranty-policy',
-  'Warranty Policy | VIBO CNC',
+  'Warranty Policy',
   '1-year in-service warranty coverage, claims process, and contact details for VIBO CNC FANUC parts.',
   'warranty policy, FANUC parts warranty, CNC parts warranty, repair claims, VIBO CNC warranty'
 );

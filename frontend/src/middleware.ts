@@ -38,10 +38,28 @@ function getBackendBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://backend:8080').replace(/\/+$/, '');
 }
 
+function getRequestHostname(request: NextRequest): string {
+  const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0].trim();
+  const incomingHost = forwardedHost || request.headers.get('host') || request.nextUrl.host;
+  try {
+    return new URL(`http://${incomingHost}`).hostname.toLowerCase();
+  } catch {
+    return request.nextUrl.hostname.toLowerCase();
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('auth_token')?.value;
   const userAgent = request.headers.get('user-agent') || '';
+
+  if (getRequestHostname(request) === 'vibocnc.com') {
+    const canonicalUrl = request.nextUrl.clone();
+    canonicalUrl.protocol = 'https';
+    canonicalUrl.hostname = 'www.vibocnc.com';
+    canonicalUrl.port = '';
+    return NextResponse.redirect(canonicalUrl, 301);
+  }
 
   const indexNowKeyMatch = pathname.match(/^\/([A-Za-z0-9_-]{8,128})\.txt$/);
   if (indexNowKeyMatch) {
@@ -167,7 +185,13 @@ export async function middleware(request: NextRequest) {
   // Add security headers
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('Referrer-Policy', 'origin-when-cross-origin');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  response.headers.set(
+    'Content-Security-Policy',
+    "base-uri 'self'; frame-ancestors 'none'; object-src 'none'"
+  );
 
   // Let per-page metadata control robots; avoid overriding here
 

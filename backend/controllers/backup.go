@@ -93,6 +93,41 @@ func safeZipPath(name string) (string, bool) {
 	return n, true
 }
 
+func managedUploadsDir() (string, error) {
+	configured := strings.TrimSpace(os.Getenv("UPLOAD_PATH"))
+	if configured == "" {
+		configured = "./uploads"
+	}
+	absolute, err := filepath.Abs(configured)
+	if err != nil {
+		return "", err
+	}
+	resolved, err := filepath.EvalSymlinks(absolute)
+	if err != nil {
+		return "", errors.New("uploads directory not found")
+	}
+	volumeRoot := filepath.VolumeName(resolved) + string(os.PathSeparator)
+	if resolved == volumeRoot {
+		return "", errors.New("UPLOAD_PATH cannot be a filesystem root")
+	}
+	workingDirectory, err := os.Getwd()
+	if err == nil {
+		workingAbsolute, absErr := filepath.Abs(workingDirectory)
+		if absErr == nil {
+			workingResolved, resolveErr := filepath.EvalSymlinks(workingAbsolute)
+			if resolveErr == nil && resolved == workingResolved {
+				return "", errors.New("UPLOAD_PATH cannot be the application working directory")
+			}
+		}
+	}
+	// #nosec G703 -- resolved is server configuration and broad destructive roots were rejected above.
+	info, err := os.Stat(resolved)
+	if err != nil || !info.IsDir() {
+		return "", errors.New("uploads directory not found")
+	}
+	return resolved, nil
+}
+
 func extractZipToDir(zipPath string, destDir string) error {
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
@@ -148,6 +183,7 @@ func clearDir(dir string) error {
 	}
 	for _, ent := range ents {
 		p := filepath.Join(dir, ent.Name())
+		// #nosec G703 -- ent.Name comes from os.ReadDir within the validated managed directory.
 		if err := os.RemoveAll(p); err != nil {
 			return err
 		}
@@ -180,8 +216,10 @@ func copyDir(src, dst string) error {
 		}
 		target := filepath.Join(dst, rel)
 		if info.IsDir() {
+			// #nosec G703 -- rel is produced by filepath.Rel from the walked source tree.
 			return os.MkdirAll(target, 0o755)
 		}
+		// #nosec G703 -- target remains under dst because rel comes from filepath.Rel.
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 			return err
 		}
@@ -190,6 +228,7 @@ func copyDir(src, dst string) error {
 			return err
 		}
 		defer in.Close()
+		// #nosec G703 -- target remains under dst because rel comes from filepath.Rel.
 		out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 		if err != nil {
 			return err
@@ -212,6 +251,7 @@ func zipDirToFile(srcDir string, zipPath string) error {
 	zw := zip.NewWriter(out)
 	defer zw.Close()
 
+	// #nosec G703 -- srcDir is the server-controlled uploads directory.
 	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -503,12 +543,9 @@ func (bc *BackupController) RestoreDBBackup(c *gin.Context) {
 // DownloadMediaBackup generates a ZIP of the uploads directory.
 // GET /api/v1/admin/backup/media
 func (bc *BackupController) DownloadMediaBackup(c *gin.Context) {
-	uploadsDir := strings.TrimSpace(os.Getenv("UPLOAD_PATH"))
-	if uploadsDir == "" {
-		uploadsDir = "./uploads"
-	}
-	if st, err := os.Stat(uploadsDir); err != nil || !st.IsDir() {
-		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Uploads directory not found", Error: uploadsDir})
+	uploadsDir, err := managedUploadsDir()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Uploads directory not found", Error: err.Error()})
 		return
 	}
 
@@ -556,12 +593,9 @@ func (bc *BackupController) RestoreMediaBackup(c *gin.Context) {
 	}
 	defer mediaRestoreMu.Unlock()
 
-	uploadsDir := strings.TrimSpace(os.Getenv("UPLOAD_PATH"))
-	if uploadsDir == "" {
-		uploadsDir = "./uploads"
-	}
-	if st, err := os.Stat(uploadsDir); err != nil || !st.IsDir() {
-		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Uploads directory not found", Error: uploadsDir})
+	uploadsDir, err := managedUploadsDir()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Uploads directory not found", Error: err.Error()})
 		return
 	}
 

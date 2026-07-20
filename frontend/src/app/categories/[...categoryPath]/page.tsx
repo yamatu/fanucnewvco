@@ -7,6 +7,7 @@ import CategorySidebarTree from '@/components/categories/CategorySidebarTree';
 import ScrollRestorer from '@/components/common/ScrollRestorer';
 import { CategoryService } from '@/services';
 import { getSiteUrl } from '@/lib/url';
+import { withSiteName } from '@/lib/seo';
 
 interface CategoryPathPageProps {
   params: Promise<{ categoryPath: string[] }>;
@@ -83,10 +84,10 @@ export async function generateMetadata({ params }: CategoryPathPageProps): Promi
     const titleSuffix = getCategoryTitleSuffix(brandName);
     const metaDescription = getCategoryMetaDescription(category.name, category.description, brandName);
     return {
-      title: `${category.name} - ${titleSuffix} | Buy Online | VIBO CNC`,
+      title: `${category.name} - ${titleSuffix} | Buy Online`,
       description: metaDescription,
       openGraph: {
-        title: `${category.name} - ${titleSuffix} | VIBO CNC`,
+        title: withSiteName(`${category.name} - ${titleSuffix} | Buy Online`),
         description: metaDescription,
         type: 'website',
         url: `${baseUrl}${urlPath}`,
@@ -97,7 +98,7 @@ export async function generateMetadata({ params }: CategoryPathPageProps): Promi
     };
   } catch {
     return {
-      title: 'Category | VIBO CNC',
+      title: 'Category',
       description: 'Browse industrial automation parts by category.',
     };
   }

@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { Suspense } from 'react';
 import { getSiteUrl } from '@/lib/url';
+import { SITE_NAME, withSiteName } from '@/lib/seo';
 import { NewsService } from '@/services/news.service';
 import NewsPageClient from './NewsPageClient';
 
@@ -10,11 +11,11 @@ export async function generateMetadata({ searchParams }: {
   const params = await searchParams;
   const search = params.search;
 
-  let title = 'News & Articles | VIBO CNC';
+  let title = 'News & Articles';
   let description = 'Latest news, insights, and technical articles about industrial automation, FANUC parts, and CNC equipment from VIBO CNC.';
 
   if (search) {
-    title = `Search: ${search} - News | VIBO CNC`;
+    title = `Search: ${search} - News`;
     description = `Search results for "${search}" in news and articles.`;
   }
 
@@ -27,7 +28,7 @@ export async function generateMetadata({ searchParams }: {
     robots: hasSearch ? { index: false, follow: true } : { index: true, follow: true },
     keywords: ['FANUC news', 'CNC articles', 'industrial automation', 'technical blog', search].filter(Boolean).join(', '),
     openGraph: {
-      title,
+      title: withSiteName(title),
       description,
       type: 'website',
       url: `${baseUrl}/news`,
@@ -90,7 +91,8 @@ export default async function NewsPage({
     'url': `${baseUrl}/news`,
     'publisher': {
       '@type': 'Organization',
-      'name': 'VIBO CNC',
+      '@id': `${baseUrl}/#organization`,
+      'name': SITE_NAME,
       'url': baseUrl,
     },
     'blogPost': serverData.articles.slice(0, 10).map((article: any) => ({
@@ -101,10 +103,14 @@ export default async function NewsPage({
       'datePublished': article.published_at || article.created_at,
       'dateModified': article.updated_at,
       'image': article.featured_image || undefined,
-      'author': {
-        '@type': 'Person',
-        'name': article.author?.full_name || 'VIBO CNC',
-      },
+      ...(article.author?.full_name
+        ? {
+            'author': {
+              '@type': 'Person',
+              'name': article.author.full_name,
+            },
+          }
+        : {}),
     })),
   };
 

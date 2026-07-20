@@ -233,6 +233,10 @@ func (ec *EmailController) UpdateSettings(c *gin.Context) {
 		if endpoint == "" {
 			endpoint = "https://alimail-cn.aliyuncs.com"
 		}
+		if _, err := services.NewAliMailClient(endpoint, "validation", "validation"); err != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid AliMail endpoint", Error: err.Error()})
+			return
+		}
 		s.AliMailEndpoint = endpoint
 	}
 	if req.AliMailClientID != nil {
@@ -523,7 +527,10 @@ func getAliMailMailboxClient() (*services.AliMailClient, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	client := services.NewAliMailClient(s.AliMailEndpoint, s.AliMailClientID, secret)
+	client, err := services.NewAliMailClient(s.AliMailEndpoint, s.AliMailClientID, secret)
+	if err != nil {
+		return nil, "", err
+	}
 	return client, accountEmail, nil
 }
 
