@@ -107,7 +107,7 @@ export function ServicesSection({ content }: Props) {
                     href={service.href || '/contact'}
                     className="text-yellow-600 hover:text-yellow-700 font-semibold text-sm flex items-center group-hover:translate-x-2 transition-transform duration-300"
                   >
-                    Learn More
+                    Explore {service.title}
                     <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>

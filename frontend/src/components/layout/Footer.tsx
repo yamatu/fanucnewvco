@@ -197,12 +197,19 @@ export function Footer() {
         <div className="mt-12 pt-8 border-t border-gray-800">
           <div className="max-w-md">
             <h3 className="text-lg font-semibold mb-4">Stay Updated</h3>
-            <p className="text-gray-300 mb-4">
+            <p id="newsletter-description" className="text-gray-300 mb-4">
               Subscribe to our newsletter for the latest automation components and industry updates.
             </p>
             <form className="flex" onSubmit={handleSubscribe}>
+              <label htmlFor="newsletter-email" className="sr-only">
+                Email address for newsletter updates
+              </label>
               <input
+                id="newsletter-email"
+                name="email"
                 type="email"
+                autoComplete="email"
+                aria-describedby="newsletter-description"
                 placeholder="Enter your email"
                 value={newsletterEmail}
                 onChange={(e) => setNewsletterEmail(e.target.value)}

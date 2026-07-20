@@ -94,6 +94,10 @@ services:
 
       # Used to encrypt sensitive admin settings (e.g. Cloudflare Global API Key)
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}
+
+      # Revalidate cached Next.js pages after content mutations.
+      FRONTEND_URL: http://frontend:3000
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
     depends_on:
       mysql:
         condition: service_healthy
@@ -180,6 +184,7 @@ services:
       NEXT_PUBLIC_SITE_DESCRIPTION: ${NEXT_PUBLIC_SITE_DESCRIPTION:-Professional FANUC Parts and Equipment Sales}
       NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
       NEXT_PUBLIC_PAYPAL_ENVIRONMENT: ${NEXT_PUBLIC_PAYPAL_ENVIRONMENT:-sandbox}
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
     depends_on:
       - backend
     # Expose for host Nginx reverse proxy (bind to localhost by default)

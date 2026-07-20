@@ -4,20 +4,20 @@ import "./globals.css";
 import { ReactQueryProvider } from "@/lib/react-query";
 import { Toaster } from "react-hot-toast";
 import Clarity from "@/components/analytics/Clarity";
-import { getRequestBaseUrl } from "@/lib/request-url";
+import { getSiteUrl } from "@/lib/url";
+import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export async function generateMetadata(): Promise<Metadata> {
-  const siteUrl = await getRequestBaseUrl();
+export function generateMetadata(): Metadata {
+  const siteUrl = getSiteUrl();
   return {
     metadataBase: new URL(siteUrl),
     title: {
-      default: "FANUC Parts & Industrial Automation Components | Vcocnc",
+      default: HOME_TITLE,
       template: "%s | Vcocnc FANUC Parts",
     },
-    description:
-      "Professional FANUC CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units. Top 3 FANUC supplier in China.",
+    description: HOME_DESCRIPTION,
     keywords: [
       "FANUC parts",
       "CNC parts",
@@ -52,23 +52,16 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       locale: "en_US",
       siteName: "Vcocnc FANUC Parts",
-      title: "FANUC Parts & Industrial Automation Components | Vcocnc",
-      description:
-        "Professional FANUC CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Top 3 FANUC supplier in China.",
-      images: [
-        {
-          url: "/images/og-image.jpg",
-          width: 1200,
-          height: 630,
-          alt: "Vcocnc FANUC Parts - Industrial Automation Components",
-        },
-      ],
+      url: siteUrl,
+      title: HOME_TITLE,
+      description: HOME_DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE],
     },
     twitter: {
       card: "summary_large_image",
-      title: "FANUC Parts & Industrial Automation Components | Vcocnc",
-      description: "Professional FANUC CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping.",
-      images: ["/images/og-image.jpg"],
+      title: HOME_TITLE,
+      description: HOME_DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE.url],
     },
     verification: {
       google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,

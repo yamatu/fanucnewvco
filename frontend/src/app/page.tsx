@@ -5,18 +5,35 @@ import CompanyStats from '@/components/home/CompanyStats';
 import WorkshopSection from '@/components/home/WorkshopSection';
 import ServicesSection from '@/components/home/ServicesSection';
 import SimpleContentSection from '@/components/home/SimpleContentSection';
-import { generateOrganizationSchema, generateWebsiteSchema, generateLocalBusinessSchema } from '@/lib/structured-data';
+import { generateHomePageSchema, generateOrganizationSchema, generateWebsiteSchema } from '@/lib/structured-data';
 import type { HomepageContent } from '@/types';
 import type { Metadata } from 'next';
 import { getSiteUrl } from '@/lib/url';
+import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from '@/lib/seo';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = getSiteUrl();
   return {
+    title: { absolute: HOME_TITLE },
+    description: HOME_DESCRIPTION,
     alternates: { canonical: baseUrl },
-    openGraph: { url: baseUrl },
+    openGraph: {
+      type: 'website',
+      locale: 'en_US',
+      siteName: 'Vcocnc FANUC Parts',
+      url: baseUrl,
+      title: HOME_TITLE,
+      description: HOME_DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: HOME_TITLE,
+      description: HOME_DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE.url],
+    },
   };
 }
 
@@ -32,7 +49,9 @@ async function getHomepageContentList(): Promise<HomepageContent[]> {
   try {
     const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
     // Fetch inactive too so the public page can respect the admin "is_active" toggle (hide sections).
-    const res = await fetch(`${backendUrl}/api/v1/public/homepage-content?include_inactive=1`, { cache: 'no-store' });
+    const res = await fetch(`${backendUrl}/api/v1/public/homepage-content?include_inactive=1`, {
+      next: { revalidate: 300, tags: ['homepage-content'] },
+    });
     if (!res.ok) return [];
     const data = await res.json();
     if (!Array.isArray(data)) return [];
@@ -71,14 +90,14 @@ export default async function Home() {
   // Enhanced structured data using the new utility functions
   const organizationSchema = generateOrganizationSchema();
   const websiteSchema = generateWebsiteSchema();
-  const localBusinessSchema = generateLocalBusinessSchema();
+  const homePageSchema = generateHomePageSchema();
 
   const combinedStructuredData = {
     "@context": "https://schema.org",
     "@graph": [
       organizationSchema,
       websiteSchema,
-      localBusinessSchema
+      homePageSchema
     ]
   };
   return (

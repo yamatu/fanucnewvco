@@ -9,6 +9,14 @@ import { DEFAULT_HERO_DATA, type HeroSectionData } from '@/lib/homepage-defaults
 
 type Props = { content?: HomepageContent | null };
 
+function getDescriptiveCtaText(text: string, href: string, slideTitle: string): string {
+  if (!/^(learn|read|view) more$/i.test(text.trim())) return text;
+  if (href === '/about') return 'About Vcocnc';
+  if (href === '/contact') return 'Contact Vcocnc';
+  if (href === '/categories') return 'Browse Product Categories';
+  return `Explore ${slideTitle}`;
+}
+
 function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
   const raw = (content as any)?.data;
   const parsed = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
@@ -39,6 +47,7 @@ export function HeroSection({ content }: Props) {
   const autoPlayMs = heroData.autoPlayMs || 6000;
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const activeSlide = slides[currentSlide] || slides[0];
 
   // Auto-play functionality
   useEffect(() => {
@@ -66,81 +75,63 @@ export function HeroSection({ content }: Props) {
     setIsAutoPlaying(false);
   };
 
+  if (!activeSlide) return null;
+
   return (
     <section className="relative w-full h-screen min-h-screen flex items-center justify-center overflow-hidden bg-gray-900">
-      {/* Background Images */}
-      {slides.map((slide, index) => (
-        <div
-          key={slide.id ?? index}
-          className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${
-            index === currentSlide ? 'opacity-100' : 'opacity-0'
-          }`}
-        >
-          <Image
-            src={slide.image}
-            alt={slide.title}
-            fill
-            className="object-cover w-full h-full"
-            style={{
-              objectPosition: 'center center',
-              objectFit: 'cover'
-            }}
-            sizes="100vw"
-            priority={index === 0}
-            unoptimized={typeof slide.image === 'string' && slide.image.startsWith('/uploads/')}
-            onError={(e) => {
-              console.error('Image failed to load:', slide.image);
-              // 设置备用图片
-              const target = e.currentTarget as HTMLImageElement;
-              target.src = 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=1920&h=1080';
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/40" />
-        </div>
-      ))}
+      {/* Only the active slide is rendered so hidden, in-viewport images are not downloaded. */}
+      <div key={activeSlide.id ?? currentSlide} className="absolute inset-0 h-full w-full">
+        <Image
+          src={activeSlide.image}
+          alt={activeSlide.title}
+          width={1920}
+          height={1080}
+          quality={70}
+          className="absolute inset-0 h-full w-full object-cover"
+          sizes="100vw"
+          priority={currentSlide === 0}
+          fetchPriority={currentSlide === 0 ? 'high' : 'auto'}
+          onError={(e) => {
+            const target = e.currentTarget as HTMLImageElement;
+            target.srcset = '';
+            target.src = 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=1920&h=1080';
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/40" />
+      </div>
 
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <div className="max-w-4xl mx-auto bg-white bg-opacity-90 rounded-2xl p-8 md:p-12 shadow-2xl backdrop-blur-sm">
-          {slides.map((slide, index) => (
-            <div
-              key={slide.id ?? index}
-              className={`transition-all duration-1000 ${
-                index === currentSlide
-                  ? 'opacity-100 transform translate-y-0'
-                  : 'opacity-0 transform translate-y-8'
-              }`}
-              style={{ display: index === currentSlide ? 'block' : 'none' }}
-            >
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-gray-900">
-                {slide.title}
-              </h1>
+          <div key={activeSlide.id ?? currentSlide}>
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-gray-900">
+              {activeSlide.title}
+            </h1>
 
-              <h2 className="text-xl md:text-2xl lg:text-3xl font-light mb-8 text-yellow-600">
-                {slide.subtitle}
-              </h2>
+            <p className="text-xl md:text-2xl lg:text-3xl font-light mb-8 text-yellow-600">
+              {activeSlide.subtitle}
+            </p>
 
-              <p className="text-lg md:text-xl mb-12 max-w-3xl mx-auto leading-relaxed text-gray-700">
-                {slide.description}
-              </p>
+            <p className="text-lg md:text-xl mb-12 max-w-3xl mx-auto leading-relaxed text-gray-700">
+              {activeSlide.description}
+            </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  href={slide.cta.primary.href}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
-                >
-                  {slide.cta.primary.text}
-                </Link>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href={activeSlide.cta.primary.href}
+                className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+              >
+                {getDescriptiveCtaText(activeSlide.cta.primary.text, activeSlide.cta.primary.href, activeSlide.title)}
+              </Link>
 
-                <Link
-                  href={slide.cta.secondary.href}
-                  className="border-2 border-yellow-500 text-yellow-600 hover:bg-yellow-500 hover:text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105"
-                >
-                  {slide.cta.secondary.text}
-                </Link>
-              </div>
+              <Link
+                href={activeSlide.cta.secondary.href}
+                className="border-2 border-yellow-500 text-yellow-600 hover:bg-yellow-500 hover:text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105"
+              >
+                {getDescriptiveCtaText(activeSlide.cta.secondary.text, activeSlide.cta.secondary.href, activeSlide.title)}
+              </Link>
             </div>
-          ))}
+          </div>
         </div>
       </div>
 
@@ -173,6 +164,7 @@ export function HeroSection({ content }: Props) {
                 : 'bg-yellow-400 bg-opacity-50 hover:bg-opacity-75'
             }`}
             aria-label={`Go to slide ${index + 1}`}
+            aria-current={index === currentSlide ? 'true' : undefined}
           />
         ))}
       </div>

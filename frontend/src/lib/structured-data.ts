@@ -1,4 +1,5 @@
 import { getSiteUrl } from '@/lib/url';
+import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from '@/lib/seo';
 
 export function generateOrganizationSchema() {
   const baseUrl = getSiteUrl();
@@ -9,7 +10,7 @@ export function generateOrganizationSchema() {
     "@id": `${baseUrl}/#organization`,
     "name": "Vcocnc",
     "alternateName": "VCOCNC Industrial Automation",
-    "description": "Professional FANUC CNC parts supplier since 2005. Leading provider of industrial automation components with over 100,000 items in stock.",
+    "description": HOME_DESCRIPTION,
     "url": baseUrl,
     "logo": {
       "@type": "ImageObject",
@@ -20,19 +21,15 @@ export function generateOrganizationSchema() {
     "image": [
       {
         "@type": "ImageObject",
-        "url": `${baseUrl}/images/company-banner.jpg`,
+        "url": `${baseUrl}${DEFAULT_OG_IMAGE.url}`,
         "width": 1200,
         "height": 630
       }
     ],
     "foundingDate": "2005",
-    "founder": {
-      "@type": "Person",
-      "name": "Vcocnc Founder"
-    },
     "numberOfEmployees": {
       "@type": "QuantitativeValue",
-      "value": 50
+      "value": 37
     },
     "address": {
       "@type": "PostalAddress",
@@ -62,10 +59,6 @@ export function generateOrganizationSchema() {
         "areaServed": "Worldwide"
       }
     ],
-    "sameAs": [
-      "https://www.linkedin.com/company/vcocnc",
-      "https://twitter.com/vcocnc"
-    ],
     "slogan": "Your Trusted FANUC Parts Partner Since 2005",
     "knowsAbout": [
       "FANUC CNC parts",
@@ -90,17 +83,7 @@ export function generateOrganizationSchema() {
         "Business",
         "Industrial"
       ]
-    },
-    "award": [
-      "Top 3 FANUC Supplier in China",
-      "ISO 9001:2015 Certified",
-      "Authorized FANUC Distributor"
-    ],
-    "hasCredential": [
-      "ISO 9001:2015 Quality Management System",
-      "CE Certification",
-      "FANUC Authorized Distributor Certificate"
-    ]
+    }
   };
 }
 
@@ -114,7 +97,7 @@ export function generateWebsiteSchema() {
     "name": "Vcocnc FANUC Parts",
     "alternateName": "FANUC Parts & Industrial Automation Components",
     "url": baseUrl,
-    "description": "Professional FANUC CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.",
+    "description": HOME_DESCRIPTION,
     "publisher": {
       "@type": "Organization",
       "@id": `${baseUrl}/#organization`,
@@ -167,6 +150,32 @@ export function generateWebsiteSchema() {
     "speakable": {
       "@type": "SpeakableSpecification",
       "cssSelector": ["h1", ".product-name", ".category-title"]
+    }
+  };
+}
+
+export function generateHomePageSchema() {
+  const baseUrl = getSiteUrl();
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${baseUrl}/#webpage`,
+    "url": baseUrl,
+    "name": HOME_TITLE,
+    "description": HOME_DESCRIPTION,
+    "inLanguage": "en",
+    "isPartOf": {
+      "@id": `${baseUrl}/#website`
+    },
+    "about": {
+      "@id": `${baseUrl}/#organization`
+    },
+    "primaryImageOfPage": {
+      "@type": "ImageObject",
+      "url": `${baseUrl}${DEFAULT_OG_IMAGE.url}`,
+      "width": DEFAULT_OG_IMAGE.width,
+      "height": DEFAULT_OG_IMAGE.height
     }
   };
 }
@@ -282,7 +291,7 @@ export function generateLocalBusinessSchema() {
     "@id": `${baseUrl}/#organization`,
     "name": "Vcocnc",
     "image": [
-      `${baseUrl}/images/company-banner.jpg`,
+      `${baseUrl}${DEFAULT_OG_IMAGE.url}`,
       `${baseUrl}/android-chrome-512x512.png`
     ],
     "telephone": "+86-13348028050",
