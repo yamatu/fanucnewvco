@@ -1,11 +1,8 @@
-'use client';
-
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { getImageProps } from 'next/image';
 import type { HomepageContent } from '@/types';
 import { DEFAULT_HERO_DATA, type HeroSectionData } from '@/lib/homepage-defaults';
+import HeroCarouselControls from './HeroCarouselControls';
 
 type Props = { content?: HomepageContent | null };
 
@@ -18,7 +15,7 @@ function getDescriptiveCtaText(text: string, href: string, slideTitle: string): 
 }
 
 function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
-  const raw = (content as any)?.data;
+  const raw = content?.data;
   const parsed = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
 
   // Start from structured data if provided, otherwise defaults.
@@ -45,129 +42,72 @@ export function HeroSection({ content }: Props) {
   const heroData = normalizeHeroData(content);
   const slides = heroData.slides;
   const autoPlayMs = heroData.autoPlayMs || 6000;
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  const activeSlide = slides[currentSlide] || slides[0];
+  const initialSlide = slides[0];
 
-  // Auto-play functionality
-  useEffect(() => {
-    if (!isAutoPlaying) return;
+  if (!initialSlide) return null;
 
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, autoPlayMs);
-
-    return () => clearInterval(interval);
-  }, [isAutoPlaying, slides.length, autoPlayMs]);
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
-    setIsAutoPlaying(false);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-    setIsAutoPlaying(false);
-  };
-
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index);
-    setIsAutoPlaying(false);
-  };
-
-  if (!activeSlide) return null;
+  const { props: initialImageProps } = getImageProps({
+    src: initialSlide.image,
+    alt: initialSlide.title,
+    width: 1920,
+    height: 1080,
+    quality: 70,
+    sizes: '100vw',
+    priority: true,
+    fetchPriority: 'high',
+    decoding: 'sync',
+  });
 
   return (
     <section className="relative w-full h-screen min-h-screen flex items-center justify-center overflow-hidden bg-gray-900">
-      {/* Only the active slide is rendered so hidden, in-viewport images are not downloaded. */}
-      <div key={activeSlide.id ?? currentSlide} className="absolute inset-0 h-full w-full">
-        <Image
-          src={activeSlide.image}
-          alt={activeSlide.title}
-          width={1920}
-          height={1080}
-          quality={70}
+      {/* Keep the LCP image outside the carousel's client hydration boundary. */}
+      <div className="absolute inset-0 h-full w-full">
+        {/* getImageProps keeps Next.js optimization without hydrating the LCP element. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          {...initialImageProps}
+          alt={initialSlide.title}
           className="absolute inset-0 h-full w-full object-cover"
-          sizes="100vw"
-          priority={currentSlide === 0}
-          fetchPriority={currentSlide === 0 ? 'high' : 'auto'}
-          onError={(e) => {
-            const target = e.currentTarget as HTMLImageElement;
-            target.srcset = '';
-            target.src = 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=1920&h=1080';
-          }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/40" />
       </div>
 
-      {/* Content */}
+      {/* The initial slide is server-rendered so its LCP paint is not gated by hydration. */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div className="max-w-4xl mx-auto bg-white bg-opacity-90 rounded-2xl p-8 md:p-12 shadow-2xl backdrop-blur-sm">
-          <div key={activeSlide.id ?? currentSlide}>
+        <div className="max-w-4xl mx-auto bg-white bg-opacity-90 rounded-2xl p-8 md:p-12 shadow-2xl">
+          <div>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-gray-900">
-              {activeSlide.title}
+              {initialSlide.title}
             </h1>
 
             <p className="text-xl md:text-2xl lg:text-3xl font-light mb-8 text-yellow-600">
-              {activeSlide.subtitle}
+              {initialSlide.subtitle}
             </p>
 
             <p className="text-lg md:text-xl mb-12 max-w-3xl mx-auto leading-relaxed text-gray-700">
-              {activeSlide.description}
+              {initialSlide.description}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                href={activeSlide.cta.primary.href}
+                href={initialSlide.cta.primary.href}
                 className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
-                {getDescriptiveCtaText(activeSlide.cta.primary.text, activeSlide.cta.primary.href, activeSlide.title)}
+                {getDescriptiveCtaText(initialSlide.cta.primary.text, initialSlide.cta.primary.href, initialSlide.title)}
               </Link>
 
               <Link
-                href={activeSlide.cta.secondary.href}
+                href={initialSlide.cta.secondary.href}
                 className="border-2 border-yellow-500 text-yellow-600 hover:bg-yellow-500 hover:text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105"
               >
-                {getDescriptiveCtaText(activeSlide.cta.secondary.text, activeSlide.cta.secondary.href, activeSlide.title)}
+                {getDescriptiveCtaText(initialSlide.cta.secondary.text, initialSlide.cta.secondary.href, initialSlide.title)}
               </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Navigation Arrows */}
-      <button
-        onClick={prevSlide}
-        className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-black bg-opacity-50 hover:bg-opacity-75 text-white p-3 rounded-full transition-all duration-300"
-        aria-label="Previous slide"
-      >
-        <ChevronLeftIcon className="h-6 w-6" />
-      </button>
-
-      <button
-        onClick={nextSlide}
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-black bg-opacity-50 hover:bg-opacity-75 text-white p-3 rounded-full transition-all duration-300"
-        aria-label="Next slide"
-      >
-        <ChevronRightIcon className="h-6 w-6" />
-      </button>
-
-      {/* Slide Indicators */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex space-x-3">
-        {slides.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              index === currentSlide
-                ? 'bg-yellow-400 scale-125'
-                : 'bg-yellow-400 bg-opacity-50 hover:bg-opacity-75'
-            }`}
-            aria-label={`Go to slide ${index + 1}`}
-            aria-current={index === currentSlide ? 'true' : undefined}
-          />
-        ))}
-      </div>
+      <HeroCarouselControls slides={slides} autoPlayMs={autoPlayMs} />
 
       {/* Scroll Indicator */}
       <div className="absolute bottom-8 right-8 z-20 text-white animate-bounce">

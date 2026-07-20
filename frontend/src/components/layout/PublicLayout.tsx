@@ -1,9 +1,6 @@
-'use client';
-
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import Header from './Header';
 import Footer from './Footer';
-import CartSidebar from '../cart/CartSidebar';
 import WhatsAppButton from '../ui/WhatsAppButton';
 
 interface PublicLayoutProps {
@@ -24,7 +21,6 @@ export function PublicLayout({ children }: PublicLayoutProps) {
         {children}
       </main>
       <Footer />
-      <CartSidebar />
       <WhatsAppButton />
     </div>
   );

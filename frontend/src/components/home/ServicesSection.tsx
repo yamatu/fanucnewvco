@@ -1,7 +1,6 @@
-'use client';
-
 import Link from 'next/link';
 import type { HomepageContent } from '@/types';
+import type { ComponentType, SVGProps } from 'react';
 import { 
   CogIcon, 
   WrenchScrewdriverIcon, 
@@ -16,7 +15,9 @@ import { DEFAULT_SERVICES_SECTION_DATA, type ServicesSectionData } from '@/lib/h
 
 type Props = { content?: HomepageContent | null };
 
-const ICONS: Record<string, any> = {
+type OutlineIcon = ComponentType<SVGProps<SVGSVGElement>>;
+
+const ICONS: Record<string, OutlineIcon> = {
   cog: CogIcon,
   wrench: WrenchScrewdriverIcon,
   phone: PhoneIcon,
@@ -25,9 +26,13 @@ const ICONS: Record<string, any> = {
   cap: AcademicCapIcon,
 };
 
-function normalizeServicesData(input: any): ServicesSectionData {
+function normalizeServicesData(input: unknown): ServicesSectionData {
   if (!input) return DEFAULT_SERVICES_SECTION_DATA;
-  const data = typeof input === 'string' ? (() => { try { return JSON.parse(input); } catch { return null; } })() : input;
+  const data = typeof input === 'string'
+    ? (() => { try { return JSON.parse(input) as Partial<ServicesSectionData>; } catch { return null; } })()
+    : typeof input === 'object'
+      ? input as Partial<ServicesSectionData>
+      : null;
   const services = Array.isArray(data?.services) && data.services.length > 0 ? data.services : DEFAULT_SERVICES_SECTION_DATA.services;
   const processSteps = Array.isArray(data?.processSteps) && data.processSteps.length > 0 ? data.processSteps : DEFAULT_SERVICES_SECTION_DATA.processSteps;
   return {
@@ -46,7 +51,7 @@ function normalizeServicesData(input: any): ServicesSectionData {
 }
 
 export function ServicesSection({ content }: Props) {
-  const base = normalizeServicesData((content as any)?.data);
+  const base = normalizeServicesData(content?.data);
   const data: ServicesSectionData = {
     ...base,
     headerTitle: content?.title || base.headerTitle,
@@ -70,7 +75,7 @@ export function ServicesSection({ content }: Props) {
 
         {/* Services Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20">
-          {data.services.map((service: any) => {
+          {data.services.map((service) => {
             const Icon = ICONS[String(service.icon)] || CogIcon;
             return (
               <div
@@ -95,7 +100,7 @@ export function ServicesSection({ content }: Props) {
                   </p>
 
                   <ul className="space-y-2 mb-6">
-                    {(service.features || []).map((feature: any, index: number) => (
+                    {(service.features || []).map((feature, index) => (
                       <li key={index} className="flex items-center text-sm text-gray-600">
                         <div className="w-2 h-2 bg-yellow-500 rounded-full mr-3 flex-shrink-0"></div>
                         {feature}
@@ -130,7 +135,7 @@ export function ServicesSection({ content }: Props) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {data.processSteps.map((step: any, index: number) => (
+            {data.processSteps.map((step, index) => (
               <div key={index} className="text-center relative">
                 {/* Step Number */}
                 <div className="bg-yellow-500 text-black w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
@@ -185,7 +190,7 @@ export function ServicesSection({ content }: Props) {
 
               {/* Contact Info */}
               <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-8 mt-8 pt-8 border-t border-yellow-700">
-                {(data.ctaBadges || []).slice(0, 3).map((txt: any, idx: number) => {
+                {(data.ctaBadges || []).slice(0, 3).map((txt, idx) => {
                   const Icon = idx === 0 ? ClockIcon : idx === 1 ? GlobeAltIcon : ShieldCheckIcon;
                   return (
                     <div key={idx} className="flex items-center text-yellow-900">

@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Product, CartItem } from '@/types';
-import { toast } from 'react-hot-toast';
+import type { Product, CartItem } from '@/types';
+
+function notifySuccess(message: string) {
+  void import('react-hot-toast').then(({ toast }) => toast.success(message));
+}
 
 interface CartState {
   items: CartItem[];
@@ -47,13 +50,13 @@ export const useCartStore = create<CartState & CartActions>()(
                 : item
             )
           }));
-          toast.success(`Updated ${product.name} quantity in cart`);
+          notifySuccess(`Updated ${product.name} quantity in cart`);
         } else {
           // Add new item
           set(state => ({
             items: [...state.items, { product, quantity }]
           }));
-          toast.success(`Added ${product.name} to cart`);
+          notifySuccess(`Added ${product.name} to cart`);
         }
 
         get().calculateTotal();
@@ -68,7 +71,7 @@ export const useCartStore = create<CartState & CartActions>()(
         }));
 
         if (item) {
-          toast.success(`Removed ${item.product.name} from cart`);
+          notifySuccess(`Removed ${item.product.name} from cart`);
         }
 
         get().calculateTotal();

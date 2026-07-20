@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import Cookies from 'js-cookie';
-import { Customer, CustomerService, LoginRequest, RegisterRequest } from '@/services/customer.service';
+import type { Customer, LoginRequest, RegisterRequest } from '@/services/customer.service';
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 interface CustomerAuthState {
   customer: Customer | null;
@@ -25,7 +29,7 @@ interface CustomerAuthActions {
 
 export const useCustomerStore = create<CustomerAuthState & CustomerAuthActions>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // State
       customer: null,
       token: null,
@@ -37,6 +41,7 @@ export const useCustomerStore = create<CustomerAuthState & CustomerAuthActions>(
       login: async (credentials) => {
         try {
           set({ isLoading: true, error: null });
+          const { CustomerService } = await import('@/services/customer.service');
           const response = await CustomerService.login(credentials);
 
           Cookies.set('customer_token', response.token, {
@@ -50,9 +55,9 @@ export const useCustomerStore = create<CustomerAuthState & CustomerAuthActions>(
             isAuthenticated: true,
             isLoading: false,
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
           set({
-            error: error.message || 'Login failed',
+            error: getErrorMessage(error, 'Login failed'),
             isLoading: false,
           });
           throw error;
@@ -62,6 +67,7 @@ export const useCustomerStore = create<CustomerAuthState & CustomerAuthActions>(
       register: async (data) => {
         try {
           set({ isLoading: true, error: null });
+          const { CustomerService } = await import('@/services/customer.service');
           const response = await CustomerService.register(data);
 
           Cookies.set('customer_token', response.token, {
@@ -75,9 +81,9 @@ export const useCustomerStore = create<CustomerAuthState & CustomerAuthActions>(
             isAuthenticated: true,
             isLoading: false,
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
           set({
-            error: error.message || 'Registration failed',
+            error: getErrorMessage(error, 'Registration failed'),
             isLoading: false,
           });
           throw error;
@@ -124,6 +130,7 @@ export const useCustomerStore = create<CustomerAuthState & CustomerAuthActions>(
 
           if (token) {
             try {
+              const { CustomerService } = await import('@/services/customer.service');
               const customer = await CustomerService.getProfile();
               set({
                 customer,
@@ -131,7 +138,7 @@ export const useCustomerStore = create<CustomerAuthState & CustomerAuthActions>(
                 isAuthenticated: true,
                 isLoading: false,
               });
-            } catch (error) {
+            } catch {
               // Token is invalid, clear auth state
               Cookies.remove('customer_token');
               set({
@@ -149,7 +156,7 @@ export const useCustomerStore = create<CustomerAuthState & CustomerAuthActions>(
               isLoading: false,
             });
           }
-        } catch (error) {
+        } catch {
           set({
             customer: null,
             token: null,

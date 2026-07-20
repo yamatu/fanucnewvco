@@ -1,14 +1,10 @@
-'use client';
-
 import Link from 'next/link';
-import { getSiteUrl } from '@/lib/url';
 import {
   PhoneIcon,
   EnvelopeIcon,
   MapPinIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
-import { useState } from 'react';
 
 const footerNavigation = {
   products: [
@@ -50,24 +46,6 @@ const footerNavigation = {
 };
 
 export function Footer() {
-  const [newsletterEmail, setNewsletterEmail] = useState('');
-  const siteUrl = getSiteUrl();
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const url = new URL(siteUrl || window.location.origin);
-      url.pathname = '/contact';
-      if (newsletterEmail && newsletterEmail.trim()) {
-        url.searchParams.set('email', newsletterEmail.trim());
-      }
-      window.location.href = url.toString();
-    } catch {
-      // Fallback to relative navigation
-      const qs = newsletterEmail && newsletterEmail.trim() ? `?email=${encodeURIComponent(newsletterEmail.trim())}` : '';
-      window.location.href = `/contact${qs}`;
-    }
-  };
   return (
     <footer className="bg-gray-900 text-white">
       {/* Main Footer Content */}
@@ -200,7 +178,7 @@ export function Footer() {
             <p id="newsletter-description" className="text-gray-300 mb-4">
               Subscribe to our newsletter for the latest automation components and industry updates.
             </p>
-            <form className="flex" onSubmit={handleSubscribe}>
+            <form className="flex" action="/contact" method="get">
               <label htmlFor="newsletter-email" className="sr-only">
                 Email address for newsletter updates
               </label>
@@ -211,8 +189,6 @@ export function Footer() {
                 autoComplete="email"
                 aria-describedby="newsletter-description"
                 placeholder="Enter your email"
-                value={newsletterEmail}
-                onChange={(e) => setNewsletterEmail(e.target.value)}
                 className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white placeholder-gray-400"
               />
               <button

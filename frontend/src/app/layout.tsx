@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ReactQueryProvider } from "@/lib/react-query";
-import { Toaster } from "react-hot-toast";
 import Clarity from "@/components/analytics/Clarity";
+import DeferredToaster from "@/components/ui/DeferredToaster";
 import { getSiteUrl } from "@/lib/url";
 import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
 
@@ -85,34 +84,9 @@ export default function RootLayout({
         <meta name="theme-color" content="#f59e0b" />
       </head>
       <body className={`${inter.className} antialiased`}>
-        <ReactQueryProvider>
-          <Clarity />
-          {children}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-              },
-              success: {
-                duration: 3000,
-                iconTheme: {
-                  primary: '#10B981',
-                  secondary: '#fff',
-                },
-              },
-              error: {
-                duration: 5000,
-                iconTheme: {
-                  primary: '#EF4444',
-                  secondary: '#fff',
-                },
-              },
-            }}
-          />
-        </ReactQueryProvider>
+        <Clarity />
+        {children}
+        <DeferredToaster />
       </body>
     </html>
   );
