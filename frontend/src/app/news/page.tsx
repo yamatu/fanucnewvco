@@ -10,7 +10,7 @@ export async function generateMetadata({ searchParams }: {
   const params = await searchParams;
   const search = params.search;
 
-  let title = 'News & Articles | Vcocnc';
+  let title = 'FANUC News & Technical Articles | Vcocnc';
   let description = 'Latest news, insights, and technical articles about industrial automation, FANUC parts, and CNC equipment from Vcocnc.';
 
   if (search) {
@@ -22,7 +22,7 @@ export async function generateMetadata({ searchParams }: {
   const hasSearch = typeof search === 'string' && search.trim().length > 0;
 
   return {
-    title,
+    title: { absolute: title },
     description,
     robots: hasSearch ? { index: false, follow: true } : { index: true, follow: true },
     keywords: ['FANUC news', 'CNC articles', 'industrial automation', 'technical blog', search].filter(Boolean).join(', '),

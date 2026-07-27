@@ -98,7 +98,7 @@ export async function generateMetadata({ searchParams }: {
   const searchQuery = getFirstParamValue(params.search);
   const hasSearch = !!searchQuery;
 
-  let title = 'Industrial Automation Parts & Components | Vcocnc';
+  let title = 'FANUC & Industrial Automation Parts | Vcocnc';
   let description = 'Professional CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.';
   const baseUrl = getSiteUrl();
 
@@ -112,7 +112,7 @@ export async function generateMetadata({ searchParams }: {
       const catUrl = `${baseUrl}${categoryPath}`;
 
       return {
-        title,
+        title: { absolute: title },
         description,
         robots: { index: true, follow: true },
         keywords: [
@@ -138,7 +138,7 @@ export async function generateMetadata({ searchParams }: {
   }
 
   return {
-    title,
+    title: { absolute: title },
     description,
     robots: hasSearch ? { index: false, follow: true } : { index: true, follow: true },
     keywords: [

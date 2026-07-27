@@ -9,6 +9,13 @@ import {
   ClockIcon,
 } from '@heroicons/react/24/outline';
 import { useState } from 'react';
+import {
+  FacebookIcon,
+  InstagramIcon,
+  LinkedInIcon,
+  XIcon,
+} from '@/components/icons/SocialBrandIcons';
+import { useSocialLinks } from '@/components/social/SocialLinksProvider';
 
 const footerNavigation = {
   products: [
@@ -49,9 +56,22 @@ const footerNavigation = {
   ],
 };
 
+const socialPlatforms = [
+  { key: 'x_url', name: 'X', Icon: XIcon, hoverClass: 'hover:bg-white hover:text-gray-900 hover:border-white' },
+  { key: 'facebook_url', name: 'Facebook', Icon: FacebookIcon, hoverClass: 'hover:bg-blue-600 hover:text-white hover:border-blue-600' },
+  { key: 'instagram_url', name: 'Instagram', Icon: InstagramIcon, hoverClass: 'hover:bg-pink-600 hover:text-white hover:border-pink-600' },
+  { key: 'linkedin_url', name: 'LinkedIn', Icon: LinkedInIcon, hoverClass: 'hover:bg-sky-700 hover:text-white hover:border-sky-700' },
+] as const;
+
 export function Footer() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const siteUrl = getSiteUrl();
+  const socialConfig = useSocialLinks();
+  const socialLinks = socialConfig?.show_in_footer
+    ? socialPlatforms
+        .map((platform) => ({ ...platform, href: socialConfig[platform.key].trim() }))
+        .filter((platform) => platform.href)
+    : [];
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,6 +135,27 @@ export function Footer() {
                 <span className="text-gray-300">Mon-Fri: 8:00 AM - 6:00 PM</span>
               </div>
             </div>
+
+            {socialLinks.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-sm font-semibold text-white">Follow Vcocnc</h3>
+                <div className="mt-3 flex min-h-10 items-center gap-2">
+                  {socialLinks.map(({ name, href, Icon, hoverClass }) => (
+                    <a
+                      key={name}
+                      href={href}
+                      target="_blank"
+                      rel="me noopener noreferrer"
+                      aria-label={`Follow Vcocnc on ${name}`}
+                      title={name}
+                      className={`flex h-10 w-10 items-center justify-center rounded-md border border-gray-700 text-gray-300 transition-colors ${hoverClass}`}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Products */}
@@ -224,7 +265,7 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-gray-400 text-sm">
-              © 2024 Vcocnc. All rights reserved.
+              © {new Date().getFullYear()} Vcocnc. All rights reserved.
             </div>
 
             <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 md:mt-0">

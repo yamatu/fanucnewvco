@@ -62,10 +62,6 @@ export function generateOrganizationSchema() {
         "areaServed": "Worldwide"
       }
     ],
-    "sameAs": [
-      "https://www.linkedin.com/company/vcocnc",
-      "https://twitter.com/vcocnc"
-    ],
     "slogan": "Your Trusted FANUC Parts Partner Since 2005",
     "knowsAbout": [
       "FANUC CNC parts",
