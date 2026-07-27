@@ -50,6 +50,7 @@ export function WorkshopSection({ content }: Props) {
     headerTitle: content?.title || base.headerTitle,
     headerDescription: content?.description || base.headerDescription,
   };
+  const activeFacility = data.facilities[activeTab] || data.facilities[0];
 
   return (
     <section className="py-20 bg-gray-50">
@@ -67,11 +68,20 @@ export function WorkshopSection({ content }: Props) {
         {/* Facility Tabs */}
         <div className="mb-16">
           {/* Tab Navigation */}
-          <div className="flex flex-wrap justify-center mb-8 border-b border-gray-200">
+          <div
+            className="flex flex-wrap justify-center mb-8 border-b border-gray-200"
+            role="tablist"
+            aria-label="Workshop facilities"
+          >
             {data.facilities.map((facility: any, index: number) => (
               <button
                 key={facility.id}
                 onClick={() => setActiveTab(index)}
+                type="button"
+                role="tab"
+                id={`facility-tab-${facility.id}`}
+                aria-controls={`facility-panel-${facility.id}`}
+                aria-selected={activeTab === index}
                 className={`px-6 py-3 font-medium text-sm md:text-base transition-colors duration-300 border-b-2 ${
                   activeTab === index
                     ? 'border-yellow-600 text-yellow-600'
@@ -85,30 +95,25 @@ export function WorkshopSection({ content }: Props) {
 
           {/* Tab Content */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            {data.facilities.map((facility: any, index: number) => (
+            {activeFacility && (
               <div
-                key={facility.id}
-                className={`${activeTab === index ? 'block' : 'hidden'}`}
+                key={activeFacility.id}
+                id={`facility-panel-${activeFacility.id}`}
+                role="tabpanel"
+                aria-labelledby={`facility-tab-${activeFacility.id}`}
               >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                   {/* Image */}
-                  <div className="relative h-96 lg:h-auto">
+                  <div className="relative min-h-96">
                     <Image
-                      src={facility.image}
-                      alt={facility.title}
-                      fill
+                      src={activeFacility.image}
+                      alt={activeFacility.title}
+                      width={960}
+                      height={720}
+                      quality={70}
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 50vw"
-                      className="object-cover"
-                      unoptimized={typeof facility.image === 'string' && facility.image.startsWith('/uploads/')}
-                      onError={(e) => {
-                        console.error('Image failed to load:', facility.image);
-                        // 可以设置备用图片
-                        // e.currentTarget.src = '/fallback-image.jpg';
-                      }}
-                      onLoad={() => {
-                        console.log('Image loaded successfully:', facility.image);
-                      }}
-                      priority={activeTab === index}
+                      className="absolute inset-0 h-full w-full object-cover"
+                      loading="lazy"
                     />
                   </div>
 
@@ -117,21 +122,21 @@ export function WorkshopSection({ content }: Props) {
                     <div className="flex items-center mb-6">
                       <div className="bg-yellow-100 p-3 rounded-full mr-4">
                         {(() => {
-                          const Icon = ICONS[String(facility.icon)] || BeakerIcon;
+                          const Icon = ICONS[String(activeFacility.icon)] || BeakerIcon;
                           return <Icon className="h-8 w-8 text-yellow-600" />;
                         })()}
                       </div>
                       <h3 className="text-2xl font-bold text-gray-900">
-                        {facility.title}
+                        {activeFacility.title}
                       </h3>
                     </div>
 
                     <p className="text-gray-600 text-lg mb-8 leading-relaxed">
-                      {facility.description}
+                      {activeFacility.description}
                     </p>
 
                     <div className="space-y-4">
-                      {(facility.features || []).map((feature: any, featureIndex: number) => (
+                      {(activeFacility.features || []).map((feature: any, featureIndex: number) => (
                         <div key={featureIndex} className="flex items-center">
                           <CheckCircleIcon className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
                           <span className="text-gray-700">{feature}</span>
@@ -141,7 +146,7 @@ export function WorkshopSection({ content }: Props) {
                   </div>
                 </div>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -198,7 +203,9 @@ export function WorkshopSection({ content }: Props) {
                 href={data.statsBlock?.ctaSecondary?.href || '/about'}
                 className="border-2 border-black text-black hover:bg-black hover:text-yellow-400 px-8 py-3 rounded-lg font-semibold transition-colors duration-300"
               >
-                {data.statsBlock?.ctaSecondary?.text || 'Learn More'}
+                {/^(learn|read|view) more$/i.test(data.statsBlock?.ctaSecondary?.text || '')
+                  ? 'About Our Workshop'
+                  : data.statsBlock?.ctaSecondary?.text || 'About Our Workshop'}
               </a>
             </div>
           </div>

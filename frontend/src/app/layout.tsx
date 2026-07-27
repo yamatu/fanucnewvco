@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ReactQueryProvider } from "@/lib/react-query";
-import { Toaster } from "react-hot-toast";
 import Clarity from "@/components/analytics/Clarity";
-import { getRequestBaseUrl } from "@/lib/request-url";
 import { SocialLinksProvider } from "@/components/social/SocialLinksProvider";
-import { getConfiguredSocialURLs, type SocialLinksPublicConfig } from "@/lib/social-links";
+import DeferredToaster from "@/components/ui/DeferredToaster";
+import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
+import {
+  getConfiguredSocialURLs,
+  type SocialLinksPublicConfig,
+} from "@/lib/social-links";
+import { getSiteUrl } from "@/lib/url";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -29,16 +32,15 @@ async function getSocialLinksConfig(): Promise<SocialLinksPublicConfig | null> {
   }
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  const siteUrl = await getRequestBaseUrl();
+export function generateMetadata(): Metadata {
+  const siteUrl = getSiteUrl();
   return {
     metadataBase: new URL(siteUrl),
     title: {
-      default: "FANUC Parts & Industrial Automation Components | Vcocnc",
+      default: HOME_TITLE,
       template: "%s | Vcocnc FANUC Parts",
     },
-    description:
-      "Professional FANUC CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units. Top 3 FANUC supplier in China.",
+    description: HOME_DESCRIPTION,
     keywords: [
       "FANUC parts",
       "CNC parts",
@@ -73,23 +75,16 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       locale: "en_US",
       siteName: "Vcocnc FANUC Parts",
-      title: "FANUC Parts & Industrial Automation Components | Vcocnc",
-      description:
-        "Professional FANUC CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Top 3 FANUC supplier in China.",
-      images: [
-        {
-          url: "/images/og-image.jpg",
-          width: 1200,
-          height: 630,
-          alt: "Vcocnc FANUC Parts - Industrial Automation Components",
-        },
-      ],
+      url: siteUrl,
+      title: HOME_TITLE,
+      description: HOME_DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE],
     },
     twitter: {
       card: "summary_large_image",
-      title: "FANUC Parts & Industrial Automation Components | Vcocnc",
-      description: "Professional FANUC CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping.",
-      images: ["/images/og-image.jpg"],
+      title: HOME_TITLE,
+      description: HOME_DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE.url],
     },
     verification: {
       google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
@@ -102,10 +97,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [socialLinks, siteUrl] = await Promise.all([
-    getSocialLinksConfig(),
-    getRequestBaseUrl(),
-  ]);
+  const socialLinks = await getSocialLinksConfig();
+  const siteUrl = getSiteUrl();
   const normalizedSiteUrl = siteUrl.replace(/\/$/, '');
   const socialURLs = getConfiguredSocialURLs(socialLinks);
   const socialIdentitySchema = socialURLs.length > 0
@@ -138,36 +131,11 @@ export default async function RootLayout({
         )}
       </head>
       <body className={`${inter.className} antialiased`}>
-        <ReactQueryProvider>
-          <SocialLinksProvider initialConfig={socialLinks}>
-            <Clarity />
-            {children}
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#363636',
-                  color: '#fff',
-                },
-                success: {
-                  duration: 3000,
-                  iconTheme: {
-                    primary: '#10B981',
-                    secondary: '#fff',
-                  },
-                },
-                error: {
-                  duration: 5000,
-                  iconTheme: {
-                    primary: '#EF4444',
-                    secondary: '#fff',
-                  },
-                },
-              }}
-            />
-          </SocialLinksProvider>
-        </ReactQueryProvider>
+        <SocialLinksProvider initialConfig={socialLinks}>
+          <Clarity />
+          {children}
+          <DeferredToaster />
+        </SocialLinksProvider>
       </body>
     </html>
   );

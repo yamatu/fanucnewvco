@@ -1,8 +1,8 @@
 {
   "dependencies": {
-    "axios": "^1.11.0"
+    "axios": "^1.18.1"
   },
   "scripts": {
-  "start": "cross-env NODE_ENV=production next start"
-}
+    "start": "cross-env NODE_ENV=production next start"
+  }
 }

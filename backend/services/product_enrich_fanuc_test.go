@@ -8,11 +8,13 @@ func TestInferFanucCategoryInference(t *testing.T) {
 		wantPartType string
 		wantSlug     string
 	}{
-		{model: "A06B-1234-B175", wantPartType: "Servo Motor / Drive", wantSlug: "servo-motors"},
-		{model: "A16B-2200-0390", wantPartType: "PCB Board", wantSlug: "pcb-boards"},
-		{model: "A03B-0819-C011", wantPartType: "I/O Module", wantSlug: "io-modules"},
-		{model: "A98L-0031-0025", wantPartType: "Power Supply Unit", wantSlug: "power-supplies"},
-		{model: "CAB-0200", wantPartType: "Cable / Connector", wantSlug: "cables-connectors"},
+		{model: "A06B-1234-B175", wantPartType: "Servo Motor", wantSlug: "fanuc-servo-motor"},
+		{model: "A06B-6111-H002", wantPartType: "Spindle Amplifier / Drive", wantSlug: "fanuc-spindle-amplifier-drive"},
+		{model: "A16B-2200-0390", wantPartType: "PCB / Control Board", wantSlug: "fanuc-pcb-control-board"},
+		{model: "A02B-0050-K802#L-10M", wantPartType: "PCB / Control Board", wantSlug: "fanuc-pcb-control-board"},
+		{model: "A03B-0819-C011", wantPartType: "I/O Module", wantSlug: "fanuc-i-o-module"},
+		{model: "A98L-0031-0025", wantPartType: "Battery", wantSlug: "fanuc-battery"},
+		{model: "CAB-0200", wantPartType: "Cable / Connector", wantSlug: "fanuc-cables-connectors"},
 	}
 
 	for _, tt := range tests {
@@ -40,7 +42,7 @@ func TestFanucEnrichProducesSEOContent(t *testing.T) {
 	if enriched.CompatibilityInfo == "" || enriched.InstallationGuide == "" || enriched.MaintenanceTips == "" {
 		t.Fatalf("expected operational content to be populated: %+v", enriched)
 	}
-	if enriched.CategorySlug != "servo-motors" {
+	if enriched.CategorySlug != "fanuc-servo-motor" {
 		t.Fatalf("unexpected category slug: %s", enriched.CategorySlug)
 	}
 }

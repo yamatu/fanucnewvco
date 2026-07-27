@@ -1,21 +1,11 @@
-'use client';
-
 import Link from 'next/link';
-import { getSiteUrl } from '@/lib/url';
 import {
   PhoneIcon,
   EnvelopeIcon,
   MapPinIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
-import { useState } from 'react';
-import {
-  FacebookIcon,
-  InstagramIcon,
-  LinkedInIcon,
-  XIcon,
-} from '@/components/icons/SocialBrandIcons';
-import { useSocialLinks } from '@/components/social/SocialLinksProvider';
+import FooterSocialLinks from '@/components/social/FooterSocialLinks';
 
 const footerNavigation = {
   products: [
@@ -56,38 +46,7 @@ const footerNavigation = {
   ],
 };
 
-const socialPlatforms = [
-  { key: 'x_url', name: 'X', Icon: XIcon, hoverClass: 'hover:bg-white hover:text-gray-900 hover:border-white' },
-  { key: 'facebook_url', name: 'Facebook', Icon: FacebookIcon, hoverClass: 'hover:bg-blue-600 hover:text-white hover:border-blue-600' },
-  { key: 'instagram_url', name: 'Instagram', Icon: InstagramIcon, hoverClass: 'hover:bg-pink-600 hover:text-white hover:border-pink-600' },
-  { key: 'linkedin_url', name: 'LinkedIn', Icon: LinkedInIcon, hoverClass: 'hover:bg-sky-700 hover:text-white hover:border-sky-700' },
-] as const;
-
 export function Footer() {
-  const [newsletterEmail, setNewsletterEmail] = useState('');
-  const siteUrl = getSiteUrl();
-  const socialConfig = useSocialLinks();
-  const socialLinks = socialConfig?.show_in_footer
-    ? socialPlatforms
-        .map((platform) => ({ ...platform, href: socialConfig[platform.key].trim() }))
-        .filter((platform) => platform.href)
-    : [];
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const url = new URL(siteUrl || window.location.origin);
-      url.pathname = '/contact';
-      if (newsletterEmail && newsletterEmail.trim()) {
-        url.searchParams.set('email', newsletterEmail.trim());
-      }
-      window.location.href = url.toString();
-    } catch {
-      // Fallback to relative navigation
-      const qs = newsletterEmail && newsletterEmail.trim() ? `?email=${encodeURIComponent(newsletterEmail.trim())}` : '';
-      window.location.href = `/contact${qs}`;
-    }
-  };
   return (
     <footer className="bg-gray-900 text-white">
       {/* Main Footer Content */}
@@ -136,26 +95,7 @@ export function Footer() {
               </div>
             </div>
 
-            {socialLinks.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-sm font-semibold text-white">Follow Vcocnc</h3>
-                <div className="mt-3 flex min-h-10 items-center gap-2">
-                  {socialLinks.map(({ name, href, Icon, hoverClass }) => (
-                    <a
-                      key={name}
-                      href={href}
-                      target="_blank"
-                      rel="me noopener noreferrer"
-                      aria-label={`Follow Vcocnc on ${name}`}
-                      title={name}
-                      className={`flex h-10 w-10 items-center justify-center rounded-md border border-gray-700 text-gray-300 transition-colors ${hoverClass}`}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
+            <FooterSocialLinks />
           </div>
 
           {/* Products */}
@@ -238,15 +178,20 @@ export function Footer() {
         <div className="mt-12 pt-8 border-t border-gray-800">
           <div className="max-w-md">
             <h3 className="text-lg font-semibold mb-4">Stay Updated</h3>
-            <p className="text-gray-300 mb-4">
+            <p id="newsletter-description" className="text-gray-300 mb-4">
               Subscribe to our newsletter for the latest automation components and industry updates.
             </p>
-            <form className="flex" onSubmit={handleSubscribe}>
+            <form className="flex" action="/contact" method="get">
+              <label htmlFor="newsletter-email" className="sr-only">
+                Email address for newsletter updates
+              </label>
               <input
+                id="newsletter-email"
+                name="email"
                 type="email"
+                autoComplete="email"
+                aria-describedby="newsletter-description"
                 placeholder="Enter your email"
-                value={newsletterEmail}
-                onChange={(e) => setNewsletterEmail(e.target.value)}
                 className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white placeholder-gray-400"
               />
               <button

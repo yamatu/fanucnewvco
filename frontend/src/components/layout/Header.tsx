@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
   Bars3Icon,
@@ -19,10 +19,12 @@ import {
 import { useCart } from '@/store/cart.store';
 import { useCustomer } from '@/store/customer.store';
 import { cn, formatCurrency, getProductImageUrl, getDefaultProductImageWithSku, toProductPathId } from '@/lib/utils';
-import { CartSidebar } from '@/components/cart/CartSidebar';
-import { Category } from '@/types';
-import { CategoryService, ProductService } from '@/services';
-import { queryKeys } from '@/lib/react-query';
+import type { APIResponse, Category, PaginationResponse, Product } from '@/types';
+
+const CartSidebar = dynamic(
+  () => import('@/components/cart/CartSidebar').then((module) => module.CartSidebar),
+  { ssr: false }
+);
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -33,18 +35,61 @@ const navigation = [
   { name: 'Contact', href: '/contact' },
 ];
 
+async function fetchPublicCategories(signal?: AbortSignal): Promise<Category[]> {
+  const response = await fetch('/api/v1/public/categories', {
+    headers: { Accept: 'application/json' },
+    signal,
+  });
+  if (!response.ok) return [];
+
+  const payload = await response.json() as APIResponse<Category[]>;
+  return payload.success && Array.isArray(payload.data) ? payload.data : [];
+}
+
+async function fetchProductSuggestions(query: string, signal?: AbortSignal): Promise<Product[]> {
+  const params = new URLSearchParams({
+    search: query,
+    is_active: 'true',
+    page: '1',
+    page_size: '3',
+  });
+  const response = await fetch(`/api/v1/public/products?${params.toString()}`, {
+    headers: { Accept: 'application/json' },
+    signal,
+  });
+  if (!response.ok) return [];
+
+  const payload = await response.json() as APIResponse<PaginationResponse<Product>>;
+  return payload.success && Array.isArray(payload.data?.data) ? payload.data.data : [];
+}
+
+function useCategoryTree(enabled: boolean) {
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    if (!enabled || categories.length > 0) return;
+
+    const controller = new AbortController();
+    void fetchPublicCategories(controller.signal).then(setCategories).catch(() => undefined);
+    return () => controller.abort();
+  }, [categories.length, enabled]);
+
+  return categories;
+}
+
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const mobileSearchDropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestionAbortRef = useRef<AbortController | null>(null);
   const router = useRouter();
-  const { itemCount, toggleCart } = useCart();
+  const { itemCount, isOpen: cartOpen, toggleCart } = useCart();
   const { isAuthenticated, customer, logout } = useCustomer();
 
   const handleLogout = () => {
@@ -56,18 +101,22 @@ export function Header() {
   const fetchSuggestions = useCallback((query: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!query.trim() || query.trim().length < 2) {
+      suggestionAbortRef.current?.abort();
       setSuggestions([]);
+      setSuggestionsLoading(false);
       return;
     }
     setSuggestionsLoading(true);
     debounceRef.current = setTimeout(async () => {
+      suggestionAbortRef.current?.abort();
+      const controller = new AbortController();
+      suggestionAbortRef.current = controller;
       try {
-        const res = await ProductService.searchProducts(query.trim(), { page_size: 3 });
-        setSuggestions(res.data || []);
+        setSuggestions(await fetchProductSuggestions(query.trim(), controller.signal));
       } catch {
-        setSuggestions([]);
+        if (!controller.signal.aborted) setSuggestions([]);
       } finally {
-        setSuggestionsLoading(false);
+        if (!controller.signal.aborted) setSuggestionsLoading(false);
       }
     }, 300);
   }, []);
@@ -86,7 +135,11 @@ export function Header() {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      suggestionAbortRef.current?.abort();
+    };
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -117,7 +170,7 @@ export function Header() {
           </div>
         ) : suggestions.length > 0 ? (
           <div className="space-y-1">
-            {suggestions.map((p: any) => {
+            {suggestions.map((p) => {
               const imgSrc = getProductImageUrl(
                 (p.image_urls && p.image_urls.length > 0) ? p.image_urls : (p.images || []),
                 getDefaultProductImageWithSku(p.sku)
@@ -426,7 +479,7 @@ export function Header() {
       )}
 
       {/* Cart Sidebar */}
-      <CartSidebar />
+      {cartOpen ? <CartSidebar /> : null}
     </header>
   );
 }
@@ -435,11 +488,8 @@ export default Header;
 
 // --- Categories Dropdown (desktop) ---
 function CategoriesDropdown() {
-  const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: queryKeys.categories.tree(),
-    queryFn: () => CategoryService.getCategories(),
-  });
-
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const categories = useCategoryTree(shouldLoad);
   const [hoverPath, setHoverPath] = useState<number[]>([]);
 
   const byId = useMemo(() => {
@@ -470,13 +520,17 @@ function CategoriesDropdown() {
   };
 
   return (
-    <div className="relative group">
-      <a
+    <div
+      className="relative group"
+      onPointerEnter={() => setShouldLoad(true)}
+      onFocusCapture={() => setShouldLoad(true)}
+    >
+      <Link
         href="/categories"
         className="text-gray-700 hover:text-yellow-600 font-medium transition-colors duration-200 py-2 px-1 block"
       >
         Categories
-      </a>
+      </Link>
       {/* Invisible bridge to prevent hover gap */}
       <div className="absolute top-full left-0 w-full h-2 bg-transparent"></div>
       {/* Dropdown Panel */}
@@ -524,11 +578,7 @@ function CategoriesDropdown() {
 
 function MobileCategoriesMenu({ onNavigate }: { onNavigate: () => void }) {
   const [open, setOpen] = useState(false);
-  const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: queryKeys.categories.tree(),
-    queryFn: () => CategoryService.getCategories(),
-  });
-
+  const categories = useCategoryTree(open);
   const [openIds, setOpenIds] = useState<Set<number>>(new Set());
   const toggle = (id: number) => {
     setOpenIds((prev) => {

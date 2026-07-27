@@ -109,6 +109,8 @@ func (hc *HomepageContentController) CreateHomepageContent(c *gin.Context) {
 		return
 	}
 
+	services.InvalidatePublicCaches(c.Request.Context(), "homepage:create", nil)
+	services.TriggerNextRevalidate(nil, []string{"/"}, false)
 	c.JSON(http.StatusCreated, content)
 }
 
@@ -167,6 +169,7 @@ func (hc *HomepageContentController) UpdateHomepageContent(c *gin.Context) {
 	}
 
 	services.InvalidatePublicCaches(c.Request.Context(), "homepage:update", nil)
+	services.TriggerNextRevalidate(nil, []string{"/"}, false)
 	c.JSON(http.StatusOK, content)
 }
 
@@ -243,6 +246,7 @@ func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Conte
 				return
 			}
 			services.InvalidatePublicCaches(c.Request.Context(), "homepage:create", nil)
+			services.TriggerNextRevalidate(nil, []string{"/"}, false)
 			c.JSON(http.StatusCreated, content)
 
 			return
@@ -287,6 +291,7 @@ func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Conte
 	}
 
 	services.InvalidatePublicCaches(c.Request.Context(), "homepage:update", nil)
+	services.TriggerNextRevalidate(nil, []string{"/"}, false)
 	c.JSON(http.StatusOK, content)
 }
 
@@ -304,6 +309,7 @@ func (hc *HomepageContentController) DeleteHomepageContent(c *gin.Context) {
 	}
 
 	services.InvalidatePublicCaches(c.Request.Context(), "homepage:delete", nil)
+	services.TriggerNextRevalidate(nil, []string{"/"}, false)
 	c.JSON(http.StatusOK, gin.H{"message": "Homepage content deleted successfully"})
 }
 
