@@ -5,6 +5,7 @@ import {
   MapPinIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
+import FooterSocialLinks from '@/components/social/FooterSocialLinks';
 
 const footerNavigation = {
   products: [
@@ -93,6 +94,8 @@ export function Footer() {
                 <span className="text-gray-300">Mon-Fri: 8:00 AM - 6:00 PM</span>
               </div>
             </div>
+
+            <FooterSocialLinks />
           </div>
 
           {/* Products */}
@@ -207,7 +210,7 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-gray-400 text-sm">
-              © 2024 Vcocnc. All rights reserved.
+              © {new Date().getFullYear()} Vcocnc. All rights reserved.
             </div>
 
             <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 md:mt-0">

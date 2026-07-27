@@ -26,7 +26,8 @@ import {
   TruckIcon,
   ChartBarIcon,
   NewspaperIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  ShareIcon
 } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth, useLogout } from '@/hooks/useAuth';
@@ -54,6 +55,7 @@ const navigation = [
   { key: 'nav.backup', name: 'Backup & Restore', href: '/admin/backup', icon: ArrowDownTrayIcon },
   { key: 'nav.cache', name: 'Cache & CDN', href: '/admin/cache', icon: ArrowPathIcon },
   { key: 'nav.paypal', name: 'PayPal', href: '/admin/paypal', icon: CreditCardIcon },
+  { key: 'nav.socialLinks', name: 'Social & SEO', href: '/admin/social-links', icon: ShareIcon },
   { key: 'nav.indexnow', name: 'IndexNow / Bing', href: '/admin/indexnow', icon: BellIcon },
   { key: 'nav.analytics', name: 'Visitor Analytics', href: '/admin/analytics', icon: ChartBarIcon },
   { key: 'nav.homepage', name: 'Homepage Content', href: '/admin/homepage', icon: DocumentTextIcon },
@@ -84,7 +86,12 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
   };
 
   // Make nested routes (e.g. /admin/products/new, /admin/products/[id]/edit) still show the parent title.
-  const activeNav = navigation.find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
+  const activeNav = useMemo(
+    () => navigation
+      .filter((item) => pathname === item.href || pathname.startsWith(item.href + '/'))
+      .sort((a, b) => b.href.length - a.href.length)[0],
+    [pathname]
+  );
 
   const { data: recentOrdersData, isFetching: isRecentOrdersFetching } = useQuery({
     queryKey: queryKeys.orders.recent(),

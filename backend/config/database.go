@@ -144,6 +144,7 @@ func ConnectDatabase() {
 			&models.CloudflareCacheSetting{},
 			&models.HotlinkProtectionSetting{},
 			&models.PayPalSetting{},
+			&models.SocialLinkSetting{},
 			&models.EmailSetting{},
 			&models.IndexNowSetting{},
 			&models.EmailVerificationCode{},

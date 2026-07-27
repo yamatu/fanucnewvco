@@ -52,7 +52,7 @@ services:
       GIN_MODE: release
       HOST: 0.0.0.0
       PORT: 8080
-      
+
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: ${MYSQL_USER:-fanuc}

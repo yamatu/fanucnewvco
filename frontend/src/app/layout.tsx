@@ -2,11 +2,35 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Clarity from "@/components/analytics/Clarity";
+import { SocialLinksProvider } from "@/components/social/SocialLinksProvider";
 import DeferredToaster from "@/components/ui/DeferredToaster";
-import { getSiteUrl } from "@/lib/url";
 import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
+import {
+  getConfiguredSocialURLs,
+  type SocialLinksPublicConfig,
+} from "@/lib/social-links";
+import { getSiteUrl } from "@/lib/url";
 
 const inter = Inter({ subsets: ["latin"] });
+
+async function getSocialLinksConfig(): Promise<SocialLinksPublicConfig | null> {
+  try {
+    const backendUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+    const response = await fetch(`${backendUrl}/api/v1/public/social-links`, {
+      next: { revalidate: 300, tags: ['social-links'] },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return null;
+
+    const payload = (await response.json()) as {
+      success?: boolean;
+      data?: SocialLinksPublicConfig;
+    };
+    return payload.success && payload.data ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
 
 export function generateMetadata(): Metadata {
   const siteUrl = getSiteUrl();
@@ -68,11 +92,26 @@ export function generateMetadata(): Metadata {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const socialLinks = await getSocialLinksConfig();
+  const siteUrl = getSiteUrl();
+  const normalizedSiteUrl = siteUrl.replace(/\/$/, '');
+  const socialURLs = getConfiguredSocialURLs(socialLinks);
+  const socialIdentitySchema = socialURLs.length > 0
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        '@id': `${normalizedSiteUrl}/#organization`,
+        name: 'Vcocnc',
+        url: normalizedSiteUrl,
+        sameAs: socialURLs,
+      }
+    : null;
+
   return (
     <html lang="en" className="scroll-smooth">
       <head>
@@ -82,11 +121,21 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/site.webmanifest" />
         <meta name="theme-color" content="#f59e0b" />
+        {socialIdentitySchema && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(socialIdentitySchema).replace(/</g, '\\u003c'),
+            }}
+          />
+        )}
       </head>
       <body className={`${inter.className} antialiased`}>
-        <Clarity />
-        {children}
-        <DeferredToaster />
+        <SocialLinksProvider initialConfig={socialLinks}>
+          <Clarity />
+          {children}
+          <DeferredToaster />
+        </SocialLinksProvider>
       </body>
     </html>
   );
