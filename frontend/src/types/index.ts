@@ -492,6 +492,21 @@ export interface CompanyProfile {
   updated_at: string;
 }
 
+export interface SocialMediaSettings {
+  id: number;
+  x_url: string;
+  facebook_url: string;
+  instagram_url: string;
+  linkedin_url: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type SocialMediaSettingsRequest = Pick<
+  SocialMediaSettings,
+  'x_url' | 'facebook_url' | 'instagram_url' | 'linkedin_url'
+>;
+
 // Image Request Type
 export interface ImageReq {
   url: string;

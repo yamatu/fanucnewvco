@@ -9,7 +9,13 @@ import {
   MapPinIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
+import { useQuery } from '@tanstack/react-query';
+import { ExternalLink } from 'lucide-react';
 import { useState } from 'react';
+import { FaFacebookF, FaInstagram, FaLinkedinIn, FaXTwitter } from 'react-icons/fa6';
+import { queryKeys } from '@/lib/react-query';
+import type { SocialMediaURLKey } from '@/lib/social-media';
+import { SocialMediaService } from '@/services/social-media.service';
 
 const footerNavigation = {
   products: [
@@ -50,9 +56,30 @@ const footerNavigation = {
   ],
 };
 
+const socialPlatforms: Array<{
+  key: SocialMediaURLKey;
+  name: string;
+  Icon: typeof FaXTwitter;
+}> = [
+  { key: 'x_url', name: 'X', Icon: FaXTwitter },
+  { key: 'facebook_url', name: 'Facebook', Icon: FaFacebookF },
+  { key: 'instagram_url', name: 'Instagram', Icon: FaInstagram },
+  { key: 'linkedin_url', name: 'LinkedIn', Icon: FaLinkedinIn },
+];
+
 export function Footer() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const siteUrl = getSiteUrl();
+  const { data: socialSettings } = useQuery({
+    queryKey: queryKeys.socialMedia.public(),
+    queryFn: () => SocialMediaService.getPublic(),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+  const socialLinks = socialPlatforms.flatMap((platform) => {
+    const href = String(socialSettings?.[platform.key] || '').trim();
+    return href ? [{ ...platform, href }] : [];
+  });
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,6 +149,24 @@ export function Footer() {
                 <span className="text-slate-300">Mon-Fri: 8:00 AM - 6:00 PM</span>
               </div>
             </div>
+
+            {socialLinks.length > 0 && (
+              <div className="mt-6 flex flex-wrap gap-2" aria-label="VIBO CNC social media">
+                {socialLinks.map(({ name, href, Icon }) => (
+                  <a
+                    key={name}
+                    href={href}
+                    target="_blank"
+                    rel="me noopener noreferrer"
+                    aria-label={`Follow VIBO CNC on ${name}`}
+                    title={name}
+                    className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-700 text-slate-300 transition-colors hover:border-orange-400 hover:bg-orange-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  >
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Products */}
@@ -188,10 +233,7 @@ export function Footer() {
                   >
                     {item.name}
                     {item.external && (
-                      <svg className="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5z" clipRule="evenodd" />
-                        <path fillRule="evenodd" d="M6.194 12.753a.75.75 0 001.06.053L16.5 4.44v2.81a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.553l-9.056 8.194a.75.75 0 00-.053 1.06z" clipRule="evenodd" />
-                      </svg>
+                      <ExternalLink className="ml-1 h-3 w-3" aria-hidden="true" />
                     )}
                   </Link>
                 </li>
@@ -260,10 +302,7 @@ export function Footer() {
                 className="text-slate-400 hover:text-white text-sm transition-colors duration-200 flex items-center"
               >
                 vibocnc.com
-                <svg className="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5z" clipRule="evenodd" />
-                  <path fillRule="evenodd" d="M6.194 12.753a.75.75 0 001.06.053L16.5 4.44v2.81a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.553l-9.056 8.194a.75.75 0 00-.053 1.06z" clipRule="evenodd" />
-                </svg>
+                <ExternalLink className="ml-1 h-3 w-3" aria-hidden="true" />
               </Link>
               <Link
                 href="/products"

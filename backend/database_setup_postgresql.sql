@@ -367,7 +367,20 @@ CREATE TABLE IF NOT EXISTS company_profiles (
 );
 
 -- =====================================================
--- 17. 联系消息表
+-- 17. 社交媒体设置表
+-- =====================================================
+CREATE TABLE IF NOT EXISTS social_media_settings (
+    id BIGINT PRIMARY KEY,
+    x_url VARCHAR(500) DEFAULT '',
+    facebook_url VARCHAR(500) DEFAULT '',
+    instagram_url VARCHAR(500) DEFAULT '',
+    linkedin_url VARCHAR(500) DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================
+-- 18. 联系消息表
 -- =====================================================
 CREATE TABLE IF NOT EXISTS contact_messages (
     id BIGSERIAL PRIMARY KEY,
@@ -420,6 +433,7 @@ CREATE TRIGGER update_payment_transactions_updated_at BEFORE UPDATE ON payment_t
 CREATE TRIGGER update_banners_updated_at BEFORE UPDATE ON banners FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_homepage_contents_updated_at BEFORE UPDATE ON homepage_contents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_company_profiles_updated_at BEFORE UPDATE ON company_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_social_media_settings_updated_at BEFORE UPDATE ON social_media_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_contact_messages_updated_at BEFORE UPDATE ON contact_messages FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =====================================================

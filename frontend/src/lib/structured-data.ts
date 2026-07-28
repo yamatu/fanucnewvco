@@ -1,21 +1,30 @@
 import { getSiteUrl } from '@/lib/url';
 import { SITE_NAME } from '@/lib/seo';
 
-export function generateOrganizationSchema() {
+export function generateOrganizationSchema(sameAs: string[] = []) {
   const baseUrl = getSiteUrl();
+  const socialProfiles = [...new Set(sameAs.filter((url) => /^https?:\/\//i.test(url)))];
 
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${baseUrl}/#organization`,
     "name": SITE_NAME,
-    "description": "CNC and industrial automation parts supply from VIBO CNC.",
+    "alternateName": "VIBO CNC Industrial Automation",
+    "description": "FANUC spare parts, CNC machine parts and industrial automation components from VIBO CNC.",
     "url": baseUrl,
+    "foundingDate": "2005",
     "logo": {
       "@type": "ImageObject",
       "url": `${baseUrl}/android-chrome-512x512.png`,
       "width": 512,
       "height": 512
+    },
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Kunshan",
+      "addressRegion": "Jiangsu",
+      "addressCountry": "CN"
     },
     "contactPoint": {
       "@type": "ContactPoint",
@@ -23,7 +32,8 @@ export function generateOrganizationSchema() {
       "telephone": "+86-13348028050",
       "email": "sales@vibocnc.com",
       "availableLanguage": ["en", "zh"]
-    }
+    },
+    ...(socialProfiles.length > 0 ? { "sameAs": socialProfiles } : {})
   };
 }
 
@@ -36,7 +46,7 @@ export function generateWebsiteSchema() {
     "@id": `${baseUrl}/#website`,
     "name": SITE_NAME,
     "url": baseUrl,
-    "description": "CNC and industrial automation parts supply from VIBO CNC.",
+    "description": "FANUC spare parts, CNC machine parts and industrial automation components from VIBO CNC.",
     "publisher": {
       "@type": "Organization",
       "@id": `${baseUrl}/#organization`,

@@ -19,6 +19,7 @@ import { ShippingRateService as ShippingRateServiceDefault } from './shipping-ra
 import { AnalyticsService as AnalyticsServiceDefault } from './analytics.service';
 import { NewsService as NewsServiceDefault } from './news.service';
 import { IndexNowService as IndexNowServiceDefault } from './indexnow.service';
+import SocialMediaServiceDefault from './social-media.service';
 import EbayImportDraftServiceDefault from './ebay-import-draft.service';
 
 // Export all services
@@ -42,6 +43,7 @@ export const ShippingRateService = ShippingRateServiceDefault;
 export const AnalyticsService = AnalyticsServiceDefault;
 export const NewsService = NewsServiceDefault;
 export const IndexNowService = IndexNowServiceDefault;
+export const SocialMediaService = SocialMediaServiceDefault;
 export const EbayImportDraftService = EbayImportDraftServiceDefault;
 
 // Export types
@@ -104,6 +106,7 @@ export class ApiService {
   static analytics = AnalyticsService;
   static news = NewsService;
   static indexnow = IndexNowService;
+  static socialMedia = SocialMediaService;
   static ebayImportDrafts = EbayImportDraftService;
 }
 

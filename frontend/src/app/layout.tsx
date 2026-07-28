@@ -7,20 +7,23 @@ import { getSiteUrl } from "@/lib/url";
 import { SITE_NAME } from "@/lib/seo";
 
 const SITE_DESCRIPTION =
-  "Source CNC and industrial automation parts from VIBO CNC, including servo motors, PCB boards, I/O modules, control units and power supplies.";
+  "Source FANUC spare parts, FANUC robot spare parts and CNC machine parts from VIBO CNC. 100,000+ automation components in stock with worldwide shipping.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const siteUrl = getSiteUrl();
   return {
     metadataBase: new URL(siteUrl),
     title: {
-      default: `Industrial Automation Components | ${SITE_NAME}`,
+      default: `FANUC Spare Parts & CNC Machine Parts | ${SITE_NAME}`,
       template: `%s | ${SITE_NAME}`,
     },
     description: SITE_DESCRIPTION,
     keywords: [
       "FANUC parts",
+      "FANUC spare parts",
+      "FANUC robot spare parts",
       "CNC parts",
+      "CNC machine spare parts",
       "industrial automation",
       "servo motors",
       "PCB boards",
@@ -49,7 +52,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       locale: "en_US",
       siteName: SITE_NAME,
-      title: `Industrial Automation Components | ${SITE_NAME}`,
+      title: `FANUC Spare Parts & CNC Machine Parts | ${SITE_NAME}`,
       description: SITE_DESCRIPTION,
       images: [
         {
@@ -62,7 +65,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: `Industrial Automation Components | ${SITE_NAME}`,
+      title: `FANUC Spare Parts & CNC Machine Parts | ${SITE_NAME}`,
       description: SITE_DESCRIPTION,
       images: ["/images/og-image.jpg"],
     },

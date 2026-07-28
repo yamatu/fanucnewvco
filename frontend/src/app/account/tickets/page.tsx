@@ -10,6 +10,7 @@ import {
   GlobeAltIcon,
   BuildingOfficeIcon,
 } from '@heroicons/react/24/outline';
+import { getSiteUrl } from '@/lib/url';
 
 export default function ContactPage() {
   const contactInfo = [
@@ -44,8 +45,8 @@ export default function ContactPage() {
     {
       icon: GlobeAltIcon,
       label: 'Website',
-      value: 'www.vibocnc.com',
-      link: 'https://www.vibocnc.com',
+      value: new URL(getSiteUrl()).hostname,
+      link: getSiteUrl(),
       description: 'Visit our website for more information',
     },
   ];

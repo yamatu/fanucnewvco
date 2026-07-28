@@ -48,15 +48,27 @@ function getRequestHostname(request: NextRequest): string {
   }
 }
 
+function getCanonicalHostname(): string {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.vcocncspare.com';
+  try {
+    return new URL(configured).hostname.toLowerCase();
+  } catch {
+    return 'www.vcocncspare.com';
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('auth_token')?.value;
   const userAgent = request.headers.get('user-agent') || '';
 
-  if (getRequestHostname(request) === 'vibocnc.com') {
+  const requestHostname = getRequestHostname(request);
+  const canonicalHostname = getCanonicalHostname();
+  const canonicalApex = canonicalHostname.startsWith('www.') ? canonicalHostname.slice(4) : '';
+  if (canonicalApex && requestHostname === canonicalApex) {
     const canonicalUrl = request.nextUrl.clone();
     canonicalUrl.protocol = 'https';
-    canonicalUrl.hostname = 'www.vibocnc.com';
+    canonicalUrl.hostname = canonicalHostname;
     canonicalUrl.port = '';
     return NextResponse.redirect(canonicalUrl, 301);
   }

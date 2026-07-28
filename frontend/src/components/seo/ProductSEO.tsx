@@ -88,7 +88,7 @@ function buildAnswerFirstSummary(product: Product, category?: Category): string 
   return `${brandLabel} ${product.sku} is a ${categoryName.toLowerCase()} used for CNC repair, replacement, and industrial automation maintenance. ${stockText} ${warrantyText}`;
 }
 
-export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'https://www.vibocnc.com' }: ProductSEOProps) {
+export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'https://www.vcocncspare.com' }: ProductSEOProps) {
   const productUrl = `${baseUrl}/products/${toProductPathId(product.sku)}`;
   const productId = `${productUrl}#product`;
   const brandLabel = getBrandLabel(product);

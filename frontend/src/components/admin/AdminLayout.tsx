@@ -27,7 +27,8 @@ import {
   TruckIcon,
   ChartBarIcon,
   NewspaperIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  ShareIcon
 } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth, useLogout } from '@/hooks/useAuth';
@@ -58,6 +59,7 @@ const navigation = [
   { key: 'nav.indexnow', name: 'IndexNow / Bing', href: '/admin/indexnow', icon: BellIcon },
   { key: 'nav.analytics', name: 'Visitor Analytics', href: '/admin/analytics', icon: ChartBarIcon },
   { key: 'nav.homepage', name: 'Homepage Content', href: '/admin/homepage', icon: DocumentTextIcon },
+  { key: 'nav.socialMedia', name: 'Social Media', href: '/admin/social-media', icon: ShareIcon },
   { key: 'nav.news', name: 'News & Articles', href: '/admin/news', icon: NewspaperIcon },
 ];
 
@@ -85,7 +87,9 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
   };
 
   // Make nested routes (e.g. /admin/products/new, /admin/products/[id]/edit) still show the parent title.
-  const activeNav = navigation.find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
+  const activeNav = [...navigation]
+    .sort((a, b) => b.href.length - a.href.length)
+    .find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
 
   const { data: recentOrdersData, isFetching: isRecentOrdersFetching } = useQuery({
     queryKey: queryKeys.orders.recent(),

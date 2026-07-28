@@ -387,7 +387,20 @@ CREATE TABLE IF NOT EXISTS company_profiles (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- 17. 联系消息表
+-- 17. 社交媒体设置表
+-- =====================================================
+CREATE TABLE IF NOT EXISTS social_media_settings (
+    id BIGINT UNSIGNED PRIMARY KEY,
+    x_url VARCHAR(500) DEFAULT '',
+    facebook_url VARCHAR(500) DEFAULT '',
+    instagram_url VARCHAR(500) DEFAULT '',
+    linkedin_url VARCHAR(500) DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- 18. 联系消息表
 -- =====================================================
 CREATE TABLE IF NOT EXISTS contact_messages (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

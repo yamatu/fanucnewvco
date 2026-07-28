@@ -15,6 +15,7 @@ func SetupRoutes(r *gin.Engine) {
 	// Initialize services
 	db := config.GetDB()
 	companyProfileService := services.NewCompanyProfileService(db)
+	socialMediaSettingService := services.NewSocialMediaSettingService(db)
 
 	// Initialize controllers
 	authController := &controllers.AuthController{}
@@ -26,6 +27,7 @@ func SetupRoutes(r *gin.Engine) {
 	purchaseLinkController := &controllers.PurchaseLinkController{}
 	homepageContentController := &controllers.HomepageContentController{}
 	companyProfileController := controllers.NewCompanyProfileController(companyProfileService)
+	socialMediaSettingController := controllers.NewSocialMediaSettingController(socialMediaSettingService)
 	dashboardController := controllers.NewDashboardController()
 	contactHandler := handlers.NewContactHandler(db)
 	couponController := &controllers.CouponController{}
@@ -92,6 +94,9 @@ func SetupRoutes(r *gin.Engine) {
 
 			// Company Profile (public read access) - cached
 			public.GET("/company-profile", middleware.CachePublicGET(middleware.CacheTTLHomepage(), "cache:public:company_profile:"), companyProfileController.GetCompanyProfile)
+
+			// Social media links (public read access) - cached with homepage content.
+			public.GET("/social-media", middleware.CachePublicGET(middleware.CacheTTLHomepage(), "cache:public:homepage:social_media:"), socialMediaSettingController.GetPublic)
 
 			// Contact form submission (public access)
 			public.POST("/contact", contactHandler.SubmitContact)
@@ -419,6 +424,14 @@ func SetupRoutes(r *gin.Engine) {
 				companyProfile.POST("", companyProfileController.UpsertCompanyProfile)
 				companyProfile.PUT("/:id", companyProfileController.UpdateCompanyProfile)
 				companyProfile.DELETE("/:id", middleware.AdminOnly(), companyProfileController.DeleteCompanyProfile)
+			}
+
+			// Social media links (admin and editor access)
+			socialMedia := admin.Group("/social-media")
+			socialMedia.Use(middleware.EditorOrAdmin())
+			{
+				socialMedia.GET("", socialMediaSettingController.GetAdmin)
+				socialMedia.PUT("", socialMediaSettingController.Update)
 			}
 
 			// Contact Messages management (admin and editor access)

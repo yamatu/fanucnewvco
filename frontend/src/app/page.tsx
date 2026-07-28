@@ -11,12 +11,14 @@ import type { Metadata } from 'next';
 import { getSiteUrl } from '@/lib/url';
 import { DEFAULT_HERO_DATA } from '@/lib/homepage-defaults';
 import { SITE_NAME, withSiteName } from '@/lib/seo';
+import { getSocialMediaURLs } from '@/lib/social-media';
+import { getPublicSocialMediaSettings } from '@/services/social-media.server';
 
 export const revalidate = 300;
 
-const HOME_TITLE = withSiteName('Industrial Automation Components');
+const HOME_TITLE = withSiteName('FANUC Spare Parts & CNC Machine Parts');
 const HOME_DESCRIPTION =
-  'Source CNC and industrial automation parts from VIBO CNC, including servo motors, PCB boards, I/O modules, control units and power supplies.';
+  'Source FANUC spare parts, FANUC robot spare parts and CNC machine parts from VIBO CNC. 100,000+ automation components in stock with worldwide shipping.';
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = getSiteUrl();
@@ -149,8 +151,13 @@ async function getHomepageContentList(): Promise<HomepageContent[]> {
 }
 
 export default async function Home() {
-  const list = await getHomepageContentList();
-  const byKey = Object.fromEntries(list.map((c) => [c.section_key, c]));
+  const [list, socialMediaSettings] = await Promise.all([
+    getHomepageContentList(),
+    getPublicSocialMediaSettings(),
+  ]);
+  const byKey: Record<string, HomepageContent | undefined> = Object.fromEntries(
+    list.map((c) => [c.section_key, c]),
+  );
   byKey.hero_section = await sanitizeHeroContent(byKey.hero_section);
 
   const renderQueue = [
@@ -176,7 +183,7 @@ export default async function Home() {
     .sort((a, b) => a.sort - b.sort);
 
   // Enhanced structured data using the new utility functions
-  const organizationSchema = generateOrganizationSchema();
+  const organizationSchema = generateOrganizationSchema(getSocialMediaURLs(socialMediaSettings));
   const websiteSchema = generateWebsiteSchema();
 
   const combinedStructuredData = {

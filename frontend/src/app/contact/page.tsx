@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { ContactService } from '@/services';
 import PublicLayout from '@/components/layout/PublicLayout';
+import { getSiteUrl } from '@/lib/url';
 import {
   MapPinIcon,
   PhoneIcon,
@@ -14,12 +15,14 @@ import {
   GlobeAltIcon
 } from '@heroicons/react/24/outline';
 
+const siteUrl = getSiteUrl();
+
 const contactPageSchema = {
   "@context": "https://schema.org",
   "@type": "ContactPage",
   "name": "Contact VIBO CNC",
   "description": "Get in touch with VIBO CNC for FANUC parts inquiries, technical support, and quotes.",
-  "url": "https://www.vibocnc.com/contact",
+  "url": `${siteUrl}/contact`,
   "mainEntity": {
     "@type": "Organization",
     "name": "VIBO CNC",
@@ -52,8 +55,8 @@ const breadcrumbSchema = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.vibocnc.com" },
-    { "@type": "ListItem", "position": 2, "name": "Contact", "item": "https://www.vibocnc.com/contact" }
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": siteUrl },
+    { "@type": "ListItem", "position": 2, "name": "Contact", "item": `${siteUrl}/contact` }
   ]
 };
 

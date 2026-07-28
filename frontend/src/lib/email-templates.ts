@@ -1,3 +1,7 @@
+import { getSiteUrl } from '@/lib/url';
+
+const DEFAULT_SITE_URL = getSiteUrl();
+
 export type EmailModuleType = 'new_arrivals' | 'promotion' | 'replacement' | 'repair_quote';
 
 export type EmailModule = {
@@ -37,9 +41,9 @@ export function baseTwoColumnTemplate(opts: {
     modulesHtml,
     rightCardTitle = 'Quick Info',
     rightLines = ['Shipping: 24-72h dispatch (most items)', 'Warranty: 3-12 months', 'Service: repair / exchange'],
-    primaryUrl = 'https://www.vibocnc.com/products',
+    primaryUrl = `${DEFAULT_SITE_URL}/products`,
     primaryLabel = 'Browse Products',
-    secondaryUrl = 'https://www.vibocnc.com/contact',
+    secondaryUrl = `${DEFAULT_SITE_URL}/contact`,
     secondaryLabel = 'Contact Us',
     footerEmail = 'sales@vibocnc.com',
     footerPhone = '+86 13348028050',
@@ -178,7 +182,7 @@ export function defaultModule(type: EmailModuleType): Omit<EmailModule, 'id'> {
         body: 'We just added fresh FANUC stock. If you need quick delivery, reply with part numbers and quantities.',
         bullets: ['Servo drives / amplifiers', 'PCB boards', 'I/O modules', 'Motors & encoders'],
         ctaLabel: 'View new stock',
-        ctaUrl: 'https://www.vibocnc.com/products',
+        ctaUrl: `${DEFAULT_SITE_URL}/products`,
       };
     case 'promotion':
       return {
@@ -189,7 +193,7 @@ export function defaultModule(type: EmailModuleType): Omit<EmailModule, 'id'> {
         bullets: ['Bulk discount available', 'Fast worldwide shipping', 'Warranty included'],
         highlight: 'TIP: Add your coupon code / discount details here.',
         ctaLabel: 'Get a quote',
-        ctaUrl: 'https://www.vibocnc.com/contact',
+        ctaUrl: `${DEFAULT_SITE_URL}/contact`,
       };
     case 'replacement':
       return {
@@ -199,7 +203,7 @@ export function defaultModule(type: EmailModuleType): Omit<EmailModule, 'id'> {
         body: 'If your part is discontinued or unavailable, we can recommend compatible alternatives or exchange units.',
         bullets: ['Compatibility check by part number', 'Cross-reference options', 'Exchange & repair available'],
         ctaLabel: 'Send part number',
-        ctaUrl: 'https://www.vibocnc.com/contact',
+        ctaUrl: `${DEFAULT_SITE_URL}/contact`,
       };
     case 'repair_quote':
       return {
@@ -210,7 +214,7 @@ export function defaultModule(type: EmailModuleType): Omit<EmailModule, 'id'> {
         bullets: ['Diagnostics + repair', 'Turnaround 3-7 working days', 'Warranty after repair'],
         highlight: 'TIP: Add target model and symptoms here.',
         ctaLabel: 'Request repair quote',
-        ctaUrl: 'https://www.vibocnc.com/contact',
+        ctaUrl: `${DEFAULT_SITE_URL}/contact`,
       };
   }
 }

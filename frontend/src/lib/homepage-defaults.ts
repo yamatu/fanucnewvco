@@ -21,10 +21,10 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
   slides: [
     {
       id: 1,
-      title: 'VIBO CNC Industrial Parts Supply',
-      subtitle: 'Automation Components, Tested and Ready to Ship',
+      title: 'VIBO CNC FANUC Spare Parts Supply',
+      subtitle: 'CNC Machine and Robot Parts, Tested and Ready to Ship',
       description:
-        'VIBO CNC supplies tested automation components including system units, circuit boards, PLC modules, HMI panels, inverters, encoders, amplifiers, servo motors and servo drives for global maintenance teams.',
+        'Source FANUC CNC and robot spare parts including system units, circuit boards, PLC modules, HMI panels, inverters, encoders, amplifiers, servo motors and servo drives for global maintenance teams.',
       image: 'https://s2.loli.net/2025/08/26/Vo4JfbtW5H2GMEN.png',
       cta: {
         primary: { text: 'Browse Products', href: '/products' },
@@ -79,7 +79,7 @@ export type CompanyStatsData = {
 };
 
 export const DEFAULT_COMPANY_STATS_DATA: CompanyStatsData = {
-  headerTitle: 'VIBO CNC - One-Stop Industrial Parts Supplier',
+  headerTitle: 'VIBO CNC - FANUC and CNC Spare Parts Supplier',
   headerDescription:
     'We supply automation components including system units, circuit boards, PLC, HMI, inverters, encoders, amplifiers, servo motors and servo drives from major industrial manufacturers.',
   stats: [
