@@ -186,8 +186,10 @@ export function Header() {
 
               </div>
             </div>
-            <div className="hidden md:flex items-center space-x-4">
-              <span suppressHydrationWarning>{t('header.supply')}</span>
+            <div className="hidden min-w-0 items-center gap-3 md:flex">
+              <span className="hidden max-w-[38rem] truncate xl:block" suppressHydrationWarning>
+                {t('header.supply')}
+              </span>
               <LanguageSelector />
             </div>
           </div>
@@ -195,7 +197,7 @@ export function Header() {
       </div>
 
       {/* Main Header */}
-      <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 min-[1900px]:max-w-[112rem]">
         <div className="flex items-center justify-between gap-4 py-4">
           {/* Logo */}
           <div className="flex flex-shrink-0 items-center">
@@ -208,7 +210,7 @@ export function Header() {
                 priority
                 className="h-10 w-auto object-contain sm:h-12"
               />
-              <div className="hidden 2xl:block">
+              <div className="hidden min-[1900px]:block">
                 <div className="text-xl font-bold text-slate-950">{t('header.hub')}</div>
                 <div className="text-sm text-slate-500">{t('header.automationSupply')}</div>
               </div>
@@ -216,7 +218,7 @@ export function Header() {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-4 lg:flex 2xl:gap-7">
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-2 xl:flex min-[1800px]:gap-6">
             {navigation.map((item) => {
               if (item.key === 'nav.categories') {
                 return (
@@ -227,7 +229,7 @@ export function Header() {
                 <Link
                   key={item.key}
                   href={href(item.href)}
-                  className="text-sm font-semibold uppercase tracking-wide text-slate-700 transition-colors duration-200 hover:text-orange-600"
+                  className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-slate-700 transition-colors duration-200 hover:text-orange-600 min-[1800px]:text-sm"
                 >
                   {t(item.key)}
                 </Link>
@@ -294,7 +296,7 @@ export function Header() {
                   className="flex items-center space-x-2 p-2 text-slate-600 hover:text-orange-600 transition-colors"
                 >
                   <UserCircleIcon className="h-6 w-6" />
-                  <span className="hidden md:inline text-sm font-medium">{customer.full_name}</span>
+                  <span className="hidden whitespace-nowrap text-sm font-medium min-[1720px]:inline">{customer.full_name}</span>
                 </button>
 
                 {userMenuOpen && (
@@ -338,7 +340,7 @@ export function Header() {
                 )}
               </div>
             ) : (
-              <div className="hidden md:flex items-center space-x-2">
+              <div className="hidden items-center space-x-2 min-[1720px]:flex">
                 <Link
                   href="/login"
                   className="px-3 py-2 text-sm font-medium text-slate-700 hover:text-orange-600 transition-colors"
@@ -364,7 +366,9 @@ export function Header() {
             <button
               type="button"
               aria-label={mobileMenuOpen ? t('header.closeMenu') : t('header.openMenu')}
-              className="lg:hidden p-2 text-slate-600 hover:text-orange-600"
+              aria-controls="responsive-navigation"
+              aria-expanded={mobileMenuOpen}
+              className="p-2 text-slate-600 hover:text-orange-600 min-[1720px]:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? (
@@ -379,7 +383,7 @@ export function Header() {
 
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-slate-200 bg-white">
+        <div id="responsive-navigation" className="border-t border-slate-200 bg-white min-[1720px]:hidden">
           <div className="px-4 py-4 space-y-4">
             <LanguageSelector mobile />
             {navigation.map((item) => {
@@ -428,6 +432,25 @@ export function Header() {
                 {t('header.trackOrder')}
               </Link>
             </div>
+
+            {!isAuthenticated && (
+              <div className="grid grid-cols-2 gap-3 border-t border-gray-200 pt-4">
+                <Link
+                  href="/login"
+                  className="px-4 py-2 text-center text-sm font-medium text-slate-700 transition-colors hover:text-orange-600"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t('header.login')}
+                </Link>
+                <Link
+                  href="/register"
+                  className="rounded-md bg-[#003a78] px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t('header.register')}
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -435,7 +458,7 @@ export function Header() {
       {/* Search Overlay for mobile */}
       {searchOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 xl:hidden"
           onClick={() => setSearchOpen(false)}
         />
       )}
@@ -500,7 +523,7 @@ function CategoriesDropdown() {
     >
       <Link
         href={href('/categories')}
-        className="text-sm font-semibold uppercase tracking-wide text-slate-700 hover:text-orange-600 transition-colors duration-200 py-2 px-1 block"
+        className="block shrink-0 whitespace-nowrap px-1 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 transition-colors duration-200 hover:text-orange-600 min-[1800px]:text-sm"
       >
         {t('nav.categories')}
       </Link>
