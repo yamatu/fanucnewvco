@@ -4,42 +4,7 @@ import Link from 'next/link';
 import { CalendarDaysIcon, EyeIcon, ArrowLeftIcon, UserIcon } from '@heroicons/react/24/outline';
 import Layout from '@/components/layout/Layout';
 import type { Article } from '@/types';
-
-function markdownToHtml(md: string): string {
-  let html = md;
-  // Code blocks (must be before inline code)
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-6 text-sm"><code>$2</code></pre>');
-  // Headers
-  html = html.replace(/^#### (.+)$/gm, '<h4 class="text-base font-semibold text-gray-900 mt-6 mb-2">$1</h4>');
-  html = html.replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold text-gray-900 mt-8 mb-3">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold text-gray-900 mt-10 mb-4">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold text-gray-900 mt-10 mb-4">$1</h1>');
-  // Horizontal rule
-  html = html.replace(/^---$/gm, '<hr class="my-8 border-gray-200" />');
-  // Bold / Italic
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  // Images
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<figure class="my-6"><img src="$2" alt="$1" class="w-full rounded-lg shadow-sm" /><figcaption class="text-center text-sm text-gray-500 mt-2">$1</figcaption></figure>');
-  // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">$1</a>');
-  // Blockquotes
-  html = html.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-blue-500 pl-4 py-1 my-4 text-gray-700 italic">$1</blockquote>');
-  // Unordered lists
-  html = html.replace(/^\- (.+)$/gm, '<li class="ml-6 list-disc text-gray-700">$1</li>');
-  // Ordered lists
-  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-6 list-decimal text-gray-700">$1</li>');
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm text-gray-800 font-mono">$1</code>');
-  // Paragraphs (double newline)
-  html = html.replace(/\n\n/g, '</p><p class="text-gray-700 leading-relaxed mb-4">');
-  html = '<p class="text-gray-700 leading-relaxed mb-4">' + html + '</p>';
-  // Single newline -> br
-  html = html.replace(/\n/g, '<br/>');
-  // Clean up empty figcaptions
-  html = html.replace(/<figcaption class="text-center text-sm text-gray-500 mt-2"><\/figcaption>/g, '');
-  return html;
-}
+import MarkdownContent from '@/components/content/MarkdownContent';
 
 function estimateReadTime(content: string): number {
   const words = content.split(/\s+/).length;
@@ -48,6 +13,8 @@ function estimateReadTime(content: string): number {
 
 export default function ArticleDetailClient({ article }: { article: Article }) {
   const readTime = estimateReadTime(article.content);
+  const basePath = article.content_type === 'blog' ? '/blog' : '/news';
+  const sectionName = article.content_type === 'blog' ? 'Blog' : 'News';
 
   return (
     <Layout>
@@ -73,7 +40,7 @@ export default function ArticleDetailClient({ article }: { article: Article }) {
               </li>
               <li>/</li>
               <li>
-                <Link href="/news" className="hover:text-blue-600">News</Link>
+                <Link href={basePath} className="hover:text-blue-600">{sectionName}</Link>
               </li>
               <li>/</li>
               <li className="text-gray-900 truncate max-w-[200px]">{article.title}</li>
@@ -115,20 +82,17 @@ export default function ArticleDetailClient({ article }: { article: Article }) {
 
           {/* Article Content */}
           <article className="py-8 sm:py-10">
-            <div
-              className="prose prose-lg max-w-none"
-              dangerouslySetInnerHTML={{ __html: markdownToHtml(article.content) }}
-            />
+            <MarkdownContent content={article.content} className="max-w-none text-lg" />
           </article>
 
           {/* Back to News */}
           <div className="border-t border-gray-200 py-8">
             <Link
-              href="/news"
+              href={basePath}
               className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium"
             >
               <ArrowLeftIcon className="h-4 w-4" />
-              Back to News
+              Back to {sectionName}
             </Link>
           </div>
         </div>

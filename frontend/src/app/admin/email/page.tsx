@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import { buildEmailHtml, defaultModule, type EmailModule, type EmailModuleType } from '@/lib/email-templates';
 import { useAdminI18n } from '@/lib/admin-i18n';
 import { useAuth } from '@/hooks/useAuth';
+import type { EmailSettings } from '@/services/email.service';
 
 type Tab = 'mailbox' | 'settings' | 'send' | 'marketing' | 'webhooks';
 
@@ -24,7 +25,15 @@ export default function AdminEmailPage() {
     enabled: isAdmin,
   });
 
-  const [form, setForm] = useState<any>({
+  type EmailSettingsForm = EmailSettings & {
+    smtp_password: string;
+    resend_api_key: string;
+    resend_webhook_secret: string;
+    alimail_client_secret: string;
+  };
+
+  const [form, setForm] = useState<EmailSettingsForm>({
+    id: 1,
     enabled: false,
     provider: 'smtp',
     from_name: 'VIBO CNC',
@@ -62,6 +71,9 @@ export default function AdminEmailPage() {
     setForm({
       ...data,
       smtp_password: '', // never hydrate password
+      resend_api_key: '',
+      resend_webhook_secret: '',
+      alimail_client_secret: '',
     });
   }, [data]);
 
@@ -639,7 +651,7 @@ export default function AdminEmailPage() {
                   <input
                     type="checkbox"
                     checked={Boolean(form.contact_notifications_enabled)}
-                    onChange={(e) => setForm((p) => ({ ...p, contact_notifications_enabled: e.target.checked }))}
+                    onChange={(e) => setForm((p: EmailSettingsForm) => ({ ...p, contact_notifications_enabled: e.target.checked }))}
                     className="h-4 w-4"
                   />
                 </div>
@@ -650,7 +662,7 @@ export default function AdminEmailPage() {
                   </label>
                   <textarea
                     value={form.contact_notification_emails || ''}
-                    onChange={(e) => setForm((p) => ({ ...p, contact_notification_emails: e.target.value }))}
+                    onChange={(e) => setForm((p: EmailSettingsForm) => ({ ...p, contact_notification_emails: e.target.value }))}
                     rows={3}
                     disabled={!Boolean(form.contact_notifications_enabled)}
                     className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
@@ -660,8 +672,8 @@ export default function AdminEmailPage() {
                     {t(
                       'email.settings.contactNotice.emailsHint',
                       locale === 'zh'
-                        ? '可用逗号/分号/换行分隔；留空时会复用订单通知收件人。'
-                        : 'Separate by comma / semicolon / new line. Leave blank to reuse order notification recipients.'
+                        ? '可用逗号/分号/换行分隔；留空时依次复用订单通知收件人、发件邮箱。'
+                        : 'Separate by comma / semicolon / new line. Blank uses order recipients, then the sender email.'
                     )}
                   </p>
                 </div>

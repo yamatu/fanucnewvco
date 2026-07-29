@@ -10,6 +10,7 @@ export async function generateMetadata({ searchParams }: {
 }): Promise<Metadata> {
   const params = await searchParams;
   const search = params.search;
+  const page = Math.max(1, Number.parseInt(typeof params.page === 'string' ? params.page : '1', 10) || 1);
 
   let title = 'News & Articles';
   let description = 'Latest news, insights, and technical articles about industrial automation, FANUC parts, and CNC equipment from VIBO CNC.';
@@ -21,6 +22,7 @@ export async function generateMetadata({ searchParams }: {
 
   const baseUrl = getSiteUrl();
   const hasSearch = typeof search === 'string' && search.trim().length > 0;
+  const canonicalUrl = page > 1 ? `${baseUrl}/news?page=${page}` : `${baseUrl}/news`;
 
   return {
     title,
@@ -31,10 +33,10 @@ export async function generateMetadata({ searchParams }: {
       title: withSiteName(title),
       description,
       type: 'website',
-      url: `${baseUrl}/news`,
+      url: canonicalUrl,
     },
     alternates: {
-      canonical: `${baseUrl}/news`,
+      canonical: canonicalUrl,
     },
   };
 }
@@ -50,6 +52,7 @@ async function getServerSideData(searchParams: { [key: string]: string | string[
       search: searchStr,
       page,
       page_size: 12,
+      content_type: 'news',
     });
 
     return {
@@ -85,9 +88,9 @@ export default async function NewsPage({
   const baseUrl = getSiteUrl();
   const structuredData = {
     '@context': 'https://schema.org',
-    '@type': 'Blog',
-    'name': 'VIBO CNC News & Articles',
-    'description': 'Latest news and insights about industrial automation and FANUC parts.',
+    '@type': 'CollectionPage',
+    'name': 'VIBO CNC Company News',
+    'description': 'Company updates, product announcements, and industrial automation news.',
     'url': `${baseUrl}/news`,
     'publisher': {
       '@type': 'Organization',
@@ -95,11 +98,11 @@ export default async function NewsPage({
       'name': SITE_NAME,
       'url': baseUrl,
     },
-    'blogPost': serverData.articles.slice(0, 10).map((article: any) => ({
-      '@type': 'BlogPosting',
+    'blogPost': serverData.articles.slice(0, 10).map((article) => ({
+      '@type': 'NewsArticle',
       'headline': article.title,
       'description': article.summary || '',
-      'url': `${baseUrl}/news/${article.slug}`,
+      'url': `${baseUrl}${article.public_path || `/news/${article.slug}`}`,
       'datePublished': article.published_at || article.created_at,
       'dateModified': article.updated_at,
       'image': article.featured_image || undefined,
@@ -127,7 +130,7 @@ export default async function NewsPage({
           </div>
         }
       >
-        <NewsPageClient initialData={serverData} searchParams={params} />
+        <NewsPageClient initialData={serverData} searchParams={params} contentType="news" />
       </Suspense>
     </>
   );

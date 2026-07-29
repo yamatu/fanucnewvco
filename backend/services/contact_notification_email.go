@@ -75,6 +75,31 @@ func BuildContactNotificationEmail(siteURL string, message models.ContactMessage
 	return subject, text, html
 }
 
+func contactNotificationRecipients(setting *models.EmailSetting) ([]string, error) {
+	if setting == nil {
+		return nil, errors.New("email settings are required")
+	}
+	candidates := []string{
+		setting.ContactNotificationEmails,
+		setting.OrderNotificationEmails,
+		setting.FromEmail,
+		setting.SMTPUsername,
+	}
+	for _, candidate := range candidates {
+		if strings.TrimSpace(candidate) == "" {
+			continue
+		}
+		_, recipients, err := NormalizeEmailRecipients(candidate)
+		if err != nil {
+			return nil, err
+		}
+		if len(recipients) > 0 {
+			return recipients, nil
+		}
+	}
+	return nil, errors.New("contact notification emails not configured")
+}
+
 func NotifyAdminContactMessage(db *gorm.DB, siteURL string, messageID uint) error {
 	s, err := GetOrCreateEmailSetting(db)
 	if err != nil {
@@ -84,16 +109,9 @@ func NotifyAdminContactMessage(db *gorm.DB, siteURL string, messageID uint) erro
 		return nil
 	}
 
-	recipientInput := s.ContactNotificationEmails
-	if strings.TrimSpace(recipientInput) == "" {
-		recipientInput = s.OrderNotificationEmails
-	}
-	_, recipients, err := NormalizeEmailRecipients(recipientInput)
+	recipients, err := contactNotificationRecipients(s)
 	if err != nil {
 		return err
-	}
-	if len(recipients) == 0 {
-		return errors.New("contact notification emails not configured")
 	}
 
 	var message models.ContactMessage

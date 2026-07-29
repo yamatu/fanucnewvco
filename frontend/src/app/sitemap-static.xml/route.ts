@@ -28,12 +28,6 @@ export async function GET() {
       priority: '0.85',
     },
     {
-      url: `${baseUrl}/news`,
-      lastModified,
-      changeFrequency: 'daily',
-      priority: '0.8',
-    },
-    {
       url: `${baseUrl}/about`,
       lastModified,
       changeFrequency: 'monthly',

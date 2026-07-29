@@ -15,9 +15,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const article = await NewsService.getArticleBySlug(slug);
+    const article = await NewsService.getArticleBySlug(slug, 'news');
     const baseUrl = getSiteUrl();
-    const canonicalUrl = `${baseUrl}/news/${article.slug}`;
+    const canonicalUrl = `${baseUrl}${article.public_path || `/news/${article.slug}`}`;
 
     const metaTitle = withoutSiteNameSuffix((article.meta_title || '').trim() || article.title);
     const socialTitle = withSiteName(metaTitle);
@@ -70,7 +70,7 @@ export default async function ArticlePage({
 
   let article;
   try {
-    article = await NewsService.getArticleBySlug(slug);
+    article = await NewsService.getArticleBySlug(slug, 'news');
   } catch {
     notFound();
   }
@@ -78,13 +78,13 @@ export default async function ArticlePage({
   const baseUrl = getSiteUrl();
   const structuredData = {
     '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
+    '@type': 'NewsArticle',
     headline: article.title,
     description: article.summary || article.meta_description || '',
     image: article.featured_image || undefined,
     datePublished: article.published_at || article.created_at,
     dateModified: article.updated_at,
-    url: `${baseUrl}/news/${article.slug}`,
+    url: `${baseUrl}${article.public_path || `/news/${article.slug}`}`,
     ...(article.author?.full_name
       ? {
           author: {
@@ -101,7 +101,7 @@ export default async function ArticlePage({
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `${baseUrl}/news/${article.slug}`,
+      '@id': `${baseUrl}${article.public_path || `/news/${article.slug}`}`,
     },
   };
 
@@ -115,7 +115,7 @@ export default async function ArticlePage({
         '@type': 'ListItem',
         position: 3,
         name: article.title,
-        item: `${baseUrl}/news/${article.slug}`,
+        item: `${baseUrl}${article.public_path || `/news/${article.slug}`}`,
       },
     ],
   };

@@ -1,0 +1,30 @@
+package controllers
+
+import (
+	"fanuc-backend/models"
+	"testing"
+)
+
+func TestNormalizeContentType(t *testing.T) {
+	for input, expected := range map[string]string{"blog": "blog", " BLOG ": "blog", "news": "news", "": "news", "other": "news"} {
+		if actual := normalizeContentType(input); actual != expected {
+			t.Fatalf("normalizeContentType(%q) = %q, want %q", input, actual, expected)
+		}
+	}
+}
+
+func TestGetArticlePublicPath(t *testing.T) {
+	tests := []struct {
+		article  models.Article
+		expected string
+	}{
+		{models.Article{Slug: "release", ContentType: "news"}, "/news/release"},
+		{models.Article{Slug: "guide", ContentType: "blog"}, "/blog/guide"},
+		{models.Article{Slug: "guide", ContentType: "blog", CustomPath: "guides/cnc/guide"}, "/guides/cnc/guide"},
+	}
+	for _, test := range tests {
+		if actual := getArticlePublicPath(test.article); actual != test.expected {
+			t.Fatalf("getArticlePublicPath(%+v) = %q, want %q", test.article, actual, test.expected)
+		}
+	}
+}

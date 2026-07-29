@@ -44,6 +44,7 @@ func SetupRoutes(r *gin.Engine) {
 	payPalController := &controllers.PayPalController{}
 	analyticsController := &controllers.AnalyticsController{}
 	newsController := &controllers.NewsController{}
+	sitePageController := &controllers.SitePageController{}
 	productOptimizationController := &controllers.ProductOptimizationController{}
 	indexNowController := &controllers.IndexNowController{}
 	ebayImportDraftController := &controllers.EbayImportDraftController{}
@@ -117,6 +118,7 @@ func SetupRoutes(r *gin.Engine) {
 			public.GET("/news/path/*path", newsController.GetPublicArticleByPath)
 			public.GET("/news/:id", newsController.GetPublicArticle)
 			public.GET("/news/slug/:slug", newsController.GetPublicArticleBySlug)
+			public.GET("/site-pages/:pageKey", sitePageController.GetPublicPage)
 		}
 
 		// Authentication routes
@@ -285,6 +287,7 @@ func SetupRoutes(r *gin.Engine) {
 			{
 				media.GET("", mediaController.List)
 				media.POST("/upload", mediaController.Upload)
+				media.POST("/rotate", mediaController.Rotate)
 				media.PUT("/batch", mediaController.BatchUpdate)
 				media.DELETE("/batch", mediaController.BatchDelete)
 				media.POST("/cleanup-missing", middleware.AdminOnly(), mediaController.CleanupMissing)
@@ -370,6 +373,14 @@ func SetupRoutes(r *gin.Engine) {
 				news.POST("", newsController.CreateArticle)
 				news.PUT("/:id", newsController.UpdateArticle)
 				news.DELETE("/:id", middleware.AdminOnly(), newsController.DeleteArticle)
+			}
+
+			sitePages := admin.Group("/site-pages")
+			sitePages.Use(middleware.EditorOrAdmin())
+			{
+				sitePages.GET("", sitePageController.GetPages)
+				sitePages.GET("/:pageKey", sitePageController.GetPage)
+				sitePages.PUT("/:pageKey", sitePageController.UpsertPage)
 			}
 
 			// Email mailbox (editor/admin) + settings/marketing (admin only)

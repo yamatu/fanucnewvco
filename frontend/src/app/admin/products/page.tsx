@@ -2113,8 +2113,8 @@ function AdminProductsContent() {
               >
                 <option value="created_at:desc">{locale === 'zh' ? '上传时间：新到旧' : 'Upload time: Newest'}</option>
                 <option value="created_at:asc">{locale === 'zh' ? '上传时间：旧到新' : 'Upload time: Oldest'}</option>
-                <option value="updated_at:desc">{locale === 'zh' ? '更新时间：新到旧' : 'Updated: Newest'}</option>
-                <option value="updated_at:asc">{locale === 'zh' ? '更新时间：旧到新' : 'Updated: Oldest'}</option>
+                <option value="updated_at:desc">{locale === 'zh' ? '编辑时间：新到旧' : 'Last edited: Newest'}</option>
+                <option value="updated_at:asc">{locale === 'zh' ? '编辑时间：旧到新' : 'Last edited: Oldest'}</option>
                 <option value="price:desc">{locale === 'zh' ? '价格：高到低' : 'Price: High to Low'}</option>
                 <option value="price:asc">{locale === 'zh' ? '价格：低到高' : 'Price: Low to High'}</option>
                 <option value="name:asc">{locale === 'zh' ? '名称：A-Z' : 'Name: A-Z'}</option>
@@ -2181,7 +2181,7 @@ function AdminProductsContent() {
                     {t('products.table.status', locale === 'zh' ? '状态' : 'Status')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {locale === 'zh' ? '上传时间' : 'Uploaded'}
+                    {locale === 'zh' ? '编辑时间' : 'Last Edited'}
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {t('common.actions', locale === 'zh' ? '操作' : 'Actions')}
@@ -2208,7 +2208,7 @@ function AdminProductsContent() {
                             alt={product.name}
                             width={48}
                             height={48}
-                            className="h-12 w-12 rounded-lg object-cover"
+                            className="h-12 w-12 rounded-lg bg-gray-50 object-contain p-0.5"
                             // /uploads is served by nginx -> backend; skip Next image optimizer.
                             unoptimized={String(getProductImageUrl(product.image_urls, getDefaultProductImageWithSku(product.sku))).startsWith('/uploads/')}
                           />
@@ -2258,8 +2258,8 @@ function AdminProductsContent() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div>{new Date(product.created_at).toLocaleDateString()}</div>
-                      <div className="text-xs text-gray-400">{new Date(product.created_at).toLocaleTimeString()}</div>
+                      <div>{new Date(product.updated_at || product.created_at).toLocaleDateString()}</div>
+                      <div className="text-xs text-gray-400">{new Date(product.updated_at || product.created_at).toLocaleTimeString()}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">

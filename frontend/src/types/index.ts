@@ -664,6 +664,9 @@ export interface Article {
   slug: string;
   summary: string;
   content: string;
+  content_type: 'news' | 'blog';
+  custom_path?: string;
+  public_path?: string;
   featured_image: string;
   image_urls: string[] | string;
   is_published: boolean;
@@ -701,6 +704,7 @@ export interface ArticleCreateRequest {
   slug?: string;
   summary?: string;
   content: string;
+  content_type?: 'news' | 'blog';
   featured_image?: string;
   image_urls?: string[];
   is_published: boolean;
@@ -711,6 +715,22 @@ export interface ArticleCreateRequest {
   sort_order?: number;
   translations?: ArticleTranslationReq[];
 }
+
+export interface SitePage {
+  id: number;
+  page_key: string;
+  title: string;
+  summary: string;
+  content: string;
+  meta_title: string;
+  meta_description: string;
+  meta_keywords: string;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SitePageRequest = Pick<SitePage, 'title' | 'summary' | 'content' | 'meta_title' | 'meta_description' | 'meta_keywords' | 'is_published'>;
 
 export interface ArticleTranslationReq {
   language_code: string;

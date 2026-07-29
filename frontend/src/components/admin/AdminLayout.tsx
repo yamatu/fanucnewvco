@@ -61,6 +61,7 @@ const navigation = [
   { key: 'nav.homepage', name: 'Homepage Content', href: '/admin/homepage', icon: DocumentTextIcon },
   { key: 'nav.socialMedia', name: 'Social Media', href: '/admin/social-media', icon: ShareIcon },
   { key: 'nav.news', name: 'News & Articles', href: '/admin/news', icon: NewspaperIcon },
+  { key: 'nav.sitePages', name: 'Site Pages', href: '/admin/site-pages', icon: DocumentTextIcon },
 ];
 
 interface AdminLayoutProps {

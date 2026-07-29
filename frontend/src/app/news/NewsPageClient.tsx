@@ -17,6 +17,7 @@ interface NewsPageClientProps {
     searchQuery: string;
   };
   searchParams: { [key: string]: string | string[] | undefined };
+  contentType?: 'news' | 'blog';
 }
 
 function markdownToExcerpt(md: string, maxLen = 160): string {
@@ -33,23 +34,28 @@ function markdownToExcerpt(md: string, maxLen = 160): string {
   return text;
 }
 
-export default function NewsPageClient({ initialData, searchParams }: NewsPageClientProps) {
+export default function NewsPageClient({ initialData, contentType = 'news' }: NewsPageClientProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState(initialData.searchQuery);
+  const basePath = contentType === 'blog' ? '/blog' : '/news';
+  const pageTitle = contentType === 'blog' ? 'Industrial Automation Blog' : 'Company News';
+  const pageDescription = contentType === 'blog'
+    ? 'Practical guides, troubleshooting knowledge, and purchasing insights for CNC and industrial automation professionals.'
+    : 'Company updates, product announcements, and industrial automation news from VIBO CNC.';
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
     if (searchQuery.trim()) params.set('search', searchQuery.trim());
     params.set('page', '1');
-    router.push(`/news?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   };
 
   const handlePageChange = (page: number) => {
     const params = new URLSearchParams();
     if (initialData.searchQuery) params.set('search', initialData.searchQuery);
     params.set('page', String(page));
-    router.push(`/news?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   };
 
   const featuredArticles = initialData.articles.filter((a) => a.is_featured);
@@ -62,10 +68,10 @@ export default function NewsPageClient({ initialData, searchParams }: NewsPageCl
         <div className="site-page-hero">
           <div className="site-hero-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
             <div className="text-center">
-              <span className="site-hero-kicker">Insights library</span>
-              <h1 className="mt-5 text-3xl sm:text-4xl font-bold mb-4">News & Articles</h1>
+              <span className="site-hero-kicker">{contentType === 'blog' ? 'Technical library' : 'Company updates'}</span>
+              <h1 className="mt-5 text-3xl sm:text-4xl font-bold mb-4">{pageTitle}</h1>
               <p className="text-blue-100 text-lg max-w-2xl mx-auto mb-8">
-                Latest insights, technical guides, and industry news about industrial automation and CNC equipment.
+                {pageDescription}
               </p>
 
               {/* Search */}
@@ -93,7 +99,7 @@ export default function NewsPageClient({ initialData, searchParams }: NewsPageCl
                 {initialData.total} result{initialData.total !== 1 ? 's' : ''} for &quot;{initialData.searchQuery}&quot;
               </p>
               <button
-                onClick={() => router.push('/news')}
+                onClick={() => router.push(basePath)}
                 className="text-sm text-blue-600 hover:underline"
               >
                 Clear search
@@ -117,7 +123,7 @@ export default function NewsPageClient({ initialData, searchParams }: NewsPageCl
                     {featuredArticles.slice(0, 2).map((article) => (
                       <Link
                         key={article.id}
-                        href={`/news/${article.slug}`}
+                        href={article.public_path || `${basePath}/${article.slug}`}
                         className="group site-product-card block"
                       >
                         {article.featured_image ? (
@@ -169,7 +175,7 @@ export default function NewsPageClient({ initialData, searchParams }: NewsPageCl
                   {(initialData.searchQuery ? initialData.articles : regularArticles).map((article) => (
                     <Link
                       key={article.id}
-                      href={`/news/${article.slug}`}
+                      href={article.public_path || `${basePath}/${article.slug}`}
                       className="group site-product-card flex flex-col"
                     >
                       {article.featured_image ? (

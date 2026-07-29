@@ -99,7 +99,27 @@ func getArticlePublicPath(article models.Article) string {
 	if strings.TrimSpace(article.CustomPath) != "" {
 		return "/" + strings.Trim(article.CustomPath, "/")
 	}
-	return "/news/" + article.Slug
+	contentType := normalizeContentType(article.ContentType)
+	return "/" + contentType + "/" + article.Slug
+}
+
+func normalizeContentType(contentType string) string {
+	if strings.EqualFold(strings.TrimSpace(contentType), "blog") {
+		return "blog"
+	}
+	return "news"
+}
+
+func withContentTypeFilter(q *gorm.DB, contentType string) *gorm.DB {
+	normalizedType := normalizeContentType(contentType)
+	if normalizedType == "news" {
+		return q.Where("content_type = ? OR content_type IS NULL OR content_type = ''", normalizedType)
+	}
+	return q.Where("content_type = ?", normalizedType)
+}
+
+func articleCacheURLs(article models.Article) []string {
+	return []string{getArticlePublicPath(article), "/news", "/blog", "/sitemap.xml", "/sitemap-news.xml", "/sitemap-blog.xml"}
 }
 
 func parseStringArrayJSON(raw string) []string {
@@ -194,6 +214,7 @@ type ArticleResponse struct {
 	PublicPath      string                      `json:"public_path"`
 	Summary         string                      `json:"summary"`
 	Content         string                      `json:"content"`
+	ContentType     string                      `json:"content_type"`
 	FeaturedImage   string                      `json:"featured_image"`
 	FeaturedMediaID *uint                       `json:"featured_media_id"`
 	FeaturedMedia   *models.MediaAsset          `json:"featured_media,omitempty"`
@@ -223,6 +244,7 @@ func toArticleResponse(article models.Article) ArticleResponse {
 		PublicPath:      getArticlePublicPath(article),
 		Summary:         article.Summary,
 		Content:         article.Content,
+		ContentType:     normalizeContentType(article.ContentType),
 		FeaturedImage:   article.FeaturedImage,
 		FeaturedMediaID: article.FeaturedMediaID,
 		FeaturedMedia:   article.FeaturedMedia,
@@ -269,6 +291,9 @@ func (nc *NewsController) GetPublicArticles(c *gin.Context) {
 	}
 
 	q := withArticlePreloads(db).Where("is_published = ?", true)
+	if contentType := strings.TrimSpace(c.Query("content_type")); contentType != "" {
+		q = withContentTypeFilter(q, contentType)
+	}
 
 	if search := c.Query("search"); search != "" {
 		like := "%" + search + "%"
@@ -339,7 +364,11 @@ func (nc *NewsController) GetPublicArticleBySlug(c *gin.Context) {
 
 	slug := c.Param("slug")
 	var article models.Article
-	if err := withArticlePreloads(db).Where("slug = ? AND is_published = ?", slug, true).First(&article).Error; err != nil {
+	q := withArticlePreloads(db).Where("slug = ? AND is_published = ?", slug, true)
+	if contentType := strings.TrimSpace(c.Query("content_type")); contentType != "" {
+		q = withContentTypeFilter(q, contentType)
+	}
+	if err := q.First(&article).Error; err != nil {
 		c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Article not found"})
 		return
 	}
@@ -392,6 +421,9 @@ func (nc *NewsController) GetArticles(c *gin.Context) {
 	}
 
 	q := withArticlePreloads(db)
+	if contentType := strings.TrimSpace(c.Query("content_type")); contentType != "" {
+		q = withContentTypeFilter(q, contentType)
+	}
 
 	if search := c.Query("search"); search != "" {
 		like := "%" + search + "%"
@@ -522,6 +554,7 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 		CustomPath:      customPath,
 		Summary:         req.Summary,
 		Content:         req.Content,
+		ContentType:     normalizeContentType(req.ContentType),
 		FeaturedImage:   featuredImage,
 		FeaturedMediaID: req.FeaturedMediaID,
 		ImageURLs:       imageURLsJSON,
@@ -561,7 +594,7 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 	}
 
 	withArticlePreloads(db).First(&article, article.ID)
-	services.InvalidatePublicCaches(c.Request.Context(), "news:create", []string{"/news", getArticlePublicPath(article)})
+	services.InvalidatePublicCaches(c.Request.Context(), "news:create", articleCacheURLs(article))
 
 	c.JSON(http.StatusCreated, models.APIResponse{Success: true, Message: "Article created", Data: toArticleResponse(article)})
 }
@@ -643,6 +676,7 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 		"custom_path":       customPath,
 		"summary":           req.Summary,
 		"content":           req.Content,
+		"content_type":      normalizeContentType(req.ContentType),
 		"featured_image":    featuredImage,
 		"featured_media_id": req.FeaturedMediaID,
 		"image_urls":        imageURLsJSON,
@@ -686,7 +720,7 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 	if article.IsPublished {
 		createSEORedirect(db, oldPath, newPath)
 	}
-	services.InvalidatePublicCaches(c.Request.Context(), "news:update", []string{"/news", oldPath, newPath})
+	services.InvalidatePublicCaches(c.Request.Context(), "news:update", []string{"/news", "/blog", oldPath, newPath, "/sitemap.xml", "/sitemap-news.xml", "/sitemap-blog.xml"})
 
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Article updated", Data: toArticleResponse(article)})
 }
@@ -713,7 +747,7 @@ func (nc *NewsController) DeleteArticle(c *gin.Context) {
 	oldPath := getArticlePublicPath(article)
 	db.Where("article_id = ?", article.ID).Delete(&models.ArticleTranslation{})
 	db.Delete(&article)
-	services.InvalidatePublicCaches(c.Request.Context(), "news:delete", []string{"/news", oldPath})
+	services.InvalidatePublicCaches(c.Request.Context(), "news:delete", []string{"/news", "/blog", oldPath, "/sitemap.xml", "/sitemap-news.xml", "/sitemap-blog.xml"})
 
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Article deleted"})
 }

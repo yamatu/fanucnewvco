@@ -494,6 +494,7 @@ type Article struct {
 	CustomPath      string               `json:"custom_path" gorm:"size:500;uniqueIndex"`
 	Summary         string               `json:"summary" gorm:"type:text"`
 	Content         string               `json:"content" gorm:"type:longtext;not null"`
+	ContentType     string               `json:"content_type" gorm:"size:20;not null;default:news;index"`
 	FeaturedImage   string               `json:"featured_image" gorm:"type:text"`
 	FeaturedMediaID *uint                `json:"featured_media_id" gorm:"index"`
 	FeaturedMedia   *MediaAsset          `json:"featured_media,omitempty" gorm:"foreignKey:FeaturedMediaID"`
@@ -541,6 +542,7 @@ type ArticleCreateRequest struct {
 	CustomPath      string                  `json:"custom_path"`
 	Summary         string                  `json:"summary"`
 	Content         string                  `json:"content" binding:"required"`
+	ContentType     string                  `json:"content_type"`
 	FeaturedImage   string                  `json:"featured_image"`
 	FeaturedMediaID *uint                   `json:"featured_media_id"`
 	ImageURLs       []string                `json:"image_urls"`
@@ -552,6 +554,33 @@ type ArticleCreateRequest struct {
 	MetaKeywords    string                  `json:"meta_keywords"`
 	SortOrder       int                     `json:"sort_order"`
 	Translations    []ArticleTranslationReq `json:"translations"`
+}
+
+// SitePage stores editable policy and informational pages.
+type SitePage struct {
+	ID              uint      `json:"id" gorm:"primaryKey"`
+	PageKey         string    `json:"page_key" gorm:"size:100;uniqueIndex;not null"`
+	Title           string    `json:"title" gorm:"size:255;not null"`
+	Summary         string    `json:"summary" gorm:"type:text"`
+	Content         string    `json:"content" gorm:"type:longtext;not null"`
+	MetaTitle       string    `json:"meta_title" gorm:"size:255"`
+	MetaDescription string    `json:"meta_description" gorm:"type:text"`
+	MetaKeywords    string    `json:"meta_keywords" gorm:"type:text"`
+	IsPublished     bool      `json:"is_published" gorm:"default:true;index"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+func (SitePage) TableName() string { return "site_pages" }
+
+type SitePageUpsertRequest struct {
+	Title           string `json:"title" binding:"required"`
+	Summary         string `json:"summary"`
+	Content         string `json:"content" binding:"required"`
+	MetaTitle       string `json:"meta_title"`
+	MetaDescription string `json:"meta_description"`
+	MetaKeywords    string `json:"meta_keywords"`
+	IsPublished     bool   `json:"is_published"`
 }
 
 // ArticleTranslationReq represents article translation in request.

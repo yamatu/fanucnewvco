@@ -20,6 +20,13 @@ import (
 
 type MediaController struct{}
 
+type rotateMediaRequest struct {
+	AssetID *uint  `json:"asset_id"`
+	URL     string `json:"url"`
+	Folder  string `json:"folder"`
+	Degrees int    `json:"degrees" binding:"required"`
+}
+
 func getUploadRoot() string {
 	p := os.Getenv("UPLOAD_PATH")
 	if strings.TrimSpace(p) == "" {
@@ -49,7 +56,7 @@ func (mc *MediaController) List(c *gin.Context) {
 	query := db.Model(&models.MediaAsset{})
 	if q != "" {
 		like := "%" + q + "%"
-		query = query.Where("original_name LIKE ? OR sha256 LIKE ? OR title LIKE ?", like, like, like)
+		query = query.Where("original_name LIKE ? OR sha256 LIKE ? OR title LIKE ? OR alt_text LIKE ? OR folder LIKE ? OR tags LIKE ?", like, like, like, like, like, like)
 	}
 	if folder != "" {
 		query = query.Where("folder = ?", folder)
@@ -296,6 +303,26 @@ func (mc *MediaController) Upload(c *gin.Context) {
 		Message: "Upload processed",
 		Data:    data,
 	})
+}
+
+func (mc *MediaController) Rotate(c *gin.Context) {
+	var req rotateMediaRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid rotation request", Error: err.Error()})
+		return
+	}
+	asset, err := services.RotateMediaAsset(config.GetDB(), services.RotateMediaRequest{
+		AssetID: req.AssetID,
+		URL:     req.URL,
+		Folder:  req.Folder,
+		Degrees: req.Degrees,
+	})
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to rotate media", Error: err.Error()})
+		return
+	}
+	response := asset.ToResponse()
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Media rotated successfully", Data: response})
 }
 
 func (mc *MediaController) CleanupMissing(c *gin.Context) {

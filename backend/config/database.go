@@ -168,6 +168,7 @@ func ConnectDatabase() {
 			// News / Articles
 			&models.Article{},
 			&models.ArticleTranslation{},
+			&models.SitePage{},
 		}
 		for _, m := range modelsToMigrate {
 			// GORM may try to "DROP FOREIGN KEY <uni_xxx>" on existing tables (a known benign issue when
@@ -188,6 +189,8 @@ func ConnectDatabase() {
 			}
 		}
 		DB.Exec("SET FOREIGN_KEY_CHECKS=1;")
+		// Preserve existing articles created before content types were introduced.
+		DB.Model(&models.Article{}).Where("content_type IS NULL OR content_type = ''").Update("content_type", "news")
 		log.Println("Database migration completed (with tolerant drop handling)")
 	} else {
 		log.Println("DB_AUTO_MIGRATE=false, skipping AutoMigrate")

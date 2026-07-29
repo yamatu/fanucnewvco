@@ -27,12 +27,13 @@ function AdminNewsContent() {
 
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('is_published') || '');
+  const [typeFilter, setTypeFilter] = useState(searchParams.get('content_type') || '');
   const page = parseInt(searchParams.get('page') || '1', 10);
   const pageSize = 20;
 
   const filters = useMemo(
-    () => ({ page, page_size: pageSize, search: search.trim(), is_published: statusFilter }),
-    [page, pageSize, search, statusFilter]
+    () => ({ page, page_size: pageSize, search: search.trim(), is_published: statusFilter, content_type: typeFilter as 'news' | 'blog' | undefined }),
+    [page, pageSize, search, statusFilter, typeFilter]
   );
 
   const { data, isLoading } = useQuery({
@@ -46,7 +47,7 @@ function AdminNewsContent() {
       toast.success(t('news.deleted', 'Article deleted'));
       queryClient.invalidateQueries({ queryKey: queryKeys.news.lists() });
     },
-    onError: (err: any) => toast.error(err.message || 'Failed to delete'),
+    onError: (err: Error) => toast.error(err.message || 'Failed to delete'),
   });
 
   const articles = data?.data || [];
@@ -58,6 +59,7 @@ function AdminNewsContent() {
     const params = new URLSearchParams();
     if (search.trim()) params.set('search', search.trim());
     if (statusFilter) params.set('is_published', statusFilter);
+    if (typeFilter) params.set('content_type', typeFilter);
     params.set('page', '1');
     router.push(`/admin/news?${params.toString()}`);
   };
@@ -106,6 +108,22 @@ function AdminNewsContent() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+            <select
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                const params = new URLSearchParams(searchParams.toString());
+                if (e.target.value) params.set('content_type', e.target.value);
+                else params.delete('content_type');
+                params.set('page', '1');
+                router.push(`/admin/news?${params.toString()}`);
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+            >
+              <option value="">All Types</option>
+              <option value="news">News</option>
+              <option value="blog">Blog</option>
+            </select>
             <select
               value={statusFilter}
               onChange={(e) => {
@@ -199,7 +217,7 @@ function AdminNewsContent() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500 max-w-[150px] truncate">
-                        /news/{article.slug}
+                        {article.public_path || `/${article.content_type || 'news'}/${article.slug}`}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -227,7 +245,7 @@ function AdminNewsContent() {
                         <div className="flex items-center justify-end gap-1">
                           {article.is_published && (
                             <a
-                              href={`/news/${article.slug}`}
+                              href={article.public_path || `/${article.content_type || 'news'}/${article.slug}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-1.5 text-gray-400 hover:text-blue-600"

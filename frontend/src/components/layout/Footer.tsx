@@ -38,6 +38,8 @@ const footerNavigation = {
     { name: 'FANUC Partners', href: '/about' },
     { name: 'Our Workshop', href: '/about' },
     { name: 'Company Profile', href: '/about' },
+    { name: 'News', href: '/news' },
+    { name: 'Blog', href: '/blog' },
   ],
   support: [
     { name: 'Contact Us', href: '/contact' },

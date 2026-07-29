@@ -18,25 +18,7 @@ import { NewsService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { useAdminI18n } from '@/lib/admin-i18n';
 import type { ArticleCreateRequest } from '@/types';
-
-function markdownToHtml(md: string): string {
-  let html = md;
-  html = html.replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-6 mb-3">$1</h1>');
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full rounded-lg my-4" />');
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 underline" target="_blank" rel="noopener">$1</a>');
-  html = html.replace(/^\- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>');
-  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>');
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-100 p-4 rounded-lg overflow-x-auto my-4"><code>$2</code></pre>');
-  html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm">$1</code>');
-  html = html.replace(/\n\n/g, '</p><p class="mb-4">');
-  html = '<p class="mb-4">' + html + '</p>';
-  html = html.replace(/\n/g, '<br/>');
-  return html;
-}
+import MarkdownContent from '@/components/content/MarkdownContent';
 
 export default function EditArticlePage() {
   const { t } = useAdminI18n();
@@ -67,6 +49,7 @@ export default function EditArticlePage() {
       is_featured: false,
       sort_order: 0,
       content: '',
+      content_type: 'news',
       image_urls: [],
     },
   });
@@ -79,6 +62,7 @@ export default function EditArticlePage() {
         slug: article.slug,
         summary: article.summary,
         content: article.content,
+        content_type: article.content_type || 'news',
         featured_image: article.featured_image,
         is_published: article.is_published,
         is_featured: article.is_featured,
@@ -99,7 +83,7 @@ export default function EditArticlePage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.news.detail(id) });
       router.push('/admin/news');
     },
-    onError: (err: any) => toast.error(err.message || 'Failed to update article'),
+    onError: (err: Error) => toast.error(err.message || 'Failed to update article'),
   });
 
   const onSubmit = (data: ArticleCreateRequest) => {
@@ -112,6 +96,7 @@ export default function EditArticlePage() {
   const watchMetaTitle = watch('meta_title') || '';
   const watchMetaDesc = watch('meta_description') || '';
   const watchFeaturedImage = watch('featured_image') || '';
+  const watchContentType = watch('content_type') || 'news';
 
   const openMediaPicker = (target: 'featured' | 'content') => {
     setMediaPickerTarget(target);
@@ -160,6 +145,11 @@ export default function EditArticlePage() {
             <div className="lg:col-span-2 space-y-6">
               {/* Title & Slug */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Content Type</label>
+                <select {...register('content_type')} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white mb-4">
+                  <option value="news">News</option>
+                  <option value="blog">Blog</option>
+                </select>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('news.field.title', 'Title')} *
                 </label>
@@ -173,7 +163,7 @@ export default function EditArticlePage() {
                   {t('news.field.slug', 'Custom URL Slug')}
                 </label>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-400">/news/</span>
+                  <span className="text-sm text-gray-400">/{watchContentType}/</span>
                   <input
                     {...register('slug')}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
@@ -224,10 +214,7 @@ export default function EditArticlePage() {
                   </div>
                 </div>
                 {previewMode ? (
-                  <div
-                    className="prose prose-sm max-w-none min-h-[400px] p-4 border border-gray-200 rounded-md bg-gray-50"
-                    dangerouslySetInnerHTML={{ __html: markdownToHtml(watchContent) }}
-                  />
+                  <MarkdownContent content={watchContent} className="min-h-[400px] p-4 border border-gray-200 rounded-md bg-gray-50" />
                 ) : (
                   <textarea
                     {...register('content', { required: 'Content is required' })}
@@ -235,6 +222,7 @@ export default function EditArticlePage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-2 focus:ring-blue-500"
                   />
                 )}
+                <p className="mt-2 text-xs text-gray-500">External link: [label](https://example.com). Video: paste a YouTube/Vimeo URL on its own line or use @[video](URL).</p>
                 {errors.content && <p className="text-red-500 text-xs mt-1">{errors.content.message}</p>}
               </div>
 
@@ -275,7 +263,7 @@ export default function EditArticlePage() {
                         {watchMetaTitle || watchTitle || 'Article Title'}
                       </div>
                       <div className="text-[#202124] text-sm mt-0.5 truncate">
-                        vibocnc.com <span className="text-gray-400">{'>'}</span> news <span className="text-gray-400">{'>'}</span> {watchSlug || 'article-slug'}
+                        vibocnc.com <span className="text-gray-400">{'>'}</span> {watchContentType} <span className="text-gray-400">{'>'}</span> {watchSlug || 'article-slug'}
                       </div>
                       <div className="text-[#4d5156] text-sm mt-1 line-clamp-2">
                         {watchMetaDesc || watch('summary') || 'Article description will appear here...'}

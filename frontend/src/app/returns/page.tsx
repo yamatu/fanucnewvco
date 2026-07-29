@@ -1,21 +1,5 @@
-import type { Metadata } from 'next';
-import PublicLayout from '@/components/layout/PublicLayout';
-import { buildStaticPageMetadata } from '@/lib/seo';
-
-export const metadata: Metadata = buildStaticPageMetadata(
-  '/returns',
-  'Returns',
-  'Returns policy and process for VIBO CNC products.',
-  'returns policy, FANUC parts returns, CNC parts refund, VIBO CNC returns'
-);
-
-export default function ReturnsPage() {
-  return (
-    <PublicLayout>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="text-3xl font-bold mb-6">Returns</h1>
-        <p className="text-gray-600">Returns policy is coming soon.</p>
-      </main>
-    </PublicLayout>
-  );
-}
+import EditableSitePage, { buildEditablePageMetadata } from '@/components/content/EditableSitePage';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const generateMetadata = () => buildEditablePageMetadata('returns');
+export default function Page() { return <EditableSitePage pageKey="returns" />; }

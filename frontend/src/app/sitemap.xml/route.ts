@@ -9,6 +9,7 @@ const SITEMAP_PATHS = [
   '/sitemap-categories.xml',
   '/sitemap-products-index.xml',
   '/sitemap-news.xml',
+  '/sitemap-blog.xml',
 ] as const
 
 export function buildSitemapIndex(baseUrl: string) {

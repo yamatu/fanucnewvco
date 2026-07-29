@@ -53,6 +53,7 @@ export default function SitemapManagementPage() {
     { name: 'Categories', url: `${baseUrl}/sitemap-categories.xml`, description: 'All category pages', status: 'Child' },
     { name: 'Products Index', url: `${baseUrl}/sitemap-products-index.xml`, description: 'Product sitemap index', status: 'Child' },
     { name: 'News & Articles', url: `${baseUrl}/sitemap-news.xml`, description: 'All published articles', status: 'Child' },
+    { name: 'Blog Articles', url: `${baseUrl}/sitemap-blog.xml`, description: 'All published blog posts', status: 'Child' },
   ];
 
   return (

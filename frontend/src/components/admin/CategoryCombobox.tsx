@@ -11,6 +11,48 @@ function categoryLabel(c: CategoryLike): string {
 	return (c.path && String(c.path).trim()) || c.name;
 }
 
+function normalizeSearchText(value: unknown): string {
+	return String(value || '')
+		.normalize('NFKC')
+		.toLocaleLowerCase()
+		.replace(/[>›»/\\|_.:：()[\]{}-]+/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function categorySearchScore(category: CategoryLike, rawQuery: string): number {
+	const query = normalizeSearchText(rawQuery);
+	if (!query) return 1;
+
+	const label = normalizeSearchText(categoryLabel(category));
+	const name = normalizeSearchText(category.name);
+	const slug = normalizeSearchText(category.slug);
+	const path = normalizeSearchText(category.path);
+	const description = normalizeSearchText(category.description);
+	const searchable = [name, slug, path, label, description].filter(Boolean).join(' ');
+	const compactQuery = query.replace(/\s/g, '');
+	const compactSearchable = searchable.replace(/\s/g, '');
+
+	if (name === query || slug === query || path === query) return 1000;
+	if (name.startsWith(query) || label.startsWith(query)) return 800;
+	if (searchable.includes(query)) return 600;
+	if (compactQuery && compactSearchable.includes(compactQuery)) return 500;
+
+	const tokens = query.split(' ').filter(Boolean);
+	const tokenMatches = tokens.every((token) => {
+		if (searchable.includes(token)) return true;
+		// Typing model fragments such as "servo motor" or "a06b6089" can skip
+		// punctuation and a few intervening characters while preserving order.
+		const fuzzyPattern = token.split('').map(escapeRegExp).join('[^\\s]{0,4}');
+		return new RegExp(fuzzyPattern, 'i').test(compactSearchable);
+	});
+	return tokenMatches ? 300 : 0;
+}
+
 export default function CategoryCombobox(props: {
 	categories: CategoryLike[];
 	value?: number | string | null;
@@ -41,22 +83,15 @@ export default function CategoryCombobox(props: {
 		}
 	}, [open, selected]);
 
-	const normalizedQuery = query.trim().toLowerCase();
+	const normalizedQuery = normalizeSearchText(query);
 	const results = useMemo(() => {
 		if (!Array.isArray(categories)) return [];
 		if (!normalizedQuery) return categories;
-		return categories.filter((c) => {
-			const name = String(c.name || '').toLowerCase();
-			const slug = String(c.slug || '').toLowerCase();
-			const path = String(c.path || '').toLowerCase();
-			const desc = String(c.description || '').toLowerCase();
-			return (
-				name.includes(normalizedQuery) ||
-				slug.includes(normalizedQuery) ||
-				path.includes(normalizedQuery) ||
-				desc.includes(normalizedQuery)
-			);
-		});
+		return categories
+			.map((category, index) => ({ category, index, score: categorySearchScore(category, normalizedQuery) }))
+			.filter((item) => item.score > 0)
+			.sort((a, b) => b.score - a.score || a.index - b.index)
+			.map((item) => item.category);
 	}, [categories, normalizedQuery]);
 
 	const visibleResults = useMemo(() => {
@@ -152,7 +187,7 @@ export default function CategoryCombobox(props: {
 							) : (
 								visibleResults.slice(0, 200).map((c, idx) => {
 									const isActive = idx === activeIndex;
-									const isSelected = selectedId && Number(c.id) === selectedId;
+									const isSelected = Boolean(selectedId && Number(c.id) === selectedId);
 									return (
 										<div
 											key={c.id}
