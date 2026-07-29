@@ -1,4 +1,5 @@
 import type { PublicLocale } from './config';
+import { detailedPublicMessages } from './detailedMessages';
 
 export type PublicMessageVariables = Record<string, string | number>;
 
@@ -12,6 +13,7 @@ const en = {
   'header.noProducts': 'No products found', 'header.login': 'Login', 'header.register': 'Register',
   'header.trackOrder': 'Track Order', 'header.myAccount': 'My Account', 'header.myOrders': 'My Orders',
   'header.supportTickets': 'Support Tickets', 'header.logout': 'Logout', 'header.productCategories': 'Product Categories',
+  'header.hub': 'CNC Parts Hub', 'header.automationSupply': 'Automation Supply',
   'footer.products': 'Products', 'footer.services': 'Services', 'footer.company': 'Company', 'footer.support': 'Support',
   'footer.partners': 'Partners', 'footer.stayUpdated': 'Stay Updated',
   'footer.newsletter': 'Subscribe to our newsletter for the latest automation components and industry updates.',
@@ -21,6 +23,7 @@ const en = {
   'footer.copyright': 'Copyright 2024 VIBO CNC. All rights reserved.',
   'footer.privacy': 'Privacy Policy', 'footer.terms': 'Terms of Service', 'footer.sitemap': 'Sitemap',
   'footer.allProducts': 'All Products', 'footer.productCategories': 'Product Categories',
+  'footer.since': 'Since 2005',
   'home.hero.kicker': 'Industrial Automation Supply', 'home.hero.previous': 'Previous slide',
   'home.hero.next': 'Next slide', 'home.hero.goTo': 'Go to slide {number}', 'home.hero.scroll': 'Scroll Down',
   'home.hero.title': 'VIBO CNC Industrial Automation Parts',
@@ -34,6 +37,8 @@ const en = {
   'common.home': 'Home', 'common.by': 'By {name}', 'common.views': '{count} views',
   'common.readTime': '{count} min read', 'common.backTo': 'Back to {section}', 'common.lastUpdated': 'Last updated: {date}',
   'common.cncParts': 'CNC Parts', 'common.learnMore': 'Learn More', 'common.contactUs': 'Contact Us',
+  'common.loading': 'Loading...', 'common.loadError': 'Failed to load products',
+  'common.tryAgain': 'Please try again later.', 'common.viewDetails': 'View details',
   'home.stats.title': 'VIBO CNC - FANUC and CNC Spare Parts Supplier',
   'home.stats.description': 'Industrial automation components, deep inventory, testing, maintenance support, and worldwide delivery.',
   'home.stats.ctaTitle': 'Ready to Experience Professional Service?',
@@ -47,6 +52,19 @@ const en = {
   'products.description': 'Browse CNC and industrial automation parts with worldwide delivery.',
   'products.search': 'Search products', 'products.searchPlaceholder': 'Search by name, SKU, or description...',
   'products.allCategories': 'All Categories', 'products.results': '{count} products', 'products.noResults': 'No products found',
+  'products.searching': 'Searching for "{query}"...', 'products.showing': 'Showing {shown} of {total} products',
+  'products.filtered': 'filtered', 'products.forQuery': 'for "{query}"',
+  'products.gridView': 'Grid view', 'products.listView': 'List view',
+  'products.sortNameAsc': 'Name (A-Z)', 'products.sortNameDesc': 'Name (Z-A)',
+  'products.sortPriceAsc': 'Price: Low to High', 'products.sortPriceDesc': 'Price: High to Low',
+  'products.sortNewest': 'Newest First', 'products.sortStock': 'Stock: High to Low',
+  'products.sortFeatured': 'Featured First', 'products.clearFilters': 'Clear all filters',
+  'products.pageOf': 'Page {page} of {total}',
+  'filters.title': 'Filters', 'filters.clearAll': 'Clear All', 'filters.priceRange': 'Price Range',
+  'filters.minPrice': 'Min Price', 'filters.maxPrice': 'Max Price',
+  'filters.priceHint': 'Enter a price range to filter products', 'filters.active': 'Active Filters:',
+  'filters.searchValue': 'Search: "{query}"', 'filters.categoryValue': 'Category: {category}',
+  'filters.unknown': 'Unknown', 'filters.noMax': 'No maximum',
   'product.notFound': 'Product Not Found', 'product.notFoundDescription': "The product you're looking for doesn't exist.",
   'product.back': 'Back to Products', 'product.information': 'Product information', 'product.alternate': 'Alternate',
   'product.whatsApp': 'WhatsApp Us', 'product.buyNow': 'Buy Now', 'product.brand': 'Brand',
@@ -78,6 +96,14 @@ const en = {
   'about.years': 'Years Experience', 'about.topSupplier': 'FANUC Supplier in China',
   'about.workshop': 'sqm Workshop', 'about.employees': 'Total Employees',
   'about.items': 'Items in Stock', 'about.parcels': 'Daily Parcels',
+  'about.profileDescription': 'We have supplied CNC and industrial automation parts since 2005, combining product expertise, dependable sourcing, and responsive international service.',
+  'about.warehouseDescription': 'Our 5,000 m² facility supports organized inventory, inspection, repair, export packing, and efficient worldwide dispatch.',
+  'about.servicesDescription': 'Our specialist team supports customers throughout product selection, functional testing, maintenance, and after-sales service.',
+  'about.salesDescription': 'Experienced sales specialists identify compatible automation components and practical sourcing options for your application.',
+  'about.testingDescription': 'Documented inspection and functional testing help confirm component quality before dispatch.',
+  'about.maintenanceDescription': 'Skilled technicians provide maintenance and repair support to keep automation systems operating reliably.',
+  'about.experienceDescription': 'More than 20 years of industry experience helps us coordinate sourcing, inspection, export documentation, and international transport as one service.',
+  'about.trustedPartner': 'Trusted Partner', 'about.trustedDescription': 'Reliable industrial solutions worldwide',
   'contact.title': 'Contact Us', 'contact.kicker': 'Contact VIBO CNC',
   'contact.description': 'Get in touch with our expert team for all your automation needs.',
   'contact.getInTouch': 'Get in Touch', 'contact.address': 'Address', 'contact.phone': 'Phone',
@@ -90,10 +116,34 @@ const en = {
   'contact.support': 'Technical Support', 'contact.quote': 'Request Quote',
   'contact.success': 'Thank you for your message! We will get back to you soon.',
   'contact.error': 'Failed to send message. Please check your connection.',
+  'contact.fastResponse': 'Fast Response', 'contact.fastResponseDescription': 'Our team responds promptly to product, quotation, and technical inquiries.',
+  'contact.largeInventory': 'Large Inventory', 'contact.largeInventoryDescription': 'A broad stock of CNC and automation parts helps reduce sourcing and delivery time.',
+  'contact.globalShipping': 'Global Shipping', 'contact.globalShippingDescription': 'Export packing and international delivery are available for customers worldwide.',
+  'contact.loading': 'Loading...',
+  'contact.whyChoose': 'Why Choose VIBO CNC?',
+  'order.kicker': 'Logistics status', 'order.trackTitle': 'Track Your Order',
+  'order.trackDescription': 'Enter the order number from your confirmation email to check current handling, shipment, and delivery status.',
+  'order.enterNumber': 'Please enter your order number', 'order.trackAction': 'Track Order',
+  'order.numberHint': 'You can find your order number in the confirmation email sent after your purchase.',
+  'order.loadingDetails': 'Loading order details...', 'order.notFound': 'Order Not Found',
+  'order.notFoundDescription': 'The order number you entered could not be found.',
+  'order.loadError': 'Failed to load order details', 'order.backHome': 'Back to Home',
+  'order.placedOn': 'Placed on {date}', 'order.progress': 'Order Progress',
+  'order.currentStatus': 'Current status', 'order.details': 'Order Details',
+  'order.number': 'Order Number', 'order.status': 'Status', 'order.paymentStatus': 'Payment Status',
+  'order.totalAmount': 'Total Amount', 'order.paymentMethod': 'Payment Method',
+  'order.tracking': 'Tracking', 'order.carrier': 'Carrier', 'order.customerInfo': 'Customer Information',
+  'order.name': 'Name', 'order.email': 'Email', 'order.phone': 'Phone',
+  'order.shippingAddress': 'Shipping Address', 'order.items': 'Order Items',
+  'order.product': 'Product', 'order.quantity': 'Quantity', 'order.each': 'each', 'order.notes': 'Order Notes',
+  'status.pending': 'Order Placed', 'status.confirmed': 'Confirmed', 'status.processing': 'Processing',
+  'status.shipped': 'Shipped', 'status.delivered': 'Delivered', 'status.cancelled': 'Cancelled',
+  'payment.pending': 'Pending', 'payment.paid': 'Paid', 'payment.failed': 'Failed', 'payment.refunded': 'Refunded',
   'faq.title': 'Frequently Asked Questions', 'faq.kicker': 'Support center',
   'faq.description': 'Find answers to common questions about FANUC parts, shipping, warranty, and technical support.',
   'faq.more': 'Still Have Questions?', 'faq.moreDescription': 'Our expert team is here to help with questions about FANUC parts or technical support.',
   'faq.email': 'Email Support', 'docs.title': 'Documentation', 'docs.comingSoon': 'Documentation is coming soon.',
+  'product.searchCountry': 'Search or select a country...', 'product.noCountries': 'No countries found', 'product.free': 'Free',
 } as const;
 
 type MessageKey = keyof typeof en;
@@ -112,6 +162,8 @@ const translations: Record<Exclude<PublicLocale, 'en'>, Messages> = {
     'products.title': '工业自动化零部件', 'products.description': '浏览支持全球配送的数控与工业自动化零部件。', 'products.search': '搜索产品', 'products.searchPlaceholder': '按名称、SKU 或描述搜索...', 'products.allCategories': '全部分类', 'products.results': '共 {count} 个产品', 'products.noResults': '未找到产品', 'product.notFound': '未找到产品', 'product.notFoundDescription': '您查找的产品不存在。', 'product.back': '返回产品列表', 'product.information': '产品信息', 'product.alternate': '备用型号', 'product.whatsApp': 'WhatsApp 咨询', 'product.buyNow': '立即购买', 'product.brand': '品牌', 'product.partNumber': '零件号', 'product.warranty': '质保期', 'product.leadTime': '交货期', 'product.inStock': '有库存', 'product.readyToShip': '可立即发货', 'product.availableToOrder': '可订购', 'product.worldwideShipping': '全球配送', 'product.qualityTested': '已通过质量检测', 'product.aboutPart': '关于该零件', 'product.quickAnswer': '快速说明', 'product.description': '产品描述', 'product.specifications': '技术规格', 'product.details': '零件详情', 'product.category': '分类', 'product.condition': '成色', 'product.origin': '原产国', 'product.certifications': '认证', 'product.compatibility': '兼容性信息', 'product.installation': '安装指南', 'product.maintenance': '维护建议', 'product.downloads': '下载与参考资料', 'product.faq': '常见问题', 'product.reviews': '客户评价', 'product.explore': '浏览更多选项', 'product.browseAll': '浏览全部产品', 'product.moreCategory': '更多{category}', 'product.moreBrand': '更多 {brand} 零件', 'product.related': '相关产品', 'categories.kicker': '分类供应', 'categories.home': '首页', 'news.title': '公司新闻', 'news.blogTitle': '工业自动化博客', 'news.description': 'VIBO CNC 公司动态、产品公告与工业自动化资讯。', 'news.blogDescription': '面向数控与工业自动化从业者的实用指南、故障排查与采购知识。', 'news.kicker': '公司动态', 'news.blogKicker': '技术资料库', 'news.search': '搜索文章...', 'news.noArticles': '未找到文章', 'news.checkBack': '请稍后查看最新内容。', 'news.featured': '推荐文章', 'news.latest': '最新文章', 'news.views': '{count} 次浏览', 'news.results': '共 {count} 条关于“{query}”的结果', 'news.clearSearch': '清除搜索', 'about.title': '关于 VIBO CNC', 'about.kicker': '始于 2005 年的工业零部件经验', 'contact.title': '联系我们', 'contact.kicker': '联系 VIBO CNC', 'contact.description': '联系专业团队，解决您的自动化零部件需求。',
     'header.cart': '购物车', 'header.openMenu': '打开菜单', 'header.closeMenu': '关闭菜单',
     'common.lastUpdated': '最后更新：{date}',
+    'common.loading': '加载中...', 'common.loadError': '产品加载失败',
+    'common.tryAgain': '请稍后重试。', 'common.viewDetails': '查看详情',
     'about.subtitle': '始于 2005 年，值得信赖的数控一站式解决方案供应商',
     'about.profile': '公司概况', 'about.warehouse': '仓库与库存', 'about.services': '专业服务',
     'about.experience': '二十余年专业经验', 'about.sales': '销售服务', 'about.testing': '检测服务',
@@ -128,6 +180,50 @@ const translations: Record<Exclude<PublicLocale, 'en'>, Messages> = {
     'faq.title': '常见问题', 'faq.kicker': '帮助中心', 'faq.description': '查看关于 FANUC 零件、运输、质保和技术支持的常见问题。',
     'faq.more': '还有其他问题？', 'faq.moreDescription': '专业团队可为您解答 FANUC 零件与技术支持问题。',
     'faq.email': '邮件咨询', 'docs.title': '文档中心', 'docs.comingSoon': '技术文档即将上线。',
+    'footer.since': '始于 2005 年',
+    'header.hub': '数控零部件中心', 'header.automationSupply': '工业自动化供应',
+    'products.searching': '正在搜索“{query}”...', 'products.showing': '显示 {shown} 个，共 {total} 个产品',
+    'products.filtered': '已筛选', 'products.forQuery': '关键词“{query}”',
+    'products.gridView': '网格视图', 'products.listView': '列表视图',
+    'products.sortNameAsc': '名称（A-Z）', 'products.sortNameDesc': '名称（Z-A）',
+    'products.sortPriceAsc': '价格：从低到高', 'products.sortPriceDesc': '价格：从高到低',
+    'products.sortNewest': '最新上架', 'products.sortStock': '库存：从高到低',
+    'products.sortFeatured': '精选优先', 'products.clearFilters': '清除全部筛选',
+    'products.pageOf': '第 {page} 页，共 {total} 页',
+    'filters.title': '筛选条件', 'filters.clearAll': '全部清除', 'filters.priceRange': '价格范围',
+    'filters.minPrice': '最低价格', 'filters.maxPrice': '最高价格', 'filters.priceHint': '输入价格范围筛选产品',
+    'filters.active': '当前筛选：', 'filters.searchValue': '搜索：“{query}”',
+    'filters.categoryValue': '分类：{category}', 'filters.unknown': '未知', 'filters.noMax': '不限上限',
+    'about.profileDescription': '自 2005 年以来，我们持续供应数控与工业自动化零部件，将产品经验、可靠采购和快速国际服务融为一体。',
+    'about.warehouseDescription': '5,000 平方米设施支持规范库存、检测维修、出口包装及高效全球发货。',
+    'about.servicesDescription': '专业团队为客户提供选型、功能检测、维修及售后全过程支持。',
+    'about.salesDescription': '经验丰富的销售人员根据实际应用确认兼容部件并提供可行的采购方案。',
+    'about.testingDescription': '通过规范检测和功能测试，在发货前确认部件质量与工作状态。',
+    'about.maintenanceDescription': '专业技术人员提供维护与维修支持，保障自动化系统可靠运行。',
+    'about.experienceDescription': '二十余年行业经验使我们能够整合采购、检测、出口单证与国际运输，为客户提供一站式服务。',
+    'about.trustedPartner': '值得信赖的合作伙伴', 'about.trustedDescription': '面向全球提供可靠的工业解决方案',
+    'contact.fastResponse': '快速响应', 'contact.fastResponseDescription': '团队会及时回复产品、报价及技术咨询。',
+    'contact.largeInventory': '充足库存', 'contact.largeInventoryDescription': '广泛的数控和自动化零部件库存可缩短采购与交付时间。',
+    'contact.globalShipping': '全球运输', 'contact.globalShippingDescription': '为全球客户提供出口包装及国际配送服务。',
+    'contact.loading': '加载中...',
+    'contact.whyChoose': '为什么选择 VIBO CNC？',
+    'order.kicker': '物流状态', 'order.trackTitle': '查询订单',
+    'order.trackDescription': '输入确认邮件中的订单号，查看当前处理、运输及送达状态。',
+    'order.enterNumber': '请输入订单号', 'order.trackAction': '查询订单',
+    'order.numberHint': '订单号可在购买后发送给您的确认邮件中找到。',
+    'order.loadingDetails': '正在加载订单详情...', 'order.notFound': '未找到订单',
+    'order.notFoundDescription': '未找到您输入的订单号。', 'order.loadError': '订单详情加载失败',
+    'order.backHome': '返回首页', 'order.placedOn': '下单日期：{date}', 'order.progress': '订单进度',
+    'order.currentStatus': '当前状态', 'order.details': '订单详情', 'order.number': '订单号',
+    'order.status': '订单状态', 'order.paymentStatus': '付款状态', 'order.totalAmount': '订单总额',
+    'order.paymentMethod': '付款方式', 'order.tracking': '物流追踪', 'order.carrier': '承运商',
+    'order.customerInfo': '客户信息', 'order.name': '姓名', 'order.email': '邮箱', 'order.phone': '电话',
+    'order.shippingAddress': '收货地址', 'order.items': '订单商品', 'order.product': '产品',
+    'order.quantity': '数量', 'order.each': '每件', 'order.notes': '订单备注',
+    'status.pending': '订单已提交', 'status.confirmed': '已确认', 'status.processing': '处理中',
+    'status.shipped': '已发货', 'status.delivered': '已送达', 'status.cancelled': '已取消',
+    'payment.pending': '待付款', 'payment.paid': '已付款', 'payment.failed': '付款失败', 'payment.refunded': '已退款',
+    'product.searchCountry': '搜索或选择国家...', 'product.noCountries': '未找到国家', 'product.free': '免费',
   },
   es: {
     'language.label': 'Idioma y región', 'nav.home': 'Inicio', 'nav.products': 'Productos', 'nav.categories': 'Categorías', 'nav.news': 'Noticias', 'nav.blog': 'Blog', 'nav.about': 'Nosotros', 'nav.contact': 'Contacto', 'header.search': 'Buscar', 'header.searchProducts': 'Buscar productos...', 'header.login': 'Iniciar sesión', 'header.register': 'Registrarse', 'header.trackOrder': 'Rastrear pedido', 'footer.products': 'Productos', 'footer.services': 'Servicios', 'footer.company': 'Empresa', 'footer.support': 'Soporte', 'footer.partners': 'Socios', 'footer.stayUpdated': 'Mantente informado', 'footer.subscribe': 'Suscribirse', 'home.hero.kicker': 'Suministro de automatización industrial', 'home.featured.title': 'Componentes destacados de automatización', 'home.featured.viewAll': 'Ver todos los productos', 'common.inStock': 'En stock: {count}', 'common.outOfStock': 'Agotado', 'common.addToCart': 'Añadir al carrito', 'home.stats.title': 'Proveedor de repuestos FANUC y CNC', 'home.stats.contact': 'Contactar expertos', 'home.stats.browse': 'Ver productos', 'home.workshop.title': 'Taller moderno de 5.000 m²', 'home.services.title': 'Servicios integrales de repuestos CNC', 'products.title': 'Componentes de automatización industrial', 'products.search': 'Buscar productos', 'products.noResults': 'No se encontraron productos', 'news.title': 'Noticias de la empresa', 'news.blogTitle': 'Blog de automatización industrial', 'news.search': 'Buscar artículos...', 'news.noArticles': 'No se encontraron artículos', 'about.title': 'Acerca de VIBO CNC', 'contact.title': 'Contáctenos',
@@ -168,9 +264,14 @@ const translations: Record<Exclude<PublicLocale, 'en'>, Messages> = {
 };
 
 export function translatePublicMessage(locale: PublicLocale, key: string, variables?: PublicMessageVariables): string {
-  const message = (locale === 'en' ? en[key as MessageKey] : translations[locale]?.[key as MessageKey])
+  const detailedMessage = locale !== 'en' && locale !== 'zh'
+    ? detailedPublicMessages[locale]?.[key]
+    : undefined;
+  const message = (locale === 'en'
+    ? en[key as MessageKey]
+    : detailedMessage || translations[locale]?.[key as MessageKey])
     || en[key as MessageKey]
     || key;
   if (!variables) return message;
-  return message.replace(/\{(\w+)\}/g, (_, variable) => String(variables[variable] ?? `{${variable}}`));
+  return message.replace(/\{(\w+)\}/g, (_match: string, variable: string) => String(variables[variable] ?? `{${variable}}`));
 }

@@ -209,8 +209,8 @@ export function Header() {
                 className="h-10 w-auto object-contain sm:h-12"
               />
               <div className="hidden 2xl:block">
-                <div className="text-xl font-bold text-slate-950">CNC Parts Hub</div>
-                <div className="text-sm text-slate-500">Automation Supply</div>
+                <div className="text-xl font-bold text-slate-950">{t('header.hub')}</div>
+                <div className="text-sm text-slate-500">{t('header.automationSupply')}</div>
               </div>
             </Link>
           </div>

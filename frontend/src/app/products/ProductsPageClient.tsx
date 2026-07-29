@@ -168,15 +168,15 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
                 <div className="site-stat-card">
                   <div className="text-2xl font-bold text-white">100K+</div>
-                  <div className="text-blue-100">Items in Stock</div>
+                  <div className="text-blue-100">{t('about.items')}</div>
                 </div>
                 <div className="site-stat-card">
                   <div className="text-2xl font-bold text-white">50-100</div>
-                  <div className="text-blue-100">Daily Parcels</div>
+                  <div className="text-blue-100">{t('about.parcels')}</div>
                 </div>
                 <div className="site-stat-card">
                   <div className="text-2xl font-bold text-white">Top 3</div>
-                  <div className="text-blue-100">Fanuc Supplier in China</div>
+                  <div className="text-blue-100">{t('about.topSupplier')}</div>
                 </div>
               </div>
             </div>
@@ -204,7 +204,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                 </div>
                 {searchQuery && (
                   <div className="mt-2 text-sm text-slate-500">
-                    Searching for "{searchQuery}"...
+                    {t('products.searching', { query: searchQuery })}
                   </div>
                 )}
               </div>
@@ -233,14 +233,14 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
                     <div className="flex items-center space-x-4">
                       <span className="text-sm text-slate-700">
-                        Showing {sortedProducts.length} of {totalProducts} products
+                        {t('products.showing', { shown: sortedProducts.length, total: totalProducts })}
                         {(searchQuery || selectedCategory) && (
-                          <span className="text-slate-500"> (filtered)</span>
+                          <span className="text-slate-500"> ({t('products.filtered')})</span>
                         )}
                       </span>
                       {searchQuery && (
                         <span className="text-sm text-slate-500">
-                          for "{searchQuery}"
+                          {t('products.forQuery', { query: searchQuery })}
                         </span>
                       )}
                     </div>
@@ -250,14 +250,16 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                       <button
                         onClick={() => setViewMode('grid')}
                         className={`site-icon-toggle ${viewMode === 'grid' ? 'site-icon-toggle-active' : ''}`}
-                        title="Grid view"
+                        title={t('products.gridView')}
+                        aria-label={t('products.gridView')}
                       >
                         <Squares2X2Icon className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => setViewMode('list')}
                         className={`site-icon-toggle ${viewMode === 'list' ? 'site-icon-toggle-active' : ''}`}
-                        title="List view"
+                        title={t('products.listView')}
+                        aria-label={t('products.listView')}
                       >
                         <ListBulletIcon className="h-4 w-4" />
                       </button>
@@ -273,13 +275,13 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                         onChange={(e) => setSortBy(e.target.value)}
                         className="site-select px-3 py-2 text-sm"
                       >
-                        <option value="name">Sort by Name (A-Z)</option>
-                        <option value="name_desc">Sort by Name (Z-A)</option>
-                        <option value="price_asc">Price: Low to High</option>
-                        <option value="price_desc">Price: High to Low</option>
-                        <option value="created_at">Newest First</option>
-                        <option value="stock_desc">Stock: High to Low</option>
-                        <option value="featured">Featured First</option>
+                        <option value="name">{t('products.sortNameAsc')}</option>
+                        <option value="name_desc">{t('products.sortNameDesc')}</option>
+                        <option value="price_asc">{t('products.sortPriceAsc')}</option>
+                        <option value="price_desc">{t('products.sortPriceDesc')}</option>
+                        <option value="created_at">{t('products.sortNewest')}</option>
+                        <option value="stock_desc">{t('products.sortStock')}</option>
+                        <option value="featured">{t('products.sortFeatured')}</option>
                       </select>
 
 
@@ -292,11 +294,11 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                           onClick={clearAllFilters}
                           className="site-link-accent text-sm"
                         >
-                          Clear all filters
+                          {t('products.clearFilters')}
                         </button>
                       )}
                       <div className="text-sm text-slate-500">
-                        Page {currentPage} of {totalPages}
+                        {t('products.pageOf', { page: currentPage, total: totalPages })}
                       </div>
                     </div>
                   </div>

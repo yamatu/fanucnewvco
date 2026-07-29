@@ -114,14 +114,10 @@ export default async function About() {
                 {translatePublicMessage(locale, 'about.profile')}
               </h2>
               <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-                VIBO CNC established in 2005 in Kunshan, China. We are selling automation components like
-                System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive
-                etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.
+                {translatePublicMessage(locale, 'about.profileDescription')}
               </p>
               <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-                Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers,
-                10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover
-                around 200 million.
+                {translatePublicMessage(locale, 'about.warehouseDescription')}
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="site-subtle-card p-4">
@@ -155,8 +151,7 @@ export default async function About() {
               {translatePublicMessage(locale, 'about.warehouse')}
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              We now have 27 workers, 10 sales and 100,000 items regularly stocked.
-              Daily parcel around 50-100pcs, yearly turnover around 200 million.
+              {translatePublicMessage(locale, 'about.warehouseDescription')}
             </p>
           </div>
 
@@ -196,7 +191,7 @@ export default async function About() {
               {translatePublicMessage(locale, 'about.services')}
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              We have a professional team to provide services including sales, testing and maintenance
+              {translatePublicMessage(locale, 'about.servicesDescription')}
             </p>
           </div>
 
@@ -205,8 +200,7 @@ export default async function About() {
               <ChartBarIcon className="h-16 w-16 text-[#0b3e75] mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-gray-900 mb-3">{translatePublicMessage(locale, 'about.sales')}</h3>
               <p className="text-gray-600">
-                Professional sales team with deep knowledge of automation components
-                to help you find the right solutions.
+                {translatePublicMessage(locale, 'about.salesDescription')}
               </p>
             </div>
 
@@ -214,8 +208,7 @@ export default async function About() {
               <ClockIcon className="h-16 w-16 text-[#0b3e75] mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-gray-900 mb-3">{translatePublicMessage(locale, 'about.testing')}</h3>
               <p className="text-gray-600">
-                Comprehensive testing procedures ensure all components meet quality
-                standards before delivery.
+                {translatePublicMessage(locale, 'about.testingDescription')}
               </p>
             </div>
 
@@ -223,8 +216,7 @@ export default async function About() {
               <WrenchScrewdriverIcon className="h-16 w-16 text-[#0b3e75] mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-gray-900 mb-3">{translatePublicMessage(locale, 'about.maintenance')}</h3>
               <p className="text-gray-600">
-                Expert maintenance and repair services to keep your automation
-                systems running at peak performance.
+                {translatePublicMessage(locale, 'about.maintenanceDescription')}
               </p>
             </div>
           </div>
@@ -240,15 +232,13 @@ export default async function About() {
                 {translatePublicMessage(locale, 'about.experience')}
               </h2>
               <p className="text-lg text-blue-100 mb-6 leading-relaxed">
-                More than 18 years experience we have ability to coordinate specific strengths
-                into a whole, providing clients with solutions that consider various import and
-                export transportation options.
+                {translatePublicMessage(locale, 'about.experienceDescription')}
               </p>
               <div className="flex items-center space-x-4">
                 <ShieldCheckIcon className="h-12 w-12 text-orange-300" />
                 <div>
-                  <div className="text-xl font-semibold">Trusted Partner</div>
-                  <div className="text-blue-100">Reliable solutions worldwide</div>
+                  <div className="text-xl font-semibold">{translatePublicMessage(locale, 'about.trustedPartner')}</div>
+                  <div className="text-blue-100">{translatePublicMessage(locale, 'about.trustedDescription')}</div>
                 </div>
               </div>
             </div>

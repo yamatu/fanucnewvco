@@ -162,7 +162,7 @@ export default function CategoryProductsClient({
   })();
 
   const clearFilters = () => {
-    const clearedFilters = {
+    const clearedFilters: CategoryProductFilters = {
       page: 1,
       page_size: 12,
       category_id: String(category.id),
@@ -191,8 +191,8 @@ export default function CategoryProductsClient({
         <div className="text-red-600 mb-4">
           <FunnelIcon className="h-12 w-12 mx-auto" />
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load products</h3>
-        <p className="text-gray-600">Please try again later.</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('common.loadError')}</h3>
+        <p className="text-gray-600">{t('common.tryAgain')}</p>
       </div>
     );
   }
@@ -209,7 +209,7 @@ export default function CategoryProductsClient({
                 {pagination ? (
                   <>Showing {((pagination.page - 1) * pagination.page_size) + 1}-{Math.min(pagination.page * pagination.page_size, pagination.total)} of {pagination.total} products</>
                 ) : (
-                  <>Loading...</>
+                  <>{t('common.loading')}</>
                 )}
                 {hasActiveFilters && <span className="text-slate-500"> (filtered)</span>}
               </span>
@@ -220,14 +220,16 @@ export default function CategoryProductsClient({
               <button
                 onClick={() => setViewMode('grid')}
                 className={`site-icon-toggle ${viewMode === 'grid' ? 'site-icon-toggle-active' : ''}`}
-                title="Grid view"
+                title={t('products.gridView')}
+                aria-label={t('products.gridView')}
               >
                 <Squares2X2Icon className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
                 className={`site-icon-toggle ${viewMode === 'list' ? 'site-icon-toggle-active' : ''}`}
-                title="List view"
+                title={t('products.listView')}
+                aria-label={t('products.listView')}
               >
                 <ListBulletIcon className="h-4 w-4" />
               </button>
@@ -242,11 +244,11 @@ export default function CategoryProductsClient({
                 onChange={handleSortChange}
                 className="site-select px-3 py-2 text-sm"
               >
-                <option value="name">Sort by Name (A-Z)</option>
-                <option value="name_desc">Sort by Name (Z-A)</option>
-                <option value="price_asc">Price: Low to High</option>
-                <option value="price_desc">Price: High to Low</option>
-                <option value="created_at">Newest First</option>
+                <option value="name">{t('products.sortNameAsc')}</option>
+                <option value="name_desc">{t('products.sortNameDesc')}</option>
+                <option value="price_asc">{t('products.sortPriceAsc')}</option>
+                <option value="price_desc">{t('products.sortPriceDesc')}</option>
+                <option value="created_at">{t('products.sortNewest')}</option>
               </select>
 
               <button
@@ -344,14 +346,14 @@ export default function CategoryProductsClient({
                         <Link
                           href={href(`/products/${toProductPathId(product.sku)}`)}
                           className="site-secondary-action h-9 w-9"
-                          title="View details"
+                          title={t('common.viewDetails')}
                         >
                           <EyeIcon className="h-5 w-5" />
                         </Link>
                         <button
                           onClick={() => handleAddToCart(product)}
                           className="site-primary-action px-3 py-2 text-sm"
-                          title="Add to cart"
+                          title={t('common.addToCart')}
                         >
                           <ShoppingCartIcon className="h-4 w-4 mr-1" />
                           {t('common.addToCart')}
@@ -404,14 +406,14 @@ export default function CategoryProductsClient({
                         <Link
                           href={href(`/products/${toProductPathId(product.sku)}`)}
                           className="site-secondary-action h-9 w-9"
-                          title="View details"
+                          title={t('common.viewDetails')}
                         >
                           <EyeIcon className="h-5 w-5" />
                         </Link>
                         <button
                           onClick={() => handleAddToCart(product)}
                           className="site-primary-action px-4 py-2 text-sm"
-                          title="Add to cart"
+                          title={t('common.addToCart')}
                         >
                           <ShoppingCartIcon className="h-4 w-4 mr-2" />
                           {t('common.addToCart')}

@@ -4,21 +4,23 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/layout/Layout';
 import { MagnifyingGlassIcon, TruckIcon } from '@heroicons/react/24/outline';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 export default function TrackOrderPage() {
   const [orderNumber, setOrderNumber] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
+  const { t, href } = usePublicI18n();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = orderNumber.trim();
     if (!trimmed) {
-      setError('Please enter your order number');
+      setError(t('order.enterNumber'));
       return;
     }
     setError('');
-    router.push(`/orders/track/${encodeURIComponent(trimmed)}`);
+    router.push(href(`/orders/track/${encodeURIComponent(trimmed)}`));
   };
 
   return (
@@ -26,10 +28,10 @@ export default function TrackOrderPage() {
       <div className="site-page-shell min-h-screen">
         <section className="site-page-hero">
           <div className="site-hero-inner mx-auto max-w-5xl px-4 py-14 text-center sm:px-6 lg:px-8">
-            <span className="site-hero-kicker">Logistics status</span>
-            <h1 className="mt-5 text-4xl font-bold sm:text-5xl">Track Your Order</h1>
+            <span className="site-hero-kicker">{t('order.kicker')}</span>
+            <h1 className="mt-5 text-4xl font-bold sm:text-5xl">{t('order.trackTitle')}</h1>
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-blue-100">
-              Enter the order number from your confirmation email to check current handling, shipment, and delivery status.
+              {t('order.trackDescription')}
             </p>
           </div>
         </section>
@@ -57,12 +59,12 @@ export default function TrackOrderPage() {
                 className="site-primary-action w-full px-6 py-3"
               >
                 <MagnifyingGlassIcon className="mr-2 h-5 w-5" />
-                Track Order
+                {t('order.trackAction')}
               </button>
             </form>
 
             <p className="mt-6 text-xs text-slate-500">
-              You can find your order number in the confirmation email sent after your purchase.
+              {t('order.numberHint')}
             </p>
           </div>
         </div>

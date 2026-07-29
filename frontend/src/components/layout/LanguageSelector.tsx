@@ -1,27 +1,31 @@
 'use client';
 
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { GlobeAltIcon } from '@heroicons/react/24/outline';
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 import {
   PUBLIC_LOCALES,
   PUBLIC_LOCALE_COOKIE,
+  PUBLIC_LOCALE_SELECTION_PARAM,
   localizePublicPath,
   type PublicLocale,
 } from '@/lib/i18n/config';
 
 export default function LanguageSelector({ mobile = false }: { mobile?: boolean }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { locale, t } = usePublicI18n();
 
   const changeLocale = (nextLocale: PublicLocale) => {
     document.cookie = `${PUBLIC_LOCALE_COOKIE}=${nextLocale}; Path=/; Max-Age=31536000; SameSite=Lax`;
-    const query = searchParams.toString();
     const target = localizePublicPath(pathname || '/', nextLocale);
-    router.push(query ? `${target}?${query}` : target);
-    router.refresh();
+    const targetUrl = new URL(target, window.location.origin);
+    searchParams.forEach((value, key) => targetUrl.searchParams.append(key, value));
+    targetUrl.searchParams.set(PUBLIC_LOCALE_SELECTION_PARAM, nextLocale);
+
+    // A full navigation makes the middleware confirm the preference and avoids
+    // reusing a React Server Component response cached under the previous locale.
+    window.location.assign(`${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`);
   };
 
   return (

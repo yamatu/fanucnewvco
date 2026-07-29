@@ -16,6 +16,7 @@ export type PublicLocale = (typeof PUBLIC_LOCALES)[number]['code'];
 
 export const DEFAULT_PUBLIC_LOCALE: PublicLocale = 'en';
 export const PUBLIC_LOCALE_COOKIE = 'vibocnc_locale';
+export const PUBLIC_LOCALE_SELECTION_PARAM = 'site_locale';
 
 const localeCodes = new Set<string>(PUBLIC_LOCALES.map((locale) => locale.code));
 
@@ -27,6 +28,61 @@ export function normalizePublicLocale(value?: string | null): PublicLocale {
   if (!value) return DEFAULT_PUBLIC_LOCALE;
   const normalized = value.toLowerCase().split('-')[0];
   return isPublicLocale(normalized) ? normalized : DEFAULT_PUBLIC_LOCALE;
+}
+
+const COUNTRY_LOCALE_MAP: Partial<Record<string, PublicLocale>> = {
+  CN: 'zh', HK: 'zh', MO: 'zh', TW: 'zh',
+  ES: 'es', MX: 'es', AR: 'es', BO: 'es', CL: 'es', CO: 'es', CR: 'es', CU: 'es', DO: 'es', EC: 'es', GT: 'es', HN: 'es', NI: 'es', PA: 'es', PE: 'es', PR: 'es', PY: 'es', SV: 'es', UY: 'es', VE: 'es',
+  DE: 'de', AT: 'de', CH: 'de', LI: 'de',
+  FR: 'fr', BE: 'fr', LU: 'fr', MC: 'fr', SN: 'fr', CI: 'fr', CM: 'fr',
+  IT: 'it', SM: 'it', VA: 'it',
+  BR: 'pt', PT: 'pt', AO: 'pt', MZ: 'pt', CV: 'pt',
+  JP: 'ja',
+  KR: 'ko', KP: 'ko',
+  RU: 'ru', BY: 'ru', KZ: 'ru', KG: 'ru',
+  AE: 'ar', SA: 'ar', EG: 'ar', DZ: 'ar', BH: 'ar', IQ: 'ar', JO: 'ar', KW: 'ar', LB: 'ar', LY: 'ar', MA: 'ar', OM: 'ar', PS: 'ar', QA: 'ar', SD: 'ar', SY: 'ar', TN: 'ar', YE: 'ar',
+};
+
+function localeFromLanguageTag(languageTag: string): PublicLocale | null {
+  const primaryLanguage = languageTag.trim().toLowerCase().replace(/_/g, '-').split('-')[0];
+  if (primaryLanguage === 'cmn' || primaryLanguage === 'yue') return 'zh';
+  return isPublicLocale(primaryLanguage) ? primaryLanguage : null;
+}
+
+export function getLocaleFromAcceptLanguage(value?: string | null): PublicLocale | null {
+  if (!value) return null;
+
+  const preferences = value
+    .split(',')
+    .map((part, index) => {
+      const [languageTag, ...parameters] = part.trim().split(';');
+      const qualityParameter = parameters.find((parameter) => parameter.trim().toLowerCase().startsWith('q='));
+      const parsedQuality = qualityParameter ? Number.parseFloat(qualityParameter.split('=')[1]) : 1;
+      return {
+        languageTag,
+        quality: Number.isFinite(parsedQuality) ? parsedQuality : 0,
+        index,
+      };
+    })
+    .filter((preference) => preference.languageTag && preference.languageTag !== '*' && preference.quality > 0)
+    .sort((left, right) => right.quality - left.quality || left.index - right.index);
+
+  for (const preference of preferences) {
+    const locale = localeFromLanguageTag(preference.languageTag);
+    if (locale) return locale;
+  }
+  return null;
+}
+
+export function getLocaleFromCountry(countryCode?: string | null): PublicLocale | null {
+  if (!countryCode) return null;
+  return COUNTRY_LOCALE_MAP[countryCode.trim().toUpperCase()] || null;
+}
+
+export function detectPublicLocale(acceptLanguage?: string | null, countryCode?: string | null): PublicLocale {
+  return getLocaleFromAcceptLanguage(acceptLanguage)
+    || getLocaleFromCountry(countryCode)
+    || DEFAULT_PUBLIC_LOCALE;
 }
 
 export function getLocaleConfig(locale: PublicLocale) {

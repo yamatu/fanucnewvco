@@ -3,7 +3,10 @@ import type { NextRequest } from 'next/server';
 import {
   DEFAULT_PUBLIC_LOCALE,
   PUBLIC_LOCALE_COOKIE,
+  PUBLIC_LOCALE_SELECTION_PARAM,
+  detectPublicLocale,
   getLocaleFromPathname,
+  isPublicLocale,
   isLocalizablePublicPath,
   localizePublicPath,
   normalizePublicLocale,
@@ -43,6 +46,51 @@ function isSearchEngineCrawler(userAgent: string): boolean {
   return SEARCH_ENGINE_BOTS.some(bot => ua.includes(bot));
 }
 
+const GEO_COUNTRY_HEADERS = [
+  'x-vercel-ip-country',
+  'cf-ipcountry',
+  'cloudfront-viewer-country',
+  'x-country-code',
+  'x-geo-country',
+] as const;
+
+function getRequestCountry(request: NextRequest): string | null {
+  for (const headerName of GEO_COUNTRY_HEADERS) {
+    const value = request.headers.get(headerName)?.split(',')[0].trim();
+    if (value) return value;
+  }
+  return null;
+}
+
+function addLocaleVaryHeader(response: NextResponse): void {
+  const existingValues = (response.headers.get('Vary') || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const varyValues = new Set([
+    ...existingValues,
+    'Accept-Language',
+    'Cookie',
+    ...GEO_COUNTRY_HEADERS,
+  ]);
+  response.headers.set('Vary', Array.from(varyValues).join(', '));
+}
+
+function saveLocalePreference(response: NextResponse, request: NextRequest, locale: string): void {
+  response.cookies.set(PUBLIC_LOCALE_COOKIE, locale, {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: 'lax',
+    secure: request.nextUrl.protocol === 'https:',
+  });
+}
+
+function preventLocaleRedirectCaching(response: NextResponse): void {
+  response.headers.set('Cache-Control', 'private, no-store, no-cache, max-age=0, must-revalidate');
+  response.headers.set('Pragma', 'no-cache');
+  addLocaleVaryHeader(response);
+}
+
 function getBackendBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://backend:8080').replace(/\/+$/, '');
 }
@@ -74,17 +122,37 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   const userAgent = request.headers.get('user-agent') || '';
 
+  const requestedLocale = request.nextUrl.searchParams.get(PUBLIC_LOCALE_SELECTION_PARAM);
+  if (isPublicLocale(requestedLocale) && isLocalizablePublicPath(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = localizePublicPath(pathname, requestedLocale);
+    url.searchParams.delete(PUBLIC_LOCALE_SELECTION_PARAM);
+    const response = NextResponse.redirect(url, 307);
+    saveLocalePreference(response, request, requestedLocale);
+    preventLocaleRedirectCaching(response);
+    return response;
+  }
+
   if (pathLocale && !isLocalizablePublicPath(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = pathname;
     return NextResponse.redirect(url, 308);
   }
 
-  const savedLocale = normalizePublicLocale(request.cookies.get(PUBLIC_LOCALE_COOKIE)?.value);
-  if (!pathLocale && savedLocale !== DEFAULT_PUBLIC_LOCALE && isLocalizablePublicPath(pathname) && !isSearchEngineCrawler(userAgent)) {
+  const rawSavedLocale = request.cookies.get(PUBLIC_LOCALE_COOKIE)?.value;
+  const savedLocale = isPublicLocale(rawSavedLocale) ? normalizePublicLocale(rawSavedLocale) : null;
+  const detectedLocale = detectPublicLocale(
+    request.headers.get('accept-language'),
+    getRequestCountry(request),
+  );
+  const preferredLocale = savedLocale || detectedLocale;
+  if (!pathLocale && preferredLocale !== DEFAULT_PUBLIC_LOCALE && isLocalizablePublicPath(pathname) && !isSearchEngineCrawler(userAgent)) {
     const url = request.nextUrl.clone();
-    url.pathname = localizePublicPath(pathname, savedLocale);
-    return NextResponse.redirect(url, 307);
+    url.pathname = localizePublicPath(pathname, preferredLocale);
+    const response = NextResponse.redirect(url, 307);
+    saveLocalePreference(response, request, preferredLocale);
+    preventLocaleRedirectCaching(response);
+    return response;
   }
 
   const requestHostname = getRequestHostname(request);
@@ -222,11 +290,13 @@ export async function middleware(request: NextRequest) {
     : NextResponse.next({ request: { headers: requestHeaders } });
 
   if (pathLocale) {
-    response.cookies.set(PUBLIC_LOCALE_COOKIE, pathLocale, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365,
-      sameSite: 'lax',
-    });
+    saveLocalePreference(response, request, pathLocale);
+  } else if (!savedLocale && isLocalizablePublicPath(pathname) && !isSearchEngineCrawler(userAgent)) {
+    saveLocalePreference(response, request, DEFAULT_PUBLIC_LOCALE);
+  }
+
+  if (isLocalizablePublicPath(pathname)) {
+    addLocaleVaryHeader(response);
   }
 
   // Special handling for search engine crawlers
@@ -251,7 +321,10 @@ export async function middleware(request: NextRequest) {
     "base-uri 'self'; frame-ancestors 'none'; object-src 'none'"
   );
 
-  // Let per-page metadata control robots; avoid overriding here
+  // Order lookups can contain customer data and must never enter a search index.
+  if (pathname.startsWith('/orders/track/')) {
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+  }
 
   return response;
 }

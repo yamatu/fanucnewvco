@@ -552,7 +552,7 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
                 <div className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
                   <h3 className="text-sm font-semibold text-slate-950 flex items-center mb-3">
                     <TruckIcon className="h-4 w-4 mr-2 text-[#0b3e75]" />
-                    Shipping Estimate
+                    {t('product.worldwideShipping')}
                   </h3>
                   <div className="relative" ref={countryDropdownRef}>
                     <div className="relative">
@@ -560,7 +560,7 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
                       <input
                         ref={countryInputRef}
                         type="text"
-                        placeholder="Search or select country..."
+                        placeholder={t('product.searchCountry')}
                         value={countrySearch}
                         onChange={(e) => {
                           setCountrySearch(e.target.value);
@@ -591,7 +591,7 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
                     {countryDropdownOpen && (
                       <ul className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
                         {filteredCountries.length === 0 ? (
-                          <li className="px-3 py-2 text-sm text-slate-500">No countries found</li>
+                          <li className="px-3 py-2 text-sm text-slate-500">{t('product.noCountries')}</li>
                         ) : (
                           filteredCountries.map((c) => (
                             <li
@@ -603,7 +603,7 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
                             >
                               <span>{c.country_name}</span>
                               {freeShippingCodes.has(c.country_code) && (
-                                <span className="text-xs text-green-600 font-medium">Free</span>
+                                <span className="text-xs text-green-600 font-medium">{t('product.free')}</span>
                               )}
                             </li>
                           ))
@@ -616,7 +616,7 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
                       {shippingLoading ? (
                         <div className="flex items-center text-sm text-slate-500">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700 mr-2" />
-                          Calculating...
+                          {t('contact.loading')}
                         </div>
                       ) : shippingError ? (
                         <p className="text-sm text-red-600">{shippingError}</p>

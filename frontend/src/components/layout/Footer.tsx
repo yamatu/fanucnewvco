@@ -119,8 +119,8 @@ export function Footer() {
                 />
               </div>
               <div>
-                <div className="text-xl font-bold">CNC Parts Hub</div>
-                <div className="text-sm text-slate-400">Since 2005</div>
+                <div className="text-xl font-bold">{t('header.hub')}</div>
+                <div className="text-sm text-slate-400">{t('footer.since')}</div>
               </div>
             </div>
 

@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 interface FilterProps {
   filters: {
     search: string;
     min_price: string;
     max_price: string;
-    category_id?: number;
+    category_id?: string;
     [key: string]: unknown;
   };
   categories?: Array<{ id: number | string; name: string }>;
@@ -22,6 +23,7 @@ export default function ProductFilters({
   onFilterChange,
   showCategoryFilter = true
 }: FilterProps) {
+  const { t } = usePublicI18n();
   const [localFilters, setLocalFilters] = useState({
     search: filters.search || '',
     min_price: filters.min_price || '',
@@ -53,7 +55,7 @@ export default function ProductFilters({
       search: '',
       min_price: '',
       max_price: '',
-      category_id: showCategoryFilter ? '' : filters.category_id
+      category_id: showCategoryFilter ? '' : (filters.category_id || '')
     };
     setLocalFilters(clearedFilters);
     onFilterChange(clearedFilters);
@@ -62,18 +64,18 @@ export default function ProductFilters({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-950">Filters</h3>
+        <h3 className="text-lg font-semibold text-slate-950">{t('filters.title')}</h3>
         <button
           onClick={clearFilters}
           className="site-link-accent text-sm"
         >
-          Clear All
+          {t('filters.clearAll')}
         </button>
       </div>
 
       <div>
         <label htmlFor="search" className="block text-sm font-medium text-slate-700 mb-2">
-          Search Products
+          {t('products.search')}
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -84,7 +86,7 @@ export default function ProductFilters({
             id="search"
             value={localFilters.search}
             onChange={(e) => handleInputChange('search', e.target.value)}
-            placeholder="Search by name, SKU, or description..."
+            placeholder={t('products.searchPlaceholder')}
             className="site-input block w-full pl-10 pr-3 py-2 leading-5 placeholder-slate-400"
           />
         </div>
@@ -93,7 +95,7 @@ export default function ProductFilters({
       {showCategoryFilter && categories.length > 0 && (
         <div>
           <label htmlFor="category" className="block text-sm font-medium text-slate-700 mb-2">
-            Category
+            {t('product.category')}
           </label>
           <select
             id="category"
@@ -101,7 +103,7 @@ export default function ProductFilters({
             onChange={(e) => handleInputChange('category_id', e.target.value)}
             className="site-select block w-full px-3 py-2 shadow-sm"
           >
-            <option value="">All Categories</option>
+            <option value="">{t('products.allCategories')}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
@@ -113,12 +115,12 @@ export default function ProductFilters({
 
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">
-          Price Range
+          {t('filters.priceRange')}
         </label>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="min_price" className="block text-xs text-slate-500 mb-1">
-              Min Price
+              {t('filters.minPrice')}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 text-sm">
@@ -136,7 +138,7 @@ export default function ProductFilters({
           </div>
           <div>
             <label htmlFor="max_price" className="block text-xs text-slate-500 mb-1">
-              Max Price
+              {t('filters.maxPrice')}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 text-sm">
@@ -154,25 +156,25 @@ export default function ProductFilters({
           </div>
         </div>
         <p className="text-xs text-slate-500 mt-1">
-          Enter price range to filter products
+          {t('filters.priceHint')}
         </p>
       </div>
 
       {(localFilters.search || localFilters.min_price || localFilters.max_price || (showCategoryFilter && localFilters.category_id)) && (
         <div className="site-subtle-card p-4">
-          <h4 className="text-sm font-semibold text-slate-800 mb-2">Active Filters:</h4>
+          <h4 className="text-sm font-semibold text-slate-800 mb-2">{t('filters.active')}</h4>
           <div className="space-y-1 text-sm text-slate-600">
             {localFilters.search && (
-              <div>Search: &quot;{localFilters.search}&quot;</div>
+              <div>{t('filters.searchValue', { query: localFilters.search })}</div>
             )}
             {showCategoryFilter && localFilters.category_id && (
               <div>
-                Category: {categories.find(c => c.id.toString() === localFilters.category_id.toString())?.name || 'Unknown'}
+                {t('filters.categoryValue', { category: categories.find(c => c.id.toString() === localFilters.category_id.toString())?.name || t('filters.unknown') })}
               </div>
             )}
             {(localFilters.min_price || localFilters.max_price) && (
               <div>
-                Price: ${localFilters.min_price || '0'} - ${localFilters.max_price || 'No max'}
+                {t('filters.priceRange')}: ${localFilters.min_price || '0'} - ${localFilters.max_price || t('filters.noMax')}
               </div>
             )}
           </div>

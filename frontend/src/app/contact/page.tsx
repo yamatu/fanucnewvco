@@ -226,7 +226,7 @@ function ContactContent() {
                         value={formData.name}
                         onChange={handleChange}
                         className="site-input w-full px-4 py-3"
-                        placeholder="Your full name"
+                        placeholder={t('contact.fullName')}
                       />
                     </div>
 
@@ -242,7 +242,7 @@ function ContactContent() {
                         value={formData.email}
                         onChange={handleChange}
                         className="site-input w-full px-4 py-3"
-                        placeholder="your.email@company.com"
+                        placeholder={t('contact.emailAddress')}
                       />
                     </div>
                   </div>
@@ -259,7 +259,7 @@ function ContactContent() {
                         value={formData.company}
                         onChange={handleChange}
                         className="site-input w-full px-4 py-3"
-                        placeholder="Your company name"
+                        placeholder={t('contact.company')}
                       />
                     </div>
 
@@ -311,7 +311,7 @@ function ContactContent() {
                         value={formData.subject}
                         onChange={handleChange}
                         className="site-input w-full px-4 py-3"
-                        placeholder="Brief subject of your inquiry"
+                        placeholder={t('contact.subject')}
                       />
                     </div>
                   </div>
@@ -328,7 +328,7 @@ function ContactContent() {
                       value={formData.message}
                       onChange={handleChange}
                       className="site-input w-full px-4 py-3"
-                      placeholder="Please provide details about your requirements, including part numbers if available..."
+                      placeholder={t('contact.message')}
                     />
                   </div>
 
@@ -351,7 +351,7 @@ function ContactContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Why Choose VIBO CNC?
+              {t('contact.whyChoose')}
             </h2>
           </div>
 
@@ -360,9 +360,9 @@ function ContactContent() {
               <div className="site-subtle-card w-16 h-16 flex items-center justify-center mx-auto mb-4">
                 <ClockIcon className="h-8 w-8 text-[#0b3e75]" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Fast Response</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">{t('contact.fastResponse')}</h3>
               <p className="text-gray-600">
-                Quick response time with professional technical support and quotations within 24 hours.
+                {t('contact.fastResponseDescription')}
               </p>
             </div>
 
@@ -370,9 +370,9 @@ function ContactContent() {
               <div className="site-subtle-card w-16 h-16 flex items-center justify-center mx-auto mb-4">
                 <BuildingOfficeIcon className="h-8 w-8 text-[#0b3e75]" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Large Inventory</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">{t('contact.largeInventory')}</h3>
               <p className="text-gray-600">
-                100,000+ items in stock with daily shipments of 50-100 parcels worldwide.
+                {t('contact.largeInventoryDescription')}
               </p>
             </div>
 
@@ -380,9 +380,9 @@ function ContactContent() {
               <div className="site-subtle-card w-16 h-16 flex items-center justify-center mx-auto mb-4">
                 <GlobeAltIcon className="h-8 w-8 text-[#0b3e75]" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Global Shipping</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">{t('contact.globalShipping')}</h3>
               <p className="text-gray-600">
-                Worldwide shipping with various transportation options to meet your delivery needs.
+                {t('contact.globalShippingDescription')}
               </p>
             </div>
           </div>
@@ -394,7 +394,7 @@ function ContactContent() {
 
 export default function Contact() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center py-10">Loading...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center py-10" aria-busy="true"><div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-[#0b3e75]" /></div>}>
       <ContactContent />
     </Suspense>
   );
