@@ -52,7 +52,7 @@ export default function NewArticlePage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.news.lists() });
       router.push('/admin/news');
     },
-    onError: (err: Error) => toast.error(err.message || 'Failed to create article'),
+    onError: (err: Error) => toast.error(err.message || t('news.toast.createFailed')),
   });
 
   const onSubmit = (data: ArticleCreateRequest) => {
@@ -94,18 +94,18 @@ export default function NewArticlePage() {
             <div className="lg:col-span-2 space-y-6">
               {/* Title */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Content Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('news.type.label')}</label>
                 <select {...register('content_type')} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white mb-4">
-                  <option value="news">News</option>
-                  <option value="blog">Blog</option>
+                  <option value="news">{t('news.type.news')}</option>
+                  <option value="blog">{t('news.type.blog')}</option>
                 </select>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('news.field.title', 'Title')} *
                 </label>
                 <input
-                  {...register('title', { required: 'Title is required' })}
+                  {...register('title', { required: t('news.field.titleRequired') })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                  placeholder="Article title..."
+                  placeholder={t('news.field.titlePlaceholder')}
                 />
                 {errors.title && (
                   <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>
@@ -134,7 +134,7 @@ export default function NewArticlePage() {
                   {...register('summary')}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                  placeholder="Brief summary shown in article list..."
+                  placeholder={t('news.field.summaryPlaceholder')}
                 />
               </div>
 
@@ -161,7 +161,7 @@ export default function NewArticlePage() {
                       }`}
                     >
                       {previewMode ? (
-                        <><PencilIcon className="h-4 w-4 mr-1" />{t('news.edit', 'Edit')}</>
+                        <><PencilIcon className="h-4 w-4 mr-1" />{t('news.editMode', 'Edit')}</>
                       ) : (
                         <><EyeIcon className="h-4 w-4 mr-1" />{t('news.preview', 'Preview')}</>
                       )}
@@ -172,13 +172,13 @@ export default function NewArticlePage() {
                   <MarkdownContent content={watchContent} className="min-h-[400px] p-4 border border-gray-200 rounded-md bg-gray-50" />
                 ) : (
                   <textarea
-                    {...register('content', { required: 'Content is required' })}
+                    {...register('content', { required: t('news.field.contentRequired') })}
                     rows={20}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-2 focus:ring-blue-500"
-                    placeholder="Write your article in Markdown format..."
+                    placeholder={t('news.field.contentPlaceholder')}
                   />
                 )}
-                <p className="mt-2 text-xs text-gray-500">External link: [label](https://example.com). Video: paste a YouTube/Vimeo URL on its own line or use @[video](URL).</p>
+                <p className="mt-2 text-xs text-gray-500">{t('news.field.contentHint')}</p>
                 {errors.content && (
                   <p className="text-red-500 text-xs mt-1">{errors.content.message}</p>
                 )}
@@ -191,52 +191,52 @@ export default function NewArticlePage() {
                 </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('news.seo.metaTitle')}</label>
                     <input
                       {...register('meta_title')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                      placeholder="SEO title (recommended 50-60 chars)"
+                      placeholder={t('news.seo.titlePlaceholder')}
                     />
                     <p className="text-xs text-gray-400 mt-1">
-                      {(watchMetaTitle || watchTitle).length} / 60 characters
+                      {t('news.seo.characters', undefined, { count: (watchMetaTitle || watchTitle).length })} / 60
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('news.seo.metaDescription')}</label>
                     <textarea
                       {...register('meta_description')}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                      placeholder="SEO description (recommended 150-160 chars)"
+                      placeholder={t('news.seo.descriptionPlaceholder')}
                     />
-                    <p className="text-xs text-gray-400 mt-1">{watchMetaDesc.length} / 160 characters</p>
+                    <p className="text-xs text-gray-400 mt-1">{t('news.seo.characters', undefined, { count: watchMetaDesc.length })} / 160</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Meta Keywords</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('news.seo.metaKeywords')}</label>
                     <input
                       {...register('meta_keywords')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                      placeholder="keyword1, keyword2, keyword3"
+                      placeholder={t('news.seo.keywordsPlaceholder')}
                     />
                   </div>
 
                   {/* Google Preview */}
                   <div className="mt-4">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Google Preview</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">{t('news.seo.googlePreview')}</h4>
                     <div className="rounded-lg border border-gray-200 bg-white p-4">
                       <div className="text-[#1a0dab] text-[18px] leading-6 truncate">
-                        {watchMetaTitle || watchTitle || 'Article Title'}
+                        {watchMetaTitle || watchTitle || t('news.seo.articleTitle')}
                       </div>
                       <div className="text-[#202124] text-sm mt-0.5 truncate">
                         vibocnc.com <span className="text-gray-400">{'>'}</span> {watchContentType} <span className="text-gray-400">{'>'}</span> {watchSlug || 'article-slug'}
                       </div>
                       <div className="text-[#4d5156] text-sm mt-1 line-clamp-2">
-                        {watchMetaDesc || watch('summary') || 'Article description will appear here...'}
+                        {watchMetaDesc || watch('summary') || t('news.seo.articleDescription')}
                       </div>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                       <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5">
-                        <span className="text-gray-600">Title length (50-60 rec.)</span>
+                        <span className="text-gray-600">{t('news.seo.titleLength')}</span>
                         <span className={`font-medium ${
                           (watchMetaTitle || watchTitle).length >= 50 && (watchMetaTitle || watchTitle).length <= 60
                             ? 'text-green-600'
@@ -244,11 +244,11 @@ export default function NewArticlePage() {
                             ? 'text-red-600'
                             : 'text-amber-600'
                         }`}>
-                          {(watchMetaTitle || watchTitle).length} chars
+                          {t('news.seo.characters', undefined, { count: (watchMetaTitle || watchTitle).length })}
                         </span>
                       </div>
                       <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5">
-                        <span className="text-gray-600">Desc length (150-160 rec.)</span>
+                        <span className="text-gray-600">{t('news.seo.descriptionLength')}</span>
                         <span className={`font-medium ${
                           watchMetaDesc.length >= 150 && watchMetaDesc.length <= 160
                             ? 'text-green-600'
@@ -256,7 +256,7 @@ export default function NewArticlePage() {
                             ? 'text-red-600'
                             : 'text-amber-600'
                         }`}>
-                          {watchMetaDesc.length} chars
+                          {t('news.seo.characters', undefined, { count: watchMetaDesc.length })}
                         </span>
                       </div>
                     </div>
@@ -337,7 +337,7 @@ export default function NewArticlePage() {
                   <input
                     {...register('featured_image')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs"
-                    placeholder="Or paste image URL..."
+                    placeholder={t('news.field.imageUrlPlaceholder')}
                   />
                 </div>
               </div>
@@ -359,7 +359,7 @@ export default function NewArticlePage() {
           setShowMediaPicker(false);
         }}
         multiple={mediaPickerTarget === 'content'}
-        title={mediaPickerTarget === 'featured' ? 'Select Featured Image' : 'Insert Image(s)'}
+        title={mediaPickerTarget === 'featured' ? t('news.selectFeaturedImage') : t('news.insertImages')}
       />
     </AdminLayout>
   );

@@ -20,7 +20,7 @@ import { useCart } from '@/store/cart.store';
 import { useCustomer } from '@/store/customer.store';
 import { cn, formatCurrency, getProductImageUrl, getDefaultProductImageWithSku, toProductPathId } from '@/lib/utils';
 import { CartSidebar } from '@/components/cart/CartSidebar';
-import { Category } from '@/types';
+import type { Category, Product } from '@/types';
 import { CategoryService, ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 
@@ -29,6 +29,7 @@ const navigation = [
   { name: 'Products', href: '/products' },
   { name: 'Categories', href: '/categories' },
   { name: 'News', href: '/news' },
+  { name: 'Blog', href: '/blog' },
   { name: 'About', href: '/about' },
   { name: 'Contact', href: '/contact' },
 ];
@@ -38,7 +39,7 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const mobileSearchDropdownRef = useRef<HTMLDivElement>(null);
@@ -117,7 +118,7 @@ export function Header() {
           </div>
         ) : suggestions.length > 0 ? (
           <div className="space-y-1">
-            {suggestions.map((p: any) => {
+            {suggestions.map((p) => {
               const imgSrc = getProductImageUrl(
                 (p.image_urls && p.image_urls.length > 0) ? p.image_urls : (p.images || []),
                 getDefaultProductImageWithSku(p.sku)
@@ -210,7 +211,7 @@ export function Header() {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-5 lg:flex 2xl:gap-8">
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-4 lg:flex 2xl:gap-7">
             {navigation.map((item) => {
               if (item.name === 'Categories') {
                 return (

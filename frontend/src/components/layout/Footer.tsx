@@ -45,6 +45,7 @@ const footerNavigation = {
     { name: 'Contact Us', href: '/contact' },
     { name: 'FAQ', href: '/faq' },
     { name: 'Documentation', href: '/docs' },
+    { name: 'Warranty', href: '/warranty' },
     { name: 'Warranty Policy', href: '/warranty-policy' },
     { name: 'Shipping Policy', href: '/shipping-policy' },
     { name: 'Technical Support', href: '/technical-support' },
@@ -102,7 +103,7 @@ export function Footer() {
     <footer className="bg-slate-950 text-white">
       {/* Main Footer Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-7">
           {/* Company Info */}
           <div className="lg:col-span-2">
             <div className="flex items-center space-x-3 mb-6">
@@ -193,6 +194,23 @@ export function Footer() {
             <h3 className="text-lg font-semibold mb-4">Services</h3>
             <ul className="space-y-2">
               {footerNavigation.services.map((item) => (
+                <li key={item.name}>
+                  <Link
+                    href={item.href}
+                    className="text-slate-300 hover:text-orange-200 transition-colors duration-200"
+                  >
+                    {item.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Company */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Company</h3>
+            <ul className="space-y-2">
+              {footerNavigation.company.map((item) => (
                 <li key={item.name}>
                   <Link
                     href={item.href}
