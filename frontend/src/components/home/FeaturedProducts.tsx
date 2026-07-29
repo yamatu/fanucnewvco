@@ -15,16 +15,19 @@ import { useQuery } from '@tanstack/react-query';
 import { ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { DEFAULT_FEATURED_PRODUCTS_SECTION_DATA } from '@/lib/homepage-defaults';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
+import { localizeProductContent } from '@/lib/i18n/content';
 
 export function FeaturedProducts({ content }: { content?: HomepageContent | null }) {
+  const { locale, t, href } = usePublicI18n();
   const [hoveredProduct, setHoveredProduct] = useState<number | null>(null);
   const [shouldLoadProducts, setShouldLoadProducts] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
   const { addItem } = useCart();
 
-  const headerTitle = content?.title || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.headerTitle;
-  const headerDescription = content?.description || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.headerDescription;
-  const ctaText = content?.button_text || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.ctaText;
+  const headerTitle = locale === 'en' ? content?.title || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.headerTitle : t('home.featured.title');
+  const headerDescription = locale === 'en' ? content?.description || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.headerDescription : t('home.featured.description');
+  const ctaText = locale === 'en' ? content?.button_text || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.ctaText : t('home.featured.viewAll');
   const ctaHref = content?.button_url || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.ctaHref;
 
   useEffect(() => {
@@ -72,9 +75,10 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
 
   const latest = latestResp?.data ?? [];
 
-  const products = (Array.isArray(featured) && featured.length > 0)
+  const rawProducts = (Array.isArray(featured) && featured.length > 0)
       ? featured
       : (Array.isArray(latest) ? latest : []);
+  const products = rawProducts.map((product) => localizeProductContent(product, locale));
   const productsLoading =
     !shouldLoadProducts ||
     (products.length === 0 && (featuredFetching || latestFetching || !featuredFetched));
@@ -144,7 +148,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                   hoveredProduct === product.id ? 'opacity-100' : 'opacity-0'
                 }`}>
                   <Link
-                    href={`/products/${toProductPathId(product.sku)}`}
+                    href={href(`/products/${toProductPathId(product.sku)}`)}
                     className="bg-white text-slate-900 p-3 rounded-full hover:bg-slate-100 transition-colors"
                   >
                     <EyeIcon className="h-5 w-5" />
@@ -164,13 +168,13 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                 <div className="absolute top-4 left-4 flex flex-col space-y-2">
                   {product.compare_price && product.compare_price > product.price && (
                     <span className="bg-orange-500 text-white px-2 py-1 rounded text-sm font-semibold" suppressHydrationWarning>
-                      Save {Math.round(((product.compare_price - product.price) / product.compare_price) * 100)}%
+                      {t('home.featured.save', { percent: Math.round(((product.compare_price - product.price) / product.compare_price) * 100) })}
                     </span>
                   )}
 
                   {(product.stock_quantity ?? 0) <= 0 && (
                     <span className="bg-gray-500 text-white px-2 py-1 rounded text-sm font-semibold">
-                      Out of Stock
+                      {t('common.outOfStock')}
                     </span>
                   )}
                 </div>
@@ -179,7 +183,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
               {/* Product Info */}
               <div className="p-6">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-[#003a78] font-medium">{product.category?.name || 'CNC Parts'}</span>
+                  <span className="text-sm text-[#003a78] font-medium">{product.category?.name || t('common.cncParts')}</span>
                 </div>
 
                 <h3 className="text-lg font-semibold text-slate-950 mb-2 line-clamp-2">
@@ -216,7 +220,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                   </div>
 
                   <div className="ml-1 text-sm text-slate-600">
-                    {(product.stock_quantity ?? 0) > 0 ? `In Stock: ${product.stock_quantity}` : 'Out of Stock'}
+                    {(product.stock_quantity ?? 0) > 0 ? t('common.inStock', { count: product.stock_quantity }) : t('common.outOfStock')}
                   </div>
 
                   {(product.stock_quantity ?? 0) > 0 ? (
@@ -224,14 +228,14 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                       onClick={() => handleAddToCart(product)}
                       className="bg-orange-500 hover:bg-[#003a78] text-white px-4 py-2 rounded-md font-medium transition-colors duration-300"
                     >
-                      Add to Cart
+                      {t('common.addToCart')}
                     </button>
                   ) : (
                     <button
                       disabled
                       className="bg-gray-300 text-gray-500 px-4 py-2 rounded-lg font-medium cursor-not-allowed"
                     >
-                      Out of Stock
+                      {t('common.outOfStock')}
                     </button>
                   )}
                 </div>
@@ -243,7 +247,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
         {/* View All Products CTA */}
         <div className="text-center">
           <Link
-            href={ctaHref}
+            href={href(ctaHref)}
             className="inline-flex items-center space-x-2 bg-slate-950 hover:bg-orange-600 text-white px-8 py-4 rounded-md text-lg font-semibold transition-colors duration-300"
           >
             <span>{ctaText}</span>

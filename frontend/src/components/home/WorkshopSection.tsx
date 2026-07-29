@@ -14,6 +14,7 @@ import {
   ClipboardDocumentCheckIcon
 } from '@heroicons/react/24/outline';
 import { DEFAULT_WORKSHOP_SECTION_DATA, type WorkshopSectionData } from '@/lib/homepage-defaults';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 type Props = { content?: HomepageContent | null };
 
@@ -43,6 +44,7 @@ function normalizeWorkshopData(input: any): WorkshopSectionData {
 }
 
 export function WorkshopSection({ content }: Props) {
+  const { locale, t, href } = usePublicI18n();
   const [activeTab, setActiveTab] = useState(0);
   const base = normalizeWorkshopData((content as any)?.data);
   const data: WorkshopSectionData = {
@@ -58,10 +60,10 @@ export function WorkshopSection({ content }: Props) {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-slate-950 mb-4">
-            {data.headerTitle}
+            {locale === 'en' ? data.headerTitle : t('home.workshop.title')}
           </h2>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-            {data.headerDescription}
+            {locale === 'en' ? data.headerDescription : t('home.workshop.description')}
           </p>
         </div>
 
@@ -182,16 +184,16 @@ export function WorkshopSection({ content }: Props) {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
-                href={data.statsBlock?.ctaPrimary?.href || '/contact'}
+                href={href(data.statsBlock?.ctaPrimary?.href || '/contact')}
                 className="bg-orange-500 text-white hover:bg-[#003a78] px-8 py-3 rounded-md font-semibold transition-colors duration-300"
               >
-                {data.statsBlock?.ctaPrimary?.text || 'Schedule Tour'}
+                {locale === 'en' ? data.statsBlock?.ctaPrimary?.text || t('common.contactUs') : t('common.contactUs')}
               </a>
               <a
-                href={data.statsBlock?.ctaSecondary?.href || '/about'}
+                href={href(data.statsBlock?.ctaSecondary?.href || '/about')}
                 className="border border-white/60 text-white hover:bg-white hover:text-slate-950 px-8 py-3 rounded-md font-semibold transition-colors duration-300"
               >
-                {data.statsBlock?.ctaSecondary?.text || 'Learn More'}
+                {locale === 'en' ? data.statsBlock?.ctaSecondary?.text || t('common.learnMore') : t('common.learnMore')}
               </a>
             </div>
           </div>

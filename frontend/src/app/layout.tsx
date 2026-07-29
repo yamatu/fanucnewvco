@@ -5,19 +5,33 @@ import { Toaster } from "react-hot-toast";
 import Clarity from "@/components/analytics/Clarity";
 import { getSiteUrl } from "@/lib/url";
 import { SITE_NAME } from "@/lib/seo";
+import { headers } from "next/headers";
+import { PublicI18nProvider } from "@/lib/i18n/PublicI18nProvider";
+import { buildLanguageAlternates, getLocaleConfig, isLocalizablePublicPath, localizePublicPath, normalizePublicLocale } from "@/lib/i18n/config";
+import { translatePublicMessage } from "@/lib/i18n/messages";
 
 const SITE_DESCRIPTION =
   "Source FANUC spare parts, FANUC robot spare parts and CNC machine parts from VIBO CNC. 100,000+ automation components in stock with worldwide shipping.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const siteUrl = getSiteUrl();
+  const requestHeaders = await headers();
+  const locale = normalizePublicLocale(requestHeaders.get('x-site-locale'));
+  const pathname = requestHeaders.get('x-site-pathname') || '/';
+  const localizedPath = localizePublicPath(pathname, locale);
+  const canonical = `${siteUrl}${localizedPath === '/' ? '' : localizedPath}`;
+  const isPublicPage = isLocalizablePublicPath(pathname);
+  const localizedTitle = translatePublicMessage(locale, 'products.title');
+  const localizedDescription = locale === 'en'
+    ? SITE_DESCRIPTION
+    : translatePublicMessage(locale, 'products.description');
   return {
     metadataBase: new URL(siteUrl),
     title: {
-      default: `FANUC Spare Parts & CNC Machine Parts | ${SITE_NAME}`,
+      default: `${localizedTitle} | ${SITE_NAME}`,
       template: `%s | ${SITE_NAME}`,
     },
-    description: SITE_DESCRIPTION,
+    description: localizedDescription,
     keywords: [
       "FANUC parts",
       "FANUC spare parts",
@@ -37,6 +51,10 @@ export async function generateMetadata(): Promise<Metadata> {
       "CNC machine parts",
     ].join(", "),
     publisher: SITE_NAME,
+    alternates: isPublicPage ? {
+      canonical,
+      languages: buildLanguageAlternates(siteUrl, pathname),
+    } : undefined,
     robots: {
       index: true,
       follow: true,
@@ -50,10 +68,11 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       type: "website",
-      locale: "en_US",
+      locale: getLocaleConfig(locale).hreflang.replace('-', '_'),
       siteName: SITE_NAME,
-      title: `FANUC Spare Parts & CNC Machine Parts | ${SITE_NAME}`,
-      description: SITE_DESCRIPTION,
+      title: `${localizedTitle} | ${SITE_NAME}`,
+      description: localizedDescription,
+      url: canonical,
       images: [
         {
           url: "/images/og-image.jpg",
@@ -65,8 +84,8 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: `FANUC Spare Parts & CNC Machine Parts | ${SITE_NAME}`,
-      description: SITE_DESCRIPTION,
+      title: `${localizedTitle} | ${SITE_NAME}`,
+      description: localizedDescription,
       images: ["/images/og-image.jpg"],
     },
     verification: {
@@ -75,13 +94,17 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const requestHeaders = await headers();
+  const locale = normalizePublicLocale(requestHeaders.get('x-site-locale'));
+  const localeConfig = getLocaleConfig(locale);
+
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang={localeConfig.hreflang} dir={localeConfig.dir} className="scroll-smooth" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.ico?v=20260629" sizes="any" />
         <link rel="icon" href="/favicon-16x16.png?v=20260629" sizes="16x16" type="image/png" />
@@ -92,32 +115,34 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <ReactQueryProvider>
-          <Clarity />
-          {children}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-              },
-              success: {
-                duration: 3000,
-                iconTheme: {
-                  primary: '#10B981',
-                  secondary: '#fff',
+          <PublicI18nProvider initialLocale={locale}>
+            <Clarity />
+            {children}
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#363636',
+                  color: '#fff',
                 },
-              },
-              error: {
-                duration: 5000,
-                iconTheme: {
-                  primary: '#EF4444',
-                  secondary: '#fff',
+                success: {
+                  duration: 3000,
+                  iconTheme: {
+                    primary: '#10B981',
+                    secondary: '#fff',
+                  },
                 },
-              },
-            }}
-          />
+                error: {
+                  duration: 5000,
+                  iconTheme: {
+                    primary: '#EF4444',
+                    secondary: '#fff',
+                  },
+                },
+              }}
+            />
+          </PublicI18nProvider>
         </ReactQueryProvider>
       </body>
     </html>

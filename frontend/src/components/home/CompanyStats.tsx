@@ -1,3 +1,5 @@
+'use client';
+
 import type { HomepageContent } from '@/types';
 import { 
   CalendarIcon, 
@@ -10,6 +12,7 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 import { DEFAULT_COMPANY_STATS_DATA, type CompanyStatsData } from '@/lib/homepage-defaults';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 type Props = { content?: HomepageContent | null };
 
@@ -40,6 +43,7 @@ function normalizeCompanyStatsData(input: any): CompanyStatsData {
 }
 
 export function CompanyStats({ content }: Props) {
+  const { locale, t, href } = usePublicI18n();
   const base = normalizeCompanyStatsData((content as any)?.data);
   const data: CompanyStatsData = {
     ...base,
@@ -57,10 +61,10 @@ export function CompanyStats({ content }: Props) {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-slate-950 mb-4">
-            {data.headerTitle}
+            {locale === 'en' ? data.headerTitle : t('home.stats.title')}
           </h2>
           <p className="text-xl text-slate-600 max-w-4xl mx-auto">
-            {data.headerDescription}
+            {locale === 'en' ? data.headerDescription : t('home.stats.description')}
           </p>
         </div>
 
@@ -103,23 +107,23 @@ export function CompanyStats({ content }: Props) {
         <div className="text-center mt-16">
           <div className="bg-slate-950 rounded-lg p-8 shadow-lg max-w-4xl mx-auto text-white">
             <h3 className="text-2xl font-bold mb-4">
-              {data.ctaTitle}
+              {locale === 'en' ? data.ctaTitle : t('home.stats.ctaTitle')}
             </h3>
             <p className="text-slate-300 mb-6">
-              {data.ctaDescription}
+              {locale === 'en' ? data.ctaDescription : t('home.stats.ctaDescription')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
-                href={data.ctaPrimary?.href || '/contact'}
+                href={href(data.ctaPrimary?.href || '/contact')}
                 className="bg-orange-500 hover:bg-[#003a78] text-white px-8 py-3 rounded-md font-semibold transition-colors duration-300"
               >
-                {data.ctaPrimary?.text || 'Contact Our Experts'}
+                {locale === 'en' ? data.ctaPrimary?.text || t('home.stats.contact') : t('home.stats.contact')}
               </a>
               <a
-                href={data.ctaSecondary?.href || '/products'}
+                href={href(data.ctaSecondary?.href || '/products')}
                 className="border border-white/50 text-white hover:bg-white hover:text-slate-950 px-8 py-3 rounded-md font-semibold transition-colors duration-300"
               >
-                {data.ctaSecondary?.text || 'Browse Products'}
+                {locale === 'en' ? data.ctaSecondary?.text || t('home.stats.browse') : t('home.stats.browse')}
               </a>
             </div>
           </div>

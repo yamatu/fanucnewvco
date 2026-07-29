@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import type { Category } from '@/types';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 type Props = {
   tree: Category[];
@@ -22,6 +23,7 @@ export default function CategorySidebarTree({
   defaultOpenIds = [],
   storageKey = 'category-sidebar-open-ids',
 }: Props) {
+  const { href } = usePublicI18n();
   const defaultOpenSet = useMemo(() => new Set<number>(defaultOpenIds), [defaultOpenIds]);
   const [openIds, setOpenIds] = useState<Set<number>>(() => new Set());
   const [hydrated, setHydrated] = useState(false);
@@ -45,7 +47,7 @@ export default function CategorySidebarTree({
     } finally {
       setHydrated(true);
     }
-  }, [storageKey]);
+  }, [storageKey, defaultOpenSet]);
 
   // Ensure the current breadcrumb is open (without wiping user's state)
   useEffect(() => {
@@ -106,7 +108,7 @@ export default function CategorySidebarTree({
           )}
 
           <Link
-            href={nodeHref(node)}
+            href={href(nodeHref(node))}
             scroll={false}
             onClick={() => {
               try {

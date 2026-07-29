@@ -7,6 +7,9 @@ import { toProductPathId } from '@/lib/utils';
 import type { Product, ProductImage } from '@/types';
 import ProductDetailClient from './ProductDetailClient';
 import { redirect, notFound } from 'next/navigation';
+import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
+import { localizeProductContent } from '@/lib/i18n/content';
+import { localizePublicPath } from '@/lib/i18n/config';
 
 const DEFAULT_SITE_NAME = 'VIBO CNC';
 const GENERIC_BRAND_LABEL = 'industrial automation';
@@ -110,6 +113,7 @@ function buildMetadataTitle(product: Product): string {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   try {
     const { slug } = await params;
+    const locale = await getRequestPublicLocale();
     const sku = slugToSku(slug);
 
     let product: Product | null = null;
@@ -135,8 +139,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       };
     }
 
+    product = localizeProductContent(product, locale);
+
     const baseUrl = getSiteUrl();
-    const canonicalUrl = `${baseUrl}/products/${getCanonicalProductSlug(product, slug)}`;
+    const productPath = `/products/${getCanonicalProductSlug(product, slug)}`;
+    const { canonical: canonicalUrl, languages } = await getLocalizedMetadataPaths(productPath);
 
     const productImages: Array<string | ProductImage> =
       product.image_urls && product.image_urls.length > 0
@@ -193,7 +200,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         siteName: DEFAULT_SITE_NAME,
         images,
       },
-      alternates: { canonical: canonicalUrl },
+      alternates: { canonical: canonicalUrl, languages },
       twitter: {
         card: 'summary_large_image',
         title: socialTitle,
@@ -223,6 +230,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const locale = await getRequestPublicLocale();
   const sku = slugToSku(slug);
 
   let initialProduct: Product | null = null;
@@ -245,10 +253,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     notFound();
   }
 
+  initialProduct = localizeProductContent(initialProduct, locale);
+
   // Canonical redirect to the normalized product slug shared with sitemap and links.
   const canonicalId = getCanonicalProductSlug(initialProduct, sku || '');
   if (canonicalId && canonicalId !== slug) {
-    redirect(`/products/${canonicalId}`);
+    redirect(localizePublicPath(`/products/${canonicalId}`, locale));
   }
 
   return (

@@ -13,6 +13,9 @@ import { DEFAULT_HERO_DATA } from '@/lib/homepage-defaults';
 import { SITE_NAME, withSiteName } from '@/lib/seo';
 import { getSocialMediaURLs } from '@/lib/social-media';
 import { getPublicSocialMediaSettings } from '@/services/social-media.server';
+import { getLocalizedMetadataPaths } from '@/lib/i18n/server';
+import { translatePublicMessage } from '@/lib/i18n/messages';
+import { getLocaleConfig } from '@/lib/i18n/config';
 
 export const revalidate = 300;
 
@@ -22,19 +25,22 @@ const HOME_DESCRIPTION =
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = getSiteUrl();
+  const { locale, canonical, languages } = await getLocalizedMetadataPaths('/');
   const ogImageUrl = new URL('/images/og-image.jpg', baseUrl).toString();
+  const title = locale === 'en' ? HOME_TITLE : withSiteName(translatePublicMessage(locale, 'home.hero.title'));
+  const description = locale === 'en' ? HOME_DESCRIPTION : translatePublicMessage(locale, 'home.hero.description');
 
   return {
-    title: { absolute: HOME_TITLE },
-    description: HOME_DESCRIPTION,
-    alternates: { canonical: baseUrl },
+    title: { absolute: title },
+    description,
+    alternates: { canonical, languages },
     openGraph: {
       type: 'website',
-      locale: 'en_US',
+      locale: getLocaleConfig(locale).hreflang.replace('-', '_'),
       siteName: SITE_NAME,
-      title: HOME_TITLE,
-      description: HOME_DESCRIPTION,
-      url: baseUrl,
+      title,
+      description,
+      url: canonical,
       images: [
         {
           url: ogImageUrl,
@@ -46,8 +52,8 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: 'summary_large_image',
-      title: HOME_TITLE,
-      description: HOME_DESCRIPTION,
+      title,
+      description,
       images: [ogImageUrl],
     },
   };

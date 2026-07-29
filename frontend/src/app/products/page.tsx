@@ -8,6 +8,10 @@ import { withSiteName } from '@/lib/seo';
 import { toProductPathId } from '@/lib/utils';
 import ProductsPageClient from './ProductsPageClient';
 import ScrollRestorer from '@/components/common/ScrollRestorer';
+import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
+import { translatePublicMessage } from '@/lib/i18n/messages';
+import { localizeCategoryContent, localizeProductContent } from '@/lib/i18n/content';
+import { localizePublicPath, type PublicLocale } from '@/lib/i18n/config';
 
 type SearchParamValue = string | string[] | undefined;
 type PageSearchParams = { [key: string]: SearchParamValue };
@@ -65,7 +69,7 @@ function buildCategoryRedirectPath(category: CategoryNode | null, params: PageSe
   if (!categoryPath) return null;
 
   const redirectParams = new URLSearchParams();
-  const passthroughKeys = ['page', 'page_size', 'sort_by', 'sort_order', 'min_price', 'max_price'];
+  const passthroughKeys = ['page', 'page_size', 'sort_by', 'sort_dir', 'min_price', 'max_price'];
 
   for (const key of passthroughKeys) {
     const value = getFirstParamValue(params[key]);
@@ -101,7 +105,13 @@ export async function generateMetadata({ searchParams }: {
 
   let title = 'Industrial Automation Parts & Components';
   let description = 'Professional CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.';
-  const baseUrl = getSiteUrl();
+  const requestLocale = await getRequestPublicLocale();
+  const defaultMetadataPaths = await getLocalizedMetadataPaths('/products');
+
+  if (requestLocale !== 'en') {
+    title = translatePublicMessage(requestLocale, 'products.title');
+    description = translatePublicMessage(requestLocale, 'products.description');
+  }
 
   if (categoryParam && !hasSearch) {
     const category = await resolveCategory(categoryParam);
@@ -110,7 +120,10 @@ export async function generateMetadata({ searchParams }: {
     if (category && categoryPath) {
       title = `${category.name} - Parts`;
       description = `Professional ${category.name} for CNC systems. High-quality industrial automation components with worldwide shipping.`;
-      const catUrl = `${baseUrl}${categoryPath}`;
+      const localizedCategory = localizeCategoryContent(category, requestLocale);
+      title = `${localizedCategory.name} - ${translatePublicMessage(requestLocale, 'nav.products')}`;
+      const categoryMetadataPaths = await getLocalizedMetadataPaths(categoryPath);
+      const catUrl = categoryMetadataPaths.canonical;
 
       return {
         title,
@@ -128,6 +141,7 @@ export async function generateMetadata({ searchParams }: {
         },
         alternates: {
           canonical: catUrl,
+          languages: categoryMetadataPaths.languages,
         },
       };
     }
@@ -150,16 +164,17 @@ export async function generateMetadata({ searchParams }: {
       title: withSiteName(title),
       description,
       type: 'website',
-      url: `${baseUrl}/products`,
+      url: defaultMetadataPaths.canonical,
     },
     alternates: {
-      canonical: `${baseUrl}/products`,
+      canonical: defaultMetadataPaths.canonical,
+      languages: defaultMetadataPaths.languages,
     },
   };
 }
 
 // Server-side data fetching for SEO
-async function getServerSideData(searchParams: PageSearchParams): Promise<ProductsPageServerData> {
+async function getServerSideData(searchParams: PageSearchParams, locale: PublicLocale): Promise<ProductsPageServerData> {
   const categoryId = getFirstParamValue(searchParams.category_id) || getFirstParamValue(searchParams.category);
   const search = getFirstParamValue(searchParams.search);
   const page = parseInt(getFirstParamValue(searchParams.page) || '1', 10);
@@ -179,10 +194,10 @@ async function getServerSideData(searchParams: PageSearchParams): Promise<Produc
     ]);
 
     return {
-      products: productsData.data || [],
+      products: (productsData.data || []).map((product) => localizeProductContent(product, locale)),
       totalPages: Math.ceil((productsData.total || 0) / 12),
       total: productsData.total || 0,
-      categories: categories || [],
+      categories: (categories || []).map((category) => localizeCategoryContent(category, locale)),
       currentPage: page,
       selectedCategory: categoryId || '',
       searchQuery: search || '',
@@ -213,6 +228,7 @@ export default async function ProductsPage({
   searchParams: Promise<PageSearchParams>
 }) {
   const params = await searchParams;
+  const locale = await getRequestPublicLocale();
   const categoryParam = getFirstParamValue(params.category_id) || getFirstParamValue(params.category);
   const hasSearch = !!getFirstParamValue(params.search);
 
@@ -221,11 +237,11 @@ export default async function ProductsPage({
     const redirectPath = buildCategoryRedirectPath(category, params);
 
     if (redirectPath) {
-      permanentRedirect(redirectPath);
+      permanentRedirect(localizePublicPath(redirectPath, locale));
     }
   }
 
-  const serverData = await getServerSideData(params);
+  const serverData = await getServerSideData(params, locale);
 
   // Generate structured data for product listing page
   const generateListingStructuredData = (data: ProductsPageServerData) => {
@@ -234,9 +250,9 @@ export default async function ProductsPage({
     return {
       '@context': 'https://schema.org',
       '@type': 'CollectionPage',
-      'name': 'Industrial Automation Parts & Components',
-      'description': 'Professional CNC parts supplier since 2005. Browse our extensive catalog of servo motors, PCB boards, I/O modules, and control units.',
-      'url': `${baseUrl}/products`,
+      'name': translatePublicMessage(locale, 'products.title'),
+      'description': translatePublicMessage(locale, 'products.description'),
+      'url': `${baseUrl}${localizePublicPath('/products', locale)}`,
       'mainEntity': {
         '@type': 'ItemList',
         'numberOfItems': data.total,
@@ -255,7 +271,7 @@ export default async function ProductsPage({
             'image': product.image_urls && product.image_urls.length > 0
               ? product.image_urls[0]
               : `${baseUrl}/images/default-product.svg`,
-            'url': `${baseUrl}/products/${toProductPathId(product.sku)}`,
+            'url': `${baseUrl}${localizePublicPath(`/products/${toProductPathId(product.sku)}`, locale)}`,
             'offers': {
               '@type': 'Offer',
               'price': product.price || 0,
@@ -277,14 +293,14 @@ export default async function ProductsPage({
           {
             '@type': 'ListItem',
             'position': 1,
-            'name': 'Home',
-            'item': baseUrl,
+            'name': translatePublicMessage(locale, 'common.home'),
+            'item': `${baseUrl}${localizePublicPath('/', locale)}`,
           },
           {
             '@type': 'ListItem',
             'position': 2,
-            'name': 'Products',
-            'item': `${baseUrl}/products`,
+            'name': translatePublicMessage(locale, 'nav.products'),
+            'item': `${baseUrl}${localizePublicPath('/products', locale)}`,
           },
         ],
       },

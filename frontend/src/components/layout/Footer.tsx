@@ -16,6 +16,7 @@ import { FaFacebookF, FaInstagram, FaLinkedinIn, FaXTwitter } from 'react-icons/
 import { queryKeys } from '@/lib/react-query';
 import type { SocialMediaURLKey } from '@/lib/social-media';
 import { SocialMediaService } from '@/services/social-media.service';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 const footerNavigation = {
   products: [
@@ -71,6 +72,7 @@ const socialPlatforms: Array<{
 ];
 
 export function Footer() {
+  const { t, href } = usePublicI18n();
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const siteUrl = getSiteUrl();
   const { data: socialSettings } = useQuery({
@@ -88,7 +90,7 @@ export function Footer() {
     e.preventDefault();
     try {
       const url = new URL(siteUrl || window.location.origin);
-      url.pathname = '/contact';
+      url.pathname = href('/contact');
       if (newsletterEmail && newsletterEmail.trim()) {
         url.searchParams.set('email', newsletterEmail.trim());
       }
@@ -96,7 +98,7 @@ export function Footer() {
     } catch {
       // Fallback to relative navigation
       const qs = newsletterEmail && newsletterEmail.trim() ? `?email=${encodeURIComponent(newsletterEmail.trim())}` : '';
-      window.location.href = `/contact${qs}`;
+      window.location.href = href(`/contact${qs}`);
     }
   };
   return (
@@ -122,18 +124,14 @@ export function Footer() {
               </div>
             </div>
 
-            <p className="text-slate-300 mb-6 max-w-md">
-              VIBO CNC is a one-stop CNC solution supplier established in 2005 in Kunshan, China.
-              We are selling automation components of AB, ABB, Fanuc, Mitsubishi, Siemens and
-              other manufacturers with professional expertise.
-            </p>
+            <p className="text-slate-300 mb-6 max-w-md">{t('footer.description')}</p>
 
             {/* Contact Info */}
             <div className="space-y-3">
               <div className="flex items-center space-x-3">
                 <MapPinIcon className="h-5 w-5 text-orange-300 flex-shrink-0" />
                 <span className="text-slate-300">
-                  Kunshan, Jiangsu Province, China
+                  {t('footer.address')}
                 </span>
               </div>
 
@@ -149,7 +147,7 @@ export function Footer() {
 
               <div className="flex items-center space-x-3">
                 <ClockIcon className="h-5 w-5 text-orange-300 flex-shrink-0" />
-                <span className="text-slate-300">Mon-Fri: 8:00 AM - 6:00 PM</span>
+                <span className="text-slate-300">{t('footer.hours')}</span>
               </div>
             </div>
 
@@ -174,12 +172,12 @@ export function Footer() {
 
           {/* Products */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Products</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('footer.products')}</h3>
             <ul className="space-y-2">
               {footerNavigation.products.map((item) => (
                 <li key={item.name}>
                   <Link
-                    href={item.href}
+                    href={href(item.href)}
                     className="text-slate-300 hover:text-orange-200 transition-colors duration-200"
                   >
                     {item.name}
@@ -191,12 +189,12 @@ export function Footer() {
 
           {/* Services */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Services</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('footer.services')}</h3>
             <ul className="space-y-2">
               {footerNavigation.services.map((item) => (
                 <li key={item.name}>
                   <Link
-                    href={item.href}
+                    href={href(item.href)}
                     className="text-slate-300 hover:text-orange-200 transition-colors duration-200"
                   >
                     {item.name}
@@ -208,15 +206,15 @@ export function Footer() {
 
           {/* Company */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Company</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('footer.company')}</h3>
             <ul className="space-y-2">
               {footerNavigation.company.map((item) => (
                 <li key={item.name}>
                   <Link
-                    href={item.href}
+                    href={href(item.href)}
                     className="text-slate-300 hover:text-orange-200 transition-colors duration-200"
                   >
-                    {item.name}
+                    {item.name === 'News' ? t('nav.news') : item.name === 'Blog' ? t('nav.blog') : item.name}
                   </Link>
                 </li>
               ))}
@@ -225,12 +223,12 @@ export function Footer() {
 
           {/* Support */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Support</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('footer.support')}</h3>
             <ul className="space-y-2">
               {footerNavigation.support.map((item) => (
                 <li key={item.name}>
                   <Link
-                    href={item.href}
+                    href={href(item.href)}
                     className="text-slate-300 hover:text-orange-200 transition-colors duration-200"
                   >
                     {item.name}
@@ -242,12 +240,12 @@ export function Footer() {
 
           {/* Partners & Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Partners</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('footer.partners')}</h3>
             <ul className="space-y-2">
               {footerNavigation.partners.map((item) => (
                 <li key={item.name}>
                   <Link
-                    href={item.href}
+                    href={item.external ? item.href : href(item.href)}
                     {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                     className="text-slate-300 hover:text-orange-200 transition-colors duration-200 flex items-center"
                   >
@@ -265,14 +263,14 @@ export function Footer() {
         {/* Newsletter Signup */}
         <div className="mt-12 pt-8 border-t border-slate-800">
           <div className="max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Stay Updated</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('footer.stayUpdated')}</h3>
             <p className="text-slate-300 mb-4">
-              Subscribe to our newsletter for the latest automation components and industry updates.
+              {t('footer.newsletter')}
             </p>
             <form className="flex" onSubmit={handleSubscribe}>
               <input
                 type="email"
-                placeholder="Enter your email"
+                placeholder={t('footer.emailPlaceholder')}
                 value={newsletterEmail}
                 onChange={(e) => setNewsletterEmail(e.target.value)}
                 className="flex-1 px-4 py-2 bg-slate-900 border border-slate-700 rounded-l-md focus:outline-none focus:ring-2 focus:ring-[#003a78] text-white placeholder-slate-400"
@@ -281,7 +279,7 @@ export function Footer() {
                 type="submit"
                 className="px-6 py-2 bg-orange-500 text-white rounded-r-md hover:bg-[#003a78] transition-colors duration-200 font-semibold"
               >
-                Subscribe
+                {t('footer.subscribe')}
               </button>
             </form>
           </div>
@@ -293,27 +291,27 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-slate-400 text-sm">
-              Copyright 2024 VIBO CNC. All rights reserved.
+              {t('footer.copyright')}
             </div>
 
             <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 md:mt-0">
               <Link
-                href="/privacy"
+                href={href('/privacy')}
                 className="text-slate-400 hover:text-white text-sm transition-colors duration-200"
               >
-                Privacy Policy
+                {t('footer.privacy')}
               </Link>
               <Link
-                href="/terms"
+                href={href('/terms')}
                 className="text-slate-400 hover:text-white text-sm transition-colors duration-200"
               >
-                Terms of Service
+                {t('footer.terms')}
               </Link>
               <Link
                 href="/sitemap.xml"
                 className="text-slate-400 hover:text-white text-sm transition-colors duration-200"
               >
-                Sitemap
+                {t('footer.sitemap')}
               </Link>
               <Link
                 href="https://www.vibocnc.com"
@@ -325,16 +323,16 @@ export function Footer() {
                 <ExternalLink className="ml-1 h-3 w-3" aria-hidden="true" />
               </Link>
               <Link
-                href="/products"
+                href={href('/products')}
                 className="text-slate-400 hover:text-white text-sm transition-colors duration-200"
               >
-                Product Categories
+                {t('footer.productCategories')}
               </Link>
               <Link
-                href="/products"
+                href={href('/products')}
                 className="text-slate-400 hover:text-white text-sm transition-colors duration-200"
               >
-                All Products
+                {t('footer.allProducts')}
               </Link>
             </div>
           </div>

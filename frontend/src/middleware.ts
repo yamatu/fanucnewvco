@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import {
+  DEFAULT_PUBLIC_LOCALE,
+  PUBLIC_LOCALE_COOKIE,
+  getLocaleFromPathname,
+  isLocalizablePublicPath,
+  localizePublicPath,
+  normalizePublicLocale,
+  stripLocaleFromPathname,
+} from '@/lib/i18n/config';
 
 // Define protected routes
 const protectedRoutes = ['/admin'];
@@ -58,9 +67,25 @@ function getCanonicalHostname(): string {
 }
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const rawPathname = request.nextUrl.pathname;
+  const pathLocale = getLocaleFromPathname(rawPathname);
+  const pathname = stripLocaleFromPathname(rawPathname);
+  const locale = pathLocale || DEFAULT_PUBLIC_LOCALE;
   const token = request.cookies.get('auth_token')?.value;
   const userAgent = request.headers.get('user-agent') || '';
+
+  if (pathLocale && !isLocalizablePublicPath(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname;
+    return NextResponse.redirect(url, 308);
+  }
+
+  const savedLocale = normalizePublicLocale(request.cookies.get(PUBLIC_LOCALE_COOKIE)?.value);
+  if (!pathLocale && savedLocale !== DEFAULT_PUBLIC_LOCALE && isLocalizablePublicPath(pathname) && !isSearchEngineCrawler(userAgent)) {
+    const url = request.nextUrl.clone();
+    url.pathname = localizePublicPath(pathname, savedLocale);
+    return NextResponse.redirect(url, 307);
+  }
 
   const requestHostname = getRequestHostname(request);
   const canonicalHostname = getCanonicalHostname();
@@ -156,7 +181,7 @@ export async function middleware(request: NextRequest) {
   // Canonicalize legacy FANUC-prefixed product URLs to the shared product slug rule.
   if (/^\/products\/FANUC-/i.test(pathname)) {
     const url = request.nextUrl.clone();
-    url.pathname = pathname.replace(/^\/products\/FANUC-/i, '/products/');
+    url.pathname = localizePublicPath(pathname.replace(/^\/products\/FANUC-/i, '/products/'), locale);
     return NextResponse.redirect(url, 301);
   }
 
@@ -181,7 +206,28 @@ export async function middleware(request: NextRequest) {
   }
 
   // Create response with SEO optimizations
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-site-locale', locale);
+  requestHeaders.set('x-site-pathname', pathname);
+
+  const response = pathLocale
+    ? NextResponse.rewrite(
+        (() => {
+          const url = request.nextUrl.clone();
+          url.pathname = pathname;
+          return url;
+        })(),
+        { request: { headers: requestHeaders } },
+      )
+    : NextResponse.next({ request: { headers: requestHeaders } });
+
+  if (pathLocale) {
+    response.cookies.set(PUBLIC_LOCALE_COOKIE, pathLocale, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: 'lax',
+    });
+  }
 
   // Special handling for search engine crawlers
   if (isSearchEngineCrawler(userAgent)) {

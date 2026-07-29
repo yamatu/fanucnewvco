@@ -1,5 +1,6 @@
 import { getRequestBaseUrl } from '@/lib/request-url'
 import { NextResponse } from 'next/server'
+import { renderLocalizedSitemap } from '@/lib/i18n/sitemap'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 86400 // 24 hours
@@ -10,100 +11,92 @@ export async function GET() {
 
   const staticPages = [
     {
-      url: baseUrl,
+      pathname: '/',
       lastModified,
       changeFrequency: 'daily',
       priority: '1.0',
     },
     {
-      url: `${baseUrl}/products`,
+      pathname: '/products',
       lastModified,
       changeFrequency: 'hourly',
       priority: '0.9',
     },
     {
-      url: `${baseUrl}/categories`,
+      pathname: '/categories',
       lastModified,
       changeFrequency: 'daily',
       priority: '0.85',
     },
     {
-      url: `${baseUrl}/about`,
+      pathname: '/about',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.8',
     },
     {
-      url: `${baseUrl}/contact`,
+      pathname: '/contact',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.8',
     },
     {
-      url: `${baseUrl}/faq`,
+      pathname: '/faq',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.6',
     },
     {
-      url: `${baseUrl}/privacy`,
+      pathname: '/privacy',
       lastModified,
       changeFrequency: 'yearly',
       priority: '0.4',
     },
     {
-      url: `${baseUrl}/terms`,
+      pathname: '/terms',
       lastModified,
       changeFrequency: 'yearly',
       priority: '0.4',
     },
     {
-      url: `${baseUrl}/warranty`,
+      pathname: '/warranty',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.5',
     },
     {
-      url: `${baseUrl}/warranty-policy`,
+      pathname: '/warranty-policy',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.5',
     },
     {
-      url: `${baseUrl}/shipping-policy`,
+      pathname: '/shipping-policy',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.5',
     },
     {
-      url: `${baseUrl}/technical-support`,
+      pathname: '/technical-support',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.5',
     },
     {
-      url: `${baseUrl}/returns`,
+      pathname: '/returns',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.5',
     },
     {
-      url: `${baseUrl}/docs`,
+      pathname: '/docs',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.4',
     },
   ]
 
-  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${staticPages.map(page => `  <url>
-    <loc>${page.url}</loc>
-    <lastmod>${page.lastModified}</lastmod>
-    <changefreq>${page.changeFrequency}</changefreq>
-    <priority>${page.priority}</priority>
-  </url>`).join('\n')}
-</urlset>`
+  const sitemap = renderLocalizedSitemap(baseUrl, staticPages)
 
   return new NextResponse(sitemap, {
     headers: {

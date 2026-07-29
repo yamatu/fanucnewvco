@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { ContactService } from '@/services';
+import type { ContactCreateRequest } from '@/services/contact.service';
 import PublicLayout from '@/components/layout/PublicLayout';
 import { getSiteUrl } from '@/lib/url';
 import {
@@ -14,6 +15,7 @@ import {
   BuildingOfficeIcon,
   GlobeAltIcon
 } from '@heroicons/react/24/outline';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 const siteUrl = getSiteUrl();
 
@@ -62,7 +64,8 @@ const breadcrumbSchema = {
 
 function ContactContent() {
   const searchParams = useSearchParams();
-  const [formData, setFormData] = useState({
+  const { t, href } = usePublicI18n();
+  const [formData, setFormData] = useState<ContactCreateRequest>({
     name: '',
     email: '',
     company: '',
@@ -96,7 +99,7 @@ function ContactContent() {
     try {
       await ContactService.submitContact(formData);
 
-      toast.success('Thank you for your message! We will get back to you soon.');
+      toast.success(t('contact.success'));
       setFormData({
         name: '',
         email: '',
@@ -106,9 +109,9 @@ function ContactContent() {
         message: '',
         inquiry_type: 'general'
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting form:', error);
-      toast.error(error.message || 'Failed to send message. Please check your connection.');
+      toast.error(error instanceof Error && error.message ? error.message : t('contact.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -119,16 +122,19 @@ function ContactContent() {
       {/* Contact Page Structured Data */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": [contactPageSchema, breadcrumbSchema] }) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": [{ ...contactPageSchema, url: `${siteUrl}${href('/contact')}` }, { ...breadcrumbSchema, itemListElement: [
+          { "@type": "ListItem", "position": 1, "name": t('common.home'), "item": `${siteUrl}${href('/')}` },
+          { "@type": "ListItem", "position": 2, "name": t('nav.contact'), "item": `${siteUrl}${href('/contact')}` },
+        ] }] }) }}
       />
       {/* Hero Section */}
       <section className="site-page-hero py-24">
         <div className="site-hero-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <div className="site-hero-kicker mb-5">Contact VIBO CNC</div>
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">Contact Us</h1>
+            <div className="site-hero-kicker mb-5">{t('contact.kicker')}</div>
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">{t('contact.title')}</h1>
             <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto">
-              Get in touch with our expert team for all your automation needs
+              {t('contact.description')}
             </p>
           </div>
         </div>
@@ -141,13 +147,13 @@ function ContactContent() {
 
             {/* Contact Information */}
             <div className="lg:col-span-1">
-              <h2 className="text-2xl font-bold text-gray-900 mb-8">Get in Touch</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-8">{t('contact.getInTouch')}</h2>
 
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
                   <MapPinIcon className="h-6 w-6 text-[#0b3e75] mt-1 flex-shrink-0" />
                   <div>
-                    <h3 className="font-semibold text-gray-900">Address</h3>
+                    <h3 className="font-semibold text-gray-900">{t('contact.address')}</h3>
                     <p className="text-gray-600">
                       Kunshan, Jiangsu Province<br />
                       China
@@ -158,7 +164,7 @@ function ContactContent() {
                 <div className="flex items-start space-x-4">
                   <PhoneIcon className="h-6 w-6 text-[#0b3e75] mt-1 flex-shrink-0" />
                   <div>
-                    <h3 className="font-semibold text-gray-900">Phone</h3>
+                    <h3 className="font-semibold text-gray-900">{t('contact.phone')}</h3>
                     <p className="text-gray-600">+86 13348028050</p>
                   </div>
                 </div>
@@ -166,7 +172,7 @@ function ContactContent() {
                 <div className="flex items-start space-x-4">
                   <EnvelopeIcon className="h-6 w-6 text-[#0b3e75] mt-1 flex-shrink-0" />
                   <div>
-                    <h3 className="font-semibold text-gray-900">Email</h3>
+                    <h3 className="font-semibold text-gray-900">{t('contact.email')}</h3>
                     <p className="text-gray-600">sales@vibocnc.com</p>
                   </div>
                 </div>
@@ -174,7 +180,7 @@ function ContactContent() {
                 <div className="flex items-start space-x-4">
                   <ClockIcon className="h-6 w-6 text-[#0b3e75] mt-1 flex-shrink-0" />
                   <div>
-                    <h3 className="font-semibold text-gray-900">Business Hours</h3>
+                    <h3 className="font-semibold text-gray-900">{t('contact.hours')}</h3>
                     <p className="text-gray-600">
                       Monday - Friday: 8:00 AM - 6:00 PM<br />
                       Saturday: 9:00 AM - 5:00 PM<br />
@@ -186,7 +192,7 @@ function ContactContent() {
                 <div className="flex items-start space-x-4">
                   <BuildingOfficeIcon className="h-6 w-6 text-[#0b3e75] mt-1 flex-shrink-0" />
                   <div>
-                    <h3 className="font-semibold text-gray-900">Facility</h3>
+                    <h3 className="font-semibold text-gray-900">{t('contact.facility')}</h3>
                     <p className="text-gray-600">5,000 sqm Workshop</p>
                   </div>
                 </div>
@@ -194,8 +200,8 @@ function ContactContent() {
                 <div className="flex items-start space-x-4">
                   <GlobeAltIcon className="h-6 w-6 text-[#0b3e75] mt-1 flex-shrink-0" />
                   <div>
-                    <h3 className="font-semibold text-gray-900">Service Area</h3>
-                    <p className="text-gray-600">Worldwide Shipping</p>
+                    <h3 className="font-semibold text-gray-900">{t('contact.serviceArea')}</h3>
+                    <p className="text-gray-600">{t('product.worldwideShipping')}</p>
                   </div>
                 </div>
               </div>
@@ -204,13 +210,13 @@ function ContactContent() {
             {/* Contact Form */}
             <div className="lg:col-span-2">
               <div className="site-detail-panel p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Send us a Message</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('contact.sendTitle')}</h2>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                        Full Name *
+                        {t('contact.fullName')} *
                       </label>
                       <input
                         type="text"
@@ -226,7 +232,7 @@ function ContactContent() {
 
                     <div>
                       <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                        Email Address *
+                        {t('contact.emailAddress')} *
                       </label>
                       <input
                         type="email"
@@ -244,7 +250,7 @@ function ContactContent() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
-                        Company Name
+                        {t('contact.company')}
                       </label>
                       <input
                         type="text"
@@ -259,7 +265,7 @@ function ContactContent() {
 
                     <div>
                       <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone Number
+                        {t('contact.phoneNumber')}
                       </label>
                       <input
                         type="tel"
@@ -276,7 +282,7 @@ function ContactContent() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label htmlFor="inquiry_type" className="block text-sm font-medium text-gray-700 mb-2">
-                        Inquiry Type
+                        {t('contact.inquiryType')}
                       </label>
                       <select
                         id="inquiry_type"
@@ -285,17 +291,17 @@ function ContactContent() {
                         onChange={handleChange}
                         className="site-select w-full px-4 py-3"
                       >
-                        <option value="general">General Inquiry</option>
-                        <option value="parts">Parts Request</option>
-                        <option value="repair">Repair Service</option>
-                        <option value="support">Technical Support</option>
-                        <option value="quote">Request Quote</option>
+                        <option value="general">{t('contact.general')}</option>
+                        <option value="parts">{t('contact.parts')}</option>
+                        <option value="repair">{t('contact.repair')}</option>
+                        <option value="support">{t('contact.support')}</option>
+                        <option value="quote">{t('contact.quote')}</option>
                       </select>
                     </div>
 
                     <div>
                       <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
-                        Subject *
+                        {t('contact.subject')} *
                       </label>
                       <input
                         type="text"
@@ -312,7 +318,7 @@ function ContactContent() {
 
                   <div>
                     <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                      Message *
+                      {t('contact.message')} *
                     </label>
                     <textarea
                       id="message"
@@ -331,7 +337,7 @@ function ContactContent() {
                     disabled={isSubmitting}
                     className="site-primary-action w-full px-8 py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSubmitting ? 'Sending Message...' : 'Send Message'}
+                    {isSubmitting ? t('contact.sending') : t('contact.send')}
                   </button>
                 </form>
               </div>

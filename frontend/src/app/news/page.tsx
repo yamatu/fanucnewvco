@@ -4,25 +4,29 @@ import { getSiteUrl } from '@/lib/url';
 import { SITE_NAME, withSiteName } from '@/lib/seo';
 import { NewsService } from '@/services/news.service';
 import NewsPageClient from './NewsPageClient';
+import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
+import { localizeArticleContent } from '@/lib/i18n/content';
+import { localizePublicPath } from '@/lib/i18n/config';
+import { translatePublicMessage } from '@/lib/i18n/messages';
 
 export async function generateMetadata({ searchParams }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }): Promise<Metadata> {
   const params = await searchParams;
+  const { locale, canonical, languages } = await getLocalizedMetadataPaths('/news');
   const search = params.search;
   const page = Math.max(1, Number.parseInt(typeof params.page === 'string' ? params.page : '1', 10) || 1);
 
-  let title = 'News & Articles';
-  let description = 'Latest news, insights, and technical articles about industrial automation, FANUC parts, and CNC equipment from VIBO CNC.';
+  let title = translatePublicMessage(locale, 'news.title');
+  let description = translatePublicMessage(locale, 'news.description');
 
   if (search) {
     title = `Search: ${search} - News`;
     description = `Search results for "${search}" in news and articles.`;
   }
 
-  const baseUrl = getSiteUrl();
   const hasSearch = typeof search === 'string' && search.trim().length > 0;
-  const canonicalUrl = page > 1 ? `${baseUrl}/news?page=${page}` : `${baseUrl}/news`;
+  const canonicalUrl = page > 1 ? `${canonical}?page=${page}` : canonical;
 
   return {
     title,
@@ -37,11 +41,12 @@ export async function generateMetadata({ searchParams }: {
     },
     alternates: {
       canonical: canonicalUrl,
+      languages,
     },
   };
 }
 
-async function getServerSideData(searchParams: { [key: string]: string | string[] | undefined }) {
+async function getServerSideData(searchParams: { [key: string]: string | string[] | undefined }, locale: Awaited<ReturnType<typeof getRequestPublicLocale>>) {
   const search = searchParams.search;
   const page = parseInt((searchParams.page as string) || '1', 10);
 
@@ -56,7 +61,7 @@ async function getServerSideData(searchParams: { [key: string]: string | string[
     });
 
     return {
-      articles: data.data || [],
+      articles: (data.data || []).map((article) => localizeArticleContent(article, locale)),
       totalPages: data.total_pages || 1,
       total: data.total || 0,
       currentPage: page,
@@ -83,15 +88,16 @@ export default async function NewsPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const params = await searchParams;
-  const serverData = await getServerSideData(params);
+  const locale = await getRequestPublicLocale();
+  const serverData = await getServerSideData(params, locale);
 
   const baseUrl = getSiteUrl();
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
-    'name': 'VIBO CNC Company News',
-    'description': 'Company updates, product announcements, and industrial automation news.',
-    'url': `${baseUrl}/news`,
+    'name': translatePublicMessage(locale, 'news.title'),
+    'description': translatePublicMessage(locale, 'news.description'),
+    'url': `${baseUrl}${localizePublicPath('/news', locale)}`,
     'publisher': {
       '@type': 'Organization',
       '@id': `${baseUrl}/#organization`,
@@ -102,7 +108,7 @@ export default async function NewsPage({
       '@type': 'NewsArticle',
       'headline': article.title,
       'description': article.summary || '',
-      'url': `${baseUrl}${article.public_path || `/news/${article.slug}`}`,
+      'url': `${baseUrl}${localizePublicPath(article.public_path || `/news/${article.slug}`, locale)}`,
       'datePublished': article.published_at || article.created_at,
       'dateModified': article.updated_at,
       'image': article.featured_image || undefined,

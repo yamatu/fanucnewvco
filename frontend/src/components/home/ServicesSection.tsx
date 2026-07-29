@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import type { HomepageContent } from '@/types';
 import { 
@@ -11,6 +13,7 @@ import {
   GlobeAltIcon
 } from '@heroicons/react/24/outline';
 import { DEFAULT_SERVICES_SECTION_DATA, type ServicesSectionData } from '@/lib/homepage-defaults';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 type Props = { content?: HomepageContent | null };
 
@@ -44,6 +47,7 @@ function normalizeServicesData(input: any): ServicesSectionData {
 }
 
 export function ServicesSection({ content }: Props) {
+  const { locale, t, href } = usePublicI18n();
   const base = normalizeServicesData((content as any)?.data);
   const data: ServicesSectionData = {
     ...base,
@@ -59,10 +63,10 @@ export function ServicesSection({ content }: Props) {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-slate-950 mb-4">
-            {data.headerTitle}
+            {locale === 'en' ? data.headerTitle : t('home.services.title')}
           </h2>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-            {data.headerDescription}
+            {locale === 'en' ? data.headerDescription : t('home.services.description')}
           </p>
         </div>
 
@@ -102,10 +106,10 @@ export function ServicesSection({ content }: Props) {
                   </ul>
 
                   <Link
-                    href={service.href || '/contact'}
+                    href={href(service.href || '/contact')}
                     className="text-[#003a78] hover:text-[#003a78] font-semibold text-sm flex items-center group-hover:translate-x-2 transition-transform duration-300"
                   >
-                    Learn More
+                    {t('common.learnMore')}
                     <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
@@ -165,19 +169,19 @@ export function ServicesSection({ content }: Props) {
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
-                  href={data.ctaPrimary?.href || '/contact'}
+                  href={href(data.ctaPrimary?.href || '/contact')}
                   className="bg-orange-500 text-white hover:bg-[#003a78] px-8 py-4 rounded-md font-semibold transition-colors duration-300 flex items-center justify-center"
                 >
                   <PhoneIcon className="h-5 w-5 mr-2" />
-                  {data.ctaPrimary?.text || 'Contact Us Today'}
+                  {locale === 'en' ? data.ctaPrimary?.text || t('common.contactUs') : t('common.contactUs')}
                 </Link>
 
                 <Link
-                  href={data.ctaSecondary?.href || '/products'}
+                  href={href(data.ctaSecondary?.href || '/products')}
                   className="border border-white/60 text-white hover:bg-white hover:text-slate-950 px-8 py-4 rounded-md font-semibold transition-colors duration-300 flex items-center justify-center"
                 >
                   <CogIcon className="h-5 w-5 mr-2" />
-                  {data.ctaSecondary?.text || 'Browse Products'}
+                  {locale === 'en' ? data.ctaSecondary?.text || t('home.stats.browse') : t('home.stats.browse')}
                 </Link>
               </div>
 

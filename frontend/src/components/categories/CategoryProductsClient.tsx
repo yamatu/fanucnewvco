@@ -21,30 +21,47 @@ import {
   EyeIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
+import { localizeCategoryContent, localizeProductContent } from '@/lib/i18n/content';
+import type { ProductFilters as ProductServiceFilters } from '@/services/product.service';
+import type { Category, Product } from '@/types';
 
 interface CategoryProductsClientProps {
-  category: any;
+  category: Category;
   initialSearchParams: { [key: string]: string | string[] | undefined };
+}
+
+type CategoryProductFilters = Required<Pick<ProductServiceFilters, 'page' | 'page_size' | 'category_id' | 'include_descendants' | 'sort_by' | 'sort_dir' | 'search' | 'is_active'>> & {
+  min_price: string;
+  max_price: string;
+};
+
+function normalizeSortBy(value: string | null): CategoryProductFilters['sort_by'] {
+  return value === 'name' || value === 'price' || value === 'updated_at' ? value : 'created_at';
+}
+
+function normalizeSortDirection(value: string | null): CategoryProductFilters['sort_dir'] {
+  return value === 'asc' ? 'asc' : 'desc';
 }
 
 export default function CategoryProductsClient({
   category,
-  initialSearchParams
 }: CategoryProductsClientProps) {
   const router = useRouter();
+  const { locale, t, href } = usePublicI18n();
   const searchParams = useSearchParams();
   const { addItem } = useCartStore();
 
   // Filter states
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<CategoryProductFilters>({
     page: 1,
     page_size: 12,
-    category_id: category.id,
+    category_id: String(category.id),
     include_descendants: 'true',
     sort_by: 'created_at',
-    sort_order: 'desc',
+    sort_dir: 'desc',
     min_price: '',
     max_price: '',
     search: '',
@@ -56,10 +73,10 @@ export default function CategoryProductsClient({
     const urlFilters = {
       page: parseInt(searchParams.get('page') || '1'),
       page_size: parseInt(searchParams.get('page_size') || '12'),
-      category_id: category.id,
+      category_id: String(category.id),
       include_descendants: 'true',
-      sort_by: searchParams.get('sort_by') || 'created_at',
-      sort_order: searchParams.get('sort_order') || 'desc',
+      sort_by: normalizeSortBy(searchParams.get('sort_by')),
+      sort_dir: normalizeSortDirection(searchParams.get('sort_dir')),
       min_price: searchParams.get('min_price') || '',
       max_price: searchParams.get('max_price') || '',
       search: searchParams.get('search') || '',
@@ -81,14 +98,14 @@ export default function CategoryProductsClient({
     queryFn: () => CategoryService.getCategories(),
   });
 
-  const products = productsResponse?.data || [];
+  const products = (productsResponse?.data || []).map((product) => localizeProductContent(product, locale));
   const pagination = productsResponse ? {
     page: productsResponse.page,
     page_size: productsResponse.page_size,
     total: productsResponse.total,
     total_pages: productsResponse.total_pages
   } : null;
-  const categories = categoriesResponse || [];
+  const categories = (categoriesResponse || []).map((item) => localizeCategoryContent(item, locale));
 
   // Update URL when filters change
   const updateURL = (newFilters: typeof filters) => {
@@ -101,7 +118,7 @@ export default function CategoryProductsClient({
       }
     });
 
-    const base = `/categories/${category.path || category.slug}`;
+    const base = href(`/categories/${category.path || category.slug}`);
     const newURL = `${base}${params.toString() ? `?${params.toString()}` : ''}`;
     router.push(newURL, { scroll: false });
   };
@@ -124,23 +141,23 @@ export default function CategoryProductsClient({
 
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
-    let sort_by = 'created_at';
-    let sort_order = 'desc';
+    let sort_by: CategoryProductFilters['sort_by'] = 'created_at';
+    let sort_dir: CategoryProductFilters['sort_dir'] = 'desc';
     switch (val) {
-      case 'name': sort_by = 'name'; sort_order = 'asc'; break;
-      case 'name_desc': sort_by = 'name'; sort_order = 'desc'; break;
-      case 'price_asc': sort_by = 'price'; sort_order = 'asc'; break;
-      case 'price_desc': sort_by = 'price'; sort_order = 'desc'; break;
-      case 'created_at': sort_by = 'created_at'; sort_order = 'desc'; break;
+      case 'name': sort_by = 'name'; sort_dir = 'asc'; break;
+      case 'name_desc': sort_by = 'name'; sort_dir = 'desc'; break;
+      case 'price_asc': sort_by = 'price'; sort_dir = 'asc'; break;
+      case 'price_desc': sort_by = 'price'; sort_dir = 'desc'; break;
+      case 'created_at': sort_by = 'created_at'; sort_dir = 'desc'; break;
     }
-    handleFilterChange({ sort_by, sort_order });
+    handleFilterChange({ sort_by, sort_dir });
   };
 
   const sortValue = (() => {
-    if (filters.sort_by === 'name' && filters.sort_order === 'asc') return 'name';
-    if (filters.sort_by === 'name' && filters.sort_order === 'desc') return 'name_desc';
-    if (filters.sort_by === 'price' && filters.sort_order === 'asc') return 'price_asc';
-    if (filters.sort_by === 'price' && filters.sort_order === 'desc') return 'price_desc';
+    if (filters.sort_by === 'name' && filters.sort_dir === 'asc') return 'name';
+    if (filters.sort_by === 'name' && filters.sort_dir === 'desc') return 'name_desc';
+    if (filters.sort_by === 'price' && filters.sort_dir === 'asc') return 'price_asc';
+    if (filters.sort_by === 'price' && filters.sort_dir === 'desc') return 'price_desc';
     return 'created_at';
   })();
 
@@ -148,21 +165,21 @@ export default function CategoryProductsClient({
     const clearedFilters = {
       page: 1,
       page_size: 12,
-      category_id: category.id,
+      category_id: String(category.id),
       include_descendants: 'true',
       sort_by: 'created_at',
-      sort_order: 'desc',
+      sort_dir: 'desc',
       min_price: '',
       max_price: '',
       search: '',
       is_active: 'true'
     };
     setFilters(clearedFilters);
-    const base = `/categories/${category.path || category.slug}`;
+    const base = href(`/categories/${category.path || category.slug}`);
     router.push(base, { scroll: false });
   };
 
-  const handleAddToCart = (product: any) => {
+  const handleAddToCart = (product: Product) => {
     addItem(product, 1);
   };
 
@@ -286,10 +303,10 @@ export default function CategoryProductsClient({
         <>
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {products.map((product: any) => (
+              {products.map((product) => (
                 <div key={product.id} className="site-product-card">
                   <div className="relative">
-                    <Link href={`/products/${toProductPathId(product.sku)}`} className="site-product-media block aspect-[4/3] w-full">
+                    <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="site-product-media block aspect-[4/3] w-full">
                       <Image
                         src={getProductImageUrl(
                           (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
@@ -307,7 +324,7 @@ export default function CategoryProductsClient({
 
                   <div className="p-4">
                     <h3 className="text-base font-semibold text-slate-950 mb-2 line-clamp-2 min-h-[3rem]">
-                      <Link href={`/products/${toProductPathId(product.sku)}`} className="site-product-title">
+                      <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="site-product-title">
                         {product.name}
                       </Link>
                     </h3>
@@ -325,7 +342,7 @@ export default function CategoryProductsClient({
 
                       <div className="flex items-center space-x-2">
                         <Link
-                          href={`/products/${toProductPathId(product.sku)}`}
+                          href={href(`/products/${toProductPathId(product.sku)}`)}
                           className="site-secondary-action h-9 w-9"
                           title="View details"
                         >
@@ -337,7 +354,7 @@ export default function CategoryProductsClient({
                           title="Add to cart"
                         >
                           <ShoppingCartIcon className="h-4 w-4 mr-1" />
-                          Add to Cart
+                          {t('common.addToCart')}
                         </button>
                       </div>
                     </div>
@@ -347,10 +364,10 @@ export default function CategoryProductsClient({
             </div>
           ) : (
             <div className="space-y-4 mb-8">
-              {products.map((product: any) => (
+              {products.map((product) => (
                 <div key={product.id} className="site-product-card p-4 sm:p-6">
                   <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                    <Link href={`/products/${toProductPathId(product.sku)}`} className="flex-shrink-0">
+                    <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="flex-shrink-0">
                       <Image
                         src={getProductImageUrl(
                           (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
@@ -367,7 +384,7 @@ export default function CategoryProductsClient({
 
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-semibold text-slate-950 mb-1">
-                        <Link href={`/products/${toProductPathId(product.sku)}`} className="site-product-title">
+                        <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="site-product-title">
                           {product.name}
                         </Link>
                       </h3>
@@ -385,7 +402,7 @@ export default function CategoryProductsClient({
                       </div>
                       <div className="flex items-center gap-2">
                         <Link
-                          href={`/products/${toProductPathId(product.sku)}`}
+                          href={href(`/products/${toProductPathId(product.sku)}`)}
                           className="site-secondary-action h-9 w-9"
                           title="View details"
                         >
@@ -397,7 +414,7 @@ export default function CategoryProductsClient({
                           title="Add to cart"
                         >
                           <ShoppingCartIcon className="h-4 w-4 mr-2" />
-                          Add to Cart
+                          {t('common.addToCart')}
                         </button>
                       </div>
                     </div>
@@ -424,7 +441,7 @@ export default function CategoryProductsClient({
           <div className="text-slate-400 mb-4">
             <MagnifyingGlassIcon className="mx-auto h-12 w-12" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-950 mb-2">No products found</h3>
+          <h3 className="text-lg font-semibold text-slate-950 mb-2">{t('products.noResults')}</h3>
           <p className="text-slate-600 mb-4">
             Try adjusting your filters or search terms.
           </p>

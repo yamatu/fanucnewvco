@@ -2,6 +2,7 @@
 
 import { Product, Category } from '@/types';
 import { toProductPathId } from '@/lib/utils';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 const DEFAULT_SITE_NAME = 'VIBO CNC';
 const GENERIC_BRAND_LABEL = 'industrial automation';
@@ -89,7 +90,8 @@ function buildAnswerFirstSummary(product: Product, category?: Category): string 
 }
 
 export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'https://www.vcocncspare.com' }: ProductSEOProps) {
-  const productUrl = `${baseUrl}/products/${toProductPathId(product.sku)}`;
+  const { t, href } = usePublicI18n();
+  const productUrl = `${baseUrl}${href(`/products/${toProductPathId(product.sku)}`)}`;
   const productId = `${productUrl}#product`;
   const brandLabel = getBrandLabel(product);
   const manufacturerName = getManufacturerName(product);
@@ -273,20 +275,20 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
       {
         "@type": "ListItem",
         "position": 1,
-        "name": "Home",
-        "item": baseUrl
+        "name": t('common.home'),
+        "item": `${baseUrl}${href('/')}`
       },
       {
         "@type": "ListItem",
         "position": 2,
-        "name": "Products",
-        "item": `${baseUrl}/products`
+        "name": t('nav.products'),
+        "item": `${baseUrl}${href('/products')}`
       },
       ...(categoryBreadcrumb?.map((cat, index) => ({
         "@type": "ListItem",
         "position": index + 3,
         "name": cat.name,
-         "item": `${baseUrl}/categories/${cat.path || cat.slug}`
+         "item": `${baseUrl}${href(`/categories/${cat.path || cat.slug}`)}`
       })) || []),
       {
         "@type": "ListItem",

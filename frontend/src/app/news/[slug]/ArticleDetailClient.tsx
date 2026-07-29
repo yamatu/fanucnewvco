@@ -5,6 +5,7 @@ import { CalendarDaysIcon, EyeIcon, ArrowLeftIcon, UserIcon } from '@heroicons/r
 import Layout from '@/components/layout/Layout';
 import type { Article } from '@/types';
 import MarkdownContent from '@/components/content/MarkdownContent';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 function estimateReadTime(content: string): number {
   const words = content.split(/\s+/).length;
@@ -12,9 +13,11 @@ function estimateReadTime(content: string): number {
 }
 
 export default function ArticleDetailClient({ article }: { article: Article }) {
+  const { locale, t, href } = usePublicI18n();
   const readTime = estimateReadTime(article.content);
   const basePath = article.content_type === 'blog' ? '/blog' : '/news';
-  const sectionName = article.content_type === 'blog' ? 'Blog' : 'News';
+  const sectionName = t(article.content_type === 'blog' ? 'nav.blog' : 'nav.news');
+  const localeTag = locale === 'zh' ? 'zh-CN' : locale;
 
   return (
     <Layout>
@@ -36,11 +39,11 @@ export default function ArticleDetailClient({ article }: { article: Article }) {
           <nav className="py-4 text-sm">
             <ol className="flex items-center gap-2 text-gray-500">
               <li>
-                <Link href="/" className="hover:text-blue-600">Home</Link>
+                <Link href={href('/')} className="hover:text-blue-600">{t('common.home')}</Link>
               </li>
               <li>/</li>
               <li>
-                <Link href={basePath} className="hover:text-blue-600">{sectionName}</Link>
+                <Link href={href(basePath)} className="hover:text-blue-600">{sectionName}</Link>
               </li>
               <li>/</li>
               <li className="text-gray-900 truncate max-w-[200px]">{article.title}</li>
@@ -65,7 +68,7 @@ export default function ArticleDetailClient({ article }: { article: Article }) {
                 )}
                 <span className="flex items-center gap-1.5">
                   <CalendarDaysIcon className="h-4 w-4" />
-                  {new Date(article.published_at || article.created_at).toLocaleDateString('en-US', {
+                  {new Date(article.published_at || article.created_at).toLocaleDateString(localeTag, {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
@@ -73,9 +76,9 @@ export default function ArticleDetailClient({ article }: { article: Article }) {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <EyeIcon className="h-4 w-4" />
-                  {article.view_count} views
+                  {t('common.views', { count: article.view_count })}
                 </span>
-                <span>{readTime} min read</span>
+                <span>{t('common.readTime', { count: readTime })}</span>
               </div>
             </div>
           </header>
@@ -88,11 +91,11 @@ export default function ArticleDetailClient({ article }: { article: Article }) {
           {/* Back to News */}
           <div className="border-t border-gray-200 py-8">
             <Link
-              href={basePath}
+              href={href(basePath)}
               className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium"
             >
               <ArrowLeftIcon className="h-4 w-4" />
-              Back to {sectionName}
+              {t('common.backTo', { section: sectionName })}
             </Link>
           </div>
         </div>

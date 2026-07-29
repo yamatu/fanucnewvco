@@ -4,6 +4,10 @@ import { getSiteUrl } from '@/lib/url';
 import { SITE_NAME, withSiteName, withoutSiteNameSuffix } from '@/lib/seo';
 import { NewsService } from '@/services/news.service';
 import ArticleDetailClient from './ArticleDetailClient';
+import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
+import { localizeArticleContent } from '@/lib/i18n/content';
+import { localizePublicPath } from '@/lib/i18n/config';
+import { translatePublicMessage } from '@/lib/i18n/messages';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,9 +19,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const article = await NewsService.getArticleBySlug(slug, 'news');
-    const baseUrl = getSiteUrl();
-    const canonicalUrl = `${baseUrl}${article.public_path || `/news/${article.slug}`}`;
+    const locale = await getRequestPublicLocale();
+    const article = localizeArticleContent(await NewsService.getArticleBySlug(slug, 'news'), locale);
+    const publicPath = article.public_path || `/news/${article.slug}`;
+    const { canonical: canonicalUrl, languages } = await getLocalizedMetadataPaths(publicPath);
 
     const metaTitle = withoutSiteNameSuffix((article.meta_title || '').trim() || article.title);
     const socialTitle = withSiteName(metaTitle);
@@ -45,7 +50,7 @@ export async function generateMetadata({
         modifiedTime: article.updated_at,
         ...(article.author?.full_name ? { authors: [article.author.full_name] } : {}),
       },
-      alternates: { canonical: canonicalUrl },
+      alternates: { canonical: canonicalUrl, languages },
       twitter: {
         card: 'summary_large_image',
         title: socialTitle,
@@ -70,12 +75,16 @@ export default async function ArticlePage({
 
   let article;
   try {
-    article = await NewsService.getArticleBySlug(slug, 'news');
+    const locale = await getRequestPublicLocale();
+    article = localizeArticleContent(await NewsService.getArticleBySlug(slug, 'news'), locale);
   } catch {
     notFound();
   }
 
   const baseUrl = getSiteUrl();
+  const locale = await getRequestPublicLocale();
+  const articlePath = article.public_path || `/news/${article.slug}`;
+  const articleUrl = `${baseUrl}${localizePublicPath(articlePath, locale)}`;
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',
@@ -84,7 +93,7 @@ export default async function ArticlePage({
     image: article.featured_image || undefined,
     datePublished: article.published_at || article.created_at,
     dateModified: article.updated_at,
-    url: `${baseUrl}${article.public_path || `/news/${article.slug}`}`,
+    url: articleUrl,
     ...(article.author?.full_name
       ? {
           author: {
@@ -101,7 +110,7 @@ export default async function ArticlePage({
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `${baseUrl}${article.public_path || `/news/${article.slug}`}`,
+      '@id': articleUrl,
     },
   };
 
@@ -109,13 +118,13 @@ export default async function ArticlePage({
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: baseUrl },
-      { '@type': 'ListItem', position: 2, name: 'News', item: `${baseUrl}/news` },
+      { '@type': 'ListItem', position: 1, name: translatePublicMessage(locale, 'common.home'), item: `${baseUrl}${localizePublicPath('/', locale)}` },
+      { '@type': 'ListItem', position: 2, name: translatePublicMessage(locale, 'nav.news'), item: `${baseUrl}${localizePublicPath('/news', locale)}` },
       {
         '@type': 'ListItem',
         position: 3,
         name: article.title,
-        item: `${baseUrl}${article.public_path || `/news/${article.slug}`}`,
+        item: articleUrl,
       },
     ],
   };

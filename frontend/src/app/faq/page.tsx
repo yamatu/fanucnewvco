@@ -3,30 +3,35 @@ import PublicLayout from '@/components/layout/PublicLayout';
 import { generateFAQSchema, generateBreadcrumbSchema } from '@/lib/structured-data';
 import { getSiteUrl } from '@/lib/url';
 import { buildStaticPageMetadata } from '@/lib/seo';
+import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
+import { localizePublicPath } from '@/lib/i18n/config';
+import { translatePublicMessage } from '@/lib/i18n/messages';
 
-const FAQ_DESCRIPTION =
-  'Find answers to common questions about FANUC parts, shipping, warranty, technical support, and more. Professional industrial automation support from VIBO CNC.';
-
-export const metadata: Metadata = {
-  ...buildStaticPageMetadata(
+export async function generateMetadata(): Promise<Metadata> {
+  const { locale, canonical, languages } = await getLocalizedMetadataPaths('/faq');
+  const title = translatePublicMessage(locale, 'faq.title');
+  const description = translatePublicMessage(locale, 'faq.description');
+  return {
+    ...buildStaticPageMetadata(
     '/faq',
-    'FAQ - Frequently Asked Questions',
-    FAQ_DESCRIPTION,
+    title,
+    description,
     'FANUC parts FAQ, industrial automation support, CNC parts questions, technical support, warranty information, FANUC shipping, FANUC compatibility',
   ),
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+    alternates: { canonical, languages },
+    openGraph: { title, description, type: 'website', url: canonical },
+    robots: { index: true, follow: true },
+  };
+}
 
-export default function FAQPage() {
+export default async function FAQPage() {
   const baseUrl = getSiteUrl();
+  const locale = await getRequestPublicLocale();
 
   const faqSchema = generateFAQSchema();
   const breadcrumbSchema = generateBreadcrumbSchema([
-    { name: 'Home', url: baseUrl },
-    { name: 'FAQ', url: `${baseUrl}/faq` }
+    { name: translatePublicMessage(locale, 'common.home'), url: `${baseUrl}${localizePublicPath('/', locale)}` },
+    { name: translatePublicMessage(locale, 'faq.title'), url: `${baseUrl}${localizePublicPath('/faq', locale)}` }
   ]);
 
   const combinedSchema = {
@@ -46,12 +51,12 @@ export default function FAQPage() {
         <div className="site-page-shell min-h-screen">
           <section className="site-page-hero">
             <div className="site-hero-inner mx-auto max-w-4xl px-4 py-16 text-center sm:px-6 lg:px-8">
-              <span className="site-hero-kicker">Support center</span>
+              <span className="site-hero-kicker">{translatePublicMessage(locale, 'faq.kicker')}</span>
               <h1 className="mt-5 text-4xl font-bold text-white sm:text-5xl">
-                Frequently Asked Questions
+                {translatePublicMessage(locale, 'faq.title')}
               </h1>
               <p className="mx-auto mt-4 max-w-3xl text-lg leading-8 text-blue-100">
-                Find answers to common questions about FANUC parts, shipping, warranty, and technical support.
+                {translatePublicMessage(locale, 'faq.description')}
               </p>
             </div>
           </section>
@@ -146,7 +151,7 @@ export default function FAQPage() {
                   How do I track my order?
                 </h2>
                 <p className="text-gray-700 leading-relaxed">
-                  Once your order ships, you'll receive tracking information via email. You can also log into your account on our website to view order status and tracking details in real-time.
+                  Once your order ships, you&apos;ll receive tracking information via email. You can also log into your account on our website to view order status and tracking details in real-time.
                 </p>
               </div>
             </div>
@@ -154,23 +159,23 @@ export default function FAQPage() {
             {/* Contact CTA */}
             <div className="site-status-panel-strong mt-16 p-8 text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                Still Have Questions?
+                {translatePublicMessage(locale, 'faq.more')}
               </h2>
               <p className="text-gray-600 mb-6">
-                Our expert team is here to help with any questions about FANUC parts or technical support.
+                {translatePublicMessage(locale, 'faq.moreDescription')}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a
-                  href="/contact"
+                  href={localizePublicPath('/contact', locale)}
                   className="site-primary-action px-6 py-3"
                 >
-                  Contact Us
+                  {translatePublicMessage(locale, 'common.contactUs')}
                 </a>
                 <a
                   href="mailto:sales@vibocnc.com"
                   className="site-secondary-action px-6 py-3"
                 >
-                  Email Support
+                  {translatePublicMessage(locale, 'faq.email')}
                 </a>
               </div>
             </div>

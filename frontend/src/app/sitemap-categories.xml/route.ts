@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getRequestBaseUrl } from '@/lib/request-url'
 import { CategoryService } from '@/services/category.service'
+import { renderLocalizedSitemap } from '@/lib/i18n/sitemap'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 3600 // 1 hour
@@ -28,21 +29,13 @@ export async function GET() {
   const categoryPages = flat
     .filter((c) => c && (c.path || c.slug))
     .map((category) => ({
-      url: `${baseUrl}/categories/${category.path || category.slug}`,
+      pathname: `/categories/${category.path || category.slug}`,
       lastModified: category.updated_at ? new Date(category.updated_at).toISOString() : new Date().toISOString(),
       changeFrequency: 'weekly',
       priority: '0.8',
     }))
 
-  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${categoryPages.map(page => `  <url>
-    <loc>${page.url}</loc>
-    <lastmod>${page.lastModified}</lastmod>
-    <changefreq>${page.changeFrequency}</changefreq>
-    <priority>${page.priority}</priority>
-  </url>`).join('\n')}
-</urlset>`
+  const sitemap = renderLocalizedSitemap(baseUrl, categoryPages)
 
   return new NextResponse(sitemap, {
     headers: {
@@ -51,4 +44,3 @@ ${categoryPages.map(page => `  <url>
     },
   })
 }
-

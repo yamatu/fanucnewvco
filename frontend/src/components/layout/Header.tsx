@@ -23,18 +23,22 @@ import { CartSidebar } from '@/components/cart/CartSidebar';
 import type { Category, Product } from '@/types';
 import { CategoryService, ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
+import LanguageSelector from './LanguageSelector';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
+import { localizeCategoryContent, localizeProductContent } from '@/lib/i18n/content';
 
 const navigation = [
-  { name: 'Home', href: '/' },
-  { name: 'Products', href: '/products' },
-  { name: 'Categories', href: '/categories' },
-  { name: 'News', href: '/news' },
-  { name: 'Blog', href: '/blog' },
-  { name: 'About', href: '/about' },
-  { name: 'Contact', href: '/contact' },
+  { key: 'nav.home', href: '/' },
+  { key: 'nav.products', href: '/products' },
+  { key: 'nav.categories', href: '/categories' },
+  { key: 'nav.news', href: '/news' },
+  { key: 'nav.blog', href: '/blog' },
+  { key: 'nav.about', href: '/about' },
+  { key: 'nav.contact', href: '/contact' },
 ];
 
 export function Header() {
+  const { locale, t, href } = usePublicI18n();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,7 +55,7 @@ export function Header() {
   const handleLogout = () => {
     logout();
     setUserMenuOpen(false);
-    router.push('/');
+    router.push(href('/'));
   };
 
   const fetchSuggestions = useCallback((query: string) => {
@@ -64,14 +68,14 @@ export function Header() {
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await ProductService.searchProducts(query.trim(), { page_size: 3 });
-        setSuggestions(res.data || []);
+        setSuggestions((res.data || []).map((product) => localizeProductContent(product, locale)));
       } catch {
         setSuggestions([]);
       } finally {
         setSuggestionsLoading(false);
       }
     }, 300);
-  }, []);
+  }, [locale]);
 
   const handleSearchInput = (value: string) => {
     setSearchQuery(value);
@@ -93,7 +97,7 @@ export function Header() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+      router.push(href(`/products?search=${encodeURIComponent(searchQuery.trim())}`));
       setSearchOpen(false);
       setSearchQuery('');
       setSuggestions([]);
@@ -126,7 +130,7 @@ export function Header() {
               return (
                 <Link
                   key={p.id}
-                  href={`/products/${toProductPathId(p.sku)}`}
+              href={href(`/products/${toProductPathId(p.sku)}`)}
                   onClick={handleSuggestionClick}
                   className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition-colors"
                 >
@@ -150,15 +154,15 @@ export function Header() {
               );
             })}
             <Link
-              href={`/products?search=${encodeURIComponent(searchQuery.trim())}`}
+              href={href(`/products?search=${encodeURIComponent(searchQuery.trim())}`)}
               onClick={handleSuggestionClick}
               className="site-link-accent block text-center text-sm py-2"
             >
-              View all results
+              {t('header.viewResults')}
             </Link>
           </div>
         ) : (
-          <p className="text-sm text-gray-500 text-center py-3">No products found</p>
+          <p className="text-sm text-gray-500 text-center py-3">{t('header.noProducts')}</p>
         )}
       </div>
     );
@@ -183,7 +187,8 @@ export function Header() {
               </div>
             </div>
             <div className="hidden md:flex items-center space-x-4">
-              <span suppressHydrationWarning>Industrial automation parts supply | VIBO CNC Since 2005</span>
+              <span suppressHydrationWarning>{t('header.supply')}</span>
+              <LanguageSelector />
             </div>
           </div>
         </div>
@@ -194,7 +199,7 @@ export function Header() {
         <div className="flex items-center justify-between gap-4 py-4">
           {/* Logo */}
           <div className="flex flex-shrink-0 items-center">
-            <Link href="/" className="flex items-center space-x-3">
+            <Link href={href('/')} className="flex items-center space-x-3">
               <Image
                 src="/images/vibocnc-logo.png"
                 alt="ViboCNC"
@@ -213,18 +218,18 @@ export function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden min-w-0 flex-1 items-center justify-center gap-4 lg:flex 2xl:gap-7">
             {navigation.map((item) => {
-              if (item.name === 'Categories') {
+              if (item.key === 'nav.categories') {
                 return (
-                  <CategoriesDropdown key={item.name} />
+                  <CategoriesDropdown key={item.key} />
                 );
               }
               return (
                 <Link
-                  key={item.name}
-                  href={item.href}
+                  key={item.key}
+                  href={href(item.href)}
                   className="text-sm font-semibold uppercase tracking-wide text-slate-700 transition-colors duration-200 hover:text-orange-600"
                 >
-                  {item.name}
+                  {t(item.key)}
                 </Link>
               );
             })}
@@ -236,6 +241,7 @@ export function Header() {
             <div className="relative" ref={searchDropdownRef}>
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
+                aria-label={t('header.search')}
                 className="p-2 text-slate-600 hover:text-orange-600 transition-colors"
               >
                 <MagnifyingGlassIcon className="h-6 w-6" />
@@ -247,7 +253,7 @@ export function Header() {
                     <div className="flex">
                       <input
                         type="text"
-                        placeholder="Search products..."
+                        placeholder={t('header.searchProducts')}
                         value={searchQuery}
                         onChange={(e) => handleSearchInput(e.target.value)}
                         className="flex-1 px-3 py-2 border border-slate-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-[#003a78]"
@@ -257,7 +263,7 @@ export function Header() {
                         type="submit"
                         className="px-4 py-2 bg-[#003a78] text-white rounded-r-md hover:bg-orange-600 transition-colors font-semibold"
                       >
-                        Search
+                        {t('header.search')}
                       </button>
                     </div>
                   </form>
@@ -269,6 +275,7 @@ export function Header() {
             {/* Cart */}
             <button
               onClick={toggleCart}
+              aria-label={t('header.cart')}
               className="relative p-2 text-slate-600 hover:text-orange-600 transition-colors"
             >
               <ShoppingCartIcon className="h-6 w-6" />
@@ -297,35 +304,35 @@ export function Header() {
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      My Account
+                      {t('header.myAccount')}
                     </Link>
                     <Link
                       href="/account/orders"
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      My Orders
+                      {t('header.myOrders')}
                     </Link>
                     <Link
                       href="/account/tickets"
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      Support Tickets
+                      {t('header.supportTickets')}
                     </Link>
                     <Link
-                      href="/track-order"
+                      href={href('/track-order')}
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      Track Order
+                      {t('header.trackOrder')}
                     </Link>
                     <hr className="my-1" />
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                     >
-                      Logout
+                      {t('header.logout')}
                     </button>
                   </div>
                 )}
@@ -336,19 +343,19 @@ export function Header() {
                   href="/login"
                   className="px-3 py-2 text-sm font-medium text-slate-700 hover:text-orange-600 transition-colors"
                 >
-                  Login
+                  {t('header.login')}
                 </Link>
                 <Link
                   href="/register"
                   className="px-3 py-2 text-sm font-semibold text-white bg-[#003a78] rounded-md hover:bg-orange-600 transition-colors"
                 >
-                  Register
+                  {t('header.register')}
                 </Link>
                 <Link
-                  href="/track-order"
+                  href={href('/track-order')}
                   className="px-3 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
                 >
-                  Track Order
+                  {t('header.trackOrder')}
                 </Link>
               </div>
             )}
@@ -356,6 +363,7 @@ export function Header() {
             {/* Mobile menu button */}
             <button
               type="button"
+              aria-label={mobileMenuOpen ? t('header.closeMenu') : t('header.openMenu')}
               className="lg:hidden p-2 text-slate-600 hover:text-orange-600"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
@@ -373,18 +381,19 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="lg:hidden border-t border-slate-200 bg-white">
           <div className="px-4 py-4 space-y-4">
+            <LanguageSelector mobile />
             {navigation.map((item) => {
-              if (item.name === 'Categories') {
-                return <MobileCategoriesMenu key={item.name} onNavigate={() => setMobileMenuOpen(false)} />;
+              if (item.key === 'nav.categories') {
+                return <MobileCategoriesMenu key={item.key} onNavigate={() => setMobileMenuOpen(false)} />;
               }
               return (
                 <Link
-                  key={item.name}
-                  href={item.href}
+                  key={item.key}
+                  href={href(item.href)}
                   className="block text-slate-700 hover:text-orange-600 font-medium py-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  {item.name}
+                  {t(item.key)}
                 </Link>
               );
             })}
@@ -394,7 +403,7 @@ export function Header() {
               <form onSubmit={handleSearch} className="flex">
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder={t('header.searchProducts')}
                 value={searchQuery}
                 onChange={(e) => handleSearchInput(e.target.value)}
                   className="flex-1 px-3 py-2 border border-slate-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-[#003a78]"
@@ -403,7 +412,7 @@ export function Header() {
                   type="submit"
                   className="px-4 py-2 bg-[#003a78] text-white rounded-r-md hover:bg-orange-600 transition-colors font-semibold"
                 >
-                  Search
+                  {t('header.search')}
                 </button>
               </form>
               {renderSuggestions()}
@@ -412,11 +421,11 @@ export function Header() {
             {/* Mobile Track Order */}
             <div className="pt-4 border-t border-gray-200">
               <Link
-                href="/track-order"
+                href={href('/track-order')}
                 className="block w-full text-center px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Track Order
+                {t('header.trackOrder')}
               </Link>
             </div>
           </div>
@@ -441,13 +450,18 @@ export default Header;
 
 // --- Categories Dropdown (desktop) ---
 function CategoriesDropdown() {
+  const { locale, t, href } = usePublicI18n();
   const [shouldLoad, setShouldLoad] = useState(false);
-  const { data: categories = [] } = useQuery<Category[]>({
+  const { data: fetchedCategories = [] } = useQuery<Category[]>({
     queryKey: queryKeys.categories.tree(),
     queryFn: () => CategoryService.getCategories(),
     enabled: shouldLoad,
     staleTime: 5 * 60 * 1000,
   });
+  const categories = useMemo(
+    () => fetchedCategories.map((item) => localizeCategoryContent(item, locale)),
+    [fetchedCategories, locale],
+  );
 
   const [hoverPath, setHoverPath] = useState<number[]>([]);
 
@@ -485,10 +499,10 @@ function CategoriesDropdown() {
       onFocusCapture={() => setShouldLoad(true)}
     >
       <Link
-        href="/categories"
+        href={href('/categories')}
         className="text-sm font-semibold uppercase tracking-wide text-slate-700 hover:text-orange-600 transition-colors duration-200 py-2 px-1 block"
       >
-        Categories
+        {t('nav.categories')}
       </Link>
       {/* Invisible bridge to prevent hover gap */}
       <div className="absolute top-full left-0 w-full h-2 bg-transparent"></div>
@@ -499,7 +513,7 @@ function CategoriesDropdown() {
           onMouseLeave={() => setHoverPath([])}
         >
           <div className="mb-3 pb-2 border-b border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-800 uppercase tracking-wide">Product Categories</h3>
+            <h3 className="text-sm font-semibold text-slate-800 uppercase tracking-wide">{t('header.productCategories')}</h3>
           </div>
           <div className="flex gap-3">
             {columns.map((col, level) => (
@@ -511,7 +525,7 @@ function CategoriesDropdown() {
                     return (
                       <li key={cat.id}>
                         <Link
-                          href={`/categories/${cat.path || cat.slug}`}
+                          href={href(`/categories/${cat.path || cat.slug}`)}
                           onMouseEnter={() => setHoverAtLevel(level, cat.id)}
                           scroll={false}
                           className={cn(
@@ -536,13 +550,18 @@ function CategoriesDropdown() {
 }
 
 function MobileCategoriesMenu({ onNavigate }: { onNavigate: () => void }) {
+  const { locale, t } = usePublicI18n();
   const [open, setOpen] = useState(false);
-  const { data: categories = [] } = useQuery<Category[]>({
+  const { data: fetchedCategories = [] } = useQuery<Category[]>({
     queryKey: queryKeys.categories.tree(),
     queryFn: () => CategoryService.getCategories(),
     enabled: open,
     staleTime: 5 * 60 * 1000,
   });
+  const categories = useMemo(
+    () => fetchedCategories.map((item) => localizeCategoryContent(item, locale)),
+    [fetchedCategories, locale],
+  );
 
   const [openIds, setOpenIds] = useState<Set<number>>(new Set());
   const toggle = (id: number) => {
@@ -561,7 +580,7 @@ function MobileCategoriesMenu({ onNavigate }: { onNavigate: () => void }) {
         className="w-full flex items-center justify-between text-slate-700 hover:text-orange-600 font-medium py-2"
         onClick={() => setOpen((v) => !v)}
       >
-        <span>Categories</span>
+        <span>{t('nav.categories')}</span>
         <span className="text-slate-400">{open ? '-' : '+'}</span>
       </button>
       {open && Array.isArray(categories) && categories.length > 0 && (
@@ -586,6 +605,7 @@ function MobileCategoryTree({
   openIds: Set<number>;
   onToggle: (id: number) => void;
 }) {
+  const { href } = usePublicI18n();
   return (
     <div className="space-y-1">
       {categories.map((cat) => (
@@ -609,7 +629,7 @@ function MobileCategoryTree({
             )}
 
             <Link
-              href={`/categories/${cat.path || cat.slug}`}
+              href={href(`/categories/${cat.path || cat.slug}`)}
               className="block text-sm text-slate-700 hover:text-orange-600 py-0.5"
               onClick={onNavigate}
               scroll={false}

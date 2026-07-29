@@ -8,6 +8,10 @@ import ScrollRestorer from '@/components/common/ScrollRestorer';
 import { CategoryService } from '@/services';
 import { getSiteUrl } from '@/lib/url';
 import { withSiteName } from '@/lib/seo';
+import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
+import { localizeCategoryContent } from '@/lib/i18n/content';
+import { localizePublicPath } from '@/lib/i18n/config';
+import { translatePublicMessage } from '@/lib/i18n/messages';
 
 interface CategoryPathPageProps {
   params: Promise<{ categoryPath: string[] }>;
@@ -76,10 +80,13 @@ function getCategoryMetaDescription(categoryName: string, baseDescription?: stri
 export async function generateMetadata({ params }: CategoryPathPageProps): Promise<Metadata> {
   try {
     const { categoryPath } = await params;
+    const locale = await getRequestPublicLocale();
     const path = (categoryPath || []).join('/');
-    const { category, breadcrumb } = await CategoryService.getCategoryByPath(path);
-    const baseUrl = getSiteUrl();
+    const resolved = await CategoryService.getCategoryByPath(path);
+    const category = localizeCategoryContent(resolved.category, locale);
+    const breadcrumb = (resolved.breadcrumb || []).map((item: any) => localizeCategoryContent(item, locale));
     const urlPath = category.path ? `/categories/${category.path}` : `/categories/${path}`;
+    const { canonical, languages } = await getLocalizedMetadataPaths(urlPath);
     const brandName = getCategoryBrandName(category, breadcrumb);
     const titleSuffix = getCategoryTitleSuffix(brandName);
     const metaDescription = getCategoryMetaDescription(category.name, category.description, brandName);
@@ -90,10 +97,11 @@ export async function generateMetadata({ params }: CategoryPathPageProps): Promi
         title: withSiteName(`${category.name} - ${titleSuffix} | Buy Online`),
         description: metaDescription,
         type: 'website',
-        url: `${baseUrl}${urlPath}`,
+        url: canonical,
       },
       alternates: {
-        canonical: `${baseUrl}${urlPath}`,
+        canonical,
+        languages,
       },
     };
   } catch {
@@ -105,9 +113,9 @@ export async function generateMetadata({ params }: CategoryPathPageProps): Promi
 }
 
 // CollectionPage + FAQ JSON-LD for category pages
-function CategoryStructuredData({ category, breadcrumb, baseUrl }: { category: any; breadcrumb: any[]; baseUrl: string }) {
+function CategoryStructuredData({ category, breadcrumb, baseUrl, locale }: { category: any; breadcrumb: any[]; baseUrl: string; locale: Awaited<ReturnType<typeof getRequestPublicLocale>> }) {
   const urlPath = category.path ? `/categories/${category.path}` : `/categories/${category.slug}`;
-  const categoryUrl = `${baseUrl}${urlPath}`;
+  const categoryUrl = `${baseUrl}${localizePublicPath(urlPath, locale)}`;
   const brandName = getCategoryBrandName(category, breadcrumb);
 
   const collectionData = {
@@ -127,14 +135,14 @@ function CategoryStructuredData({ category, breadcrumb, baseUrl }: { category: a
         {
           "@type": "ListItem",
           "position": 1,
-          "name": "Home",
-          "item": baseUrl
+          "name": translatePublicMessage(locale, 'common.home'),
+          "item": `${baseUrl}${localizePublicPath('/', locale)}`
         },
         ...breadcrumb.map((bc: any, idx: number) => ({
           "@type": "ListItem",
           "position": idx + 2,
           "name": bc.name,
-          "item": `${baseUrl}/categories/${bc.path || bc.slug}`
+          "item": `${baseUrl}${localizePublicPath(`/categories/${bc.path || bc.slug}`, locale)}`
         }))
       ]
     }
@@ -188,6 +196,7 @@ function CategoryStructuredData({ category, breadcrumb, baseUrl }: { category: a
 
 export default async function CategoryPathPage({ params, searchParams }: CategoryPathPageProps) {
   const { categoryPath } = await params;
+  const locale = await getRequestPublicLocale();
   const searchParamsResolved = await searchParams;
   const path = (categoryPath || []).join('/');
 
@@ -201,17 +210,22 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
   if (!resolved?.category) {
     const redirectPath = legacyCategoryRedirects[path];
     if (redirectPath) {
-      permanentRedirect(`/categories/${redirectPath}`);
+      permanentRedirect(localizePublicPath(`/categories/${redirectPath}`, locale));
     }
     notFound();
   }
 
   // Canonical redirect to computed path if the request path differs.
   if (resolved.category.path && resolved.category.path !== path) {
-    permanentRedirect(`/categories/${resolved.category.path}`);
+    permanentRedirect(localizePublicPath(`/categories/${resolved.category.path}`, locale));
   }
 
-  const tree = await CategoryService.getCategories();
+  resolved = {
+    category: localizeCategoryContent(resolved.category, locale),
+    breadcrumb: (resolved.breadcrumb || []).map((item: any) => localizeCategoryContent(item, locale)),
+  };
+
+  const tree = (await CategoryService.getCategories()).map((item: any) => localizeCategoryContent(item, locale));
   const breadcrumbIds = (resolved.breadcrumb || [])
     .map((c: any) => Number(c.id))
     .filter((n: number) => Number.isFinite(n) && n > 0);
@@ -223,6 +237,7 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
         category={resolved.category}
         breadcrumb={resolved.breadcrumb || []}
         baseUrl={baseUrl}
+        locale={locale}
       />
       <ScrollRestorer storageKey="category-scroll-y" />
       <div className="site-page-shell min-h-screen">
@@ -230,7 +245,7 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
         <div className="site-page-hero py-12">
           <div className="site-hero-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <div className="site-hero-kicker mb-5">Category Supply</div>
+              <div className="site-hero-kicker mb-5">{translatePublicMessage(locale, 'categories.kicker')}</div>
               <h1 className="text-3xl md:text-5xl font-bold mb-3">{resolved.category.name}</h1>
               {resolved.category.description && (
                 <p className="text-lg md:text-xl text-blue-100 max-w-3xl mx-auto leading-relaxed">{resolved.category.description}</p>
@@ -239,15 +254,15 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
                 <nav className="flex justify-center" aria-label="Breadcrumb">
                   <ol className="flex items-center flex-wrap gap-x-2 gap-y-1 text-blue-100">
                     <li>
-                      <a href="/" className="hover:text-white transition-colors">
-                        Home
+                      <a href={localizePublicPath('/', locale)} className="hover:text-white transition-colors">
+                        {translatePublicMessage(locale, 'common.home')}
                       </a>
                     </li>
                     {(resolved.breadcrumb || []).map((bc: any) => (
                       <li key={bc.id} className="flex items-center">
                         <span className="mx-2">/</span>
                         <a
-                          href={bc.path ? `/categories/${bc.path}` : `/categories/${bc.slug}`}
+                          href={localizePublicPath(bc.path ? `/categories/${bc.path}` : `/categories/${bc.slug}`, locale)}
                           className={
                             bc.id === resolved!.category.id
                               ? 'text-white font-medium'
@@ -270,7 +285,7 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
             {/* Left sidebar */}
             <aside className="lg:col-span-3">
               <div className="site-panel p-4 lg:sticky lg:top-28">
-                <div className="mb-3 border-b border-slate-200 pb-3 text-sm font-semibold uppercase tracking-wide text-slate-900">Categories</div>
+                <div className="mb-3 border-b border-slate-200 pb-3 text-sm font-semibold uppercase tracking-wide text-slate-900">{translatePublicMessage(locale, 'nav.categories')}</div>
                 <CategorySidebarTree
                   tree={tree}
                   activeCategoryId={resolved.category.id}

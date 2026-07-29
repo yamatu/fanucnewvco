@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { HomepageContent } from '@/types';
 import { DEFAULT_HERO_DATA, type HeroSectionData } from '@/lib/homepage-defaults';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 type Props = { content?: HomepageContent | null };
 
@@ -44,6 +45,7 @@ function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
 }
 
 export function HeroSection({ content }: Props) {
+  const { locale, t, href } = usePublicI18n();
   const heroData = normalizeHeroData(content);
   const slides = heroData.slides;
   const autoPlayMs = heroData.autoPlayMs || 6000;
@@ -55,6 +57,16 @@ export function HeroSection({ content }: Props) {
     DEFAULT_HERO_DATA.slides[currentSlide % DEFAULT_HERO_DATA.slides.length]?.image ||
     DEFAULT_HERO_DATA.slides[0].image;
   const imageSrc = failedImages.has(activeSlide.image) ? fallbackImage : activeSlide.image;
+  const localizedSlide = locale === 'en' ? activeSlide : {
+    ...activeSlide,
+    title: t('home.hero.title'),
+    subtitle: t('home.hero.subtitle'),
+    description: t('home.hero.description'),
+    cta: {
+      primary: { ...activeSlide.cta.primary, text: t('home.hero.primary'), href: '/products' },
+      secondary: { ...activeSlide.cta.secondary, text: t('home.hero.secondary'), href: '/about' },
+    },
+  };
 
   // Auto-play functionality
   useEffect(() => {
@@ -88,7 +100,7 @@ export function HeroSection({ content }: Props) {
         <Image
           key={imageSrc}
           src={imageSrc}
-          alt={activeSlide.title}
+          alt={localizedSlide.title}
           width={1920}
           height={1080}
           className="h-full w-full object-cover"
@@ -109,34 +121,34 @@ export function HeroSection({ content }: Props) {
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div key={activeSlide.id ?? currentSlide} className="max-w-3xl">
             <div className="mb-6 inline-flex items-center border border-orange-300/40 bg-slate-950/45 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-orange-100 backdrop-blur">
-              Industrial Automation Supply
+              {t('home.hero.kicker')}
             </div>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-black mb-6 leading-[0.98] text-white">
-              {activeSlide.title}
+              {localizedSlide.title}
             </h1>
 
             <p className="text-xl md:text-2xl font-semibold mb-6 text-orange-200">
-              {activeSlide.subtitle}
+              {localizedSlide.subtitle}
             </p>
 
             <p className="text-base md:text-lg mb-10 max-w-2xl leading-8 text-slate-200">
-              {activeSlide.description}
+              {localizedSlide.description}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <Link
-                href={activeSlide.cta.primary.href}
+                href={href(localizedSlide.cta.primary.href)}
                 className="inline-flex justify-center bg-orange-500 hover:bg-[#003a78] text-white px-7 py-3 rounded-md text-base font-semibold transition-colors shadow-lg shadow-teal-950/30"
               >
-                {activeSlide.cta.primary.text}
+                {localizedSlide.cta.primary.text}
               </Link>
 
               <Link
-                href={activeSlide.cta.secondary.href}
+                href={href(localizedSlide.cta.secondary.href)}
                 className="inline-flex justify-center border border-white/60 text-white hover:bg-white hover:text-slate-950 px-7 py-3 rounded-md text-base font-semibold transition-colors"
               >
-                {activeSlide.cta.secondary.text}
+                {localizedSlide.cta.secondary.text}
               </Link>
             </div>
           </div>
@@ -146,7 +158,7 @@ export function HeroSection({ content }: Props) {
       <button
         onClick={prevSlide}
         className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-slate-950/50 hover:bg-slate-950/80 text-white p-3 rounded-full transition-all duration-300"
-        aria-label="Previous slide"
+        aria-label={t('home.hero.previous')}
       >
         <ChevronLeftIcon className="h-6 w-6" />
       </button>
@@ -154,7 +166,7 @@ export function HeroSection({ content }: Props) {
       <button
         onClick={nextSlide}
         className="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-slate-950/50 hover:bg-slate-950/80 text-white p-3 rounded-full transition-all duration-300"
-        aria-label="Next slide"
+        aria-label={t('home.hero.next')}
       >
         <ChevronRightIcon className="h-6 w-6" />
       </button>
@@ -170,7 +182,7 @@ export function HeroSection({ content }: Props) {
                 ? 'bg-orange-500 scale-125'
                 : 'bg-white/50 hover:bg-white/80'
             }`}
-            aria-label={`Go to slide ${index + 1}`}
+            aria-label={t('home.hero.goTo', { number: index + 1 })}
           />
         ))}
       </div>
@@ -178,7 +190,7 @@ export function HeroSection({ content }: Props) {
       {/* Scroll Indicator */}
       <div className="hidden md:block absolute bottom-8 right-8 z-20 text-white animate-bounce">
         <div className="flex flex-col items-center">
-          <span className="text-sm mb-2">Scroll Down</span>
+          <span className="text-sm mb-2">{t('home.hero.scroll')}</span>
           <svg
             className="w-6 h-6"
             fill="none"

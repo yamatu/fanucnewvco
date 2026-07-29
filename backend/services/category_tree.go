@@ -8,20 +8,21 @@ import (
 )
 
 // CategoryNode is a JSON-friendly representation of Category with computed path and deep children.
-// It intentionally omits heavy relations like Products/Translations.
+// It intentionally omits heavy product relations while retaining lightweight translations.
 type CategoryNode struct {
-	ID          uint           `json:"id"`
-	Name        string         `json:"name"`
-	Slug        string         `json:"slug"`
-	Path        string         `json:"path"`
-	Description string         `json:"description"`
-	ImageURL    string         `json:"image_url"`
-	ParentID    *uint          `json:"parent_id"`
-	SortOrder   int            `json:"sort_order"`
-	IsActive    bool           `json:"is_active"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	Children    []CategoryNode `json:"children,omitempty"`
+	ID           uint                         `json:"id"`
+	Name         string                       `json:"name"`
+	Slug         string                       `json:"slug"`
+	Path         string                       `json:"path"`
+	Description  string                       `json:"description"`
+	ImageURL     string                       `json:"image_url"`
+	ParentID     *uint                        `json:"parent_id"`
+	SortOrder    int                          `json:"sort_order"`
+	IsActive     bool                         `json:"is_active"`
+	CreatedAt    time.Time                    `json:"created_at"`
+	UpdatedAt    time.Time                    `json:"updated_at"`
+	Translations []models.CategoryTranslation `json:"translations,omitempty"`
+	Children     []CategoryNode               `json:"children,omitempty"`
 }
 
 // categorySort sorts categories by sort_order then name.
@@ -34,18 +35,19 @@ func categorySort(a, b models.Category) bool {
 
 func buildNode(c models.Category, path string, children []CategoryNode) CategoryNode {
 	return CategoryNode{
-		ID:          c.ID,
-		Name:        c.Name,
-		Slug:        c.Slug,
-		Path:        path,
-		Description: c.Description,
-		ImageURL:    c.ImageURL,
-		ParentID:    c.ParentID,
-		SortOrder:   c.SortOrder,
-		IsActive:    c.IsActive,
-		CreatedAt:   c.CreatedAt,
-		UpdatedAt:   c.UpdatedAt,
-		Children:    children,
+		ID:           c.ID,
+		Name:         c.Name,
+		Slug:         c.Slug,
+		Path:         path,
+		Description:  c.Description,
+		ImageURL:     c.ImageURL,
+		ParentID:     c.ParentID,
+		SortOrder:    c.SortOrder,
+		IsActive:     c.IsActive,
+		CreatedAt:    c.CreatedAt,
+		UpdatedAt:    c.UpdatedAt,
+		Translations: c.Translations,
+		Children:     children,
 	}
 }
 

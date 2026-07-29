@@ -18,6 +18,7 @@ import SmartPagination from '@/components/ui/SmartPagination';
 import CategoryFilterTree from '@/components/categories/CategoryFilterTree';
 import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 interface ProductsPageClientProps {
   initialData: {
@@ -34,6 +35,7 @@ interface ProductsPageClientProps {
 
 export default function ProductsPageClient({ initialData, searchParams }: ProductsPageClientProps) {
   const router = useRouter();
+  const { t, href } = usePublicI18n();
 
   const [searchQuery, setSearchQuery] = useState(initialData.searchQuery);
   const [selectedCategory, setSelectedCategory] = useState(initialData.selectedCategory);
@@ -97,7 +99,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
     setCurrentPage(1);
 
     // Update URL
-    router.push('/products');
+    router.push(href('/products'));
   };
 
   // Handle search with debounce and URL update
@@ -113,14 +115,14 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
         params.set('page', String(currentPage));
       }
 
-      const newUrl = `/products${params.toString() ? '?' + params.toString() : ''}`;
+      const newUrl = href(`/products${params.toString() ? '?' + params.toString() : ''}`);
       if (newUrl !== window.location.pathname + window.location.search) {
         router.push(newUrl, { scroll: false });
       }
     }, 500); // Increased debounce time
 
     return () => clearTimeout(timer);
-  }, [searchQuery, selectedCategory, currentPage, router]);
+  }, [searchQuery, selectedCategory, currentPage, router, href]);
 
 
 
@@ -146,7 +148,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
     }
     if (page > 1) params.set('page', page.toString());
 
-    router.push(`/products?${params.toString()}`, { scroll: false });
+    router.push(href(`/products?${params.toString()}`), { scroll: false });
   };
 
 
@@ -158,12 +160,10 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
         <div className="site-page-hero py-16">
           <div className="site-hero-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <div className="site-hero-kicker mb-5">Industrial Parts Catalog</div>
-              <h1 className="text-4xl md:text-5xl font-bold mb-6">Hot Selling Products</h1>
+              <div className="site-hero-kicker mb-5">{t('nav.products')}</div>
+              <h1 className="text-4xl md:text-5xl font-bold mb-6">{t('products.title')}</h1>
               <p className="text-lg md:text-xl text-blue-100 max-w-4xl mx-auto mb-8 leading-relaxed">
-                More than 18 years experience we have ability to coordinate specific strengths
-                into a whole, providing clients with solutions that consider various import and
-                export transportation options.
+                {t('products.description')}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
                 <div className="site-stat-card">
@@ -189,7 +189,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
             <div className="lg:w-64 space-y-6">
               {/* Search */}
               <div className="site-panel p-6">
-                <h3 className="text-lg font-semibold text-slate-950 mb-4">Search</h3>
+                <h3 className="text-lg font-semibold text-slate-950 mb-4">{t('products.search')}</h3>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <MagnifyingGlassIcon className="h-5 w-5 text-slate-400" />
@@ -199,7 +199,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="site-input block w-full pl-10 pr-3 py-2 leading-5 placeholder-slate-400"
-                    placeholder="Search by name, SKU, model, description..."
+                    placeholder={t('products.searchPlaceholder')}
                   />
                 </div>
                 {searchQuery && (
@@ -211,13 +211,13 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
 
               {/* Categories */}
               <div className="site-panel p-6">
-                <h3 className="text-lg font-semibold text-slate-950 mb-4">Categories</h3>
+                <h3 className="text-lg font-semibold text-slate-950 mb-4">{t('nav.categories')}</h3>
                 <CategoryFilterTree
                   tree={initialData.categories as any}
                   selectedCategoryId={selectedCategory ? Number(selectedCategory) : null}
                   onSelectCategory={(id) => handleCategoryChange(id ? String(id) : '')}
                   storageKey="products-category-open-ids"
-                  allLabel="All Products"
+                  allLabel={t('footer.allProducts')}
                 />
               </div>
 
@@ -309,7 +309,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                   {sortedProducts.map((product: any) => (
                     <div key={product.id} className="site-product-card">
                       <div className="relative">
-                        <Link href={`/products/${toProductPathId(product.sku)}`} className="site-product-media block aspect-[4/3] w-full">
+                        <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="site-product-media block aspect-[4/3] w-full">
                           <Image
                             src={getProductImageUrl(
                               (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
@@ -339,7 +339,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
 
                       <div className="p-4">
                         <h3 className="text-base font-semibold text-slate-950 mb-2 line-clamp-2 min-h-[3rem]">
-                          <Link href={`/products/${toProductPathId(product.sku)}`} className="site-product-title">
+                          <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="site-product-title">
 
 
                             {product.name}
@@ -359,7 +359,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
 
                           <div className="flex items-center space-x-2">
                             <Link
-                              href={`/products/${toProductPathId(product.sku)}`}
+                              href={href(`/products/${toProductPathId(product.sku)}`)}
                               className="site-secondary-action h-9 w-9"
                               title={`View ${product.name} details`}
                             >
@@ -371,7 +371,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                               title={`Add ${product.name} to cart`}
                             >
                               <ShoppingCartIcon className="h-4 w-4 mr-1" />
-                              Add to Cart
+                              {t('common.addToCart')}
                             </button>
                           </div>
                         </div>
@@ -384,7 +384,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                   {sortedProducts.map((product: any) => (
                     <div key={product.id} className="site-product-card p-4 sm:p-6">
                       <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                        <Link href={`/products/${toProductPathId(product.sku)}`} className="flex-shrink-0">
+                        <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="flex-shrink-0">
                           <Image
                             src={getProductImageUrl(
                               (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
@@ -401,7 +401,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
 
                         <div className="flex-1 min-w-0">
                           <h3 className="text-lg font-semibold text-slate-950 mb-1">
-                            <Link href={`/products/${toProductPathId(product.sku)}`} className="site-product-title">
+                            <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="site-product-title">
 
                               {product.name}
                             </Link>
@@ -430,7 +430,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                               )}
                             </button>
                             <Link
-                              href={`/products/${toProductPathId(product.sku)}`}
+                              href={href(`/products/${toProductPathId(product.sku)}`)}
                               className="site-secondary-action h-9 w-9"
                               title={`View ${product.name} details`}
                             >
@@ -442,7 +442,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                               title={`Add ${product.name} to cart`}
                             >
                               <ShoppingCartIcon className="h-4 w-4 mr-2" />
-                              Add to Cart
+                              {t('common.addToCart')}
                             </button>
                           </div>
                         </div>
@@ -469,7 +469,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                   <div className="text-slate-400 mb-4">
                     <MagnifyingGlassIcon className="mx-auto h-12 w-12" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-950 mb-2">No products found</h3>
+                  <h3 className="text-lg font-semibold text-slate-950 mb-2">{t('products.noResults')}</h3>
                   <p className="text-slate-500">
                     Try adjusting your search criteria or browse all categories.
                   </p>

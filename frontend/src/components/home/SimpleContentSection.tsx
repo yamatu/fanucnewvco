@@ -1,6 +1,9 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
 import type { HomepageContent } from '@/types';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 function isBlankSection(content?: HomepageContent | null): boolean {
   if (!content) return true;
@@ -26,6 +29,7 @@ export default function SimpleContentSection({
 }: {
   content?: HomepageContent | null;
 }) {
+  const { href } = usePublicI18n();
   if (!content) return null;
   if (content.is_active === false) return null;
   if (isBlankSection(content)) return null;
@@ -58,7 +62,7 @@ export default function SimpleContentSection({
             {buttonText && buttonUrl ? (
               <div className="pt-2">
                 <Link
-                  href={buttonUrl}
+                  href={href(buttonUrl)}
                   className="inline-flex items-center px-6 py-3 bg-[#003a78] text-white font-semibold rounded-md hover:bg-orange-600 transition-colors"
                 >
                   {buttonText}

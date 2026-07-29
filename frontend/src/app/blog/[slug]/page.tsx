@@ -4,6 +4,10 @@ import { getSiteUrl } from '@/lib/url';
 import { SITE_NAME, withSiteName, withoutSiteNameSuffix } from '@/lib/seo';
 import { NewsService } from '@/services/news.service';
 import ArticleDetailClient from '@/app/news/[slug]/ArticleDetailClient';
+import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
+import { localizeArticleContent } from '@/lib/i18n/content';
+import { localizePublicPath } from '@/lib/i18n/config';
+import { translatePublicMessage } from '@/lib/i18n/messages';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,8 +19,9 @@ async function loadArticle(slug: string) {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const article = await loadArticle(slug);
-    const canonicalUrl = `${getSiteUrl()}${article.public_path || `/blog/${article.slug}`}`;
+    const locale = await getRequestPublicLocale();
+    const article = localizeArticleContent(await loadArticle(slug), locale);
+    const { canonical: canonicalUrl, languages } = await getLocalizedMetadataPaths(article.public_path || `/blog/${article.slug}`);
     const title = withoutSiteNameSuffix(article.meta_title?.trim() || article.title);
     const description = article.meta_description?.trim() || article.summary || `${article.title} - VIBO CNC industrial automation guide.`;
     const images = article.featured_image ? [article.featured_image] : [];
@@ -24,7 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       title,
       description,
       keywords: article.meta_keywords || [article.title, 'industrial automation', 'CNC guide'].join(', '),
-      alternates: { canonical: canonicalUrl },
+      alternates: { canonical: canonicalUrl, languages },
       openGraph: { title: withSiteName(title), description, type: 'article', url: canonicalUrl, images, publishedTime: article.published_at || article.created_at, modifiedTime: article.updated_at },
       twitter: { card: 'summary_large_image', title: withSiteName(title), description, images },
     };
@@ -36,9 +41,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function BlogArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   let article;
-  try { article = await loadArticle(slug); } catch { notFound(); }
+  const locale = await getRequestPublicLocale();
+  try { article = localizeArticleContent(await loadArticle(slug), locale); } catch { notFound(); }
   const baseUrl = getSiteUrl();
-  const articleUrl = `${baseUrl}${article.public_path || `/blog/${article.slug}`}`;
+  const articleUrl = `${baseUrl}${localizePublicPath(article.public_path || `/blog/${article.slug}`, locale)}`;
   const structuredData = {
     '@context': 'https://schema.org', '@type': 'BlogPosting', headline: article.title,
     description: article.summary || article.meta_description || '', image: article.featured_image || undefined,
@@ -48,8 +54,8 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
     mainEntityOfPage: { '@type': 'WebPage', '@id': articleUrl },
   };
   const breadcrumbs = { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Home', item: baseUrl },
-    { '@type': 'ListItem', position: 2, name: 'Blog', item: `${baseUrl}/blog` },
+    { '@type': 'ListItem', position: 1, name: translatePublicMessage(locale, 'common.home'), item: `${baseUrl}${localizePublicPath('/', locale)}` },
+    { '@type': 'ListItem', position: 2, name: translatePublicMessage(locale, 'nav.blog'), item: `${baseUrl}${localizePublicPath('/blog', locale)}` },
     { '@type': 'ListItem', position: 3, name: article.title, item: articleUrl },
   ] };
   return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} /><ArticleDetailClient article={article} /></>;

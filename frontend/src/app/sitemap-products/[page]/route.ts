@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getRequestBaseUrl } from '@/lib/request-url'
 import { ProductService } from '@/services/product.service'
 import { toProductPathId } from '@/lib/utils'
+import { renderLocalizedSitemap } from '@/lib/i18n/sitemap'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 1800 // 30 minutes
@@ -27,7 +28,7 @@ export async function GET(
     }
 
     const urls = products.map((product: any) => ({
-      url: `${baseUrl}/products/${toProductPathId(product.sku)}`,
+      pathname: `/products/${toProductPathId(product.sku)}`,
       lastModified: product.updated_at ? new Date(product.updated_at).toISOString() : new Date().toISOString(),
       changeFrequency: product.stock_quantity === 0 ? 'monthly' : product.stock_quantity < 10 ? 'daily' : 'weekly',
       priority: product.is_featured
@@ -39,16 +40,7 @@ export async function GET(
             : '0.8',
     }))
 
-    const sitemap =
-      `<?xml version="1.0" encoding="UTF-8"?>\n` +
-      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
-      urls
-        .map(
-          (u) =>
-            `  <url>\n    <loc>${u.url}</loc>\n    <lastmod>${u.lastModified}</lastmod>\n    <changefreq>${u.changeFrequency}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`
-        )
-        .join('\n') +
-      `\n</urlset>`
+    const sitemap = renderLocalizedSitemap(baseUrl, urls)
 
     return new NextResponse(sitemap, {
       headers: {

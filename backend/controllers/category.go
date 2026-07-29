@@ -23,7 +23,7 @@ func (cc *CategoryController) GetCategories(c *gin.Context) {
 	flat := c.Query("flat") == "true"
 	includeInactive := c.Query("include_inactive") == "true"
 
-	query := db.Model(&models.Category{}).Order("sort_order ASC, name ASC")
+	query := db.Model(&models.Category{}).Preload("Translations").Order("sort_order ASC, name ASC")
 	if !includeInactive {
 		query = query.Where("is_active = ?", true)
 	}
@@ -54,7 +54,7 @@ func (cc *CategoryController) GetCategoryByPath(c *gin.Context) {
 	// Compute paths using one scan of active categories.
 	db := config.GetDB()
 	var all []models.Category
-	if err := db.Model(&models.Category{}).Where("is_active = ?", true).Order("sort_order ASC, name ASC").Find(&all).Error; err != nil {
+	if err := db.Model(&models.Category{}).Preload("Translations").Where("is_active = ?", true).Order("sort_order ASC, name ASC").Find(&all).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database error", Error: err.Error()})
 		return
 	}
@@ -148,7 +148,9 @@ func (cc *CategoryController) GetCategory(c *gin.Context) {
 	var category models.Category
 	db := config.GetDB()
 
-	if err := db.Preload("Children", "is_active = ?", true).
+	if err := db.Preload("Translations").
+		Preload("Children", "is_active = ?", true).
+		Preload("Children.Translations").
 		Preload("Products", "is_active = ?", true).
 		First(&category, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -182,7 +184,9 @@ func (cc *CategoryController) GetCategoryBySlug(c *gin.Context) {
 	db := config.GetDB()
 
 	if err := db.Where("slug = ? AND is_active = ?", slug, true).
+		Preload("Translations").
 		Preload("Children", "is_active = ?", true).
+		Preload("Children.Translations").
 		Preload("Products", "is_active = ?", true).
 		First(&category).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
