@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import type { HomepageContent } from '@/types';
+import type { HomepageContent, Product } from '@/types';
 import {
   ShoppingCartIcon,
   EyeIcon,
@@ -16,7 +16,7 @@ import { ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { DEFAULT_FEATURED_PRODUCTS_SECTION_DATA } from '@/lib/homepage-defaults';
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
-import { localizeProductContent } from '@/lib/i18n/content';
+import { filterToIndexableProductLocales } from '@/lib/i18n/content';
 
 export function FeaturedProducts({ content }: { content?: HomepageContent | null }) {
   const { locale, t, href } = usePublicI18n();
@@ -78,12 +78,14 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
   const rawProducts = (Array.isArray(featured) && featured.length > 0)
       ? featured
       : (Array.isArray(latest) ? latest : []);
-  const products = rawProducts.map((product) => localizeProductContent(product, locale));
+  const products = rawProducts
+    .map((product) => filterToIndexableProductLocales(product, locale))
+    .filter((product): product is Product => product !== null);
   const productsLoading =
     !shouldLoadProducts ||
     (products.length === 0 && (featuredFetching || latestFetching || !featuredFetched));
 
-  const handleAddToCart = (product: any) => {
+  const handleAddToCart = (product: Product) => {
     addItem(product, 1);
   };
 
@@ -118,7 +120,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                   </div>
                 </div>
               ))
-            : products.map((product: any) => (
+            : products.map((product) => (
             <div
               key={product.id}
               className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
@@ -196,12 +198,12 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
 
                 {/* Features */}
                 <div className="flex flex-wrap gap-1 mb-4">
-                  {Array.isArray(product.features) && product.features.slice(0, 2).map((feature: any) => (
+                  {Array.isArray(product.attributes) && product.attributes.slice(0, 2).map((attribute) => (
                     <span
-                      key={String(feature)}
+                      key={`${attribute.attribute_name}-${attribute.attribute_value}`}
                       className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs"
                     >
-                      {feature}
+                      {attribute.attribute_name}: {attribute.attribute_value}
                     </span>
                   ))}
                 </div>

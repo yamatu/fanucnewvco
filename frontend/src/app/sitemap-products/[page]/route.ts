@@ -3,6 +3,8 @@ import { getRequestBaseUrl } from '@/lib/request-url'
 import { ProductService } from '@/services/product.service'
 import { toProductPathId } from '@/lib/utils'
 import { renderLocalizedSitemap } from '@/lib/i18n/sitemap'
+import type { Product } from '@/types'
+import { getAvailableTranslationLocales } from '@/lib/i18n/content'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 1800 // 30 minutes
@@ -27,9 +29,9 @@ export async function GET(
       return new NextResponse(`No products found for sitemap page ${pageNumber}`, { status: 404 })
     }
 
-    const urls = products.map((product: any) => ({
+    const urls = products.map((product: Product) => ({
       pathname: `/products/${toProductPathId(product.sku)}`,
-      lastModified: product.updated_at ? new Date(product.updated_at).toISOString() : new Date().toISOString(),
+      lastModified: product.updated_at ? new Date(product.updated_at).toISOString() : undefined,
       changeFrequency: product.stock_quantity === 0 ? 'monthly' : product.stock_quantity < 10 ? 'daily' : 'weekly',
       priority: product.is_featured
         ? '0.9'
@@ -38,6 +40,7 @@ export async function GET(
           : product.stock_quantity === 0
             ? '0.6'
             : '0.8',
+      availableLocales: getAvailableTranslationLocales(product.translations),
     }))
 
     const sitemap = renderLocalizedSitemap(baseUrl, urls)

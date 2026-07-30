@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS products (
     min_stock_level INT DEFAULT 0,
     weight DECIMAL(8,2) NULL,
     dimensions VARCHAR(100),
-    brand VARCHAR(100) DEFAULT 'FANUC',
+    brand VARCHAR(100) DEFAULT '',
     model VARCHAR(100),
     part_number VARCHAR(100),
     category_id BIGINT NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,

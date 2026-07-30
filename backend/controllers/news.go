@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"fanuc-backend/config"
 	"fanuc-backend/models"
@@ -575,6 +576,9 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 	}
 
 	for _, tr := range req.Translations {
+		if !isCompleteArticleTranslationRequest(tr) {
+			continue
+		}
 		trSlug := tr.Slug
 		if trSlug == "" {
 			trSlug = slugify(tr.Title)
@@ -595,6 +599,14 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 
 	withArticlePreloads(db).First(&article, article.ID)
 	services.InvalidatePublicCaches(c.Request.Context(), "news:create", articleCacheURLs(article))
+	if article.IsPublished {
+		services.TriggerNextRevalidate(nil, articleCacheURLs(article), false)
+		go func(articleID uint, publicPath string) {
+			ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+			defer cancel()
+			services.SubmitArticleURLsBestEffort(ctx, db, articleID, publicPath)
+		}(article.ID, getArticlePublicPath(article))
+	}
 
 	c.JSON(http.StatusCreated, models.APIResponse{Success: true, Message: "Article created", Data: toArticleResponse(article)})
 }
@@ -697,6 +709,9 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 
 	db.Where("article_id = ?", article.ID).Delete(&models.ArticleTranslation{})
 	for _, tr := range req.Translations {
+		if !isCompleteArticleTranslationRequest(tr) {
+			continue
+		}
 		trSlug := tr.Slug
 		if trSlug == "" {
 			trSlug = slugify(tr.Title)
@@ -721,6 +736,15 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 		createSEORedirect(db, oldPath, newPath)
 	}
 	services.InvalidatePublicCaches(c.Request.Context(), "news:update", []string{"/news", "/blog", oldPath, newPath, "/sitemap.xml", "/sitemap-news.xml", "/sitemap-blog.xml"})
+	paths := []string{"/news", "/blog", oldPath, newPath, "/sitemap.xml", "/sitemap-news.xml", "/sitemap-blog.xml"}
+	services.TriggerNextRevalidate(nil, paths, false)
+	if article.IsPublished {
+		go func(articleID uint, publicPath string) {
+			ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+			defer cancel()
+			services.SubmitArticleURLsBestEffort(ctx, db, articleID, publicPath)
+		}(article.ID, newPath)
+	}
 
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Article updated", Data: toArticleResponse(article)})
 }
@@ -748,6 +772,12 @@ func (nc *NewsController) DeleteArticle(c *gin.Context) {
 	db.Where("article_id = ?", article.ID).Delete(&models.ArticleTranslation{})
 	db.Delete(&article)
 	services.InvalidatePublicCaches(c.Request.Context(), "news:delete", []string{"/news", "/blog", oldPath, "/sitemap.xml", "/sitemap-news.xml", "/sitemap-blog.xml"})
+	services.TriggerNextRevalidate(nil, []string{"/news", "/blog", oldPath, "/sitemap.xml", "/sitemap-news.xml", "/sitemap-blog.xml"}, false)
 
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Article deleted"})
+}
+
+func isCompleteArticleTranslationRequest(translation models.ArticleTranslationReq) bool {
+	return strings.TrimSpace(translation.LanguageCode) != "" &&
+		strings.TrimSpace(translation.Title) != "" && strings.TrimSpace(translation.Content) != ""
 }

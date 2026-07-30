@@ -5,9 +5,14 @@ import { renderLocalizedSitemap } from '@/lib/i18n/sitemap'
 export const dynamic = 'force-dynamic'
 export const revalidate = 86400 // 24 hours
 
+// Use a stable deployment/content baseline for pages without a database-backed
+// modification timestamp. A request timestamp falsely tells crawlers that every
+// static page changed each time they fetch the sitemap.
+const STATIC_CONTENT_LAST_MODIFIED = process.env.SITEMAP_STATIC_LAST_MODIFIED || '2026-07-30T00:00:00.000Z'
+
 export async function GET() {
   const baseUrl = await getRequestBaseUrl()
-  const lastModified = new Date().toISOString()
+  const lastModified = new Date(STATIC_CONTENT_LAST_MODIFIED).toISOString()
 
   const staticPages = [
     {

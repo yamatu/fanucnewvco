@@ -14,6 +14,7 @@ import ProductImageManager, { type ManagedProductImage } from '@/components/admi
 import SeoPreview from '@/components/admin/SeoPreview';
 import CategoryCombobox from '@/components/admin/CategoryCombobox';
 import ShippingQuoteCalculator from '@/components/admin/ShippingQuoteCalculator';
+import TranslationEditor from '@/components/admin/TranslationEditor';
 import { ProductService, CategoryService } from '@/services';
 import { ProductCreateRequest } from '@/types';
 import { queryKeys } from '@/lib/react-query';
@@ -116,6 +117,7 @@ export default function NewProductPage() {
       warranty_period: '12 months',
       lead_time: '3-7 days',
       disable_auto_seo: false,
+      translations: [],
     }
   });
 
@@ -181,7 +183,7 @@ export default function NewProductPage() {
           sort_order: index,
         })),
         attributes: [],
-        translations: [],
+        translations: data.translations || [],
       };
 
       await createProductMutation.mutateAsync(productData);
@@ -511,6 +513,13 @@ export default function NewProductPage() {
               </div>
 
               <ProductImageManager images={images} onChange={setImages} sku={watch('sku')} />
+
+              <TranslationEditor
+                kind="product"
+                locale={locale}
+                value={watch('translations') || []}
+                onChange={(translations) => setValue('translations', translations, { shouldDirty: true })}
+              />
             </div>
 
             {/* Sidebar */}

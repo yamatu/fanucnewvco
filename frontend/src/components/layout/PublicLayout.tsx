@@ -3,6 +3,7 @@ import Header from './Header';
 import Footer from './Footer';
 import CartSidebar from '../cart/CartSidebar';
 import WhatsAppButton from '../ui/WhatsAppButton';
+import MobileLanguageSwitcher from './MobileLanguageSwitcher';
 
 interface PublicLayoutProps {
   children: ReactNode;
@@ -17,6 +18,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
       </main>
       <Footer />
       <CartSidebar />
+      <MobileLanguageSwitcher />
       <WhatsAppButton />
     </div>
   );

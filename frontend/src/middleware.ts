@@ -106,11 +106,11 @@ function getRequestHostname(request: NextRequest): string {
 }
 
 function getCanonicalHostname(): string {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.vcocncspare.com';
+  const configured = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.vibocnc.com';
   try {
     return new URL(configured).hostname.toLowerCase();
   } catch {
-    return 'www.vcocncspare.com';
+    return 'www.vibocnc.com';
   }
 }
 
@@ -299,16 +299,8 @@ export async function middleware(request: NextRequest) {
     addLocaleVaryHeader(response);
   }
 
-  // Special handling for search engine crawlers
-  if (isSearchEngineCrawler(userAgent)) {
-    // Ensure no caching for crawlers on dynamic pages
-    if (pathname.startsWith('/products') || pathname.includes('sitemap')) {
-      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      response.headers.set('Pragma', 'no-cache');
-      response.headers.set('Expires', '0');
-    }
-    // Do not force X-Robots-Tag here; let per-page metadata control indexing
-  }
+  // Do not vary cache policy by user agent. Serving the same cacheable HTML to
+  // users and crawlers keeps rendering fast and avoids crawler-only behavior.
 
   // Add security headers
   response.headers.set('X-Frame-Options', 'DENY');
@@ -323,6 +315,18 @@ export async function middleware(request: NextRequest) {
 
   // Order lookups can contain customer data and must never enter a search index.
   if (pathname.startsWith('/orders/track/')) {
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+  }
+
+  if (
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/account') ||
+    pathname.startsWith('/checkout') ||
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/forgot-password' ||
+    pathname === '/track-order'
+  ) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
   }
 

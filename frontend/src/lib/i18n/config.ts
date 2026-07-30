@@ -118,11 +118,16 @@ export function localizePublicPath(href: string, locale: PublicLocale): string {
   return `${localized}${query}${hash ? `#${hash}` : ''}`;
 }
 
-export function buildLanguageAlternates(baseUrl: string, pathname: string): Record<string, string> {
+export function buildLanguageAlternates(
+  baseUrl: string,
+  pathname: string,
+  availableLocales: readonly PublicLocale[] = PUBLIC_LOCALES.map((locale) => locale.code),
+): Record<string, string> {
   const cleanBase = baseUrl.replace(/\/+$/, '');
   const cleanPath = stripLocaleFromPathname(pathname || '/');
+  const allowedLocales = new Set<PublicLocale>([DEFAULT_PUBLIC_LOCALE, ...availableLocales]);
   const languages = Object.fromEntries(
-    PUBLIC_LOCALES.map((locale) => [
+    PUBLIC_LOCALES.filter((locale) => allowedLocales.has(locale.code)).map((locale) => [
       locale.hreflang,
       `${cleanBase}${localizePublicPath(cleanPath, locale.code) === '/' ? '' : localizePublicPath(cleanPath, locale.code)}`,
     ]),

@@ -8,12 +8,15 @@ import type { Product, ProductImage } from '@/types';
 import ProductDetailClient from './ProductDetailClient';
 import { redirect, notFound } from 'next/navigation';
 import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
-import { localizeProductContent } from '@/lib/i18n/content';
+import {
+  getAvailableTranslationLocales,
+  hasTranslationForLocale,
+  localizeProductContent,
+} from '@/lib/i18n/content';
 import { localizePublicPath } from '@/lib/i18n/config';
+import { buildProductSeoDescription, buildProductSeoKeywords, inferProductTypeLabel } from '@/lib/product-seo';
 
 const DEFAULT_SITE_NAME = 'VIBO CNC';
-const GENERIC_BRAND_LABEL = 'industrial automation';
-const GENERIC_SUPPLIER_LABEL = 'industrial automation parts supplier';
 
 export const revalidate = 3600; // ISR: revalidate every hour
 
@@ -31,25 +34,8 @@ function slugToSku(slug: string): string {
   return s.toUpperCase();
 }
 
-function stripHtml(text?: string): string {
-  return String(text || '')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 function getProductBrand(product: Product): string {
   return normalizeWhitespace(product.brand);
-}
-
-function getProductBrandLabel(product: Product): string {
-  return getProductBrand(product) || GENERIC_BRAND_LABEL;
-}
-
-function getSupplierLabel(product: Product): string {
-  return getProductBrand(product)
-    ? `${getProductBrand(product)} parts supplier`
-    : GENERIC_SUPPLIER_LABEL;
 }
 
 function getCanonicalProductSlug(product: Product, fallback = ''): string {
@@ -71,17 +57,6 @@ function trimMetaTitle(text: string, maxLength: number): string {
   return normalizeWhitespace(idx >= 24 ? cut.slice(0, idx) : cut);
 }
 
-function trimMetaDescription(text: string, maxLength: number): string {
-  const value = normalizeWhitespace(text);
-  if (!value) return '';
-  if (value.length <= maxLength) return value;
-  const cut = value.slice(0, maxLength);
-  const idx = cut.lastIndexOf(' ');
-  const trimmed = normalizeWhitespace(idx >= 60 ? cut.slice(0, idx) : cut);
-  if (!trimmed) return '';
-  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
-}
-
 function toAbsoluteUrl(url: string | undefined, baseUrl: string): string {
   const value = String(url || '').trim();
   if (!value) return `${baseUrl}/images/default-product.svg`;
@@ -91,23 +66,37 @@ function toAbsoluteUrl(url: string | undefined, baseUrl: string): string {
 
 function buildMetadataTitle(product: Product): string {
   const explicit = trimMetaTitle(withoutSiteNameSuffix(product.meta_title || ''), 58);
-  if (explicit) return explicit;
+  const semanticCategory = inferProductTypeLabel(product);
+  const explicitHasWrongFanucType = getProductBrand(product).toLowerCase() === 'fanuc'
+    && /^A06B-6092-/i.test(product.sku)
+    && /servo amplifier/i.test(explicit)
+    && /spindle amplifier/i.test(semanticCategory);
+  if (explicit && !hasRepeatedBrand(explicit, getProductBrand(product)) && !explicitHasWrongFanucType) return explicit;
 
   const brand = getProductBrand(product);
   const parts = [
     brand,
     product.sku,
-    product.category?.name || '',
+    semanticCategory,
   ].filter(Boolean);
   let title = parts.join(' ');
   if (!title) title = product.name || 'Product';
   if (title.length > 58) {
-    title = [brand, product.sku].filter(Boolean).join(' ');
+    const shortType = semanticCategory.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+    title = [brand, product.sku, shortType].filter(Boolean).join(' ');
+    if (title.length > 58) title = [brand, product.sku].filter(Boolean).join(' ');
   }
   if (!title) {
-    title = [product.sku, product.category?.name || 'industrial automation part'].filter(Boolean).join(' ');
+    title = [product.sku, semanticCategory || 'industrial automation part'].filter(Boolean).join(' ');
   }
   return trimMetaTitle(title, 58);
+}
+
+function hasRepeatedBrand(value: string, brand: string): boolean {
+  const normalizedBrand = normalizeWhitespace(brand).toLowerCase();
+  if (!normalizedBrand) return false;
+  const escapedBrand = normalizedBrand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|\\s)${escapedBrand}(?:\\s+[^|]{0,80})?\\s+${escapedBrand}(?:\\s|$)`, 'i').test(value);
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -139,53 +128,50 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       };
     }
 
+    const availableLocales = getAvailableTranslationLocales(product.translations);
+    const hasRequestedTranslation = hasTranslationForLocale(product.translations, locale);
+    const metadataLocale = hasRequestedTranslation ? locale : 'en';
     product = localizeProductContent(product, locale);
 
     const baseUrl = getSiteUrl();
     const productPath = `/products/${getCanonicalProductSlug(product, slug)}`;
-    const { canonical: canonicalUrl, languages } = await getLocalizedMetadataPaths(productPath);
+    const localizedMetadata = await getLocalizedMetadataPaths(productPath, availableLocales);
+    const canonicalUrl = hasRequestedTranslation
+      ? localizedMetadata.canonical
+      : `${baseUrl}${localizePublicPath(productPath, 'en')}`;
+    const languages = localizedMetadata.languages;
 
     const productImages: Array<string | ProductImage> =
       product.image_urls && product.image_urls.length > 0
         ? product.image_urls
         : (product.images || []);
+    const semanticImageAlt = `${[product.brand, product.sku, inferProductTypeLabel(product)].filter(Boolean).join(' ')} product image`;
     const images = productImages.map((img) => ({
       url: toAbsoluteUrl(typeof img === 'string' ? img : img?.url || '/images/default-product.svg', baseUrl),
       width: 800,
       height: 600,
-      alt: `${product.name} - ${product.sku} Part Image`,
+      alt: semanticImageAlt,
     }));
 
-    const brandLabel = getProductBrandLabel(product);
-    const supplierLabel = getSupplierLabel(product);
-    const baseDescription = stripHtml(product.meta_description || product.short_description || product.description)
-      || `${product.name} (${product.sku}) ${brandLabel} spare part.`;
-    const availabilityText = product.stock_quantity > 0
-      ? 'In stock and ready for worldwide shipping.'
-      : `Available to order with ${product.lead_time || '3-7 days'} lead time.`;
-    const supportingText = [
-      product.part_number && product.part_number !== product.sku ? `Part number ${product.part_number}.` : '',
-      product.category?.name ? `${product.category.name} for CNC and industrial automation systems.` : 'Industrial automation component.',
-      product.compatibility_info ? 'Compatibility guidance available on the product page.' : '',
-      `Source from VIBO CNC, professional ${supplierLabel} since 2005.`,
-    ].filter(Boolean).join(' ');
-    const enhancedDescription = trimMetaDescription(`${baseDescription} ${availabilityText} ${supportingText}`, 160);
-
-    const metaDescription = trimMetaDescription(product.meta_description || '', 160);
+    const metaDescription = buildProductSeoDescription(product);
     const metaKeywords = (product.meta_keywords || '').trim();
     const title = buildMetadataTitle(product);
     const socialTitle = withSiteName(title);
+    const semanticCategory = inferProductTypeLabel(product);
+    const semanticKeywords = buildProductSeoKeywords(product);
 
     return {
       title,
-      description: metaDescription || enhancedDescription,
-      keywords: metaKeywords || [product.name, product.sku, product.brand, product.category?.name].filter(Boolean).join(', '),
-      category: product.category?.name || 'Industrial Automation',
+      description: metaDescription,
+      keywords: hasRepeatedBrand(metaKeywords, getProductBrand(product)) || /\bservo amplifier\b/i.test(metaKeywords) && /spindle amplifier/i.test(semanticCategory)
+        ? semanticKeywords
+        : (metaKeywords || semanticKeywords),
+      category: semanticCategory,
       robots: {
-        index: true,
+        index: hasRequestedTranslation,
         follow: true,
         googleBot: {
-          index: true,
+          index: hasRequestedTranslation,
           follow: true,
           'max-image-preview': 'large',
           'max-snippet': -1,
@@ -194,7 +180,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       },
       openGraph: {
         title: socialTitle,
-        description: metaDescription || enhancedDescription,
+        description: metaDescription,
         type: 'website',
         url: canonicalUrl,
         siteName: DEFAULT_SITE_NAME,
@@ -204,7 +190,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       twitter: {
         card: 'summary_large_image',
         title: socialTitle,
-        description: metaDescription || enhancedDescription,
+        description: metaDescription,
         images: images.map(i => i.url),
         creator: '@vibocnc',
       },
@@ -213,10 +199,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         'product:price:currency': 'USD',
         'product:availability': product.stock_quantity > 0 ? 'in stock' : 'available',
         'product:brand': product.brand || '',
-        'product:category': product.category?.name || 'Industrial Automation',
+        'product:category': semanticCategory,
         'product:retailer_item_id': product.sku || '',
         'product:condition': product.condition_type || 'new',
         'product:part_number': product.part_number || product.sku || '',
+        'content-language': metadataLocale === 'zh' ? 'zh-CN' : metadataLocale,
       },
     };
   } catch (error) {
@@ -253,17 +240,22 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     notFound();
   }
 
+  const hasRequestedTranslation = hasTranslationForLocale(initialProduct.translations, locale);
   initialProduct = localizeProductContent(initialProduct, locale);
 
   // Canonical redirect to the normalized product slug shared with sitemap and links.
   const canonicalId = getCanonicalProductSlug(initialProduct, sku || '');
   if (canonicalId && canonicalId !== slug) {
-    redirect(localizePublicPath(`/products/${canonicalId}`, locale));
+    redirect(localizePublicPath(`/products/${canonicalId}`, hasRequestedTranslation ? locale : 'en'));
   }
 
   return (
     <>
-      <ProductDetailClient productSku={initialProduct?.sku || sku} initialProduct={initialProduct} />
+      <ProductDetailClient
+        productSku={initialProduct?.sku || sku}
+        initialProduct={initialProduct}
+        contentLocale={hasRequestedTranslation ? locale : 'en'}
+      />
     </>
   );
 }

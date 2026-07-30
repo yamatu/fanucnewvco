@@ -3,6 +3,13 @@
 import { Product, Category } from '@/types';
 import { toProductPathId } from '@/lib/utils';
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
+import {
+  buildProductSeoDescription,
+  buildSemanticProductName,
+  inferProductTypeLabel,
+} from '@/lib/product-seo';
+
+const PUBLIC_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.vibocnc.com').replace(/\/+$/, '');
 
 const DEFAULT_SITE_NAME = 'VIBO CNC';
 const GENERIC_BRAND_LABEL = 'industrial automation';
@@ -22,6 +29,7 @@ interface ProductSEOProps {
   category?: Category;
   categoryBreadcrumb?: Category[];
   baseUrl?: string;
+  contentLocale?: string;
 }
 
 function mapConditionType(condition?: string): string {
@@ -44,13 +52,6 @@ function parseSpecs(raw?: string): Record<string, string> | null {
     }
   } catch { /* ignore */ }
   return null;
-}
-
-function stripHtml(text?: string): string {
-  return String(text || '')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 function toAbsoluteUrl(url: string | undefined, baseUrl: string): string {
@@ -78,7 +79,7 @@ function getManufacturerName(product: Product): string {
 
 function buildAnswerFirstSummary(product: Product, category?: Category): string {
   const brandLabel = getBrandLabel(product);
-  const categoryName = category?.name || product.category?.name || 'industrial automation part';
+  const categoryName = inferProductTypeLabel(category ? { ...product, category } : product);
   const stockText = product.stock_quantity > 0
     ? 'The item is in stock and ready for shipment.'
     : `The item is available to order with ${product.lead_time || '3-7 days'} lead time.`;
@@ -89,15 +90,22 @@ function buildAnswerFirstSummary(product: Product, category?: Category): string 
   return `${brandLabel} ${product.sku} is a ${categoryName.toLowerCase()} used for CNC repair, replacement, and industrial automation maintenance. ${stockText} ${warrantyText}`;
 }
 
-export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'https://www.vcocncspare.com' }: ProductSEOProps) {
-  const { t, href } = usePublicI18n();
-  const productUrl = `${baseUrl}${href(`/products/${toProductPathId(product.sku)}`)}`;
+export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PUBLIC_SITE_URL, contentLocale }: ProductSEOProps) {
+  const { locale, t, href } = usePublicI18n();
+  const productPath = `/products/${toProductPathId(product.sku)}`;
+  const productUrl = `${baseUrl}${contentLocale === 'en' && locale !== 'en' ? productPath : href(productPath)}`;
   const productId = `${productUrl}#product`;
   const brandLabel = getBrandLabel(product);
   const manufacturerName = getManufacturerName(product);
-  const description = stripHtml(product.meta_description || product.short_description || product.description)
-    || `${product.name} industrial automation spare part from ${brandLabel}.`;
+  const semanticProduct = category ? { ...product, category } : product;
+  const semanticName = buildSemanticProductName(semanticProduct);
+  const semanticCategory = inferProductTypeLabel(semanticProduct);
   const answerFirstSummary = buildAnswerFirstSummary(product, category);
+  const description = buildProductSeoDescription(semanticProduct);
+  const schemaLocale = contentLocale || locale;
+  const localeConfig = typeof Intl !== 'undefined'
+    ? new Intl.Locale(schemaLocale === 'zh' ? 'zh-CN' : schemaLocale).toString()
+    : schemaLocale;
 
   // Build image array
   const imageUrls = (product.images?.map(img => typeof img === 'string' ? img : img.url) ||
@@ -132,11 +140,12 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     "@context": "https://schema.org",
     "@type": "Product",
     "@id": productId,
-    "name": product.name,
+    "name": semanticName,
     "sku": product.sku,
     "mpn": product.part_number || product.sku,
     "productID": product.sku,
     "description": description,
+    "inLanguage": localeConfig,
     "disambiguatingDescription": answerFirstSummary,
     "brand": {
       "@type": "Brand",
@@ -146,7 +155,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
       "@type": "Organization",
       "name": manufacturerName
     },
-    "category": category?.name || "Industrial Automation",
+    "category": semanticCategory,
     "image": imageUrls,
     "url": productUrl,
     "mainEntityOfPage": {
@@ -155,7 +164,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     },
     "itemCondition": mapConditionType(product.condition_type),
     "countryOfOrigin": product.origin_country || undefined,
-    "keywords": [product.sku, product.part_number, product.brand, category?.name].filter(Boolean).join(', '),
+    "keywords": [product.sku, product.part_number, product.brand, semanticCategory].filter(Boolean).join(', '),
     "audience": {
       "@type": "Audience",
       "audienceType": "CNC maintenance buyers and industrial automation service teams"
@@ -293,7 +302,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
       {
         "@type": "ListItem",
         "position": (categoryBreadcrumb?.length || 0) + 3,
-        "name": product.name,
+        "name": semanticName,
         "item": productUrl
       }
     ]
@@ -316,7 +325,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
           "name": `What is the ${product.sku} used for?`,
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": `The ${product.name} (${product.sku}) is a ${brandLabel} industrial automation component used in CNC machines, control cabinets, and related automation systems.`
+            "text": `The ${semanticName} (${product.sku}) is a ${brandLabel} industrial automation component used in CNC machines, control cabinets, and related automation systems.`
           }
         },
         {
@@ -326,7 +335,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
             "@type": "Answer",
             "text": product.compatibility_info
               ? `${product.compatibility_info} Contact our technical team at sales@vibocnc.com for further compatibility verification.`
-              : `The ${product.name} should be matched against the original machine, controller, and option configuration before ordering. Contact our technical team at sales@vibocnc.com for compatibility verification.`
+              : `The ${semanticName} should be matched against the original machine, controller, and option configuration before ordering. Contact our technical team at sales@vibocnc.com for compatibility verification.`
           }
         },
         {
@@ -334,7 +343,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
           "name": `What is the warranty for ${product.sku}?`,
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": `We provide a ${product.warranty_period || '12-month'} warranty for the ${product.name}. All products are quality tested before shipment.`
+            "text": `We provide a ${product.warranty_period || '12-month'} warranty for the ${semanticName}. All products are quality tested before shipment.`
           }
         },
         {
@@ -342,7 +351,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
           "name": `How long does shipping take for ${product.sku}?`,
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": `We offer worldwide shipping for the ${product.name} via DHL, FedEx, and UPS. Delivery typically takes 3-7 business days for express shipping. ${product.stock_quantity > 0 ? 'This item is currently in stock and ready to ship.' : 'Contact us for availability and estimated delivery time.'}`
+            "text": `We offer worldwide shipping for the ${semanticName} via DHL, FedEx, and UPS. Delivery typically takes 3-7 business days for express shipping. ${product.stock_quantity > 0 ? 'This item is currently in stock and ready to ship.' : 'Contact us for availability and estimated delivery time.'}`
           }
         }
       ];
@@ -358,10 +367,10 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     "@type": "WebPage",
     "@id": `${productUrl}#webpage`,
     "url": productUrl,
-    "name": product.name,
+    "name": semanticName,
     "description": description,
     "dateModified": product.updated_at,
-    "inLanguage": "en",
+    "inLanguage": localeConfig,
     "isPartOf": {
       "@type": "WebSite",
       "name": DEFAULT_SITE_NAME,

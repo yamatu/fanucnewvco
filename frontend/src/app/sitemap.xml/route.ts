@@ -13,13 +13,10 @@ const SITEMAP_PATHS = [
 ] as const
 
 export function buildSitemapIndex(baseUrl: string) {
-  const lastmod = new Date().toISOString()
-
   return `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${SITEMAP_PATHS.map((path) => `  <sitemap>
     <loc>${baseUrl}${path}</loc>
-    <lastmod>${lastmod}</lastmod>
   </sitemap>`).join('\n')}
 </sitemapindex>`
 }

@@ -29,8 +29,8 @@ export default function WhatsAppButton({
   };
 
   const positionClasses = position === 'bottom-right'
-    ? 'right-6 bottom-6'
-    : 'left-6 bottom-6';
+    ? 'right-3 bottom-[calc(env(safe-area-inset-bottom)+1rem)] sm:right-6 sm:bottom-6'
+    : 'left-3 bottom-[calc(env(safe-area-inset-bottom)+1rem)] sm:left-6 sm:bottom-6';
 
   return (
     <>
@@ -40,12 +40,12 @@ export default function WhatsAppButton({
           onClick={handleClick}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          className="group relative flex items-center justify-center w-16 h-16 bg-[#25D366] hover:bg-[#20BA5A] rounded-full shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95"
+          className="group relative flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] shadow-2xl transition-all duration-300 hover:scale-110 hover:bg-[#20BA5A] active:scale-95 sm:h-16 sm:w-16"
           aria-label="Chat on WhatsApp"
         >
           {/* WhatsApp Icon */}
           <svg
-            className="w-9 h-9 text-white"
+            className="h-7 w-7 text-white sm:h-9 sm:w-9"
             fill="currentColor"
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"

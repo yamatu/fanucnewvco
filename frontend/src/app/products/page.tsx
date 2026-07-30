@@ -10,7 +10,7 @@ import ProductsPageClient from './ProductsPageClient';
 import ScrollRestorer from '@/components/common/ScrollRestorer';
 import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
 import { translatePublicMessage } from '@/lib/i18n/messages';
-import { localizeCategoryContent, localizeProductContent } from '@/lib/i18n/content';
+import { filterToIndexableProductLocales, localizeCategoryContent } from '@/lib/i18n/content';
 import { localizePublicPath, type PublicLocale } from '@/lib/i18n/config';
 
 type SearchParamValue = string | string[] | undefined;
@@ -194,7 +194,9 @@ async function getServerSideData(searchParams: PageSearchParams, locale: PublicL
     ]);
 
     return {
-      products: (productsData.data || []).map((product) => localizeProductContent(product, locale)),
+      products: (productsData.data || [])
+        .map((product) => filterToIndexableProductLocales(product, locale))
+        .filter((product): product is Product => product !== null),
       totalPages: Math.ceil((productsData.total || 0) / 12),
       total: productsData.total || 0,
       categories: (categories || []).map((category) => localizeCategoryContent(category, locale)),

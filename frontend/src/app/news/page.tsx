@@ -4,8 +4,8 @@ import { getSiteUrl } from '@/lib/url';
 import { SITE_NAME, withSiteName } from '@/lib/seo';
 import { NewsService } from '@/services/news.service';
 import NewsPageClient from './NewsPageClient';
-import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
-import { localizeArticleContent } from '@/lib/i18n/content';
+import { getLocalizedMetadataPathsWithQuery, getRequestPublicLocale } from '@/lib/i18n/server';
+import { localizeArticleOrDefault } from '@/lib/i18n/content';
 import { localizePublicPath } from '@/lib/i18n/config';
 import { translatePublicMessage } from '@/lib/i18n/messages';
 
@@ -13,9 +13,10 @@ export async function generateMetadata({ searchParams }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }): Promise<Metadata> {
   const params = await searchParams;
-  const { locale, canonical, languages } = await getLocalizedMetadataPaths('/news');
   const search = params.search;
   const page = Math.max(1, Number.parseInt(typeof params.page === 'string' ? params.page : '1', 10) || 1);
+  const pageQuery = page > 1 ? `page=${page}` : '';
+  const { locale, canonical: canonicalUrl, languages } = await getLocalizedMetadataPathsWithQuery('/news', pageQuery);
 
   let title = translatePublicMessage(locale, 'news.title');
   let description = translatePublicMessage(locale, 'news.description');
@@ -26,8 +27,6 @@ export async function generateMetadata({ searchParams }: {
   }
 
   const hasSearch = typeof search === 'string' && search.trim().length > 0;
-  const canonicalUrl = page > 1 ? `${canonical}?page=${page}` : canonical;
-
   return {
     title,
     description,
@@ -61,7 +60,8 @@ async function getServerSideData(searchParams: { [key: string]: string | string[
     });
 
     return {
-      articles: (data.data || []).map((article) => localizeArticleContent(article, locale)),
+      articles: (data.data || [])
+        .map((article) => localizeArticleOrDefault(article, locale)),
       totalPages: data.total_pages || 1,
       total: data.total || 0,
       currentPage: page,
@@ -98,6 +98,8 @@ export default async function NewsPage({
     'name': translatePublicMessage(locale, 'news.title'),
     'description': translatePublicMessage(locale, 'news.description'),
     'url': `${baseUrl}${localizePublicPath('/news', locale)}`,
+    'inLanguage': locale === 'zh' ? 'zh-CN' : locale,
+    'isAccessibleForFree': true,
     'publisher': {
       '@type': 'Organization',
       '@id': `${baseUrl}/#organization`,
@@ -112,6 +114,9 @@ export default async function NewsPage({
       'datePublished': article.published_at || article.created_at,
       'dateModified': article.updated_at,
       'image': article.featured_image || undefined,
+      'inLanguage': locale === 'zh' ? 'zh-CN' : locale,
+      'articleSection': translatePublicMessage(locale, 'nav.news'),
+      'isAccessibleForFree': true,
       ...(article.author?.full_name
         ? {
             'author': {

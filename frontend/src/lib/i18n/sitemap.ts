@@ -1,10 +1,11 @@
-import { PUBLIC_LOCALES, localizePublicPath } from './config';
+import { DEFAULT_PUBLIC_LOCALE, PUBLIC_LOCALES, localizePublicPath, type PublicLocale } from './config';
 
 export interface LocalizedSitemapEntry {
   pathname: string;
-  lastModified: string;
+  lastModified?: string;
   changeFrequency: string;
   priority: string;
+  availableLocales?: readonly PublicLocale[];
 }
 
 function escapeXml(value: string): string {
@@ -22,20 +23,25 @@ function absoluteUrl(baseUrl: string, pathname: string): string {
 }
 
 export function renderLocalizedSitemapEntries(baseUrl: string, entry: LocalizedSitemapEntry): string {
+  const allowedLocales = entry.availableLocales
+    ? new Set<PublicLocale>([DEFAULT_PUBLIC_LOCALE, ...entry.availableLocales])
+    : null;
+  const locales = allowedLocales
+    ? PUBLIC_LOCALES.filter((locale) => allowedLocales.has(locale.code))
+    : PUBLIC_LOCALES;
   const alternateLinks = [
-    ...PUBLIC_LOCALES.map((locale) => ({
+    ...locales.map((locale) => ({
       hreflang: locale.hreflang,
       url: absoluteUrl(baseUrl, localizePublicPath(entry.pathname, locale.code)),
     })),
     { hreflang: 'x-default', url: absoluteUrl(baseUrl, localizePublicPath(entry.pathname, 'en')) },
   ];
 
-  return PUBLIC_LOCALES.map((locale) => {
+  return locales.map((locale) => {
     const localizedUrl = absoluteUrl(baseUrl, localizePublicPath(entry.pathname, locale.code));
     return `  <url>
     <loc>${escapeXml(localizedUrl)}</loc>
-    <lastmod>${escapeXml(entry.lastModified)}</lastmod>
-    <changefreq>${escapeXml(entry.changeFrequency)}</changefreq>
+${entry.lastModified ? `    <lastmod>${escapeXml(entry.lastModified)}</lastmod>\n` : ''}    <changefreq>${escapeXml(entry.changeFrequency)}</changefreq>
     <priority>${escapeXml(entry.priority)}</priority>
 ${alternateLinks.map((alternate) => `    <xhtml:link rel="alternate" hreflang="${escapeXml(alternate.hreflang)}" href="${escapeXml(alternate.url)}" />`).join('\n')}
   </url>`;

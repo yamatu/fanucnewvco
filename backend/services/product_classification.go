@@ -18,7 +18,7 @@ type ProductCategoryInference struct {
 var (
 	reLikelyFanucModel       = regexp.MustCompile(`(?i)^(A0[234568]B|A1[3467]B|A20B|A230|A250|A290|A300|A370|A[0-9]{2}L|A660|A860|A980|A990|F0?6B|F660|CAB|CABLE|CONNECTOR|CONN|18-MB)`)
 	reGenericCableIndicators = regexp.MustCompile(`(?i)(CABLE|CAB|CONN|CONNECTOR|HARNESS|WIRE|PLUG|SOCKET|TERMINAL|#L-?\d|-\d+(\.\d+)?M$)`)
-	reGenericPowerIndicators = regexp.MustCompile(`(?i)(POWER|PSU|FUSE|TRANSISTOR|MODULE)`)
+	reGenericPowerIndicators = regexp.MustCompile(`(?i)(POWER|PSU|FUSE|TRANSISTOR)`)
 	reGenericIOIndicators    = regexp.MustCompile(`(?i)(I/?O|INPUT|OUTPUT|PLC)`)
 	reGenericServoIndicators = regexp.MustCompile(`(?i)(SERVO|SPINDLE|ENCODER|AMPLIFIER|MOTOR|DRIVE)`)
 	reGenericBoardIndicators = regexp.MustCompile(`(?i)(PCB|BOARD|CPU|MEMORY|AXIS|MAIN\s*BOARD|CARD)`)

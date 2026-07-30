@@ -52,7 +52,7 @@ func getDefaultSiteURL() string {
 	if v := strings.TrimSpace(os.Getenv("NEXT_PUBLIC_SITE_URL")); v != "" {
 		return strings.TrimRight(v, "/")
 	}
-	return "https://www.vcocncspare.com"
+	return "https://www.vibocnc.com"
 }
 
 func normalizeSiteURL(input string) string {
@@ -283,6 +283,110 @@ func BuildProductCanonicalURL(siteURL, sku string) string {
 	return base + publicPath
 }
 
+var supportedPublicLocaleCodes = map[string]bool{
+	"zh": true, "es": true, "de": true, "fr": true, "it": true,
+	"pt": true, "ja": true, "ko": true, "ru": true, "ar": true,
+}
+
+func normalizePublicLocaleCode(code string) string {
+	code = strings.ToLower(strings.TrimSpace(code))
+	if idx := strings.IndexAny(code, "-_"); idx >= 0 {
+		code = code[:idx]
+	}
+	if supportedPublicLocaleCodes[code] {
+		return code
+	}
+	return ""
+}
+
+func localizedPublicURL(siteURL, publicPath, locale string) string {
+	base := normalizeSiteURL(siteURL)
+	path := strings.TrimSpace(publicPath)
+	if path == "" {
+		path = "/"
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	if normalizedLocale := normalizePublicLocaleCode(locale); normalizedLocale != "" {
+		path = "/" + normalizedLocale + path
+	}
+	if path == "/" {
+		return base + "/"
+	}
+	return base + path
+}
+
+func hasIndexableProductTranslation(translation models.ProductTranslation) bool {
+	return normalizePublicLocaleCode(translation.LanguageCode) != "" &&
+		strings.TrimSpace(translation.Name) != "" &&
+		(strings.TrimSpace(translation.Description) != "" || strings.TrimSpace(translation.ShortDescription) != "")
+}
+
+func hasIndexableArticleTranslation(translation models.ArticleTranslation) bool {
+	return normalizePublicLocaleCode(translation.LanguageCode) != "" &&
+		strings.TrimSpace(translation.Title) != "" && strings.TrimSpace(translation.Content) != ""
+}
+
+func BuildProductIndexNowURLs(siteURL string, product models.Product) []string {
+	publicPath := BuildProductPublicPath(product.SKU)
+	urls := []string{
+		localizedPublicURL(siteURL, publicPath, ""),
+		localizedPublicURL(siteURL, "/products", ""),
+		normalizeSiteURL(siteURL) + "/sitemap-products-index.xml",
+	}
+	for _, translation := range product.Translations {
+		if !hasIndexableProductTranslation(translation) {
+			continue
+		}
+		locale := normalizePublicLocaleCode(translation.LanguageCode)
+		urls = append(urls,
+			localizedPublicURL(siteURL, publicPath, locale),
+			localizedPublicURL(siteURL, "/products", locale),
+		)
+	}
+	return urls
+}
+
+func LoadProductIndexNowURLs(db *gorm.DB, siteURL string, product models.Product) []string {
+	if db != nil && product.ID > 0 && len(product.Translations) == 0 {
+		_ = db.Where("product_id = ?", product.ID).Find(&product.Translations).Error
+	}
+	return BuildProductIndexNowURLs(siteURL, product)
+}
+
+func BuildArticleIndexNowURLs(siteURL string, article models.Article, publicPath string) []string {
+	sectionPath := "/news"
+	sitemapPath := "/sitemap-news.xml"
+	if strings.EqualFold(strings.TrimSpace(article.ContentType), "blog") {
+		sectionPath = "/blog"
+		sitemapPath = "/sitemap-blog.xml"
+	}
+	urls := []string{
+		localizedPublicURL(siteURL, publicPath, ""),
+		localizedPublicURL(siteURL, sectionPath, ""),
+		normalizeSiteURL(siteURL) + sitemapPath,
+	}
+	for _, translation := range article.Translations {
+		if !hasIndexableArticleTranslation(translation) {
+			continue
+		}
+		locale := normalizePublicLocaleCode(translation.LanguageCode)
+		urls = append(urls,
+			localizedPublicURL(siteURL, publicPath, locale),
+			localizedPublicURL(siteURL, sectionPath, locale),
+		)
+	}
+	return urls
+}
+
+func LoadArticleIndexNowURLs(db *gorm.DB, siteURL string, article models.Article, publicPath string) []string {
+	if db != nil && article.ID > 0 && len(article.Translations) == 0 {
+		_ = db.Where("article_id = ?", article.ID).Find(&article.Translations).Error
+	}
+	return BuildArticleIndexNowURLs(siteURL, article, publicPath)
+}
+
 func BuildDefaultIndexNowURLs(siteURL string) []string {
 	base := normalizeSiteURL(siteURL)
 	return []string{
@@ -290,6 +394,7 @@ func BuildDefaultIndexNowURLs(siteURL string) []string {
 		base + "/products",
 		base + "/categories",
 		base + "/news",
+		base + "/blog",
 		base + "/about",
 		base + "/contact",
 		base + "/faq",
@@ -305,6 +410,7 @@ func BuildDefaultIndexNowURLs(siteURL string) []string {
 		base + "/sitemap-products-index.xml",
 		base + "/sitemap-categories.xml",
 		base + "/sitemap-news.xml",
+		base + "/sitemap-blog.xml",
 	}
 }
 
@@ -320,8 +426,11 @@ func SubmitProductURLBestEffort(ctx context.Context, db *gorm.DB, sku string) {
 	if !setting.Enabled || !setting.AutoSubmitProductUpdates || strings.TrimSpace(setting.Key) == "" {
 		return
 	}
-	url := BuildProductCanonicalURL(setting.SiteURL, sku)
-	result, err := service.SubmitURLs(ctx, []string{url})
+	var product models.Product
+	if err := db.Preload("Translations").Where("sku = ?", sku).First(&product).Error; err != nil {
+		return
+	}
+	result, err := service.SubmitURLs(ctx, BuildProductIndexNowURLs(setting.SiteURL, product))
 	if err != nil || result == nil {
 		return
 	}
@@ -333,6 +442,22 @@ func SubmitProductURLBestEffort(ctx context.Context, db *gorm.DB, sku string) {
 			"index_now_submit_count":      gorm.Expr("COALESCE(index_now_submit_count, 0) + 1"),
 			"index_now_last_submit_code":  result.StatusCode,
 		}).Error
+}
+
+func SubmitArticleURLsBestEffort(ctx context.Context, db *gorm.DB, articleID uint, publicPath string) {
+	if db == nil || articleID == 0 {
+		return
+	}
+	service := NewIndexNowService(db)
+	setting, err := service.GetOrCreateSetting()
+	if err != nil || !setting.Enabled || strings.TrimSpace(setting.Key) == "" {
+		return
+	}
+	var article models.Article
+	if err := db.Preload("Translations").First(&article, articleID).Error; err != nil || !article.IsPublished {
+		return
+	}
+	_, _ = service.SubmitURLs(ctx, BuildArticleIndexNowURLs(setting.SiteURL, article, publicPath))
 }
 
 func MarkProductsIndexNowSubmitted(db *gorm.DB, productIDs []uint, submittedAt time.Time, statusCode int) error {

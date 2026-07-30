@@ -185,7 +185,7 @@ export function WorkshopSection({ content }: Props) {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
                 href={href(data.statsBlock?.ctaPrimary?.href || '/contact')}
-                className="bg-orange-500 text-white hover:bg-[#003a78] px-8 py-3 rounded-md font-semibold transition-colors duration-300"
+                className="bg-orange-700 text-white hover:bg-[#003a78] px-8 py-3 rounded-md font-semibold transition-colors duration-300"
               >
                 {locale === 'en' ? data.statsBlock?.ctaPrimary?.text || t('common.contactUs') : t('common.contactUs')}
               </a>

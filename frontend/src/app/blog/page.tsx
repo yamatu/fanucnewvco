@@ -5,21 +5,21 @@ import { SITE_NAME, withSiteName } from '@/lib/seo';
 import { NewsService } from '@/services/news.service';
 import NewsPageClient from '@/app/news/NewsPageClient';
 import type { PaginationResponse, Article } from '@/types';
-import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
-import { localizeArticleContent } from '@/lib/i18n/content';
+import { getLocalizedMetadataPathsWithQuery, getRequestPublicLocale } from '@/lib/i18n/server';
+import { localizeArticleOrDefault } from '@/lib/i18n/content';
 import { localizePublicPath } from '@/lib/i18n/config';
 import { translatePublicMessage } from '@/lib/i18n/messages';
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
   const params = await searchParams;
-  const { locale, canonical, languages } = await getLocalizedMetadataPaths('/blog');
   const search = typeof params.search === 'string' ? params.search.trim() : '';
   const page = Math.max(1, Number.parseInt(typeof params.page === 'string' ? params.page : '1', 10) || 1);
+  const pageQuery = page > 1 ? `page=${page}` : '';
+  const { locale, canonical: url, languages } = await getLocalizedMetadataPathsWithQuery('/blog', pageQuery);
   const title = search ? `Search: ${search} - Blog` : translatePublicMessage(locale, 'news.blogTitle');
   const description = search
     ? `Search results for "${search}" in the VIBO CNC industrial automation blog.`
     : translatePublicMessage(locale, 'news.blogDescription');
-  const url = page > 1 ? `${canonical}?page=${page}` : canonical;
   return {
     title,
     description,
@@ -47,13 +47,16 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
   }
 
   const baseUrl = getSiteUrl();
-  const articles = (data.data || []).map((article) => localizeArticleContent(article, locale));
+  const articles = (data.data || [])
+    .map((article) => localizeArticleOrDefault(article, locale));
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'Blog',
     name: translatePublicMessage(locale, 'news.blogTitle'),
     description: translatePublicMessage(locale, 'news.blogDescription'),
     url: `${baseUrl}${localizePublicPath('/blog', locale)}`,
+    inLanguage: locale === 'zh' ? 'zh-CN' : locale,
+    isAccessibleForFree: true,
     publisher: { '@type': 'Organization', '@id': `${baseUrl}/#organization`, name: SITE_NAME, url: baseUrl },
     blogPost: articles.slice(0, 10).map((article) => ({
       '@type': 'BlogPosting',
@@ -63,6 +66,9 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
       datePublished: article.published_at || article.created_at,
       dateModified: article.updated_at,
       image: article.featured_image || undefined,
+      inLanguage: locale === 'zh' ? 'zh-CN' : locale,
+      articleSection: translatePublicMessage(locale, 'nav.blog'),
+      isAccessibleForFree: true,
     })),
   };
 

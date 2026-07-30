@@ -19,9 +19,10 @@ import { queryKeys } from '@/lib/react-query';
 import { useAdminI18n } from '@/lib/admin-i18n';
 import type { ArticleCreateRequest } from '@/types';
 import MarkdownContent from '@/components/content/MarkdownContent';
+import TranslationEditor from '@/components/admin/TranslationEditor';
 
 export default function NewArticlePage() {
-  const { t } = useAdminI18n();
+  const { locale, t } = useAdminI18n();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [showMediaPicker, setShowMediaPicker] = useState(false);
@@ -42,6 +43,7 @@ export default function NewArticlePage() {
       content: '',
       content_type: 'news',
       image_urls: [],
+      translations: [],
     },
   });
 
@@ -263,6 +265,13 @@ export default function NewArticlePage() {
                   </div>
                 </div>
               </div>
+
+              <TranslationEditor
+                kind="article"
+                locale={locale}
+                value={watch('translations') || []}
+                onChange={(translations) => setValue('translations', translations, { shouldDirty: true })}
+              />
             </div>
 
             {/* Sidebar - 1 col */}

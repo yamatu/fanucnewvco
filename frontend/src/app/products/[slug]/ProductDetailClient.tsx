@@ -28,11 +28,13 @@ import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toPr
 import { useCartStore } from '@/store/cart.store';
 import { useRouter } from 'next/navigation';
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
-import { localizeCategoryContent, localizeProductContent } from '@/lib/i18n/content';
+import { hasTranslationForLocale, localizeCategoryContent, localizeProductContent } from '@/lib/i18n/content';
+import { buildSemanticProductName, inferProductTypeLabel } from '@/lib/product-seo';
 
 interface ProductDetailClientProps {
   productSku: string;
   initialProduct?: Product;
+  contentLocale?: string;
 }
 
 function parseTechnicalSpecs(raw?: string): Record<string, string> | null {
@@ -84,7 +86,7 @@ function FAQAccordionItem({ question, answer }: { question: string; answer: stri
   );
 }
 
-export default function ProductDetailClient({ productSku, initialProduct }: ProductDetailClientProps) {
+export default function ProductDetailClient({ productSku, initialProduct, contentLocale }: ProductDetailClientProps) {
   const { locale, t, href: localizedHref } = usePublicI18n();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity] = useState(1);
@@ -151,7 +153,13 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
   });
   const relatedProducts = useMemo<PaginationResponse<Product>>(
     () => fetchedRelatedProducts
-      ? { ...fetchedRelatedProducts, data: (fetchedRelatedProducts.data || []).map((item) => localizeProductContent(item, locale)) }
+      ? {
+          ...fetchedRelatedProducts,
+          data: (fetchedRelatedProducts.data || [])
+            .map((item) => hasTranslationForLocale(item.translations, locale)
+              ? localizeProductContent(item, locale)
+              : item),
+        }
       : { data: [], page: 1, page_size: 4, total: 0, total_pages: 1 },
     [fetchedRelatedProducts, locale],
   );
@@ -357,9 +365,18 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
             ? [rawImages]
             : []));
 
-  const categoryName = product.category?.name || 'Part';
+  const semanticProduct = category ? { ...product, category } : product;
+  const categoryName = inferProductTypeLabel(semanticProduct);
   const brandName = (product.brand || '').trim();
-  const computedHeading = product.name || `${brandName} ${product.sku || ''} ${categoryName}`.trim();
+  const normalizedName = String(product.name || '').trim();
+  const skuOnlyName = normalizeComparisonText(normalizedName) === normalizeComparisonText(product.sku);
+  const nameAlreadyHasBrand = brandName && normalizeComparisonText(normalizedName).includes(normalizeComparisonText(brandName));
+  const headingParts = [
+    !nameAlreadyHasBrand ? brandName : '',
+    normalizedName || product.sku,
+    skuOnlyName ? categoryName : '',
+  ].filter(Boolean);
+  const computedHeading = buildSemanticProductName(semanticProduct) || headingParts.join(' ').replace(/\s+/g, ' ').trim();
 
   const getFallbackDescription = () => {
     const sku = product.sku || '';
@@ -438,6 +455,7 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
         product={product}
         category={category}
         categoryBreadcrumb={categoryBreadcrumb}
+        contentLocale={contentLocale}
       />
 
       <div className="site-page-shell min-h-screen">
@@ -930,7 +948,9 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
                     </div>
                     <div className="mt-2">
                       <Link
-                        href={localizedHref(`/products/${toProductPathId(relatedProduct.sku)}`)}
+                        href={hasTranslationForLocale(relatedProduct.translations, locale)
+                          ? localizedHref(`/products/${toProductPathId(relatedProduct.sku)}`)
+                          : `/products/${toProductPathId(relatedProduct.sku)}`}
                         className="site-product-title text-sm font-semibold"
                       >
                         {relatedProduct.name}

@@ -12,12 +12,26 @@ function estimateReadTime(content: string): number {
   return Math.max(1, Math.ceil(words / 200));
 }
 
-export default function ArticleDetailClient({ article }: { article: Article }) {
+export default function ArticleDetailClient({
+  article,
+  relatedArticles = [],
+  contentLocale,
+}: {
+  article: Article;
+  relatedArticles?: Article[];
+  contentLocale?: string;
+}) {
   const { locale, t, href } = usePublicI18n();
   const readTime = estimateReadTime(article.content);
   const basePath = article.content_type === 'blog' ? '/blog' : '/news';
   const sectionName = t(article.content_type === 'blog' ? 'nav.blog' : 'nav.news');
-  const localeTag = locale === 'zh' ? 'zh-CN' : locale;
+  const localeTag = (contentLocale || locale) === 'zh' ? 'zh-CN' : (contentLocale || locale);
+  const relatedHref = (related: Article) => {
+    const path = related.public_path || `/${related.content_type}/${related.slug}`;
+    return locale === 'en' || related.translations?.some((translation) => translation.language_code.split(/[-_]/)[0] === locale)
+      ? href(path)
+      : path;
+  };
 
   return (
     <Layout>
@@ -84,9 +98,29 @@ export default function ArticleDetailClient({ article }: { article: Article }) {
           </header>
 
           {/* Article Content */}
-          <article className="py-8 sm:py-10">
+          <article className="py-8 sm:py-10" lang={contentLocale || locale}>
             <MarkdownContent content={article.content} className="max-w-none text-lg" />
           </article>
+
+          {relatedArticles.length > 0 && (
+            <aside className="border-t border-gray-200 py-8" aria-labelledby="related-articles-title">
+              <h2 id="related-articles-title" className="mb-4 text-xl font-bold text-gray-900">
+                {article.content_type === 'blog' ? t('news.blogTitle') : t('news.title')}
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-3">
+                {relatedArticles.map((related) => (
+                  <Link
+                    key={related.id}
+                    href={relatedHref(related)}
+                    className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-blue-300 hover:shadow-sm"
+                  >
+                    <h3 className="text-sm font-semibold leading-6 text-gray-900">{related.title}</h3>
+                    {related.summary && <p className="mt-2 line-clamp-3 text-xs leading-5 text-gray-600">{related.summary}</p>}
+                  </Link>
+                ))}
+              </div>
+            </aside>
+          )}
 
           {/* Back to News */}
           <div className="border-t border-gray-200 py-8">

@@ -277,7 +277,7 @@ export function Footer() {
               />
               <button
                 type="submit"
-                className="px-6 py-2 bg-orange-500 text-white rounded-r-md hover:bg-[#003a78] transition-colors duration-200 font-semibold"
+                className="px-6 py-2 bg-orange-700 text-white rounded-r-md hover:bg-[#003a78] transition-colors duration-200 font-semibold"
               >
                 {t('footer.subscribe')}
               </button>

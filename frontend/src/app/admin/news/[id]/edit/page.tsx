@@ -19,6 +19,7 @@ import { queryKeys } from '@/lib/react-query';
 import { useAdminI18n } from '@/lib/admin-i18n';
 import type { ArticleCreateRequest } from '@/types';
 import MarkdownContent from '@/components/content/MarkdownContent';
+import TranslationEditor from '@/components/admin/TranslationEditor';
 
 export default function EditArticlePage() {
   const { locale, t } = useAdminI18n();
@@ -51,6 +52,7 @@ export default function EditArticlePage() {
       content: '',
       content_type: 'news',
       image_urls: [],
+      translations: [],
     },
   });
 
@@ -60,6 +62,7 @@ export default function EditArticlePage() {
       reset({
         title: article.title,
         slug: article.slug,
+        custom_path: article.custom_path || '',
         summary: article.summary,
         content: article.content,
         content_type: article.content_type || 'news',
@@ -71,6 +74,16 @@ export default function EditArticlePage() {
         meta_keywords: article.meta_keywords,
         sort_order: article.sort_order,
         image_urls: Array.isArray(article.image_urls) ? article.image_urls : [],
+        translations: (article.translations || []).map((translation) => ({
+          language_code: translation.language_code,
+          title: translation.title,
+          slug: translation.slug,
+          summary: translation.summary || '',
+          content: translation.content || '',
+          meta_title: translation.meta_title || '',
+          meta_description: translation.meta_description || '',
+          meta_keywords: translation.meta_keywords || '',
+        })),
       });
     }
   }, [article, reset]);
@@ -292,6 +305,13 @@ export default function EditArticlePage() {
                   </div>
                 </div>
               </div>
+
+              <TranslationEditor
+                kind="article"
+                locale={locale}
+                value={watch('translations') || []}
+                onChange={(translations) => setValue('translations', translations, { shouldDirty: true })}
+              />
             </div>
 
             {/* Sidebar */}

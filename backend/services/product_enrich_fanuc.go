@@ -27,6 +27,7 @@ var (
 	reFanucA03B               = regexp.MustCompile(`(?i)^A03B`)
 	reFanucA06B               = regexp.MustCompile(`(?i)^A06B`)
 	reFanucA06BServoAmplifier = regexp.MustCompile(`(?i)^A06B-6`)
+	reFanucSpindleAmplifier   = regexp.MustCompile(`(?i)^A06B-6092-`)
 	reFanucA06BServoMotor     = regexp.MustCompile(`(?i)^A06B-(0[0-6]|2[0-9]|3[0-9]|4[0-9]|5[0-9])`)
 	reFanucA06BSpindleMotor   = regexp.MustCompile(`(?i)^A06B-(0[78]|1[0-8])`)
 	reFanucA14B               = regexp.MustCompile(`(?i)^A14B`)
@@ -99,6 +100,8 @@ func inferFanucCategoryInference(model string) ProductCategoryInference {
 		return ProductCategoryInference{BrandKey: "fanuc", BrandName: "FANUC", PartType: "Power Supply Unit", CategorySlug: "fanuc-power-supply", MatchRule: "fanuc:power"}
 	case reFanucA03B.MatchString(upper) || strings.HasPrefix(upper, "A04B"):
 		return ProductCategoryInference{BrandKey: "fanuc", BrandName: "FANUC", PartType: "I/O Module", CategorySlug: "fanuc-i-o-module", MatchRule: "fanuc:io"}
+	case reFanucSpindleAmplifier.MatchString(upper):
+		return ProductCategoryInference{BrandKey: "fanuc", BrandName: "FANUC", PartType: "Spindle Amplifier / Drive", CategorySlug: "fanuc-spindle-amplifier-drive", MatchRule: "fanuc:spindle-amplifier"}
 	case reFanucA06BServoAmplifier.MatchString(upper):
 		return ProductCategoryInference{BrandKey: "fanuc", BrandName: "FANUC", PartType: "Servo Amplifier / Drive", CategorySlug: "fanuc-servo-amplifier-drive", MatchRule: "fanuc:servo-amplifier"}
 	case reFanucA06BSpindleMotor.MatchString(upper):

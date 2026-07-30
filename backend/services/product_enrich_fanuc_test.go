@@ -1,6 +1,9 @@
 package services
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestInferFanucCategoryInference(t *testing.T) {
 	tests := []struct {
@@ -9,6 +12,7 @@ func TestInferFanucCategoryInference(t *testing.T) {
 		wantSlug     string
 	}{
 		{model: "A06B-6114-H103", wantPartType: "Servo Amplifier / Drive", wantSlug: "fanuc-servo-amplifier-drive"},
+		{model: "A06B-6092-H275#H508", wantPartType: "Spindle Amplifier / Drive", wantSlug: "fanuc-spindle-amplifier-drive"},
 		{model: "A06B-0123-B075", wantPartType: "Servo Motor", wantSlug: "fanuc-servo-motor"},
 		{model: "A06B-1451-B100", wantPartType: "Spindle Motor", wantSlug: "fanuc-spindle-motor"},
 		{model: "A16B-2200-0390", wantPartType: "PCB Board", wantSlug: "fanuc-pcb-control-board"},
@@ -45,6 +49,23 @@ func TestFanucEnrichProducesSEOContent(t *testing.T) {
 	}
 	if enriched.CategorySlug != "fanuc-servo-motor" {
 		t.Fatalf("unexpected category slug: %s", enriched.CategorySlug)
+	}
+}
+
+func TestNonFanucA06BModelDoesNotUseFanucClassifier(t *testing.T) {
+	got := InferProductCategory("Siemens", "A06B-6092-TEST")
+	if got.BrandKey != "siemens" {
+		t.Fatalf("brand key mismatch: got %q want %q", got.BrandKey, "siemens")
+	}
+	if strings.HasPrefix(got.MatchRule, "fanuc:") || strings.Contains(strings.ToLower(got.CategorySlug), "fanuc") {
+		t.Fatalf("non-FANUC product used FANUC classifier: %#v", got)
+	}
+}
+
+func TestGenericModuleIsNotAutomaticallyPowerSupply(t *testing.T) {
+	got := InferProductCategory("Siemens", "CPU-MODULE-315")
+	if got.PartType == "Power Supply Unit" {
+		t.Fatalf("generic module was incorrectly classified as power supply: %#v", got)
 	}
 }
 

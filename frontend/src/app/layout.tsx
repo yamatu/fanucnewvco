@@ -21,6 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const localizedPath = localizePublicPath(pathname, locale);
   const canonical = `${siteUrl}${localizedPath === '/' ? '' : localizedPath}`;
   const isPublicPage = isLocalizablePublicPath(pathname);
+  const isIndexablePage = isPublicPage && pathname !== '/track-order';
   const localizedTitle = translatePublicMessage(locale, 'products.title');
   const localizedDescription = locale === 'en'
     ? SITE_DESCRIPTION
@@ -56,11 +57,11 @@ export async function generateMetadata(): Promise<Metadata> {
       languages: buildLanguageAlternates(siteUrl, pathname),
     } : undefined,
     robots: {
-      index: true,
-      follow: true,
+      index: isIndexablePage,
+      follow: isIndexablePage,
       googleBot: {
-        index: true,
-        follow: true,
+        index: isIndexablePage,
+        follow: isIndexablePage,
         'max-video-preview': -1,
         'max-image-preview': 'large',
         'max-snippet': -1,

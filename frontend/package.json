@@ -9,7 +9,8 @@
     "build:static": "cp .env.build .env.local && next build",
     "start": "NODE_ENV=production node .next/standalone/server.js",
     "start:development": "NODE_ENV=development next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seo:audit": "node ../scripts/check_seo_responses.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

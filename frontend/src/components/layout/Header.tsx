@@ -385,7 +385,6 @@ export function Header() {
       {mobileMenuOpen && (
         <div id="responsive-navigation" className="border-t border-slate-200 bg-white min-[1720px]:hidden">
           <div className="px-4 py-4 space-y-4">
-            <LanguageSelector mobile />
             {navigation.map((item) => {
               if (item.key === 'nav.categories') {
                 return <MobileCategoriesMenu key={item.key} onNavigate={() => setMobileMenuOpen(false)} />;

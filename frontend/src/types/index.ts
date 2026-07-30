@@ -702,11 +702,14 @@ export interface ArticleTranslation {
 export interface ArticleCreateRequest {
   title: string;
   slug?: string;
+  custom_path?: string;
   summary?: string;
   content: string;
   content_type?: 'news' | 'blog';
   featured_image?: string;
+  featured_media_id?: number;
   image_urls?: string[];
+  gallery_media_ids?: number[];
   is_published: boolean;
   is_featured: boolean;
   meta_title?: string;

@@ -18,7 +18,7 @@ export async function GET() {
 
     const sitemapEntries: string[] = []
     for (let pageNumber = 1; pageNumber <= limit; pageNumber++) {
-      sitemapEntries.push(`  <sitemap>\n    <loc>${baseUrl}/sitemap-products/${pageNumber}.xml</loc>\n    <lastmod>${new Date().toISOString()}</lastmod>\n  </sitemap>`)
+      sitemapEntries.push(`  <sitemap>\n    <loc>${baseUrl}/sitemap-products/${pageNumber}.xml</loc>\n  </sitemap>`)
     }
 
     if (sitemapEntries.length === 0) {
@@ -36,7 +36,7 @@ export async function GET() {
   } catch (error) {
     console.error('Error generating product sitemap index:', error)
     // Fallback: at least provide first page (if available)
-    const sitemapIndex = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <sitemap>\n    <loc>${baseUrl}/sitemap-products/1.xml</loc>\n    <lastmod>${new Date().toISOString()}</lastmod>\n  </sitemap>\n</sitemapindex>`
+    const sitemapIndex = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <sitemap>\n    <loc>${baseUrl}/sitemap-products/1.xml</loc>\n  </sitemap>\n</sitemapindex>`
     return new NextResponse(sitemapIndex, {
       headers: {
         'Content-Type': 'application/xml',

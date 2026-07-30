@@ -14,6 +14,7 @@ import ProductImageManager, { type ManagedProductImage } from '@/components/admi
 import SeoPreview from '@/components/admin/SeoPreview';
 import CategoryCombobox from '@/components/admin/CategoryCombobox';
 import ShippingQuoteCalculator from '@/components/admin/ShippingQuoteCalculator';
+import TranslationEditor from '@/components/admin/TranslationEditor';
 import { ProductService, CategoryService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { ProductCreateRequest } from '@/types';
@@ -169,6 +170,15 @@ export default function EditProductPage() {
       setValue('part_number' as any, (product as any).part_number || product.sku);
       setValue('warranty_period' as any, (product as any).warranty_period || '12 months');
       setValue('lead_time' as any, (product as any).lead_time || '3-7 days');
+	  setValue('translations', (product.translations || []).map((translation) => ({
+		language_code: translation.language_code,
+		name: translation.name,
+		short_description: translation.short_description || '',
+		description: translation.description || '',
+		meta_title: translation.meta_title || '',
+		meta_description: translation.meta_description || '',
+		meta_keywords: translation.meta_keywords || '',
+	  })));
 
       // Convert image_urls to the expected format for editing
       try {
@@ -259,17 +269,7 @@ export default function EditProductPage() {
 			}))
 			: [];
 
-		const trans = Array.isArray(existing.translations)
-			? existing.translations.map((t: any) => ({
-				language_code: t.language_code,
-				name: t.name,
-				short_description: t.short_description || '',
-				description: t.description || '',
-				meta_title: t.meta_title || '',
-				meta_description: t.meta_description || '',
-				meta_keywords: t.meta_keywords || '',
-			}))
-			: [];
+		const trans = Array.isArray(data.translations) ? data.translations : [];
 
 		// Backend PUT expects a full ProductCreateRequest.
 		const productData: ProductCreateRequest = {
@@ -663,6 +663,13 @@ export default function EditProductPage() {
           </div>
 
           <ProductImageManager images={images} onChange={setImages} sku={watch('sku')} />
+
+          <TranslationEditor
+            kind="product"
+            locale={locale}
+            value={watch('translations') || []}
+            onChange={(translations) => setValue('translations', translations, { shouldDirty: true })}
+          />
             </div>
 
             {/* Sidebar */}

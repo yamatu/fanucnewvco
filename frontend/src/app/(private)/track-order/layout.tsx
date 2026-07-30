@@ -12,6 +12,18 @@ export async function generateMetadata(): Promise<Metadata> {
     title,
     description,
     alternates: { canonical, languages },
+    robots: {
+      index: false,
+      follow: false,
+      nocache: true,
+      noarchive: true,
+      nosnippet: true,
+      googleBot: {
+        index: false,
+        follow: false,
+        noimageindex: true,
+      },
+    },
     openGraph: {
       title: socialTitle,
       description,
