@@ -36,7 +36,7 @@ export default function AdminEmailPage() {
     id: 1,
     enabled: false,
     provider: 'smtp',
-    from_name: 'VIBO CNC',
+    from_name: 'Vibocnc',
     from_email: '',
     reply_to: '',
     smtp_host: '',
@@ -155,7 +155,7 @@ export default function AdminEmailPage() {
   const [single, setSingle] = useState({ to: '', subject: '', html: '', text: '' });
 
   useEffect(() => {
-    const subject = mk.subject || 'VIBO CNC Updates';
+    const subject = mk.subject || 'Vibocnc Updates';
     const built = buildEmailHtml(subject, modules);
     setMk((p) => ({ ...p, html: built.html, text: built.text }));
     setSingle((p) => ({ ...p, html: built.html, text: built.text }));
@@ -163,7 +163,7 @@ export default function AdminEmailPage() {
   }, []);
 
   useEffect(() => {
-    const subject = mk.subject || 'VIBO CNC Updates';
+    const subject = mk.subject || 'Vibocnc Updates';
     const built = buildEmailHtml(subject, modules);
     setMk((p) => ({ ...p, html: built.html, text: p.text ? p.text : built.text }));
     // eslint-disable-next-line react-hooks/exhaustive-deps

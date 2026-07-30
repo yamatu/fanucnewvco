@@ -4,9 +4,10 @@ import { useState, useRef, MouseEvent } from 'react';
 import Image from 'next/image';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { getProductImageUrlByIndex } from '@/lib/utils';
+import type { ProductImage } from '@/types';
 
 interface ProductImageViewerProps {
-  images: string[] | any[];
+  images: Array<string | ProductImage>;
   productName: string;
   selectedImageIndex: number;
   onImageChange: (index: number) => void;
@@ -20,7 +21,7 @@ function getImageAlt(productName: string, productSku?: string, categoryName?: st
   const cat = categoryName || 'Industrial Component';
   switch (index) {
     case 0:
-      return `${sku} ${productName} - Front View | VIBO CNC FANUC Parts`.trim();
+      return `${sku} ${productName} - Product View | Vibocnc`.trim();
     case 1:
       return `${sku} ${productName} - Detail View | ${cat}`.trim();
     default:
@@ -81,7 +82,7 @@ export default function ProductImageViewer({
       {images.length > 1 && (
         <div className="hidden mt-6 w-full max-w-2xl mx-auto sm:block lg:max-w-none">
           <div className="grid grid-cols-4 gap-6">
-            {images.map((image: string | any, index: number) => (
+            {images.map((_image, index: number) => (
               <button
                 key={index}
                 onClick={() => onImageChange(index)}
@@ -96,7 +97,7 @@ export default function ProductImageViewer({
                     alt={getImageAlt(productName, productSku, categoryName, index)}
                     fill
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    className="object-cover object-center"
+                    className="object-contain object-center p-1"
                     loading="lazy"
                   />
                 </span>
@@ -120,7 +121,7 @@ export default function ProductImageViewer({
             alt={getImageAlt(productName, productSku, categoryName, selectedImageIndex)}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 50vw"
-            className="object-cover object-center transition-transform duration-200"
+            className="object-contain object-center p-3 transition-transform duration-200 sm:p-5"
             style={{
               transform: isHovering ? 'scale(2)' : 'scale(1)',
               transformOrigin: `${mousePosition.x}% ${mousePosition.y}%`

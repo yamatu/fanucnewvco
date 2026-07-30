@@ -892,7 +892,7 @@ export default function AdminMediaPage() {
                       value={watermarkText}
                       onChange={(e) => setWatermarkText(e.target.value)}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder={t('media.watermark.textPh', locale === 'zh' ? '例如：VIBO CNC' : 'e.g. VIBO CNC')}
+                      placeholder={t('media.watermark.textPh', locale === 'zh' ? '例如：Vibocnc' : 'e.g. Vibocnc')}
                     />
                   </div>
                 )}

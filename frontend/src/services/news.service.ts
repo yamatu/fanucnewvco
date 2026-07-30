@@ -10,7 +10,7 @@ export interface NewsFilters {
   page_size?: number;
   search?: string;
   is_published?: string;
-  is_featured?: string;
+  is_featured?: string | boolean;
   content_type?: 'news' | 'blog';
 }
 

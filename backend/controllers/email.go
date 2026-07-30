@@ -351,9 +351,9 @@ func (ec *EmailController) SendTest(c *gin.Context) {
 	db := config.GetDB()
 	err := services.SendEmail(db, services.EmailSendOptions{
 		To:      req.To,
-		Subject: "Test email from VIBO CNC",
-		Text:    "This is a test email from VIBO CNC admin panel.",
-		HTML:    "<p>This is a <b>test email</b> from VIBO CNC admin panel.</p>",
+		Subject: "Test email from Vibocnc",
+		Text:    "This is a test email from Vibocnc admin panel.",
+		HTML:    "<p>This is a <b>test email</b> from Vibocnc admin panel.</p>",
 		Headers: map[string]string{"X-Entity-Ref-ID": "test-email"},
 	})
 	if err != nil {

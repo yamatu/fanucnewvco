@@ -8,7 +8,7 @@ export interface SitePageDefault {
 }
 
 export const sitePageDefaults: SitePageDefault[] = [
-  { pageKey: 'privacy', title: 'Privacy Policy', summary: 'How VIBO CNC collects, uses, and protects personal information.', metaDescription: 'Learn how VIBO CNC protects personal information and handles data for customers purchasing CNC and industrial automation parts.', metaKeywords: 'privacy policy, data protection, CNC parts, VIBO CNC', content: `## Information We Collect
+  { pageKey: 'privacy', title: 'Privacy Policy', summary: 'How Vibocnc collects, uses, and protects personal information.', metaDescription: 'Learn how Vibocnc protects personal information and handles data for customers purchasing CNC and industrial automation parts.', metaKeywords: 'privacy policy, data protection, CNC parts, Vibocnc', content: `## Information We Collect
 
 We collect information you provide when placing an order, requesting a quote, contacting support, creating an account, or subscribing to updates. This may include your name, company, email address, phone number, billing and shipping details, and order information.
 
@@ -34,9 +34,9 @@ You may request access, correction, or deletion of personal information where ap
 ## Contact
 
 For privacy questions, contact [sales@vibocnc.com](mailto:sales@vibocnc.com).` },
-  { pageKey: 'terms', title: 'Terms of Service', summary: 'Terms that apply when using the VIBO CNC website and purchasing products.', metaDescription: 'Read VIBO CNC terms for orders, payment, shipping, returns, warranties, website use, and industrial automation parts purchases.', metaKeywords: 'terms of service, CNC parts terms, VIBO CNC purchase policy', content: `## Acceptance of Terms
+  { pageKey: 'terms', title: 'Terms of Service', summary: 'Terms that apply when using the Vibocnc website and purchasing products.', metaDescription: 'Read Vibocnc terms for orders, payment, shipping, returns, warranties, website use, and industrial automation parts purchases.', metaKeywords: 'terms of service, CNC parts terms, Vibocnc purchase policy', content: `## Acceptance of Terms
 
-By using this website or purchasing from VIBO CNC, you agree to these terms. Product quotations, invoices, and separately agreed written terms may also apply.
+By using this website or purchasing from Vibocnc, you agree to these terms. Product quotations, invoices, and separately agreed written terms may also apply.
 
 ## Products and Availability
 
@@ -56,12 +56,12 @@ Returns require prior authorization and are subject to the published returns and
 
 ## Limitation of Liability
 
-To the extent permitted by law, liability is limited to the amount paid for the affected product. VIBO CNC is not responsible for indirect or consequential loss, production downtime, or incorrect installation.
+To the extent permitted by law, liability is limited to the amount paid for the affected product. Vibocnc is not responsible for indirect or consequential loss, production downtime, or incorrect installation.
 
 ## Contact
 
 Questions may be sent to [sales@vibocnc.com](mailto:sales@vibocnc.com).` },
-  { pageKey: 'warranty', title: 'Warranty', summary: 'Warranty information for VIBO CNC products and services.', metaDescription: 'Warranty information for VIBO CNC CNC and industrial automation parts.', metaKeywords: 'warranty, CNC parts warranty, automation parts support', content: `## Warranty Coverage
+  { pageKey: 'warranty', title: 'Warranty', summary: 'Warranty information for Vibocnc products and services.', metaDescription: 'Warranty information for Vibocnc CNC and industrial automation parts.', metaKeywords: 'warranty, CNC parts warranty, automation parts support', content: `## Warranty Coverage
 
 Warranty coverage depends on the product condition, manufacturer, and quotation. Unless otherwise stated in writing, supplied products include a 12-month warranty against functional defects under normal use.
 
@@ -75,7 +75,7 @@ Warranty coverage depends on the product condition, manufacturer, and quotation.
 ## Making a Claim
 
 Contact us with the order number, product SKU, serial number when available, fault description, and supporting photos or video. Do not return an item until return instructions are issued.` },
-  { pageKey: 'warranty-policy', title: 'Warranty Policy', summary: 'Coverage, exclusions, and claims process for products supplied by VIBO CNC.', metaDescription: 'Review warranty coverage, exclusions, and the claims process for VIBO CNC industrial automation and CNC parts.', metaKeywords: 'warranty policy, FANUC parts warranty, CNC repair claim', content: `## Coverage
+  { pageKey: 'warranty-policy', title: 'Warranty Policy', summary: 'Coverage, exclusions, and claims process for products supplied by Vibocnc.', metaDescription: 'Review warranty coverage, exclusions, and the claims process for Vibocnc industrial automation and CNC parts.', metaKeywords: 'warranty policy, FANUC parts warranty, CNC repair claim', content: `## Coverage
 
 - Standard coverage is 12 months unless the quotation or product page states otherwise
 - Coverage applies to verified functional defects under normal operating conditions
@@ -91,7 +91,7 @@ Contact us with the order number, product SKU, serial number when available, fau
 ## Contact
 
 Email [sales@vibocnc.com](mailto:sales@vibocnc.com) for warranty support.` },
-  { pageKey: 'shipping-policy', title: 'Shipping Policy', summary: 'Shipping destinations, handling times, carriers, tracking, and customs information.', metaDescription: 'Shipping policy for VIBO CNC orders, including handling, worldwide delivery, tracking, packaging, duties, and customs.', metaKeywords: 'shipping policy, CNC parts delivery, worldwide industrial parts shipping', content: `## Handling Times
+  { pageKey: 'shipping-policy', title: 'Shipping Policy', summary: 'Shipping destinations, handling times, carriers, tracking, and customs information.', metaDescription: 'Shipping policy for Vibocnc orders, including handling, worldwide delivery, tracking, packaging, duties, and customs.', metaKeywords: 'shipping policy, CNC parts delivery, worldwide industrial parts shipping', content: `## Handling Times
 
 In-stock items are normally dispatched within 1-2 business days after payment and order verification. Lead times for backordered or special-order products are confirmed separately.
 
@@ -106,7 +106,7 @@ Electronic products are packed with suitable anti-static and protective material
 ## Duties and Customs
 
 Unless otherwise agreed, import duties, taxes, brokerage charges, and customs requirements are the recipient's responsibility.` },
-  { pageKey: 'returns', title: 'Returns Policy', summary: 'Eligibility, authorization, inspection, and refund terms for product returns.', metaDescription: 'Read VIBO CNC return eligibility, authorization, inspection, refund, and shipping requirements for CNC and automation parts.', metaKeywords: 'returns policy, CNC parts return, industrial parts refund', content: `## Return Authorization
+  { pageKey: 'returns', title: 'Returns Policy', summary: 'Eligibility, authorization, inspection, and refund terms for product returns.', metaDescription: 'Read Vibocnc return eligibility, authorization, inspection, refund, and shipping requirements for CNC and automation parts.', metaKeywords: 'returns policy, CNC parts return, industrial parts refund', content: `## Return Authorization
 
 Contact us before returning any product. Unauthorized returns may be refused. Provide the order number, SKU, reason for return, and product condition.
 

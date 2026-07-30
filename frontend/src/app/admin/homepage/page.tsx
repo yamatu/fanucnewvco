@@ -21,7 +21,7 @@ import SimpleSectionEditor from '@/components/admin/homepage/editors/SimpleSecti
 
 type SectionDef = { id: string; key: string; name: string; description: string; predefined?: boolean; sortOrder: number };
 
-const PRIMARY_HOME_SECTION_KEYS = ['hero_section', 'company_stats', 'featured_products', 'workshop_section', 'services_section'] as const;
+const PRIMARY_HOME_SECTION_KEYS = ['hero_section', 'company_stats', 'featured_products', 'brands_section', 'repair_capabilities', 'services_section', 'home_blog', 'workshop_section'] as const;
 
 function getEditorType(key: string):
   | 'hero'

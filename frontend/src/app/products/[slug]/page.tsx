@@ -16,7 +16,7 @@ import {
 import { localizePublicPath } from '@/lib/i18n/config';
 import { buildProductSeoDescription, buildProductSeoKeywords, inferProductTypeLabel } from '@/lib/product-seo';
 
-const DEFAULT_SITE_NAME = 'VIBO CNC';
+const DEFAULT_SITE_NAME = 'Vibocnc';
 
 export const revalidate = 3600; // ISR: revalidate every hour
 

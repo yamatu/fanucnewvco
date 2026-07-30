@@ -9,7 +9,7 @@ import { CategoryService } from '@/services';
 import { getSiteUrl } from '@/lib/url';
 import { withSiteName } from '@/lib/seo';
 import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
-import { localizeCategoryContent } from '@/lib/i18n/content';
+import { getAvailableTranslationLocales, hasTranslationForLocale, localizeCategoryContent } from '@/lib/i18n/content';
 import { localizePublicPath } from '@/lib/i18n/config';
 import { translatePublicMessage } from '@/lib/i18n/messages';
 
@@ -53,19 +53,19 @@ function getCategoryMetaDescription(categoryName: string, baseDescription?: stri
   const name = categoryName.toLowerCase();
   const titleSuffix = getCategoryTitleSuffix(brandName);
   const templates: Record<string, string> = {
-    'servo': `Shop ${brandName} ${categoryName} for precise motion control. Tested parts, 12-month warranty, and fast worldwide shipping from VIBO CNC.`,
-    'motor': `Buy ${brandName} ${categoryName} for industrial automation and CNC maintenance. Quality tested with 12-month warranty and worldwide shipping from VIBO CNC.`,
-    'pcb': `Find ${brandName} ${categoryName} for reliable CNC signal processing. Quality-tested boards with 12-month warranty and worldwide delivery from VIBO CNC.`,
-    'board': `Browse ${brandName} ${categoryName} for CNC and automation control systems. Quality-tested circuit boards with 12-month warranty from VIBO CNC.`,
-    'power': `Shop ${brandName} ${categoryName} for stable industrial power delivery. Tested units with 12-month warranty and worldwide shipping from VIBO CNC.`,
-    'i/o': `Buy ${brandName} ${categoryName} for robust automation I/O control. Tested modules with 12-month warranty and worldwide express shipping from VIBO CNC.`,
-    'interface': `Find ${brandName} ${categoryName} for reliable industrial communication. Quality-tested parts with 12-month warranty from VIBO CNC.`,
-    'encoder': `Shop ${brandName} ${categoryName} for accurate position feedback. Tested encoders with 12-month warranty and fast worldwide delivery from VIBO CNC.`,
-    'cable': `Buy ${brandName} ${categoryName} for reliable industrial connections. Quality cables with 12-month warranty and fast express shipping from VIBO CNC.`,
-    'display': `Find ${brandName} ${categoryName} for clear machine operator interfaces. Tested displays with 12-month warranty and worldwide shipping from VIBO CNC.`,
-    'spindle': `Shop ${brandName} ${categoryName} for high-speed CNC spindle control. Tested drives with 12-month warranty and express global shipping from VIBO CNC.`,
-    'controller': `Buy ${brandName} ${categoryName} for advanced machine control. Tested controllers with 12-month warranty and fast worldwide delivery from VIBO CNC.`,
-    'robot': `Find ${brandName} ${categoryName} for industrial robot automation. Tested parts with 12-month warranty and fast DHL/FedEx shipping worldwide from VIBO CNC.`,
+    'servo': `Shop ${brandName} ${categoryName} for precise motion control. Tested parts, 12-month warranty, and fast worldwide shipping from Vibocnc.`,
+    'motor': `Buy ${brandName} ${categoryName} for industrial automation and CNC maintenance. Quality tested with 12-month warranty and worldwide shipping from Vibocnc.`,
+    'pcb': `Find ${brandName} ${categoryName} for reliable CNC signal processing. Quality-tested boards with 12-month warranty and worldwide delivery from Vibocnc.`,
+    'board': `Browse ${brandName} ${categoryName} for CNC and automation control systems. Quality-tested circuit boards with 12-month warranty from Vibocnc.`,
+    'power': `Shop ${brandName} ${categoryName} for stable industrial power delivery. Tested units with 12-month warranty and worldwide shipping from Vibocnc.`,
+    'i/o': `Buy ${brandName} ${categoryName} for robust automation I/O control. Tested modules with 12-month warranty and worldwide express shipping from Vibocnc.`,
+    'interface': `Find ${brandName} ${categoryName} for reliable industrial communication. Quality-tested parts with 12-month warranty from Vibocnc.`,
+    'encoder': `Shop ${brandName} ${categoryName} for accurate position feedback. Tested encoders with 12-month warranty and fast worldwide delivery from Vibocnc.`,
+    'cable': `Buy ${brandName} ${categoryName} for reliable industrial connections. Quality cables with 12-month warranty and fast express shipping from Vibocnc.`,
+    'display': `Find ${brandName} ${categoryName} for clear machine operator interfaces. Tested displays with 12-month warranty and worldwide shipping from Vibocnc.`,
+    'spindle': `Shop ${brandName} ${categoryName} for high-speed CNC spindle control. Tested drives with 12-month warranty and express global shipping from Vibocnc.`,
+    'controller': `Buy ${brandName} ${categoryName} for advanced machine control. Tested controllers with 12-month warranty and fast worldwide delivery from Vibocnc.`,
+    'robot': `Find ${brandName} ${categoryName} for industrial robot automation. Tested parts with 12-month warranty and fast DHL/FedEx shipping worldwide from Vibocnc.`,
   };
 
   for (const [key, template] of Object.entries(templates)) {
@@ -74,7 +74,7 @@ function getCategoryMetaDescription(categoryName: string, baseDescription?: stri
 
   if (baseDescription && baseDescription.length > 50) return baseDescription;
 
-  return `Browse ${categoryName} from VIBO CNC. Quality ${titleSuffix}, tested with 12-month warranty and fast worldwide shipping via DHL and FedEx.`;
+  return `Browse ${categoryName} from Vibocnc. Quality ${titleSuffix}, tested with 12-month warranty and fast worldwide shipping via DHL and FedEx.`;
 }
 
 export async function generateMetadata({ params }: CategoryPathPageProps): Promise<Metadata> {
@@ -83,16 +83,25 @@ export async function generateMetadata({ params }: CategoryPathPageProps): Promi
     const locale = await getRequestPublicLocale();
     const path = (categoryPath || []).join('/');
     const resolved = await CategoryService.getCategoryByPath(path);
-    const category = localizeCategoryContent(resolved.category, locale);
-    const breadcrumb = (resolved.breadcrumb || []).map((item: any) => localizeCategoryContent(item, locale));
+    const hasRequestedTranslation = hasTranslationForLocale(resolved.category.translations, locale);
+    const contentLocale = hasRequestedTranslation ? locale : 'en';
+    const category = localizeCategoryContent(resolved.category, contentLocale);
+    const breadcrumb = (resolved.breadcrumb || []).map((item: any) => localizeCategoryContent(item, contentLocale));
     const urlPath = category.path ? `/categories/${category.path}` : `/categories/${path}`;
-    const { canonical, languages } = await getLocalizedMetadataPaths(urlPath);
+    const { canonical: localizedCanonical, languages } = await getLocalizedMetadataPaths(
+      urlPath,
+      getAvailableTranslationLocales(resolved.category.translations),
+    );
+    const canonical = hasRequestedTranslation
+      ? localizedCanonical
+      : `${getSiteUrl()}${localizePublicPath(urlPath, 'en')}`;
     const brandName = getCategoryBrandName(category, breadcrumb);
     const titleSuffix = getCategoryTitleSuffix(brandName);
     const metaDescription = getCategoryMetaDescription(category.name, category.description, brandName);
     return {
       title: `${category.name} - ${titleSuffix} | Buy Online`,
       description: metaDescription,
+      robots: { index: hasRequestedTranslation, follow: true },
       openGraph: {
         title: withSiteName(`${category.name} - ${titleSuffix} | Buy Online`),
         description: metaDescription,
@@ -126,7 +135,7 @@ function CategoryStructuredData({ category, breadcrumb, baseUrl, locale }: { cat
     "url": categoryUrl,
     "isPartOf": {
       "@type": "WebSite",
-      "name": "VIBO CNC",
+      "name": "Vibocnc",
       "url": baseUrl
     },
     "breadcrumb": {
@@ -158,7 +167,7 @@ function CategoryStructuredData({ category, breadcrumb, baseUrl, locale }: { cat
         "name": `Where can I buy ${brandName} ${catName} online?`,
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": `You can buy quality-tested ${brandName} ${catName} online at VIBO CNC (vibocnc.com). We offer 12-month warranty support and worldwide express shipping via DHL and FedEx.`
+          "text": `You can buy quality-tested ${brandName} ${catName} online at Vibocnc (vibocnc.com). We offer 12-month warranty support and worldwide express shipping via DHL and FedEx.`
         }
       },
       {
@@ -166,7 +175,7 @@ function CategoryStructuredData({ category, breadcrumb, baseUrl, locale }: { cat
         "name": `Do you offer warranty on ${brandName} ${catName}?`,
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": `Yes, ${brandName} ${catName} supplied by VIBO CNC include 12-month warranty support. Every part is quality checked before shipment.`
+          "text": `Yes, ${brandName} ${catName} supplied by Vibocnc include 12-month warranty support. Every part is quality checked before shipment.`
         }
       },
       {
@@ -220,9 +229,10 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
     permanentRedirect(localizePublicPath(`/categories/${resolved.category.path}`, locale));
   }
 
+  const categoryContentLocale = hasTranslationForLocale(resolved.category.translations, locale) ? locale : 'en';
   resolved = {
-    category: localizeCategoryContent(resolved.category, locale),
-    breadcrumb: (resolved.breadcrumb || []).map((item: any) => localizeCategoryContent(item, locale)),
+    category: localizeCategoryContent(resolved.category, categoryContentLocale),
+    breadcrumb: (resolved.breadcrumb || []).map((item: any) => localizeCategoryContent(item, categoryContentLocale)),
   };
 
   const tree = (await CategoryService.getCategories()).map((item: any) => localizeCategoryContent(item, locale));

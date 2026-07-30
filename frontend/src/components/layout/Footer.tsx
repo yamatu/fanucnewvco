@@ -20,23 +20,23 @@ import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 const footerNavigation = {
   products: [
-    { name: 'FANUC Amplifiers', href: '/categories/fanuc/fanuc-servo-amplifier-drive' },
-    { name: 'Servo Motors', href: '/categories/fanuc/fanuc-servo-motor' },
-    { name: 'Encoders', href: '/categories/fanuc/fanuc-encoder-feedback' },
-    { name: 'PLC Modules', href: '/categories/fanuc/fanuc-i-o-module' },
-    { name: 'Power Supplies', href: '/categories/fanuc/fanuc-power-supply' },
+    { name: 'All Automation Parts', href: '/products' },
+    { name: 'Servo Drives & Motors', href: '/products?search=servo' },
+    { name: 'HMI & Operator Panels', href: '/products?search=HMI' },
+    { name: 'PLC & I/O Modules', href: '/products?search=PLC' },
+    { name: 'Power Supplies & Inverters', href: '/products?search=power%20supply' },
   ],
   services: [
-    { name: 'FANUC Parts Sales', href: '/about' },
-    { name: 'Testing Service', href: '/about' },
-    { name: 'Maintenance Service', href: '/about' },
+    { name: 'Multi-Brand Parts Supply', href: '/products' },
+    { name: 'Repair Evaluation', href: '/repair-request' },
+    { name: 'Testing & Inspection', href: '/about' },
     { name: 'Technical Support', href: '/contact' },
     { name: 'Global Shipping', href: '/contact' },
   ],
   company: [
-    { name: 'About VIBO CNC', href: '/about' },
+    { name: 'About Vibocnc', href: '/about' },
     { name: 'Product Categories', href: '/products' },
-    { name: 'FANUC Partners', href: '/about' },
+    { name: 'Brands We Supply', href: '/#brands-we-supply' },
     { name: 'Our Workshop', href: '/about' },
     { name: 'Company Profile', href: '/about' },
     { name: 'News', href: '/news' },
@@ -53,10 +53,7 @@ const footerNavigation = {
     { name: 'Returns Policy', href: '/returns' },
   ],
   partners: [
-    { name: 'VIBO CNC Main Site', href: 'https://www.vibocnc.com', external: true },
-    { name: 'FANUC Official', href: 'https://www.fanuc.com', external: true },
-    { name: 'Industrial Partners', href: '/about' },
-    { name: 'Authorized Dealers', href: '/contact' },
+    { name: 'VCO CNC Spare', href: 'https://www.vcocncspare.com', external: true },
   ],
 };
 
@@ -112,7 +109,7 @@ export function Footer() {
               <div className="rounded-md bg-white px-3 py-2">
                 <Image
                   src="/images/vibocnc-logo.png"
-                  alt="ViboCNC"
+                  alt="Vibocnc"
                   width={150}
                   height={40}
                   className="h-9 w-auto object-contain"
@@ -152,14 +149,14 @@ export function Footer() {
             </div>
 
             {socialLinks.length > 0 && (
-              <div className="mt-6 flex flex-wrap gap-2" aria-label="VIBO CNC social media">
+              <div className="mt-6 flex flex-wrap gap-2" aria-label="Vibocnc social media">
                 {socialLinks.map(({ name, href, Icon }) => (
                   <a
                     key={name}
                     href={href}
                     target="_blank"
                     rel="me noopener noreferrer"
-                    aria-label={`Follow VIBO CNC on ${name}`}
+                    aria-label={`Follow Vibocnc on ${name}`}
                     title={name}
                     className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-700 text-slate-300 transition-colors hover:border-orange-400 hover:bg-orange-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-300"
                   >
@@ -313,14 +310,8 @@ export function Footer() {
               >
                 {t('footer.sitemap')}
               </Link>
-              <Link
-                href="https://www.vibocnc.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-400 hover:text-white text-sm transition-colors duration-200 flex items-center"
-              >
-                vibocnc.com
-                <ExternalLink className="ml-1 h-3 w-3" aria-hidden="true" />
+              <Link href={href('/repair-request')} className="text-slate-400 hover:text-white text-sm transition-colors duration-200">
+                {t('nav.repair')}
               </Link>
               <Link
                 href={href('/products')}

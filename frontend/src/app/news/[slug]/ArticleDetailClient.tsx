@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { CalendarDaysIcon, EyeIcon, ArrowLeftIcon, UserIcon } from '@heroicons/react/24/outline';
 import Layout from '@/components/layout/Layout';
 import type { Article } from '@/types';
@@ -39,9 +40,13 @@ export default function ArticleDetailClient({
         {/* Hero */}
         {article.featured_image && (
           <div className="relative h-[300px] sm:h-[400px] lg:h-[500px] bg-gray-900">
-            <img
+            <Image
               src={article.featured_image}
               alt={article.title}
+              fill
+              sizes="100vw"
+              priority
+              unoptimized={article.featured_image.startsWith('/uploads/')}
               className="w-full h-full object-cover opacity-80"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -121,6 +126,16 @@ export default function ArticleDetailClient({
               </div>
             </aside>
           )}
+
+          <aside className="border-t border-gray-200 py-8" aria-label="Related Vibocnc resources">
+            <h2 className="mb-4 text-xl font-bold text-gray-900">Explore related resources</h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Link href={href('/products')} className="rounded-lg border border-gray-200 p-4 text-sm font-semibold text-[#0b3e75] hover:border-blue-300">Automation parts →</Link>
+              <Link href={href('/categories')} className="rounded-lg border border-gray-200 p-4 text-sm font-semibold text-[#0b3e75] hover:border-blue-300">Product categories →</Link>
+              <Link href={href('/repair-request')} className="rounded-lg border border-gray-200 p-4 text-sm font-semibold text-[#0b3e75] hover:border-blue-300">Repair evaluation →</Link>
+              <Link href={href('/contact')} className="rounded-lg border border-gray-200 p-4 text-sm font-semibold text-[#0b3e75] hover:border-blue-300">Ask our team →</Link>
+            </div>
+          </aside>
 
           {/* Back to News */}
           <div className="border-t border-gray-200 py-8">

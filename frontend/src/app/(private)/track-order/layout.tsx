@@ -6,7 +6,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { locale, canonical, languages } = await getLocalizedMetadataPaths('/track-order');
   const title = translatePublicMessage(locale, 'order.trackTitle');
   const description = translatePublicMessage(locale, 'order.trackDescription');
-  const socialTitle = `${title} | VIBO CNC`;
+  const socialTitle = `${title} | Vibocnc`;
 
   return {
     title,
@@ -29,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       url: canonical,
       type: 'website',
-      siteName: 'VIBO CNC',
+      siteName: 'Vibocnc',
       locale,
     },
     twitter: {

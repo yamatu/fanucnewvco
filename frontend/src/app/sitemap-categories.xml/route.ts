@@ -3,6 +3,7 @@ import { getRequestBaseUrl } from '@/lib/request-url'
 import { CategoryService } from '@/services/category.service'
 import { renderLocalizedSitemap } from '@/lib/i18n/sitemap'
 import type { Category } from '@/types'
+import { getAvailableTranslationLocales } from '@/lib/i18n/content'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 3600 // 1 hour
@@ -34,6 +35,7 @@ export async function GET() {
       lastModified: category.updated_at ? new Date(category.updated_at).toISOString() : undefined,
       changeFrequency: 'weekly',
       priority: '0.8',
+      availableLocales: getAvailableTranslationLocales(category.translations),
     }))
 
   const sitemap = renderLocalizedSitemap(baseUrl, categoryPages)

@@ -22,12 +22,12 @@ const siteUrl = getSiteUrl();
 const contactPageSchema = {
   "@context": "https://schema.org",
   "@type": "ContactPage",
-  "name": "Contact VIBO CNC",
-  "description": "Get in touch with VIBO CNC for FANUC parts inquiries, technical support, and quotes.",
+  "name": "Contact Vibocnc",
+  "description": "Get in touch with Vibocnc for multi-brand industrial automation parts, repair evaluation, technical support and quotes.",
   "url": `${siteUrl}/contact`,
   "mainEntity": {
     "@type": "Organization",
-    "name": "VIBO CNC",
+    "name": "Vibocnc",
     "telephone": "+86-13348028050",
     "email": "sales@vibocnc.com",
     "address": {

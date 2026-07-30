@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { HomepageContent, Product } from '@/types';
@@ -18,11 +18,15 @@ import { DEFAULT_FEATURED_PRODUCTS_SECTION_DATA } from '@/lib/homepage-defaults'
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 import { filterToIndexableProductLocales } from '@/lib/i18n/content';
 
-export function FeaturedProducts({ content }: { content?: HomepageContent | null }) {
+export function FeaturedProducts({
+  content,
+  initialProducts = [],
+}: {
+  content?: HomepageContent | null;
+  initialProducts?: Product[];
+}) {
   const { locale, t, href } = usePublicI18n();
   const [hoveredProduct, setHoveredProduct] = useState<number | null>(null);
-  const [shouldLoadProducts, setShouldLoadProducts] = useState(false);
-  const sectionRef = useRef<HTMLElement>(null);
   const { addItem } = useCart();
 
   const headerTitle = locale === 'en' ? content?.title || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.headerTitle : t('home.featured.title');
@@ -30,34 +34,15 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
   const ctaText = locale === 'en' ? content?.button_text || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.ctaText : t('home.featured.viewAll');
   const ctaHref = content?.button_url || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.ctaHref;
 
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section || typeof IntersectionObserver === 'undefined') {
-      setShouldLoadProducts(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        setShouldLoadProducts(true);
-        observer.disconnect();
-      },
-      { rootMargin: '600px 0px' },
-    );
-    observer.observe(section);
-    return () => observer.disconnect();
-  }, []);
-
   const {
-    data: featured = [],
+    data: featured = initialProducts,
     error: featuredError,
     isFetched: featuredFetched,
     isFetching: featuredFetching,
   } = useQuery({
     queryKey: queryKeys.products.featured(),
     queryFn: () => ProductService.getFeaturedProducts(6),
-    enabled: shouldLoadProducts,
+    initialData: initialProducts,
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
@@ -67,8 +52,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
     queryKey: queryKeys.products.list({ page_size: 6, is_active: 'true' }),
     queryFn: () => ProductService.getProducts({ page_size: 6, is_active: 'true' }),
     enabled:
-      shouldLoadProducts &&
-      (Boolean(featuredError) || (featuredFetched && Array.isArray(featured) && featured.length === 0)),
+      Boolean(featuredError) || (featuredFetched && Array.isArray(featured) && featured.length === 0),
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
@@ -82,7 +66,6 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
     .map((product) => filterToIndexableProductLocales(product, locale))
     .filter((product): product is Product => product !== null);
   const productsLoading =
-    !shouldLoadProducts ||
     (products.length === 0 && (featuredFetching || latestFetching || !featuredFetched));
 
   const handleAddToCart = (product: Product) => {
@@ -90,7 +73,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
   };
 
   return (
-    <section ref={sectionRef} className="home-deferred-section py-20 bg-white">
+    <section className="home-deferred-section py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
@@ -121,9 +104,9 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                 </div>
               ))
             : products.map((product) => (
-            <div
+            <article
               key={product.id}
-              className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
+              className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
               onMouseEnter={() => setHoveredProduct(product.id)}
               onMouseLeave={() => setHoveredProduct(null)}
             >
@@ -133,15 +116,24 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                   const src = getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []), getDefaultProductImageWithSku(product.sku));
                   const unoptimized = typeof src === 'string' && src.startsWith('/uploads/');
                   return (
-                <Image
-                  src={src}
-                  alt={product.name}
-                  width={640}
-                  height={512}
-                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  unoptimized={unoptimized}
-                />
+                    <>
+                      <Image
+                        src={src}
+                        alt={product.name}
+                        width={640}
+                        height={512}
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="h-full w-full object-contain p-3 group-hover:scale-105 transition-transform duration-500"
+                        unoptimized={unoptimized}
+                      />
+                      <Link
+                        href={href(`/products/${toProductPathId(product.sku)}`)}
+                        className="absolute inset-0 z-10"
+                        aria-label={`${product.name} — ${product.sku}`}
+                      >
+                        <span className="sr-only">{product.name}</span>
+                      </Link>
+                    </>
                   );
                 })()}
                 
@@ -151,7 +143,8 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                 }`}>
                   <Link
                     href={href(`/products/${toProductPathId(product.sku)}`)}
-                    className="bg-white text-slate-900 p-3 rounded-full hover:bg-slate-100 transition-colors"
+                    className="relative z-20 bg-white text-slate-900 p-3 rounded-full hover:bg-slate-100 transition-colors"
+                    aria-label={`${t('common.learnMore')}: ${product.name}`}
                   >
                     <EyeIcon className="h-5 w-5" />
                   </Link>
@@ -159,7 +152,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                   {(product.stock_quantity ?? 0) > 0 && (
                     <button
                       onClick={() => handleAddToCart(product)}
-                      className="bg-orange-500 text-white p-3 rounded-full hover:bg-[#003a78] transition-colors"
+                      className="relative z-20 bg-orange-500 text-white p-3 rounded-full hover:bg-[#003a78] transition-colors"
                     >
                       <ShoppingCartIcon className="h-5 w-5" />
                     </button>
@@ -189,7 +182,9 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                 </div>
 
                 <h3 className="text-lg font-semibold text-slate-950 mb-2 line-clamp-2">
-                  {product.name}
+                  <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="relative z-20 hover:text-[#003a78]">
+                    {product.name}
+                  </Link>
                 </h3>
                 
                 <p className="text-sm text-slate-600 mb-3 line-clamp-2">
@@ -228,7 +223,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                   {(product.stock_quantity ?? 0) > 0 ? (
                     <button
                       onClick={() => handleAddToCart(product)}
-                      className="bg-orange-500 hover:bg-[#003a78] text-white px-4 py-2 rounded-md font-medium transition-colors duration-300"
+                      className="relative z-20 bg-orange-500 hover:bg-[#003a78] text-white px-4 py-2 rounded-md font-medium transition-colors duration-300"
                     >
                       {t('common.addToCart')}
                     </button>
@@ -242,7 +237,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                   )}
                 </div>
               </div>
-            </div>
+            </article>
               ))}
         </div>
 

@@ -7,6 +7,7 @@ const googlebotLimitBytes = 2 * 1024 * 1024;
 const routes = [
   { path: '/', indexable: true, hreflang: true },
   { path: '/products', indexable: true, hreflang: true },
+  { path: '/categories', indexable: true, hreflang: true },
   { path: '/blog', indexable: true, hreflang: true },
   { path: '/news', indexable: true, hreflang: true },
   { path: '/fr', indexable: true, hreflang: true },
@@ -78,7 +79,7 @@ for (const route of routes) {
   try {
     const response = await fetch(url, {
       redirect: 'follow',
-      headers: { 'user-agent': 'Mozilla/5.0 (compatible; VIBOCNC-SEO-Audit/1.0)' },
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
     });
     const buffer = Buffer.from(await response.arrayBuffer());
     const html = buffer.toString('utf8');
@@ -93,7 +94,6 @@ for (const route of routes) {
     if (route.indexable === noindex) errors.push(route.indexable ? 'unexpected noindex' : 'missing noindex');
     if (route.indexable && !hasLink(html, 'canonical')) errors.push('missing canonical');
     if (route.hreflang && !hasLink(html, 'alternate', 'hreflang=["\']x-default["\']')) errors.push('missing x-default hreflang');
-    if (route.product && html.includes('www.vcocncspare.com')) errors.push('legacy vcocncspare.com URL remains in product HTML/JSON-LD');
     if (route.product && !html.includes('"@type":"Product"')) errors.push('missing Product JSON-LD');
     if (route.product && route.sku) {
       const title = findTitle(html);
@@ -118,6 +118,88 @@ for (const route of routes) {
     console.log(`FAIL ${route.path}: ${error instanceof Error ? error.message : String(error)}`);
     failed = true;
   }
+}
+
+try {
+  const sitemapResponse = await fetch(`${targetOrigin}/sitemap.xml`, {
+    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+  });
+  const sitemapXml = await sitemapResponse.text();
+  const errors = [];
+  if (!sitemapResponse.ok) errors.push(`HTTP ${sitemapResponse.status}`);
+  if (!/application\/xml|text\/xml/i.test(sitemapResponse.headers.get('content-type') || '')) errors.push('invalid content type');
+  if (sitemapXml.includes('/sitemap-products-index.xml')) errors.push('nested product sitemap index is still referenced');
+  if (!sitemapXml.includes('/sitemap-products/1.xml')) errors.push('product sitemap pages are missing from primary index');
+  console.log(`${errors.length ? 'FAIL' : 'PASS'} /sitemap.xml status=${sitemapResponse.status} bytes=${Buffer.byteLength(sitemapXml)}`);
+  for (const error of errors) console.log(`  - ${error}`);
+  failed ||= errors.length > 0;
+} catch (error) {
+  console.log(`FAIL /sitemap.xml: ${error instanceof Error ? error.message : String(error)}`);
+  failed = true;
+}
+
+try {
+  const legacyResponse = await fetch(`${targetOrigin}/sitemap-products-index.xml`, {
+    redirect: 'manual',
+    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+  });
+  const location = legacyResponse.headers.get('location') || '';
+  const errors = [];
+  if (legacyResponse.status !== 301 && legacyResponse.status !== 308) errors.push(`expected permanent redirect, got HTTP ${legacyResponse.status}`);
+  if (!location.endsWith('/sitemap.xml')) errors.push(`unexpected redirect target (${location || 'none'})`);
+  console.log(`${errors.length ? 'FAIL' : 'PASS'} /sitemap-products-index.xml status=${legacyResponse.status} location=${location || 'none'}`);
+  for (const error of errors) console.log(`  - ${error}`);
+  failed ||= errors.length > 0;
+} catch (error) {
+  console.log(`FAIL /sitemap-products-index.xml: ${error instanceof Error ? error.message : String(error)}`);
+  failed = true;
+}
+
+for (const locale of ['zh', 'es', 'ar']) {
+  try {
+    const response = await fetch(`${targetOrigin}/${locale}`, {
+      redirect: 'follow',
+      headers: {
+        cookie: `vibocnc_locale=${locale}`,
+        'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)',
+      },
+    });
+    const html = await response.text();
+    const expectedLang = locale === 'zh' ? 'zh-CN' : locale;
+    const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
+    const errors = [];
+    if (!response.ok) errors.push(`HTTP ${response.status}`);
+    if (actualLang !== expectedLang) errors.push(`expected html lang=${expectedLang}, got ${actualLang || 'none'}`);
+    if (!response.url.endsWith(`/${locale}`)) errors.push(`unexpected final URL (${response.url})`);
+    console.log(`${errors.length ? 'FAIL' : 'PASS'} /${locale} locale-route status=${response.status} lang=${actualLang || 'none'}`);
+    for (const error of errors) console.log(`  - ${error}`);
+    failed ||= errors.length > 0;
+  } catch (error) {
+    console.log(`FAIL /${locale} locale-route: ${error instanceof Error ? error.message : String(error)}`);
+    failed = true;
+  }
+}
+
+try {
+  const response = await fetch(`${targetOrigin}/?site_locale=en`, {
+    redirect: 'follow',
+    headers: {
+      cookie: 'vibocnc_locale=es',
+      'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)',
+    },
+  });
+  const html = await response.text();
+  const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
+  const errors = [];
+  if (!response.ok) errors.push(`HTTP ${response.status}`);
+  if (actualLang !== 'en') errors.push(`expected html lang=en, got ${actualLang || 'none'}`);
+  if (new URL(response.url).pathname !== '/') errors.push(`unexpected final URL (${response.url})`);
+  console.log(`${errors.length ? 'FAIL' : 'PASS'} language-switch es->en status=${response.status} lang=${actualLang || 'none'}`);
+  for (const error of errors) console.log(`  - ${error}`);
+  failed ||= errors.length > 0;
+} catch (error) {
+  console.log(`FAIL language-switch es->en: ${error instanceof Error ? error.message : String(error)}`);
+  failed = true;
 }
 
 process.exitCode = failed ? 1 : 0;

@@ -283,7 +283,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
             <div className="flex items-center space-x-3">
               <Image
                 src="/images/vibocnc-logo.png"
-                alt="ViboCNC"
+                alt="Vibocnc"
                 width={96}
                 height={26}
                 className="h-7 w-auto object-contain"

@@ -49,7 +49,7 @@ func BuildContactNotificationEmail(siteURL string, message models.ContactMessage
 
 	html = "<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:0 auto;line-height:1.6;color:#111827\">" +
 		"<div style=\"padding:18px 20px;background:linear-gradient(135deg,#0ea5e9,#f97316);border-radius:14px 14px 0 0;color:#fff\">" +
-		"<div style=\"font-size:18px;font-weight:800\">VIBO CNC Spare Parts</div>" +
+		"<div style=\"font-size:18px;font-weight:800\">Vibocnc Spare Parts</div>" +
 		"<div style=\"font-size:13px;opacity:0.9;margin-top:4px\">New contact message</div>" +
 		"</div>" +
 		"<div style=\"border:1px solid #e5e7eb;border-top:none;border-radius:0 0 14px 14px;padding:18px 20px;background:#fff\">" +

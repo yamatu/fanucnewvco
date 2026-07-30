@@ -164,7 +164,7 @@ services:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://backend:8080}
         # 对外站点 URL。生产默认应指向真实域名，避免 canonical / og:url 退回开发地址。
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://www.vibocnc.com}
-        NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-VIBO CNC}
+        NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-Vibocnc}
         NEXT_PUBLIC_SITE_DESCRIPTION: ${NEXT_PUBLIC_SITE_DESCRIPTION:-Industrial automation components and CNC spare parts}
         NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
         NEXT_PUBLIC_PAYPAL_ENVIRONMENT: ${NEXT_PUBLIC_PAYPAL_ENVIRONMENT:-sandbox}
@@ -177,7 +177,7 @@ services:
       # Also pass these at runtime so dynamic routes (robots/sitemaps/SSR) can read them without rebuild.
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://backend:8080}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://www.vibocnc.com}
-      NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-VIBO CNC}
+      NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-Vibocnc}
       NEXT_PUBLIC_SITE_DESCRIPTION: ${NEXT_PUBLIC_SITE_DESCRIPTION:-Industrial automation components and CNC spare parts}
       NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
       NEXT_PUBLIC_PAYPAL_ENVIRONMENT: ${NEXT_PUBLIC_PAYPAL_ENVIRONMENT:-sandbox}

@@ -397,7 +397,7 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
     ? product.description
     : getFallbackDescription();
   const introBrandPrefix = brandName ? `${brandName} ` : '';
-  const introParagraph = `${computedHeading} is a ${introBrandPrefix}${categoryName.toLowerCase()} supplied by VIBO CNC for CNC maintenance, replacement, and industrial automation support. ${product.stock_quantity > 0 ? 'This item is in stock and ready to ship worldwide.' : `This item is available to order with ${product.lead_time || '3-7 days'} lead time.`}`.replace(/\s+/g, ' ').trim();
+  const introParagraph = `${computedHeading} is a ${introBrandPrefix}${categoryName.toLowerCase()} supplied by Vibocnc for CNC maintenance, replacement, and industrial automation support. ${product.stock_quantity > 0 ? 'This item is in stock and ready to ship worldwide.' : `This item is available to order with ${product.lead_time || '3-7 days'} lead time.`}`.replace(/\s+/g, ' ').trim();
   const normalizedIntro = normalizeComparisonText(introParagraph);
   const normalizedDescription = normalizeComparisonText(descriptionToShow);
   const shouldRenderIntroParagraph = normalizedIntro !== '' && !normalizedDescription.includes(normalizedIntro);
@@ -406,7 +406,26 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
   const activeFaqs: Array<{ id?: number; question: string; answer: string }> =
     product.faqs && product.faqs.filter((f: ProductFAQ) => f.is_active).length > 0
       ? product.faqs.filter((f: ProductFAQ) => f.is_active)
-      : [
+      : locale === 'zh'
+        ? [
+          {
+            question: `${product.sku} 主要用于什么场景？`,
+            answer: `${computedHeading} 用于数控机床和工业自动化系统，可满足稳定控制、备件更换或设备维护需求。`,
+          },
+          {
+            question: `${product.sku} 目前有库存吗？`,
+            answer: product.stock_quantity > 0
+              ? `${product.sku} 目前有库存，可安排发货。`
+              : `${product.sku} 可订购，预计交货期为 ${product.lead_time || '3–7 天'}。`,
+          },
+          {
+            question: `如何确认 ${product.sku} 是否兼容？`,
+            answer: product.compatibility_info
+              ? `${stripHtml(product.compatibility_info)} 下单前请联系 sales@vibocnc.com 进行最终兼容性确认。`
+              : `请将设备型号或原零件号发送至 sales@vibocnc.com，我们会在发货前协助确认兼容性。`,
+          },
+        ]
+        : [
           {
             question: `What is ${product.sku} used for?`,
             answer: `${computedHeading} is used in CNC and industrial automation systems for stable control, replacement, or maintenance needs.`,
@@ -917,12 +936,18 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
                 )}
                 {product.brand && (
                   <Link
-                    href={localizedHref(categoryHref || '/products')}
+                    href={localizedHref(`/products?brand=${encodeURIComponent(product.brand)}`)}
                     className="site-secondary-action px-4 py-2"
                   >
                     {t('product.moreBrand', { brand: product.brand })}
                   </Link>
                 )}
+                <Link href={localizedHref('/repair-request')} className="site-secondary-action px-4 py-2">
+                  {t('nav.repair')}
+                </Link>
+                <Link href={localizedHref('/blog')} className="site-secondary-action px-4 py-2">
+                  {t('nav.blog')}
+                </Link>
               </div>
             </section>
           </div>
@@ -943,7 +968,7 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
                         alt={relatedProduct.name}
                         width={200}
                         height={200}
-                        className="h-full w-full object-cover object-center"
+                        className="h-full w-full object-contain object-center p-2"
                       />
                     </div>
                     <div className="mt-2">

@@ -18,12 +18,12 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const { locale, canonical: url, languages } = await getLocalizedMetadataPathsWithQuery('/blog', pageQuery);
   const title = search ? `Search: ${search} - Blog` : translatePublicMessage(locale, 'news.blogTitle');
   const description = search
-    ? `Search results for "${search}" in the VIBO CNC industrial automation blog.`
+    ? `Search results for "${search}" in the Vibocnc industrial automation blog.`
     : translatePublicMessage(locale, 'news.blogDescription');
   return {
     title,
     description,
-    keywords: ['industrial automation blog', 'CNC troubleshooting', 'automation parts guide', 'FANUC technical articles', search].filter(Boolean).join(', '),
+    keywords: ['industrial automation blog', 'CNC troubleshooting', 'PLC and HMI guides', 'servo drive repair', 'automation parts sourcing', 'FANUC Siemens Mitsubishi ABB technical articles', search].filter(Boolean).join(', '),
     robots: search ? { index: false, follow: true } : { index: true, follow: true },
     alternates: { canonical: url, languages },
     openGraph: { title: withSiteName(title), description, type: 'website', url },
@@ -31,8 +31,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   };
 }
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 300;
 
 export default async function BlogPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;

@@ -295,14 +295,14 @@ SELECT
   c.id AS category_id,
   1 AS is_active,
   0 AS is_featured,
-  CONCAT('Mitsubishi ', seed.sku, ' ', seed.product_type, ' | VIBO CNC') AS meta_title,
+  CONCAT('Mitsubishi ', seed.sku, ' ', seed.product_type, ' | Vibocnc') AS meta_title,
   CONCAT(
     'Mitsubishi ', seed.sku, ' ', seed.product_type,
-    ' for automation repair and replacement. Compatibility support, 12-month warranty, and worldwide shipping from VIBO CNC.'
+    ' for automation repair and replacement. Compatibility support, 12-month warranty, and worldwide shipping from Vibocnc.'
   ) AS meta_description,
   CONCAT(
     seed.sku, ', Mitsubishi ', seed.series_name, ', ', seed.product_type,
-    ', Mitsubishi Electric, industrial automation parts, VIBO CNC'
+    ', Mitsubishi Electric, industrial automation parts, Vibocnc'
   ) AS meta_keywords,
   JSON_ARRAY() AS image_urls,
   '12 months' AS warranty_period,

@@ -31,6 +31,7 @@ const navigation = [
   { key: 'nav.home', href: '/' },
   { key: 'nav.products', href: '/products' },
   { key: 'nav.categories', href: '/categories' },
+  { key: 'nav.repair', href: '/repair-request' },
   { key: 'nav.news', href: '/news' },
   { key: 'nav.blog', href: '/blog' },
   { key: 'nav.about', href: '/about' },
@@ -172,19 +173,17 @@ export function Header() {
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
       {/* Top Bar */}
       <div className="bg-slate-950 text-slate-100 py-2">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center text-sm">
-            <div className="flex items-center gap-4 sm:gap-6">
-              <div className="flex items-center space-x-2">
-                <PhoneIcon className="h-4 w-4 text-orange-300" />
-                <span suppressHydrationWarning>+86 13348028050</span>
-
-              </div>
-              <div className="hidden sm:flex items-center space-x-2">
-                <EnvelopeIcon className="h-4 w-4 text-orange-300" />
-                <span suppressHydrationWarning>sales@vibocnc.com</span>
-
-              </div>
+        <div className="max-w-7xl mx-auto px-2.5 min-[360px]:px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center text-xs sm:text-sm">
+            <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 min-[360px]:gap-2.5 sm:justify-start sm:gap-6">
+              <a href="tel:+8613348028050" className="flex min-w-0 items-center gap-1.5 hover:text-orange-200 sm:gap-2">
+                <PhoneIcon className="h-3.5 w-3.5 shrink-0 text-orange-300 sm:h-4 sm:w-4" />
+                <span className="whitespace-nowrap text-[10px] min-[360px]:text-xs sm:text-sm" suppressHydrationWarning>+86 13348028050</span>
+              </a>
+              <a href="mailto:sales@vibocnc.com" className="flex min-w-0 items-center gap-1.5 hover:text-orange-200 sm:gap-2">
+                <EnvelopeIcon className="h-3.5 w-3.5 shrink-0 text-orange-300 sm:h-4 sm:w-4" />
+                <span className="whitespace-nowrap text-[10px] min-[360px]:text-xs sm:text-sm" suppressHydrationWarning>sales@vibocnc.com</span>
+              </a>
             </div>
             <div className="hidden min-w-0 items-center gap-3 md:flex">
               <span className="hidden max-w-[38rem] truncate xl:block" suppressHydrationWarning>
@@ -197,18 +196,18 @@ export function Header() {
       </div>
 
       {/* Main Header */}
-      <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 min-[1900px]:max-w-[112rem]">
-        <div className="flex items-center justify-between gap-4 py-4">
+      <div className="mx-auto max-w-[90rem] px-2.5 min-[360px]:px-4 sm:px-6 lg:px-8 min-[1900px]:max-w-[112rem]">
+        <div className="flex items-center justify-between gap-2 py-3 min-[360px]:gap-3 sm:gap-4 sm:py-4">
           {/* Logo */}
           <div className="flex flex-shrink-0 items-center">
             <Link href={href('/')} className="flex items-center space-x-3">
               <Image
                 src="/images/vibocnc-logo.png"
-                alt="ViboCNC"
+                alt="Vibocnc"
                 width={186}
                 height={50}
                 priority
-                className="h-10 w-auto object-contain sm:h-12"
+                className="h-8 w-auto object-contain min-[360px]:h-10 sm:h-12"
               />
               <div className="hidden min-[1900px]:block">
                 <div className="text-xl font-bold text-slate-950">{t('header.hub')}</div>
@@ -229,7 +228,12 @@ export function Header() {
                 <Link
                   key={item.key}
                   href={href(item.href)}
-                  className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-slate-700 transition-colors duration-200 hover:text-orange-600 min-[1800px]:text-sm"
+                  className={cn(
+                    'shrink-0 whitespace-nowrap text-xs font-semibold uppercase tracking-wide transition-colors duration-200 min-[1800px]:text-sm',
+                    item.key === 'nav.repair'
+                      ? 'rounded-md bg-orange-700 px-3 py-2 text-white hover:bg-[#003a78]'
+                      : 'text-slate-700 hover:text-orange-600',
+                  )}
                 >
                   {t(item.key)}
                 </Link>
@@ -238,9 +242,9 @@ export function Header() {
           </nav>
 
           {/* Right Side Actions */}
-          <div className="flex flex-shrink-0 items-center gap-3 pl-4 2xl:gap-4 2xl:pl-6">
+          <div className="flex flex-shrink-0 items-center gap-1 min-[360px]:gap-2 sm:gap-3 sm:pl-4 2xl:gap-4 2xl:pl-6">
             {/* Search */}
-            <div className="relative" ref={searchDropdownRef}>
+            <div className="relative hidden sm:block" ref={searchDropdownRef}>
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
                 aria-label={t('header.search')}

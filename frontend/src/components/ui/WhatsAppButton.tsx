@@ -10,7 +10,7 @@ interface WhatsAppButtonProps {
 
 export default function WhatsAppButton({
   phoneNumber = '8613348028050',
-  message = 'Hello, I am interested in your FANUC parts!',
+  message = 'Hello, I am interested in your industrial automation parts and repair support!',
   position = 'bottom-right'
 }: WhatsAppButtonProps) {
   const [isHovered, setIsHovered] = useState(false);

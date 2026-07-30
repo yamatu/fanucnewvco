@@ -29,20 +29,27 @@ const ICONS: Record<string, any> = {
 function normalizeServicesData(input: any): ServicesSectionData {
   if (!input) return DEFAULT_SERVICES_SECTION_DATA;
   const data = typeof input === 'string' ? (() => { try { return JSON.parse(input); } catch { return null; } })() : input;
-  const services = Array.isArray(data?.services) && data.services.length > 0 ? data.services : DEFAULT_SERVICES_SECTION_DATA.services;
-  const processSteps = Array.isArray(data?.processSteps) && data.processSteps.length > 0 ? data.processSteps : DEFAULT_SERVICES_SECTION_DATA.processSteps;
+  const hasLegacyServiceDefaults = data?.headerTitle === 'Comprehensive CNC Parts Services'
+    && Array.isArray(data?.services)
+    && (data.services.some((service: any) => service?.title === 'Training & Education') || data.services.length === 6);
+  const services = !hasLegacyServiceDefaults && Array.isArray(data?.services) && data.services.length > 0
+    ? data.services
+    : DEFAULT_SERVICES_SECTION_DATA.services;
+  const processSteps = !hasLegacyServiceDefaults && Array.isArray(data?.processSteps) && data.processSteps.length > 0
+    ? data.processSteps
+    : DEFAULT_SERVICES_SECTION_DATA.processSteps;
   return {
-    headerTitle: data?.headerTitle || DEFAULT_SERVICES_SECTION_DATA.headerTitle,
-    headerDescription: data?.headerDescription || DEFAULT_SERVICES_SECTION_DATA.headerDescription,
+    headerTitle: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.headerTitle : data?.headerTitle || DEFAULT_SERVICES_SECTION_DATA.headerTitle,
+    headerDescription: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.headerDescription : data?.headerDescription || DEFAULT_SERVICES_SECTION_DATA.headerDescription,
     services,
-    processTitle: data?.processTitle || DEFAULT_SERVICES_SECTION_DATA.processTitle,
-    processDescription: data?.processDescription || DEFAULT_SERVICES_SECTION_DATA.processDescription,
+    processTitle: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.processTitle : data?.processTitle || DEFAULT_SERVICES_SECTION_DATA.processTitle,
+    processDescription: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.processDescription : data?.processDescription || DEFAULT_SERVICES_SECTION_DATA.processDescription,
     processSteps,
-    ctaTitle: data?.ctaTitle || DEFAULT_SERVICES_SECTION_DATA.ctaTitle,
-    ctaDescription: data?.ctaDescription || DEFAULT_SERVICES_SECTION_DATA.ctaDescription,
-    ctaPrimary: data?.ctaPrimary || DEFAULT_SERVICES_SECTION_DATA.ctaPrimary,
-    ctaSecondary: data?.ctaSecondary || DEFAULT_SERVICES_SECTION_DATA.ctaSecondary,
-    ctaBadges: Array.isArray(data?.ctaBadges) ? data.ctaBadges : DEFAULT_SERVICES_SECTION_DATA.ctaBadges,
+    ctaTitle: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.ctaTitle : data?.ctaTitle || DEFAULT_SERVICES_SECTION_DATA.ctaTitle,
+    ctaDescription: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.ctaDescription : data?.ctaDescription || DEFAULT_SERVICES_SECTION_DATA.ctaDescription,
+    ctaPrimary: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.ctaPrimary : data?.ctaPrimary || DEFAULT_SERVICES_SECTION_DATA.ctaPrimary,
+    ctaSecondary: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.ctaSecondary : data?.ctaSecondary || DEFAULT_SERVICES_SECTION_DATA.ctaSecondary,
+    ctaBadges: !hasLegacyServiceDefaults && Array.isArray(data?.ctaBadges) ? data.ctaBadges : DEFAULT_SERVICES_SECTION_DATA.ctaBadges,
   };
 }
 
@@ -131,7 +138,7 @@ export function ServicesSection({ content }: Props) {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
             {data.processSteps.map((step: any, index: number) => (
               <div key={index} className="text-center relative">
                 {/* Step Number */}

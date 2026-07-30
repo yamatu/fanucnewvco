@@ -166,6 +166,9 @@ export class HomepageService {
   static getPredefinedSections(): HomepageSection[] {
     return [
       { key: 'hero_section', name: 'Hero Section', description: 'Main banner section at the top of the homepage' },
+      { key: 'brands_section', name: 'Brands We Supply', description: 'Multi-brand automation parts supply grid' },
+      { key: 'repair_capabilities', name: 'Repair Capabilities', description: 'Repairable equipment types and typical faults' },
+      { key: 'home_blog', name: 'Featured Blog Articles', description: 'Published Blog articles marked as Featured' },
       { key: 'workshop_facility', name: 'Workshop Facility', description: '5,000sqm Workshop Facility section' },
       { key: 'workshop_overview', name: 'Workshop Overview', description: 'Modern Facility overview' },
       { key: 'inventory_management', name: 'Inventory Management', description: 'Organized storage information' },

@@ -57,7 +57,7 @@ export async function generateMetadata({ params }: { params: Promise<{ articlePa
       getAvailableTranslationLocales(sourceArticle.translations),
     );
     const title = withoutSiteNameSuffix(article.meta_title?.trim() || article.title);
-    const description = article.meta_description?.trim() || article.summary || `${article.title} - VIBO CNC.`;
+    const description = article.meta_description?.trim() || article.summary || `${article.title} - Vibocnc.`;
     const images = article.featured_image ? [article.featured_image] : [];
     const canonical = hasRequestedTranslation ? canonicalUrl : `${getSiteUrl()}${path}`;
     return {

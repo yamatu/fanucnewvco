@@ -333,7 +333,7 @@ func BuildProductIndexNowURLs(siteURL string, product models.Product) []string {
 	urls := []string{
 		localizedPublicURL(siteURL, publicPath, ""),
 		localizedPublicURL(siteURL, "/products", ""),
-		normalizeSiteURL(siteURL) + "/sitemap-products-index.xml",
+		normalizeSiteURL(siteURL) + "/sitemap.xml",
 	}
 	for _, translation := range product.Translations {
 		if !hasIndexableProductTranslation(translation) {
@@ -393,6 +393,7 @@ func BuildDefaultIndexNowURLs(siteURL string) []string {
 		base + "/",
 		base + "/products",
 		base + "/categories",
+		base + "/repair-request",
 		base + "/news",
 		base + "/blog",
 		base + "/about",
@@ -407,7 +408,6 @@ func BuildDefaultIndexNowURLs(siteURL string) []string {
 		base + "/terms",
 		base + "/sitemap.xml",
 		base + "/sitemap-static.xml",
-		base + "/sitemap-products-index.xml",
 		base + "/sitemap-categories.xml",
 		base + "/sitemap-news.xml",
 		base + "/sitemap-blog.xml",

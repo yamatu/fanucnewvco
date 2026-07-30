@@ -14,8 +14,7 @@ import { localizePublicPath } from '@/lib/i18n/config';
 import { translatePublicMessage } from '@/lib/i18n/messages';
 import type { Article } from '@/types';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 900;
 
 async function loadArticle(slug: string) {
   return NewsService.getArticleBySlug(slug, 'blog');
@@ -56,7 +55,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       getAvailableTranslationLocales(sourceArticle.translations),
     );
     const title = withoutSiteNameSuffix(article.meta_title?.trim() || article.title);
-    const description = article.meta_description?.trim() || article.summary || `${article.title} - VIBO CNC industrial automation guide.`;
+    const description = article.meta_description?.trim() || article.summary || `${article.title} - Vibocnc industrial automation guide.`;
     const images = article.featured_image ? [article.featured_image] : [];
     const canonical = hasRequestedTranslation
       ? canonicalUrl

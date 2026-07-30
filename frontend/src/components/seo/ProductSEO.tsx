@@ -11,7 +11,7 @@ import {
 
 const PUBLIC_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.vibocnc.com').replace(/\/+$/, '');
 
-const DEFAULT_SITE_NAME = 'VIBO CNC';
+const DEFAULT_SITE_NAME = 'Vibocnc';
 const GENERIC_BRAND_LABEL = 'industrial automation';
 const GENERIC_MANUFACTURER_LABEL = 'industrial automation parts manufacturer';
 
@@ -63,6 +63,19 @@ function toAbsoluteUrl(url: string | undefined, baseUrl: string): string {
 
 function normalizeText(value?: string): string {
   return String(value || '').trim();
+}
+
+function stripHtml(value?: string): string {
+  return normalizeText(value)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function getBrandName(product: Product): string {
@@ -179,7 +192,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PU
         : "https://schema.org/OutOfStock",
       "seller": {
         "@type": "Organization",
-        "name": "VIBO CNC",
+        "name": "Vibocnc",
         "url": baseUrl
       },
       "eligibleQuantity": product.minimum_order_quantity ? {
@@ -319,39 +332,64 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PU
           "text": f.answer
         }
       }))
-    : [
+    : schemaLocale === 'zh'
+      ? [
         {
           "@type": "Question",
-          "name": `What is the ${product.sku} used for?`,
+          "name": `${product.sku} 主要用于什么场景？`,
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": `The ${semanticName} (${product.sku}) is a ${brandLabel} industrial automation component used in CNC machines, control cabinets, and related automation systems.`
+            "text": `${semanticName} 用于数控机床和工业自动化系统，可满足稳定控制、备件更换或设备维护需求。`
           }
         },
         {
           "@type": "Question",
-          "name": `Is the ${product.sku} compatible with my CNC system?`,
+          "name": `${product.sku} 目前有库存吗？`,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": product.stock_quantity > 0
+              ? `${product.sku} 目前有库存，可安排发货。`
+              : `${product.sku} 可订购，预计交货期为 ${product.lead_time || '3–7 天'}。`
+          }
+        },
+        {
+          "@type": "Question",
+          "name": `如何确认 ${product.sku} 是否兼容？`,
           "acceptedAnswer": {
             "@type": "Answer",
             "text": product.compatibility_info
-              ? `${product.compatibility_info} Contact our technical team at sales@vibocnc.com for further compatibility verification.`
-              : `The ${semanticName} should be matched against the original machine, controller, and option configuration before ordering. Contact our technical team at sales@vibocnc.com for compatibility verification.`
+              ? `${stripHtml(product.compatibility_info)} 下单前请联系 sales@vibocnc.com 进行最终兼容性确认。`
+              : `请将设备型号或原零件号发送至 sales@vibocnc.com，我们会在发货前协助确认兼容性。`
+          }
+        }
+      ]
+      : [
+        {
+          "@type": "Question",
+          "name": `What is ${product.sku} used for?`,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": `${semanticName} is used in CNC and industrial automation systems for stable control, replacement, or maintenance needs.`
           }
         },
         {
           "@type": "Question",
-          "name": `What is the warranty for ${product.sku}?`,
+          "name": `Is ${product.sku} in stock?`,
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": `We provide a ${product.warranty_period || '12-month'} warranty for the ${semanticName}. All products are quality tested before shipment.`
+            "text": product.stock_quantity > 0
+              ? `${product.sku} is currently in stock and ready for shipment.`
+              : `${product.sku} is available to order with ${product.lead_time || '3-7 days'} lead time.`
           }
         },
         {
           "@type": "Question",
-          "name": `How long does shipping take for ${product.sku}?`,
+          "name": `How can I confirm compatibility for ${product.sku}?`,
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": `We offer worldwide shipping for the ${semanticName} via DHL, FedEx, and UPS. Delivery typically takes 3-7 business days for express shipping. ${product.stock_quantity > 0 ? 'This item is currently in stock and ready to ship.' : 'Contact us for availability and estimated delivery time.'}`
+            "text": product.compatibility_info
+              ? `${stripHtml(product.compatibility_info)} Contact sales@vibocnc.com for final compatibility confirmation before ordering.`
+              : `Share your machine model or original part number with sales@vibocnc.com and we will verify compatibility before shipment.`
           }
         }
       ];

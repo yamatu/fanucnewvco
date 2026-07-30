@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { getSiteUrl } from '@/lib/url';
 
-export const SITE_NAME = 'VIBO CNC';
+export const SITE_NAME = 'Vibocnc';
 
-const SITE_NAME_SUFFIX = /(?:\s*\|\s*VIBO CNC)+\s*$/i;
+const SITE_NAME_SUFFIX = /(?:\s*\|\s*VIBO\s*CNC)+\s*$/i;
 
 export function withoutSiteNameSuffix(title: string): string {
   return title.replace(SITE_NAME_SUFFIX, '').trim();

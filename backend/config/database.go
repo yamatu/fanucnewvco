@@ -350,9 +350,13 @@ func sanitizeLegacyBrandReferences() {
 	replacements := [][2]string{
 		{"sales@" + legacySpareHost, "sales@vibocnc.com"},
 		{"admin@" + legacyShopHost, "admin@vibocnc.com"},
-		{"VCO" + "CNC", "VIBO CNC"},
-		{"VCO " + "CNC", "VIBO CNC"},
-		{"Vco" + "cnc", "VIBO CNC"},
+		{"VIBO CNC", "Vibocnc"},
+		{"Vibo CNC", "Vibocnc"},
+		{"ViboCNC", "Vibocnc"},
+		{"VIBOCNC", "Vibocnc"},
+		{"VCO" + "CNC", "Vibocnc"},
+		{"VCO " + "CNC", "Vibocnc"},
+		{"Vco" + "cnc", "Vibocnc"},
 		{legacyCompact, "vibocnc"},
 	}
 
@@ -564,14 +568,14 @@ func createDefaultCompanyProfile() {
 
 	// Create default company profile
 	defaultProfile := models.CompanyProfile{
-		CompanyName:       "VIBO CNC",
+		CompanyName:       "Vibocnc",
 		CompanySubtitle:   "Industrial Automation Specialists",
 		EstablishmentYear: "2005",
 		Location:          "Kunshan, China",
 		WorkshopSize:      "5,000sqm",
-		Description1:      "VIBO CNC established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.",
-		Description2:      "Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.",
-		Achievement:       "Top 3 FANUC Supplier in China",
+		Description1:      "Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.",
+		Description2:      "We support multiple automation brands with 27 workers, 10 sales professionals and more than 100,000 items regularly stocked. Daily parcel volume is around 50-100 pieces, with testing, repair and worldwide delivery support.",
+		Achievement:       "Multi-Brand Automation Parts Supplier",
 		Stats: models.CompanyStatsArray{
 			{Icon: "CalendarIcon", Value: "2005", Label: "Established", Description: "Years of experience"},
 			{Icon: "UserGroupIcon", Value: "27", Label: "Workers", Description: "Professional team"},

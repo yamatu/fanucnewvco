@@ -48,7 +48,7 @@ export function CompanyStats({ content }: Props) {
   const data: CompanyStatsData = {
     ...base,
     // Back-compat: allow simple fields to affect the section even if `data` is null.
-    headerTitle: content?.title || base.headerTitle,
+    headerTitle: content?.title && !/FANUC and CNC Spare Parts Supplier/i.test(content.title) ? content.title : base.headerTitle,
     headerDescription: content?.description || base.headerDescription,
     ctaPrimary: content?.button_text
       ? { text: content.button_text, href: content.button_url || base.ctaPrimary.href }

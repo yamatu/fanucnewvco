@@ -52,13 +52,13 @@ INSERT INTO product_attributes (product_id, attribute_name, attribute_value, cre
 -- Insert purchase links
 INSERT INTO purchase_links (product_id, platform, url, price, is_active, created_at, updated_at) VALUES
 -- Product 1 purchase links
-(@product1_id, 'Official Store', 'https://www.fanuc.com/products/servo-drives', 2850.00, true, NOW(), NOW()),
-(@product1_id, 'Authorized Dealer', 'https://dealer.fanuc.com/servo-drives', 2992.50, true, NOW(), NOW()),
+(@product1_id, 'Partner Store', 'https://www.vcocncspare.com', 2850.00, true, NOW(), NOW()),
+(@product1_id, 'Partner Store', 'https://www.vcocncspare.com', 2992.50, true, NOW(), NOW()),
 
 -- Product 2 purchase links
-(@product2_id, 'Official Store', 'https://www.fanuc.com/products/encoders', 1950.00, true, NOW(), NOW()),
-(@product2_id, 'Authorized Dealer', 'https://dealer.fanuc.com/encoders', 2047.50, true, NOW(), NOW()),
+(@product2_id, 'Partner Store', 'https://www.vcocncspare.com', 1950.00, true, NOW(), NOW()),
+(@product2_id, 'Partner Store', 'https://www.vcocncspare.com', 2047.50, true, NOW(), NOW()),
 
 -- Product 3 purchase links
-(@product3_id, 'Official Store', 'https://www.fanuc.com/products/spindle-motors', 4200.00, true, NOW(), NOW()),
-(@product3_id, 'Authorized Dealer', 'https://dealer.fanuc.com/spindle-motors', 4410.00, true, NOW(), NOW());
+(@product3_id, 'Partner Store', 'https://www.vcocncspare.com', 4200.00, true, NOW(), NOW()),
+(@product3_id, 'Partner Store', 'https://www.vcocncspare.com', 4410.00, true, NOW(), NOW());

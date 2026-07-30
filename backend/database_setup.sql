@@ -475,14 +475,14 @@ INSERT IGNORE INTO company_profiles (
     description_1, description_2, achievement,
     stats, expertise, workshop_facilities
 ) VALUES (
-    'VIBO CNC',
+    'Vibocnc',
     'Industrial Automation Specialists',
     '2005',
     'Kunshan, China',
     '5,000sqm',
-    'VIBO CNC established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.',
-    'Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.',
-    'Top 3 FANUC Supplier in China',
+    'Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.',
+    'We support multiple automation brands with 27 workers, 10 sales professionals and more than 100,000 items regularly stocked. Daily parcel volume is around 50-100 pieces, with testing, repair and worldwide delivery support.',
+    'Multi-Brand Automation Parts Supplier',
     '[{"icon":"CalendarIcon","value":"2005","label":"Established","description":"Years of experience"},{"icon":"UserGroupIcon","value":"27","label":"Workers","description":"Professional team"},{"icon":"UserGroupIcon","value":"10","label":"Sales Staff","description":"Dedicated sales team"},{"icon":"ArchiveBoxIcon","value":"100,000","label":"Items Stocked","description":"Regular inventory"},{"icon":"TruckIcon","value":"50-100","label":"Daily Parcels","description":"Shipments per day"},{"icon":"CurrencyDollarIcon","value":"200M","label":"Yearly Turnover","description":"Annual revenue"}]',
     '["AB & ABB Components","FANUC Systems","Mitsubishi Parts","Siemens Solutions","Quality Testing","Global Shipping"]',
     '[{"id":"1","title":"Modern Facility","description":"State-of-the-art workshop with advanced equipment","image_url":"/api/placeholder/300/200"},{"id":"2","title":"Inventory Management","description":"Organized storage for 100,000+ items","image_url":"/api/placeholder/300/200"},{"id":"3","title":"Quality Control","description":"Rigorous testing and quality assurance","image_url":"/api/placeholder/300/200"}]'

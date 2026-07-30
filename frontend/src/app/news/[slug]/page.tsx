@@ -14,8 +14,7 @@ import { localizePublicPath } from '@/lib/i18n/config';
 import { translatePublicMessage } from '@/lib/i18n/messages';
 import type { Article } from '@/types';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 900;
 
 function stripMarkup(value?: string): string {
   return String(value || '').replace(/<[^>]*>/g, ' ').replace(/[#*_>`~\[\]()!-]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -62,10 +61,10 @@ export async function generateMetadata({
     const metaDescription =
       (article.meta_description || '').trim() ||
       article.summary ||
-      `${article.title} - Read the latest from VIBO CNC.`;
+      `${article.title} - Read the latest from Vibocnc.`;
     const metaKeywords =
       (article.meta_keywords || '').trim() ||
-      [article.title, 'FANUC', 'industrial automation', 'CNC news'].join(', ');
+      [article.title, 'industrial automation', 'CNC parts', 'PLC HMI drives', 'automation news'].join(', ');
 
     const images = article.featured_image ? [article.featured_image] : [];
 

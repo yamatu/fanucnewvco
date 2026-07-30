@@ -212,7 +212,7 @@ func buildFanucDescription(model, partType string) string {
 		"- Preventive maintenance and urgent breakdown replacement",
 		"- Repair inventory for machine tool service teams",
 		"",
-		"Why buy from VIBO CNC",
+		"Why buy from Vibocnc",
 		"- Professional industrial automation supplier since 2005",
 		"- Stocked inventory and fast handling",
 		"- International shipping support",
@@ -257,8 +257,8 @@ func buildFanucMaintenanceTips(model, partType string) string {
 
 func buildMetaTitle(brand, model, partType string) string {
 	return BuildSafeMetaTitle(
-		fmt.Sprintf("%s %s %s | VIBO CNC", brand, model, partType),
-		fmt.Sprintf("%s %s | VIBO CNC", brand, model),
+		fmt.Sprintf("%s %s %s | Vibocnc", brand, model, partType),
+		fmt.Sprintf("%s %s | Vibocnc", brand, model),
 		fmt.Sprintf("%s %s %s", brand, model, partType),
 		fmt.Sprintf("%s %s", brand, model),
 	)
@@ -282,7 +282,7 @@ func buildMetaKeywords(brand, model, partType string) string {
 		"CNC replacement parts",
 		"CNC parts",
 		"industrial automation",
-		"VIBO CNC",
+		"Vibocnc",
 	}
 	return strings.Join(dedupeStrings(parts), ", ")
 }

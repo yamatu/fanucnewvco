@@ -22,14 +22,23 @@ func TestBuildProductIndexNowURLsUsesOnlyCompleteTranslations(t *testing.T) {
 	if slices.Contains(urls, "https://www.vibocnc.com/de/products/A06B-6092-H275%23H508") {
 		t.Fatalf("incomplete German translation must not be submitted: %v", urls)
 	}
+	if !slices.Contains(urls, "https://www.vibocnc.com/sitemap.xml") {
+		t.Fatalf("primary sitemap must be submitted after a product update: %v", urls)
+	}
+	if slices.Contains(urls, "https://www.vibocnc.com/sitemap-products-index.xml") {
+		t.Fatalf("deprecated nested product sitemap index must not be submitted: %v", urls)
+	}
 }
 
 func TestBuildDefaultIndexNowURLsIncludesBlogSitemap(t *testing.T) {
 	urls := BuildDefaultIndexNowURLs("https://www.vibocnc.com")
-	for _, expected := range []string{"https://www.vibocnc.com/blog", "https://www.vibocnc.com/sitemap-blog.xml"} {
+	for _, expected := range []string{"https://www.vibocnc.com/blog", "https://www.vibocnc.com/sitemap.xml", "https://www.vibocnc.com/sitemap-blog.xml"} {
 		if !slices.Contains(urls, expected) {
 			t.Fatalf("expected %q in %v", expected, urls)
 		}
+	}
+	if slices.Contains(urls, "https://www.vibocnc.com/sitemap-products-index.xml") {
+		t.Fatalf("deprecated nested product sitemap index must not be in defaults: %v", urls)
 	}
 }
 

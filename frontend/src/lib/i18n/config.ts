@@ -20,6 +20,31 @@ export const PUBLIC_LOCALE_SELECTION_PARAM = 'site_locale';
 
 const localeCodes = new Set<string>(PUBLIC_LOCALES.map((locale) => locale.code));
 
+export const LIMITED_TRANSLATION_PUBLIC_PATHS = [
+  '/categories',
+  '/repair-request',
+  '/faq',
+  '/privacy',
+  '/terms',
+  '/warranty',
+  '/warranty-policy',
+  '/shipping-policy',
+  '/technical-support',
+  '/returns',
+  '/docs',
+] as const;
+
+export function isLimitedTranslationPublicPath(pathname: string): boolean {
+  const normalized = stripLocaleFromPathname(pathname || '/');
+  return LIMITED_TRANSLATION_PUBLIC_PATHS.some((path) => {
+    // The category hub itself currently has English and Chinese editorial
+    // content, but category detail pages can have their own database-backed
+    // translations and must remain reachable at /es/categories/..., etc.
+    if (path === '/categories') return normalized === path;
+    return normalized === path || normalized.startsWith(`${path}/`);
+  });
+}
+
 export function isPublicLocale(value?: string | null): value is PublicLocale {
   return Boolean(value && localeCodes.has(value.toLowerCase()));
 }

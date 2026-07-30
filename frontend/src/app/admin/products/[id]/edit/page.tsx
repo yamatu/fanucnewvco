@@ -74,10 +74,10 @@ function buildDefaultSeoValues(input: {
   const model = sku || partNumber || normalizeWhitespace(input.name);
   const categoryName = normalizeWhitespace(input.categoryName) || 'Industrial Automation Part';
   const titleBase = [brand, model, categoryName].filter(Boolean).join(' ') || normalizeWhitespace(input.name) || 'Product';
-  const metaTitle = trimMetaTitle(`${titleBase} | VIBO CNC`);
+  const metaTitle = trimMetaTitle(`${titleBase} | Vibocnc`);
   const subject = [brand, model].filter(Boolean).join(' ') || model || normalizeWhitespace(input.name) || 'This product';
   const metaDescription = trimMetaDescription(
-    `${subject} ${categoryName} for industrial automation repair and replacement. Compatibility support, 12-month warranty, and fast worldwide shipping from VIBO CNC.`
+    `${subject} ${categoryName} for industrial automation repair and replacement. Compatibility support, 12-month warranty, and fast worldwide shipping from Vibocnc.`
   );
   const metaKeywords = [
     normalizeWhitespace(input.sku),
@@ -86,7 +86,7 @@ function buildDefaultSeoValues(input: {
     [brand, categoryName].filter(Boolean).join(' '),
     brand ? `${brand} parts` : 'industrial automation parts',
     'CNC replacement parts',
-    'VIBO CNC',
+    'Vibocnc',
   ]
     .map(normalizeWhitespace)
     .filter(Boolean)

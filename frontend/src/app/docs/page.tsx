@@ -7,7 +7,7 @@ import { translatePublicMessage } from '@/lib/i18n/messages';
 export async function generateMetadata(): Promise<Metadata> {
   const { locale, canonical, languages } = await getLocalizedMetadataPaths('/docs');
   const title = translatePublicMessage(locale, 'docs.title');
-  const metadata = buildStaticPageMetadata('/docs', title, 'Documentation and technical resources for VIBO CNC products.', 'documentation, FANUC manuals, CNC technical resources, product documents, VIBO CNC docs');
+  const metadata = buildStaticPageMetadata('/docs', title, 'Documentation and technical resources for Vibocnc industrial automation products.', 'industrial automation documentation, CNC manuals, PLC HMI servo drive resources, product documents, Vibocnc docs');
   return { ...metadata, alternates: { canonical, languages }, openGraph: metadata.openGraph ? { ...metadata.openGraph, url: canonical } : undefined };
 }
 

@@ -11,7 +11,13 @@ import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 type Props = { content?: HomepageContent | null };
 
 function normalizeBrandName(text: string): string {
-  return text.replace(/\bvibo\s*cnc\b/gi, 'VIBO CNC');
+  return text.replace(/\bvibo\s*cnc\b/gi, 'Vibocnc');
+}
+
+function isLegacyFanucHero(text?: string): boolean {
+  const value = String(text || '');
+  return /FANUC Spare Parts Supply/i.test(value)
+    || /Source FANUC CNC and robot spare parts/i.test(value);
 }
 
 function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
@@ -27,9 +33,9 @@ function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
   const slides = [...baseSlides];
   if (slides.length > 0) {
     const s0 = { ...slides[0] };
-    if (content?.title) s0.title = content.title;
+    if (content?.title && !isLegacyFanucHero(content.title)) s0.title = content.title;
     if (content?.subtitle) s0.subtitle = content.subtitle;
-    if (content?.description) s0.description = content.description;
+    if (content?.description && !isLegacyFanucHero(content.description)) s0.description = content.description;
     if (content?.image_url) s0.image = content.image_url;
     if (content?.button_text) s0.cta = { ...(s0.cta || {}), primary: { ...(s0.cta?.primary || {}), text: content.button_text, href: content.button_url || s0.cta?.primary?.href || '/products' }, secondary: s0.cta?.secondary || { text: 'Learn More', href: '/about' } };
     slides[0] = s0;

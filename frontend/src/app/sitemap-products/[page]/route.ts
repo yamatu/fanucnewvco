@@ -5,6 +5,7 @@ import { toProductPathId } from '@/lib/utils'
 import { renderLocalizedSitemap } from '@/lib/i18n/sitemap'
 import type { Product } from '@/types'
 import { getAvailableTranslationLocales } from '@/lib/i18n/content'
+import { PRODUCT_SITEMAP_PAGE_SIZE } from '@/lib/product-sitemap'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 1800 // 30 minutes
@@ -16,11 +17,15 @@ export async function GET(
   try {
     const baseUrl = await getRequestBaseUrl()
     const { page } = await context.params
-    const pageNumber = Math.max(1, parseInt(page || '1', 10) || 1)
+    const parsedPage = Number(page)
+    if (!Number.isSafeInteger(parsedPage) || parsedPage < 1) {
+      return new NextResponse('Invalid product sitemap page', { status: 404 })
+    }
+    const pageNumber = parsedPage
 
     const response = await ProductService.getProducts({
       page: pageNumber,
-      page_size: 100,
+      page_size: PRODUCT_SITEMAP_PAGE_SIZE,
       is_active: 'true',
     })
 

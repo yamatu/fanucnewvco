@@ -24,6 +24,7 @@ type ProductsPageServerData = {
   currentPage: number;
   selectedCategory: string;
   searchQuery: string;
+  selectedBrand: string;
 };
 
 function getFirstParamValue(value: SearchParamValue): string | undefined {
@@ -64,6 +65,18 @@ function getCategoryPath(category: CategoryNode | null): string | null {
   return `/categories/${path}`;
 }
 
+function findBrandCategory(nodes: CategoryNode[], rawBrand: string): CategoryNode | null {
+  const normalized = rawBrand.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+  if (!normalized) return null;
+  for (const node of nodes) {
+    const candidates = [node.name, node.slug, node.path]
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.toLowerCase().replace(/[^a-z0-9]+/g, ''));
+    if (candidates.some((value) => value === normalized)) return node;
+  }
+  return null;
+}
+
 function buildCategoryRedirectPath(category: CategoryNode | null, params: PageSearchParams): string | null {
   const categoryPath = getCategoryPath(category);
   if (!categoryPath) return null;
@@ -94,6 +107,16 @@ async function resolveCategory(rawValue?: string): Promise<CategoryNode | null> 
   }
 }
 
+async function resolveBrandCategory(rawBrand?: string): Promise<CategoryNode | null> {
+  if (!rawBrand) return null;
+  try {
+    const categories = await CategoryService.getCategories();
+    return findBrandCategory(categories as CategoryNode[], rawBrand);
+  } catch {
+    return null;
+  }
+}
+
 // Generate dynamic metadata for products page
 export async function generateMetadata({ searchParams }: {
   searchParams: Promise<PageSearchParams>
@@ -101,6 +124,7 @@ export async function generateMetadata({ searchParams }: {
   const params = await searchParams;
   const categoryParam = getFirstParamValue(params.category_id) || getFirstParamValue(params.category);
   const searchQuery = getFirstParamValue(params.search);
+  const brand = getFirstParamValue(params.brand);
   const hasSearch = !!searchQuery;
 
   let title = 'Industrial Automation Parts & Components';
@@ -147,6 +171,24 @@ export async function generateMetadata({ searchParams }: {
     }
   }
 
+  if (brand && !hasSearch) {
+    const brandCategory = await resolveBrandCategory(brand);
+    const brandPath = getCategoryPath(brandCategory);
+    if (brandCategory && brandPath) {
+      const brandMetadataPaths = await getLocalizedMetadataPaths(brandPath);
+      title = `${brandCategory.name} Industrial Automation Parts`;
+      description = `Browse ${brandCategory.name} industrial automation parts, current and obsolete models, compatibility support, repair evaluation, and worldwide shipping from Vibocnc.`;
+      return {
+        title,
+        description,
+        robots: { index: true, follow: true },
+        keywords: `${brandCategory.name} parts, ${brandCategory.name} automation, industrial automation parts, CNC parts, Vibocnc`,
+        openGraph: { title: withSiteName(title), description, type: 'website', url: brandMetadataPaths.canonical },
+        alternates: { canonical: brandMetadataPaths.canonical, languages: brandMetadataPaths.languages },
+      };
+    }
+  }
+
   if (hasSearch) {
     title = `Search: ${searchQuery} - Parts`;
     description = `Search results for "${searchQuery}" in industrial automation parts and components. Professional supplier since 2005.`;
@@ -155,7 +197,7 @@ export async function generateMetadata({ searchParams }: {
   return {
     title,
     description,
-    robots: hasSearch ? { index: false, follow: true } : { index: true, follow: true },
+    robots: hasSearch || !!brand ? { index: false, follow: true } : { index: true, follow: true },
     keywords: [
       'CNC parts', 'industrial automation', 'servo motors', 'PCB boards',
       'I/O modules', 'control units', searchQuery,
@@ -177,6 +219,7 @@ export async function generateMetadata({ searchParams }: {
 async function getServerSideData(searchParams: PageSearchParams, locale: PublicLocale): Promise<ProductsPageServerData> {
   const categoryId = getFirstParamValue(searchParams.category_id) || getFirstParamValue(searchParams.category);
   const search = getFirstParamValue(searchParams.search);
+  const brand = getFirstParamValue(searchParams.brand);
   const page = parseInt(getFirstParamValue(searchParams.page) || '1', 10);
 
   try {
@@ -184,6 +227,7 @@ async function getServerSideData(searchParams: PageSearchParams, locale: PublicL
     const [productsData, categories] = await Promise.all([
       ProductService.getProducts({
         search,
+        brand,
         category_id: categoryId,
         include_descendants: categoryId ? 'true' : undefined,
         is_active: 'true',
@@ -203,6 +247,7 @@ async function getServerSideData(searchParams: PageSearchParams, locale: PublicL
       currentPage: page,
       selectedCategory: categoryId || '',
       searchQuery: search || '',
+      selectedBrand: brand || '',
     };
   } catch (error) {
     console.error('Failed to fetch server-side data:', error);
@@ -215,13 +260,14 @@ async function getServerSideData(searchParams: PageSearchParams, locale: PublicL
       currentPage: 1,
       selectedCategory: '',
       searchQuery: '',
+      selectedBrand: '',
     };
   }
 }
 
-// Force no cache for this page to ensure fresh data for crawlers
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Keep catalogue HTML fresh while allowing crawlers and the CDN to reuse the
+// same server-rendered response instead of rebuilding it on every request.
+export const revalidate = 300;
 
 // Main server component
 export default async function ProductsPage({
@@ -232,12 +278,22 @@ export default async function ProductsPage({
   const params = await searchParams;
   const locale = await getRequestPublicLocale();
   const categoryParam = getFirstParamValue(params.category_id) || getFirstParamValue(params.category);
+  const brandParam = getFirstParamValue(params.brand);
   const hasSearch = !!getFirstParamValue(params.search);
 
   if (categoryParam && !hasSearch) {
     const category = await resolveCategory(categoryParam);
     const redirectPath = buildCategoryRedirectPath(category, params);
 
+    if (redirectPath) {
+      permanentRedirect(localizePublicPath(redirectPath, locale));
+    }
+  }
+
+
+  if (brandParam && !hasSearch) {
+    const brandCategory = await resolveBrandCategory(brandParam);
+    const redirectPath = buildCategoryRedirectPath(brandCategory, params);
     if (redirectPath) {
       permanentRedirect(localizePublicPath(redirectPath, locale));
     }
@@ -268,7 +324,7 @@ export default async function ProductsPage({
             'sku': product.sku,
             'brand': {
               '@type': 'Brand',
-              'name': product.brand || 'VIBO CNC',
+              'name': product.brand || 'Vibocnc',
             },
             'image': product.image_urls && product.image_urls.length > 0
               ? product.image_urls[0]
@@ -283,7 +339,7 @@ export default async function ProductsPage({
                 : 'https://schema.org/PreOrder',
               'seller': {
                 '@type': 'Organization',
-                'name': 'VIBO CNC',
+                'name': 'Vibocnc',
               },
             },
           },

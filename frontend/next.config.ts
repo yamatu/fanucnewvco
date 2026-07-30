@@ -73,64 +73,9 @@ const nextConfig: NextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // Product data is tag-revalidated after admin edits. A short shared
-      // cache keeps Googlebot responses fast without serving stale pages for long.
-      {
-        source: '/products/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600' },
-        ],
-      },
-      // Sitemap routes have explicit revalidation and publish/update hooks.
-      {
-        source: '/sitemap.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400' },
-        ],
-      },
-      {
-        source: '/sitemap-static.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400' },
-        ],
-      },
-      {
-        source: '/sitemap-categories.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400' },
-        ],
-      },
-      {
-        source: '/sitemap-products-index.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=1800, stale-while-revalidate=86400' },
-        ],
-      },
-      {
-        source: '/sitemap-products/:page.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=1800, stale-while-revalidate=86400' },
-        ],
-      },
-      {
-        source: '/sitemap-news.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400' },
-        ],
-      },
-      {
-        source: '/sitemap-blog.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400' },
-        ],
-      },
-      // Short cache for main pages
-      {
-        source: '/((?!api|_next|products|sitemap).*)',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=300, stale-while-revalidate=86400' },
-        ],
-      },
+      // Public pages and sitemap handlers declare their own revalidation and
+      // Cache-Control policy. Defining them again here creates duplicate cache
+      // headers, which makes CDN behaviour inconsistent.
     ];
   },
 

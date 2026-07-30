@@ -7,12 +7,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const { locale, canonical, languages } = await getLocalizedMetadataPaths('/contact');
   const title = translatePublicMessage(locale, 'contact.title');
   const description = locale === 'en'
-    ? 'Contact VIBO CNC for FANUC CNC parts inquiries, technical support, and quotes. Located in Kunshan, China. Fast response within 24 hours.'
+    ? 'Contact Vibocnc for industrial automation parts, repair evaluation, technical support and quotations across major brands.'
     : translatePublicMessage(locale, 'contact.description');
   return {
     title,
     description,
-    keywords: 'contact VIBO CNC, FANUC parts quote, CNC parts inquiry, technical support, FANUC supplier contact',
+    keywords: 'contact Vibocnc, automation parts quote, CNC parts inquiry, repair evaluation, industrial technical support',
     alternates: { canonical, languages },
     openGraph: { title: withSiteName(title), description, type: 'website', url: canonical },
   };

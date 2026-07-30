@@ -4,9 +4,11 @@ import { getAllPublishedArticles } from '@/lib/article-sitemap';
 import type { Article } from '@/types';
 import { renderLocalizedSitemap } from '@/lib/i18n/sitemap';
 import { getAvailableTranslationLocales } from '@/lib/i18n/content';
+import { PUBLIC_LOCALES } from '@/lib/i18n/config';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
+const ALL_PUBLIC_LOCALES = PUBLIC_LOCALES.map((locale) => locale.code);
 
 function latestArticleModifiedAt(articles: Article[]): string | undefined {
   const timestamps = articles
@@ -25,7 +27,7 @@ export async function GET() {
   } catch (error) {
     console.error('Error generating blog sitemap:', error);
   }
-  const urls = [{ pathname: '/blog', lastModified: latestArticleModifiedAt(articles), changeFrequency: 'daily', priority: '0.8' }, ...articles.map((article) => ({
+  const urls = [{ pathname: '/blog', lastModified: latestArticleModifiedAt(articles), changeFrequency: 'daily', priority: '0.8', availableLocales: ALL_PUBLIC_LOCALES }, ...articles.map((article) => ({
     pathname: article.public_path || `/blog/${article.slug}`,
     lastModified: article.updated_at || article.published_at || article.created_at
       ? new Date(article.updated_at || article.published_at || article.created_at).toISOString()

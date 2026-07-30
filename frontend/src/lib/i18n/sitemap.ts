@@ -23,12 +23,8 @@ function absoluteUrl(baseUrl: string, pathname: string): string {
 }
 
 export function renderLocalizedSitemapEntries(baseUrl: string, entry: LocalizedSitemapEntry): string {
-  const allowedLocales = entry.availableLocales
-    ? new Set<PublicLocale>([DEFAULT_PUBLIC_LOCALE, ...entry.availableLocales])
-    : null;
-  const locales = allowedLocales
-    ? PUBLIC_LOCALES.filter((locale) => allowedLocales.has(locale.code))
-    : PUBLIC_LOCALES;
+  const allowedLocales = new Set<PublicLocale>([DEFAULT_PUBLIC_LOCALE, ...(entry.availableLocales || [])]);
+  const locales = PUBLIC_LOCALES.filter((locale) => allowedLocales.has(locale.code));
   const alternateLinks = [
     ...locales.map((locale) => ({
       hreflang: locale.hreflang,

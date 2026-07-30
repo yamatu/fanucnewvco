@@ -23,12 +23,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = translatePublicMessage(locale, 'about.title');
   return {
     title,
-    description: 'VIBO CNC is a leading FANUC CNC parts supplier established in 2005 in Kunshan, China. With 100,000+ items in stock, 37 employees, and a 5,000 sqm workshop, we are one of the top 3 FANUC suppliers in China. Worldwide shipping.',
-    keywords: 'VIBO CNC, about VIBO CNC, FANUC supplier China, CNC parts supplier, industrial automation company, Kunshan, top FANUC supplier',
+    description: 'Vibocnc is a multi-brand industrial automation parts supplier established in 2005 in Kunshan, China, with 100,000+ stocked items, inspection, repair support and worldwide shipping.',
+    keywords: 'Vibocnc, about Vibocnc, industrial automation parts supplier China, CNC parts supplier, PLC HMI servo parts, Kunshan automation company',
     alternates: { canonical, languages },
     openGraph: {
       title: withSiteName(title),
-      description: 'Leading FANUC CNC parts supplier since 2005. 100,000+ items in stock, 37 employees, 5,000 sqm workshop. Top 3 FANUC supplier in China with worldwide shipping.',
+      description: 'Multi-brand industrial automation parts supplier since 2005 with 100,000+ stocked items, 37 employees, a 5,000 sqm workshop and worldwide shipping.',
       url: canonical,
       type: 'website',
     },
@@ -49,11 +49,11 @@ export default async function About() {
     "@context": "https://schema.org",
     "@type": "AboutPage",
     "name": translatePublicMessage(locale, 'about.title'),
-    "description": "Learn about VIBO CNC, a top 3 FANUC parts supplier in China since 2005.",
+    "description": "Learn about Vibocnc, a multi-brand industrial automation parts supplier in China since 2005.",
     "url": localizedAboutUrl,
     "mainEntity": {
       "@type": "Organization",
-      "name": "VIBO CNC",
+      "name": "Vibocnc",
       "foundingDate": "2005",
       "foundingLocation": {
         "@type": "Place",
@@ -63,9 +63,13 @@ export default async function About() {
         "@type": "QuantitativeValue",
         "value": 37
       },
-      "description": "One of the top three FANUC suppliers in China with 100,000+ items regularly stocked, serving customers worldwide with industrial automation components.",
+      "description": "A multi-brand industrial automation parts supplier with 100,000+ items regularly stocked, serving maintenance teams worldwide.",
       "knowsAbout": [
-        "FANUC CNC parts",
+        "Multi-brand CNC parts",
+        "FANUC automation parts",
+        "Siemens automation parts",
+        "Mitsubishi automation parts",
+        "ABB and Allen-Bradley components",
         "Industrial automation",
         "Servo motors",
         "PCB boards",
@@ -76,7 +80,7 @@ export default async function About() {
         "Encoders",
         "Amplifiers"
       ],
-      "slogan": "Your Trusted FANUC Parts Partner Since 2005"
+      "slogan": "Your Industrial Automation Parts Partner Since 2005"
     }
   };
 
@@ -125,7 +129,7 @@ export default async function About() {
                   <div className="text-sm text-gray-600">{translatePublicMessage(locale, 'about.years')}</div>
                 </div>
                 <div className="site-subtle-card p-4">
-                  <div className="text-2xl font-bold text-[#0b3e75]">Top 3</div>
+                  <div className="text-2xl font-bold text-[#0b3e75]">10+</div>
                   <div className="text-sm text-gray-600">{translatePublicMessage(locale, 'about.topSupplier')}</div>
                 </div>
               </div>
@@ -133,7 +137,7 @@ export default async function About() {
             <div className="relative">
               <Image
                 src="https://s2.loli.net/2025/09/01/G1JcoeXWNTdpIfZ.jpg"
-                alt="VIBO CNC Company Building"
+                alt="Vibocnc Company Building"
                 width={600}
                 height={400}
                 className="w-full rounded-lg shadow-lg"

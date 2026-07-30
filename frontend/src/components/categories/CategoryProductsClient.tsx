@@ -318,7 +318,7 @@ export default function CategoryProductsClient({
                         width={300}
                         height={300}
                         sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        className="h-full w-full object-cover object-center transition-transform duration-300 hover:scale-105"
+                        className="h-full w-full object-contain object-center p-3 transition-transform duration-300 hover:scale-105"
                         loading="lazy"
                       />
                     </Link>
@@ -379,7 +379,7 @@ export default function CategoryProductsClient({
                         width={120}
                         height={120}
                         sizes="120px"
-                        className="h-28 w-full object-cover rounded-md border border-slate-200 sm:h-24 sm:w-24"
+                        className="h-28 w-full object-contain rounded-md border border-slate-200 bg-white p-2 sm:h-24 sm:w-24"
                         loading="lazy"
                       />
                     </Link>

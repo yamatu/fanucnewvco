@@ -7,6 +7,7 @@ import {
   detectPublicLocale,
   getLocaleFromPathname,
   isPublicLocale,
+  isLimitedTranslationPublicPath,
   isLocalizablePublicPath,
   localizePublicPath,
   normalizePublicLocale,
@@ -62,20 +63,6 @@ function getRequestCountry(request: NextRequest): string | null {
   return null;
 }
 
-function addLocaleVaryHeader(response: NextResponse): void {
-  const existingValues = (response.headers.get('Vary') || '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
-  const varyValues = new Set([
-    ...existingValues,
-    'Accept-Language',
-    'Cookie',
-    ...GEO_COUNTRY_HEADERS,
-  ]);
-  response.headers.set('Vary', Array.from(varyValues).join(', '));
-}
-
 function saveLocalePreference(response: NextResponse, request: NextRequest, locale: string): void {
   response.cookies.set(PUBLIC_LOCALE_COOKIE, locale, {
     path: '/',
@@ -88,7 +75,7 @@ function saveLocalePreference(response: NextResponse, request: NextRequest, loca
 function preventLocaleRedirectCaching(response: NextResponse): void {
   response.headers.set('Cache-Control', 'private, no-store, no-cache, max-age=0, must-revalidate');
   response.headers.set('Pragma', 'no-cache');
-  addLocaleVaryHeader(response);
+  response.headers.set('Vary', 'Accept-Language, Cookie');
 }
 
 function getBackendBaseUrl(): string {
@@ -118,14 +105,19 @@ export async function middleware(request: NextRequest) {
   const rawPathname = request.nextUrl.pathname;
   const pathLocale = getLocaleFromPathname(rawPathname);
   const pathname = stripLocaleFromPathname(rawPathname);
-  const locale = pathLocale || DEFAULT_PUBLIC_LOCALE;
+  const forwardedSiteLocale = request.headers.get('x-site-locale');
+  const locale = pathLocale
+    || (isPublicLocale(forwardedSiteLocale) ? normalizePublicLocale(forwardedSiteLocale) : DEFAULT_PUBLIC_LOCALE);
   const token = request.cookies.get('auth_token')?.value;
   const userAgent = request.headers.get('user-agent') || '';
 
   const requestedLocale = request.nextUrl.searchParams.get(PUBLIC_LOCALE_SELECTION_PARAM);
   if (isPublicLocale(requestedLocale) && isLocalizablePublicPath(pathname)) {
     const url = request.nextUrl.clone();
-    url.pathname = localizePublicPath(pathname, requestedLocale);
+    const effectiveRequestedLocale = isLimitedTranslationPublicPath(pathname) && requestedLocale !== 'zh'
+      ? DEFAULT_PUBLIC_LOCALE
+      : requestedLocale;
+    url.pathname = localizePublicPath(pathname, effectiveRequestedLocale);
     url.searchParams.delete(PUBLIC_LOCALE_SELECTION_PARAM);
     const response = NextResponse.redirect(url, 307);
     saveLocalePreference(response, request, requestedLocale);
@@ -139,16 +131,52 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
+
+  if (pathLocale && isLimitedTranslationPublicPath(pathname) && pathLocale !== 'zh') {
+    const url = request.nextUrl.clone();
+    url.pathname = localizePublicPath(pathname, DEFAULT_PUBLIC_LOCALE);
+    return NextResponse.redirect(url, 308);
+  }
+
+  if (!pathLocale && isLimitedTranslationPublicPath(pathname)) {
+    const preferredLimitedLocale = request.cookies.get(PUBLIC_LOCALE_COOKIE)?.value === 'zh'
+      || detectPublicLocale(request.headers.get('accept-language'), getRequestCountry(request)) === 'zh'
+      ? 'zh'
+      : DEFAULT_PUBLIC_LOCALE;
+    if (preferredLimitedLocale === 'zh' && !isSearchEngineCrawler(userAgent)) {
+      const url = request.nextUrl.clone();
+      url.pathname = localizePublicPath(pathname, 'zh');
+      const response = NextResponse.redirect(url, 307);
+      preventLocaleRedirectCaching(response);
+      return response;
+    }
+  }
+
   const rawSavedLocale = request.cookies.get(PUBLIC_LOCALE_COOKIE)?.value;
   const savedLocale = isPublicLocale(rawSavedLocale) ? normalizePublicLocale(rawSavedLocale) : null;
+  const isCrawler = isSearchEngineCrawler(userAgent);
   const detectedLocale = detectPublicLocale(
     request.headers.get('accept-language'),
     getRequestCountry(request),
   );
   const preferredLocale = savedLocale || detectedLocale;
-  if (!pathLocale && preferredLocale !== DEFAULT_PUBLIC_LOCALE && isLocalizablePublicPath(pathname) && !isSearchEngineCrawler(userAgent)) {
+  const automaticLocale = isLimitedTranslationPublicPath(pathname) && preferredLocale !== 'zh'
+    ? DEFAULT_PUBLIC_LOCALE
+    : preferredLocale;
+  // A localized URL is internally rewritten to its unprefixed route. Next may
+  // run middleware again for that rewritten request, so only auto-detect on an
+  // actual unprefixed browser URL. Otherwise /zh -> rewrite / -> redirect /zh
+  // becomes an infinite loop.
+  const isLocalizedInternalRewrite = Boolean(forwardedSiteLocale);
+  if (
+    !pathLocale
+    && !isLocalizedInternalRewrite
+    && automaticLocale !== DEFAULT_PUBLIC_LOCALE
+    && isLocalizablePublicPath(pathname)
+    && !isCrawler
+  ) {
     const url = request.nextUrl.clone();
-    url.pathname = localizePublicPath(pathname, preferredLocale);
+    url.pathname = localizePublicPath(pathname, automaticLocale);
     const response = NextResponse.redirect(url, 307);
     saveLocalePreference(response, request, preferredLocale);
     preventLocaleRedirectCaching(response);
@@ -289,15 +317,9 @@ export async function middleware(request: NextRequest) {
       )
     : NextResponse.next({ request: { headers: requestHeaders } });
 
-  if (pathLocale) {
-    saveLocalePreference(response, request, pathLocale);
-  } else if (!savedLocale && isLocalizablePublicPath(pathname) && !isSearchEngineCrawler(userAgent)) {
-    saveLocalePreference(response, request, DEFAULT_PUBLIC_LOCALE);
-  }
-
-  if (isLocalizablePublicPath(pathname)) {
-    addLocaleVaryHeader(response);
-  }
+  // Explicit language selection is persisted by useLocaleNavigation and the
+  // site_locale redirect above. Plain locale URL requests do not need Set-Cookie;
+  // keeping them cookie-free allows shared CDN caching.
 
   // Do not vary cache policy by user agent. Serving the same cacheable HTML to
   // users and crawlers keeps rendering fast and avoids crawler-only behavior.

@@ -29,6 +29,7 @@ interface ProductsPageClientProps {
     currentPage: number;
     selectedCategory: string;
     searchQuery: string;
+    selectedBrand: string;
   };
   searchParams: { [key: string]: string | string[] | undefined };
 }
@@ -39,6 +40,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
 
   const [searchQuery, setSearchQuery] = useState(initialData.searchQuery);
   const [selectedCategory, setSelectedCategory] = useState(initialData.selectedCategory);
+  const selectedBrand = initialData.selectedBrand;
   const [sortBy, setSortBy] = useState('name');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -107,6 +109,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
     const timer = setTimeout(() => {
       const params = new URLSearchParams();
       if (searchQuery) params.set('search', searchQuery);
+      if (selectedBrand) params.set('brand', selectedBrand);
       if (selectedCategory) {
         params.set('category_id', selectedCategory);
         params.set('include_descendants', 'true');
@@ -122,7 +125,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
     }, 500); // Increased debounce time
 
     return () => clearTimeout(timer);
-  }, [searchQuery, selectedCategory, currentPage, router, href]);
+  }, [searchQuery, selectedBrand, selectedCategory, currentPage, router, href]);
 
 
 
@@ -142,6 +145,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
     setCurrentPage(page);
     const params = new URLSearchParams();
     if (searchQuery) params.set('search', searchQuery);
+    if (selectedBrand) params.set('brand', selectedBrand);
     if (selectedCategory) {
       params.set('category_id', selectedCategory);
       params.set('include_descendants', 'true');
@@ -175,7 +179,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                   <div className="text-blue-100">{t('about.parcels')}</div>
                 </div>
                 <div className="site-stat-card">
-                  <div className="text-2xl font-bold text-white">Top 3</div>
+                  <div className="text-2xl font-bold text-white">10+</div>
                   <div className="text-blue-100">{t('about.topSupplier')}</div>
                 </div>
               </div>
@@ -317,11 +321,11 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                               (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
                               getDefaultProductImageWithSku(product.sku)
                             )}
-                            alt={`${product.name} - ${product.sku} | Professional ${product.category?.name || 'Industrial'} Part | In Stock at VIBO CNC`}
+                            alt={`${product.name} - ${product.sku} | Professional ${product.category?.name || 'Industrial'} Part | In Stock at Vibocnc`}
                             width={300}
                             height={300}
                             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                            className="h-full w-full object-cover object-center transition-transform duration-300 hover:scale-105"
+                            className="h-full w-full object-contain object-center p-3 transition-transform duration-300 hover:scale-105"
                             priority={false}
                             loading="lazy"
                           />
@@ -392,11 +396,11 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                               (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
                               getDefaultProductImageWithSku(product.sku)
                             )}
-                            alt={`${product.name} - ${product.sku} | Professional ${product.category?.name || 'Industrial'} Part | In Stock at VIBO CNC`}
+                            alt={`${product.name} - ${product.sku} | Professional ${product.category?.name || 'Industrial'} Part | In Stock at Vibocnc`}
                             width={120}
                             height={120}
                             sizes="120px"
-                            className="h-28 w-full object-cover rounded-md border border-slate-200 sm:h-24 sm:w-24"
+                            className="h-28 w-full object-contain rounded-md border border-slate-200 bg-white p-2 sm:h-24 sm:w-24"
                             loading="lazy"
                           />
                         </Link>

@@ -11,7 +11,7 @@ import { buildLanguageAlternates, getLocaleConfig, isLocalizablePublicPath, loca
 import { translatePublicMessage } from "@/lib/i18n/messages";
 
 const SITE_DESCRIPTION =
-  "Source FANUC spare parts, FANUC robot spare parts and CNC machine parts from VIBO CNC. 100,000+ automation components in stock with worldwide shipping.";
+  "Source multi-brand industrial automation parts, CNC components and repair support from Vibocnc. Current, legacy and obsolete parts with worldwide shipping.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const siteUrl = getSiteUrl();
@@ -34,9 +34,9 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: localizedDescription,
     keywords: [
-      "FANUC parts",
-      "FANUC spare parts",
-      "FANUC robot spare parts",
+      "industrial automation parts",
+      "industrial electronics repair",
+      "obsolete automation parts",
       "CNC parts",
       "CNC machine spare parts",
       "industrial automation",
@@ -46,7 +46,10 @@ export async function generateMetadata(): Promise<Metadata> {
       "control units",
       "power supplies",
       "automation components",
-      "VIBO CNC",
+      "PLC modules",
+      "HMI panels",
+      "servo drive repair",
+      "Vibocnc",
       "China CNC parts supplier",
       "industrial spare parts",
       "CNC machine parts",
@@ -79,7 +82,7 @@ export async function generateMetadata(): Promise<Metadata> {
           url: "/images/og-image.jpg",
           width: 1200,
           height: 630,
-          alt: "VIBO CNC - Industrial Automation Components",
+          alt: "Vibocnc - Industrial Automation Components",
         },
       ],
     },
