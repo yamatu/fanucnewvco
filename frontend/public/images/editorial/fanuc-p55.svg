@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title description">
+  <title id="title">P-55/15-21A Finishing Automation</title>
+  <desc id="description">Vibocnc technical editorial cover for P-55/15-21A Finishing Automation.</desc>
+  <rect width="1600" height="900" fill="#f4f7fa"/>
+  <rect x="0" y="0" width="860" height="900" fill="#07182b"/>
+  <path d="M860 0h740v900H760c92-148 138-300 138-456C898 280 885 132 860 0z" fill="#0e3153"/>
+  <path d="M0 90h860" stroke="#f5c400" stroke-width="12"/>
+  <text x="105" y="228" fill="#f5c400" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700">PAINT ROBOT</text>
+  <text x="105" y="390" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700">P-55/15-21A</text>
+  <text x="105" y="492" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700">Finishing Automation</text>
+  <text x="108" y="675" fill="#b9c9d7" font-family="Arial, Helvetica, sans-serif" font-size="29">Industrial automation insight | Vibocnc</text>
+  <g fill="none" stroke="#f5c400" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"><path d="M1010 690h450M1080 690V535l110-88 105 65 70-132M1190 447l-35-125 115-75 95 133M1365 380l58 86-46 90"/><circle cx="1190" cy="447" r="32"/><circle cx="1365" cy="380" r="32"/><circle cx="1377" cy="556" r="25"/><path d="M1390 545h68M1458 525v75M1480 532l48-22M1480 563h58M1480 594l48 22"/></g>
+  <circle cx="1510" cy="90" r="28" fill="#f5c400"/>
+</svg>

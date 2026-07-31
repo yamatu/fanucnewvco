@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title description">
+  <title id="title">Physical AI On the Factory Floor</title>
+  <desc id="description">Vibocnc technical editorial cover for Physical AI On the Factory Floor.</desc>
+  <rect width="1600" height="900" fill="#f4f7fa"/>
+  <rect x="0" y="0" width="860" height="900" fill="#07182b"/>
+  <path d="M860 0h740v900H760c92-148 138-300 138-456C898 280 885 132 860 0z" fill="#0e3153"/>
+  <path d="M0 90h860" stroke="#f5c400" stroke-width="12"/>
+  <text x="105" y="228" fill="#f5c400" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700">AUTOMATE 2026</text>
+  <text x="105" y="390" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700">Physical AI</text>
+  <text x="105" y="492" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700">On the Factory Floor</text>
+  <text x="108" y="675" fill="#b9c9d7" font-family="Arial, Helvetica, sans-serif" font-size="29">Industrial automation insight | Vibocnc</text>
+  <g fill="none" stroke="#f5c400" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"><rect x="990" y="230" width="470" height="330" rx="20"/><path d="M1100 670h250M1160 560v110M1290 560v110"/><path d="M1080 455l95-105 82 72 105-120"/><circle cx="1175" cy="350" r="22"/><circle cx="1257" cy="422" r="22"/></g>
+  <circle cx="1510" cy="90" r="28" fill="#f5c400"/>
+</svg>

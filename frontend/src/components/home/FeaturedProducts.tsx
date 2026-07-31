@@ -16,7 +16,7 @@ import { ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { DEFAULT_FEATURED_PRODUCTS_SECTION_DATA } from '@/lib/homepage-defaults';
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
-import { filterToIndexableProductLocales } from '@/lib/i18n/content';
+import { localizeProductOrDefault } from '@/lib/i18n/content';
 
 export function FeaturedProducts({
   content,
@@ -62,9 +62,9 @@ export function FeaturedProducts({
   const rawProducts = (Array.isArray(featured) && featured.length > 0)
       ? featured
       : (Array.isArray(latest) ? latest : []);
-  const products = rawProducts
-    .map((product) => filterToIndexableProductLocales(product, locale))
-    .filter((product): product is Product => product !== null);
+  // Product availability is shared across locales. Use a translated record
+  // when one exists and retain the canonical English product otherwise.
+  const products = rawProducts.map((product) => localizeProductOrDefault(product, locale));
   const productsLoading =
     (products.length === 0 && (featuredFetching || latestFetching || !featuredFetched));
 
