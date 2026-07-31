@@ -35,7 +35,7 @@ const footerNavigation = {
   ],
   company: [
     { name: 'About Vibocnc', href: '/about' },
-    { name: 'Product Categories', href: '/products' },
+    { name: 'Product Categories', href: '/categories' },
     { name: 'Brands We Supply', href: '/#brands-we-supply' },
     { name: 'Our Workshop', href: '/about' },
     { name: 'Company Profile', href: '/about' },
@@ -53,7 +53,7 @@ const footerNavigation = {
     { name: 'Returns Policy', href: '/returns' },
   ],
   partners: [
-    { name: 'VCO CNC Spare', href: 'https://www.vcocncspare.com', external: true },
+    { name: 'vcocncsapre', href: 'https://www.vcocncspare.com', external: true },
   ],
 };
 

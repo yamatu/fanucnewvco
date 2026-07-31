@@ -68,8 +68,8 @@ export default async function CategoriesPage() {
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
-    name: 'Industrial Automation Product Categories',
-    description: 'Multi-brand industrial automation parts organized by manufacturer and equipment type.',
+    name: copy.title,
+    description: copy.intro,
     url: pageUrl,
     isPartOf: { '@type': 'WebSite', '@id': `${baseUrl}/#website`, name: SITE_NAME, url: baseUrl },
     mainEntity: {
@@ -82,10 +82,29 @@ export default async function CategoriesPage() {
       })),
     },
   };
+  const breadcrumbData = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: locale === 'zh' ? '首页' : 'Home',
+        item: `${baseUrl}${localizePublicPath('/', locale)}`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: copy.title,
+        item: pageUrl,
+      },
+    ],
+  };
 
   return (
     <PublicLayout>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }} />
       <div className="site-page-shell min-h-screen">
         <section className="site-page-hero py-14 sm:py-20">
           <div className="site-hero-inner mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">

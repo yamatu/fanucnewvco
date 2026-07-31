@@ -8,15 +8,15 @@ type BrandItem = { name: string; focus: string; href: string };
 
 const DEFAULT_BRANDS: BrandItem[] = [
   { name: 'FANUC', focus: 'CNC, robot and motion parts', href: '/categories/fanuc' },
-  { name: 'Siemens', focus: 'PLC, HMI and drive systems', href: '/products?search=Siemens' },
+  { name: 'Siemens', focus: 'PLC, HMI and drive systems', href: '/products?brand=Siemens' },
   { name: 'Mitsubishi', focus: 'Servo, PLC and inverter parts', href: '/categories/mitsubishi' },
-  { name: 'ABB', focus: 'Drives and automation components', href: '/products?search=ABB' },
-  { name: 'Omron', focus: 'Controllers, sensors and HMI', href: '/products?search=Omron' },
-  { name: 'Yaskawa', focus: 'Servo and drive components', href: '/products?search=Yaskawa' },
-  { name: 'Schneider', focus: 'PLC, HMI and power control', href: '/products?search=Schneider' },
-  { name: 'Allen-Bradley', focus: 'PLC and factory control parts', href: '/products?search=Allen-Bradley' },
-  { name: 'Bosch Rexroth', focus: 'Motion and drive technology', href: '/products?search=Bosch%20Rexroth' },
-  { name: 'Danfoss', focus: 'Industrial drives and controls', href: '/products?search=Danfoss' },
+  { name: 'ABB', focus: 'Drives and automation components', href: '/products?brand=ABB' },
+  { name: 'Omron', focus: 'Controllers, sensors and HMI', href: '/products?brand=Omron' },
+  { name: 'Yaskawa', focus: 'Servo and drive components', href: '/products?brand=Yaskawa' },
+  { name: 'Schneider', focus: 'PLC, HMI and power control', href: '/products?brand=Schneider' },
+  { name: 'Allen-Bradley', focus: 'PLC and factory control parts', href: '/products?brand=Allen-Bradley' },
+  { name: 'Bosch Rexroth', focus: 'Motion and drive technology', href: '/products?brand=Bosch%20Rexroth' },
+  { name: 'Danfoss', focus: 'Industrial drives and controls', href: '/products?brand=Danfoss' },
   { name: 'SICK', focus: 'Sensors, safety, encoders and vision', href: '/categories/sick' },
   { name: 'Tamagawa', focus: 'Encoders, resolvers and servo feedback', href: '/categories/tamagawa' },
 ];

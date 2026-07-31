@@ -20,7 +20,7 @@ import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/se
 import { translatePublicMessage } from '@/lib/i18n/messages';
 import { getLocaleConfig } from '@/lib/i18n/config';
 import { NewsService } from '@/services/news.service';
-import { filterToIndexableProductLocales, localizeArticleOrDefault } from '@/lib/i18n/content';
+import { localizeArticleOrDefault, localizeProductContent } from '@/lib/i18n/content';
 import { ProductService } from '@/services/product.service';
 
 export const revalidate = 300;
@@ -179,9 +179,7 @@ export default async function Home() {
       .then((result) => (result.data || []).map((article) => localizeArticleOrDefault(article, locale)))
       .catch(() => [] as Article[]),
     ProductService.getFeaturedProducts(6)
-      .then((products) => products
-        .map((product) => filterToIndexableProductLocales(product, locale))
-        .filter((product): product is Product => product !== null))
+      .then((products) => products.map((product) => localizeProductContent(product, locale)))
       .catch(() => [] as Product[]),
   ]);
   const byKey: Record<string, HomepageContent | undefined> = Object.fromEntries(
