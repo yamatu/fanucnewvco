@@ -180,6 +180,90 @@ for (const locale of ['zh', 'es', 'ar']) {
   }
 }
 
+for (const locale of ['zh', 'es', 'de', 'fr', 'it', 'pt', 'ja', 'ko', 'ru', 'ar']) {
+  try {
+    const response = await fetch(`${targetOrigin}/${locale}/repair-request`, {
+      redirect: 'follow',
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+    });
+    const html = await response.text();
+    const expectedLang = locale === 'zh' ? 'zh-CN' : locale;
+    const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
+    const errors = [];
+    if (!response.ok) errors.push(`HTTP ${response.status}`);
+    if (new URL(response.url).pathname !== `/${locale}/repair-request`) errors.push(`unexpected final URL (${response.url})`);
+    if (actualLang !== expectedLang) errors.push(`expected html lang=${expectedLang}, got ${actualLang || 'none'}`);
+    if (!html.includes('repair') && !html.includes('维修') && !html.includes('Repar')) errors.push('repair page content is missing');
+    console.log(`${errors.length ? 'FAIL' : 'PASS'} /${locale}/repair-request status=${response.status} lang=${actualLang || 'none'}`);
+    for (const error of errors) console.log(`  - ${error}`);
+    failed ||= errors.length > 0;
+  } catch (error) {
+    console.log(`FAIL /${locale}/repair-request: ${error instanceof Error ? error.message : String(error)}`);
+    failed = true;
+  }
+}
+
+try {
+  const response = await fetch(`${targetOrigin}/repair-request`, {
+    redirect: 'follow',
+    headers: {
+      cookie: 'vibocnc_locale=zh',
+      'accept-language': 'zh-CN,zh;q=0.9',
+      'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)',
+    },
+  });
+  const html = await response.text();
+  const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
+  const errors = [];
+  if (!response.ok) errors.push(`HTTP ${response.status}`);
+  if (new URL(response.url).pathname !== '/repair-request') errors.push(`unexpected final URL (${response.url})`);
+  if (actualLang !== 'en') errors.push(`expected default repair page lang=en, got ${actualLang || 'none'}`);
+  console.log(`${errors.length ? 'FAIL' : 'PASS'} repair-request default status=${response.status} lang=${actualLang || 'none'}`);
+  for (const error of errors) console.log(`  - ${error}`);
+  failed ||= errors.length > 0;
+} catch (error) {
+  console.log(`FAIL repair-request default: ${error instanceof Error ? error.message : String(error)}`);
+  failed = true;
+}
+
+try {
+  const response = await fetch(`${targetOrigin}/zh/repair-request`, {
+    redirect: 'follow',
+    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+  });
+  const html = await response.text();
+  const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
+  const errors = [];
+  if (!response.ok) errors.push(`HTTP ${response.status}`);
+  if (new URL(response.url).pathname !== '/zh/repair-request') errors.push(`unexpected final URL (${response.url})`);
+  if (actualLang !== 'zh-CN') errors.push(`expected explicit Chinese repair page lang=zh-CN, got ${actualLang || 'none'}`);
+  console.log(`${errors.length ? 'FAIL' : 'PASS'} repair-request explicit-zh status=${response.status} lang=${actualLang || 'none'}`);
+  for (const error of errors) console.log(`  - ${error}`);
+  failed ||= errors.length > 0;
+} catch (error) {
+  console.log(`FAIL repair-request explicit-zh: ${error instanceof Error ? error.message : String(error)}`);
+  failed = true;
+}
+
+try {
+  const response = await fetch(`${targetOrigin}/repair-request?site_locale=es`, {
+    redirect: 'follow',
+    headers: { cookie: 'vibocnc_locale=zh', 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+  });
+  const html = await response.text();
+  const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
+  const errors = [];
+  if (!response.ok) errors.push(`HTTP ${response.status}`);
+  if (new URL(response.url).pathname !== '/es/repair-request') errors.push(`unexpected final URL (${response.url})`);
+  if (actualLang !== 'es') errors.push(`expected explicit Spanish repair page lang=es, got ${actualLang || 'none'}`);
+  console.log(`${errors.length ? 'FAIL' : 'PASS'} repair-request explicit-es selection status=${response.status} lang=${actualLang || 'none'}`);
+  for (const error of errors) console.log(`  - ${error}`);
+  failed ||= errors.length > 0;
+} catch (error) {
+  console.log(`FAIL repair-request explicit-es selection: ${error instanceof Error ? error.message : String(error)}`);
+  failed = true;
+}
+
 try {
   const response = await fetch(`${targetOrigin}/?site_locale=en`, {
     redirect: 'follow',

@@ -8,6 +8,7 @@ import {
   getLocaleFromPathname,
   isPublicLocale,
   isLimitedTranslationPublicPath,
+  isAutomaticLocaleRedirectAllowed,
   isLocalizablePublicPath,
   localizePublicPath,
   normalizePublicLocale,
@@ -120,7 +121,7 @@ export async function middleware(request: NextRequest) {
     url.pathname = localizePublicPath(pathname, effectiveRequestedLocale);
     url.searchParams.delete(PUBLIC_LOCALE_SELECTION_PARAM);
     const response = NextResponse.redirect(url, 307);
-    saveLocalePreference(response, request, requestedLocale);
+    saveLocalePreference(response, request, effectiveRequestedLocale);
     preventLocaleRedirectCaching(response);
     return response;
   }
@@ -143,7 +144,11 @@ export async function middleware(request: NextRequest) {
       || detectPublicLocale(request.headers.get('accept-language'), getRequestCountry(request)) === 'zh'
       ? 'zh'
       : DEFAULT_PUBLIC_LOCALE;
-    if (preferredLimitedLocale === 'zh' && !isSearchEngineCrawler(userAgent)) {
+    if (
+      preferredLimitedLocale === 'zh'
+      && isAutomaticLocaleRedirectAllowed(pathname)
+      && !isSearchEngineCrawler(userAgent)
+    ) {
       const url = request.nextUrl.clone();
       url.pathname = localizePublicPath(pathname, 'zh');
       const response = NextResponse.redirect(url, 307);
@@ -171,6 +176,7 @@ export async function middleware(request: NextRequest) {
   if (
     !pathLocale
     && !isLocalizedInternalRewrite
+    && isAutomaticLocaleRedirectAllowed(pathname)
     && automaticLocale !== DEFAULT_PUBLIC_LOCALE
     && isLocalizablePublicPath(pathname)
     && !isCrawler

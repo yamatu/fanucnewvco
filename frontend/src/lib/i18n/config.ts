@@ -22,7 +22,6 @@ const localeCodes = new Set<string>(PUBLIC_LOCALES.map((locale) => locale.code))
 
 export const LIMITED_TRANSLATION_PUBLIC_PATHS = [
   '/categories',
-  '/repair-request',
   '/faq',
   '/privacy',
   '/terms',
@@ -34,6 +33,12 @@ export const LIMITED_TRANSLATION_PUBLIC_PATHS = [
   '/docs',
 ] as const;
 
+// These pages have an explicit English canonical entry point. A visitor's
+// browser language or an old locale cookie must not silently move that entry
+// point to another URL; only an explicit locale URL or language selection may
+// choose a translated version.
+export const AUTO_LOCALE_REDIRECT_EXCLUDED_PATHS = ['/repair-request'] as const;
+
 export function isLimitedTranslationPublicPath(pathname: string): boolean {
   const normalized = stripLocaleFromPathname(pathname || '/');
   return LIMITED_TRANSLATION_PUBLIC_PATHS.some((path) => {
@@ -43,6 +48,13 @@ export function isLimitedTranslationPublicPath(pathname: string): boolean {
     if (path === '/categories') return normalized === path;
     return normalized === path || normalized.startsWith(`${path}/`);
   });
+}
+
+export function isAutomaticLocaleRedirectAllowed(pathname: string): boolean {
+  const normalized = stripLocaleFromPathname(pathname || '/');
+  return !AUTO_LOCALE_REDIRECT_EXCLUDED_PATHS.some((path) => (
+    normalized === path || normalized.startsWith(`${path}/`)
+  ));
 }
 
 export function isPublicLocale(value?: string | null): value is PublicLocale {

@@ -80,9 +80,11 @@ function ContactContent() {
   // Prefill email from query string (e.g., /contact?email=foo@bar.com)
   useEffect(() => {
     const email = searchParams?.get('email') || '';
-    if (email) {
-      setFormData((prev) => ({ ...prev, email }));
-    }
+    const inquiryType = searchParams?.get('inquiry_type');
+    const nextInquiryType = inquiryType === 'parts' || inquiryType === 'repair' || inquiryType === 'support' || inquiryType === 'quote'
+      ? inquiryType
+      : undefined;
+    if (email || nextInquiryType) setFormData((prev) => ({ ...prev, ...(email ? { email } : {}), ...(nextInquiryType ? { inquiry_type: nextInquiryType } : {}) }));
   }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
