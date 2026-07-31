@@ -104,6 +104,13 @@ func getArticlePublicPath(article models.Article) string {
 	return "/" + contentType + "/" + article.Slug
 }
 
+// defaultArticleCustomPath keeps the unique custom_path index usable for
+// articles that do not request a custom URL. The generated value is the same
+// canonical path that getArticlePublicPath would return for an empty field.
+func defaultArticleCustomPath(contentType, slug string) string {
+	return normalizeContentType(contentType) + "/" + strings.Trim(slug, "/")
+}
+
 func normalizeContentType(contentType string) string {
 	if strings.EqualFold(strings.TrimSpace(contentType), "blog") {
 		return "blog"
@@ -508,6 +515,8 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 	customPath := normalizeCustomPath(req.CustomPath)
 	if customPath != "" {
 		customPath = ensureUniqueCustomPath(db, customPath, 0)
+	} else {
+		customPath = ensureUniqueCustomPath(db, defaultArticleCustomPath(req.ContentType, slug), 0)
 	}
 
 	featuredImage := strings.TrimSpace(req.FeaturedImage)
@@ -646,6 +655,8 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 	customPath := normalizeCustomPath(req.CustomPath)
 	if customPath != "" {
 		customPath = ensureUniqueCustomPath(db, customPath, article.ID)
+	} else {
+		customPath = ensureUniqueCustomPath(db, defaultArticleCustomPath(req.ContentType, slug), article.ID)
 	}
 
 	featuredImage := strings.TrimSpace(req.FeaturedImage)

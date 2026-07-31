@@ -28,3 +28,20 @@ func TestGetArticlePublicPath(t *testing.T) {
 		}
 	}
 }
+
+func TestDefaultArticleCustomPath(t *testing.T) {
+	tests := []struct {
+		contentType string
+		slug        string
+		expected    string
+	}{
+		{"blog", "fanuc-cnc-parts-selection-guide", "blog/fanuc-cnc-parts-selection-guide"},
+		{"news", "release", "news/release"},
+		{"", "maintenance-note", "news/maintenance-note"},
+	}
+	for _, test := range tests {
+		if actual := defaultArticleCustomPath(test.contentType, test.slug); actual != test.expected {
+			t.Fatalf("defaultArticleCustomPath(%q, %q) = %q, want %q", test.contentType, test.slug, actual, test.expected)
+		}
+	}
+}
