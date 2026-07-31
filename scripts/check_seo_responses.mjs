@@ -203,6 +203,75 @@ for (const locale of ['zh', 'es', 'de', 'fr', 'it', 'pt', 'ja', 'ko', 'ru', 'ar'
   }
 }
 
+for (const locale of ['zh', 'es', 'de', 'fr', 'it', 'pt', 'ja', 'ko', 'ru', 'ar']) {
+  try {
+    const response = await fetch(`${targetOrigin}/${locale}/categories`, {
+      redirect: 'follow',
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+    });
+    const html = await response.text();
+    const expectedLang = locale === 'zh' ? 'zh-CN' : locale;
+    const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
+    const errors = [];
+    if (!response.ok) errors.push(`HTTP ${response.status}`);
+    if (new URL(response.url).pathname !== `/${locale}/categories`) errors.push(`unexpected final URL (${response.url})`);
+    if (actualLang !== expectedLang) errors.push(`expected html lang=${expectedLang}, got ${actualLang || 'none'}`);
+    if (!html.includes('categories') && !html.includes('分类') && !html.includes('Categor')) errors.push('category page content is missing');
+    console.log(`${errors.length ? 'FAIL' : 'PASS'} /${locale}/categories status=${response.status} lang=${actualLang || 'none'}`);
+    for (const error of errors) console.log(`  - ${error}`);
+    failed ||= errors.length > 0;
+  } catch (error) {
+    console.log(`FAIL /${locale}/categories: ${error instanceof Error ? error.message : String(error)}`);
+    failed = true;
+  }
+}
+
+for (const locale of ['zh', 'es', 'de', 'fr', 'it', 'pt', 'ja', 'ko', 'ru', 'ar']) {
+  try {
+    const response = await fetch(`${targetOrigin}/${locale}/products`, {
+      redirect: 'follow',
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+    });
+    const html = await response.text();
+    const expectedLang = locale === 'zh' ? 'zh-CN' : locale;
+    const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
+    const errors = [];
+    if (!response.ok) errors.push(`HTTP ${response.status}`);
+    if (new URL(response.url).pathname !== `/${locale}/products`) errors.push(`unexpected final URL (${response.url})`);
+    if (actualLang !== expectedLang) errors.push(`expected html lang=${expectedLang}, got ${actualLang || 'none'}`);
+    if (!html.includes('SKU:') && !html.includes('产品') && !html.includes('Productos')) errors.push('product catalogue content is missing');
+    console.log(`${errors.length ? 'FAIL' : 'PASS'} /${locale}/products status=${response.status} lang=${actualLang || 'none'}`);
+    for (const error of errors) console.log(`  - ${error}`);
+    failed ||= errors.length > 0;
+  } catch (error) {
+    console.log(`FAIL /${locale}/products: ${error instanceof Error ? error.message : String(error)}`);
+    failed = true;
+  }
+}
+
+try {
+  const response = await fetch(`${targetOrigin}/categories`, {
+    redirect: 'follow',
+    headers: {
+      cookie: 'vibocnc_locale=zh',
+      'accept-language': 'zh-CN,zh;q=0.9',
+      'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)',
+    },
+  });
+  const html = await response.text();
+  const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
+  const errors = [];
+  if (!response.ok) errors.push(`HTTP ${response.status}`);
+  if (new URL(response.url).pathname !== '/categories') errors.push(`unexpected final URL (${response.url})`);
+  if (actualLang !== 'en') errors.push(`expected default categories page lang=en, got ${actualLang || 'none'}`);
+  console.log(`${errors.length ? 'FAIL' : 'PASS'} categories default status=${response.status} lang=${actualLang || 'none'}`);
+  for (const error of errors) console.log(`  - ${error}`);
+  failed ||= errors.length > 0;
+} catch (error) {
+  console.log(`FAIL categories default: ${error instanceof Error ? error.message : String(error)}`);
+  failed = true;
+}
+
 try {
   const response = await fetch(`${targetOrigin}/repair-request`, {
     redirect: 'follow',

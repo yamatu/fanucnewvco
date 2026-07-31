@@ -21,7 +21,6 @@ export const PUBLIC_LOCALE_SELECTION_PARAM = 'site_locale';
 const localeCodes = new Set<string>(PUBLIC_LOCALES.map((locale) => locale.code));
 
 export const LIMITED_TRANSLATION_PUBLIC_PATHS = [
-  '/categories',
   '/faq',
   '/privacy',
   '/terms',
@@ -37,17 +36,13 @@ export const LIMITED_TRANSLATION_PUBLIC_PATHS = [
 // browser language or an old locale cookie must not silently move that entry
 // point to another URL; only an explicit locale URL or language selection may
 // choose a translated version.
-export const AUTO_LOCALE_REDIRECT_EXCLUDED_PATHS = ['/repair-request'] as const;
+export const AUTO_LOCALE_REDIRECT_EXCLUDED_PATHS = ['/categories', '/repair-request'] as const;
 
 export function isLimitedTranslationPublicPath(pathname: string): boolean {
   const normalized = stripLocaleFromPathname(pathname || '/');
-  return LIMITED_TRANSLATION_PUBLIC_PATHS.some((path) => {
-    // The category hub itself currently has English and Chinese editorial
-    // content, but category detail pages can have their own database-backed
-    // translations and must remain reachable at /es/categories/..., etc.
-    if (path === '/categories') return normalized === path;
-    return normalized === path || normalized.startsWith(`${path}/`);
-  });
+  return LIMITED_TRANSLATION_PUBLIC_PATHS.some((path) => (
+    normalized === path || normalized.startsWith(`${path}/`)
+  ));
 }
 
 export function isAutomaticLocaleRedirectAllowed(pathname: string): boolean {

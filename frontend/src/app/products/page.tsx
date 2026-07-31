@@ -10,7 +10,7 @@ import ProductsPageClient from './ProductsPageClient';
 import ScrollRestorer from '@/components/common/ScrollRestorer';
 import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
 import { translatePublicMessage } from '@/lib/i18n/messages';
-import { filterToIndexableProductLocales, localizeCategoryContent } from '@/lib/i18n/content';
+import { localizeCategoryContent, localizeProductContent } from '@/lib/i18n/content';
 import { localizePublicPath, type PublicLocale } from '@/lib/i18n/config';
 
 type SearchParamValue = string | string[] | undefined;
@@ -238,9 +238,10 @@ async function getServerSideData(searchParams: PageSearchParams, locale: PublicL
     ]);
 
     return {
-      products: (productsData.data || [])
-        .map((product) => filterToIndexableProductLocales(product, locale))
-        .filter((product): product is Product => product !== null),
+      // The catalogue must keep every active product visible in every
+      // language. Translated fields override the English record when they
+      // exist; missing translations fall back to the canonical product data.
+      products: (productsData.data || []).map((product) => localizeProductContent(product, locale)),
       totalPages: Math.ceil((productsData.total || 0) / 12),
       total: productsData.total || 0,
       categories: (categories || []).map((category) => localizeCategoryContent(category, locale)),
