@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Siemens automation parts selection guide</title>
+  <desc id="desc">A technical illustration of a SIMATIC PLC and SINAMICS drive selection workflow.</desc>
+  <rect width="1600" height="900" fill="#11212b"/>
+  <rect x="0" y="0" width="1600" height="18" fill="#19a9c4"/>
+  <path d="M0 670 L480 250 L900 510 L1240 210 L1600 480 V900 H0Z" fill="#153747"/>
+  <path d="M0 800 L430 510 L860 690 L1240 420 L1600 650 V900 H0Z" fill="#0b2c3a"/>
+  <g transform="translate(120 145)">
+    <rect width="590" height="470" rx="18" fill="#f7fafc"/>
+    <rect x="28" y="28" width="534" height="76" rx="10" fill="#19a9c4"/>
+    <text x="55" y="79" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#062c3a">SIEMENS</text>
+    <text x="56" y="160" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#173342">SIMATIC + SINAMICS</text>
+    <g fill="#176d88">
+      <rect x="56" y="196" width="38" height="38" rx="7"/>
+      <rect x="56" y="270" width="38" height="38" rx="7"/>
+      <rect x="56" y="344" width="38" height="38" rx="7"/>
+    </g>
+    <g fill="#536a72" font-family="Arial, sans-serif" font-size="23">
+      <text x="118" y="225">Controller generation and CPU</text>
+      <text x="118" y="299">I/O, protocol and engineering file</text>
+      <text x="118" y="373">Drive class, load and environment</text>
+    </g>
+    <path d="M66 214 l9 10 20-25" stroke="#fff" stroke-width="7" fill="none"/>
+    <path d="M66 288 l9 10 20-25" stroke="#fff" stroke-width="7" fill="none"/>
+    <path d="M66 362 l9 10 20-25" stroke="#fff" stroke-width="7" fill="none"/>
+  </g>
+  <g transform="translate(930 140)" stroke="#19a9c4" fill="none" stroke-width="8">
+    <rect x="0" y="0" width="450" height="510" rx="18"/>
+    <rect x="48" y="50" width="354" height="120" rx="12"/>
+    <rect x="48" y="210" width="354" height="120" rx="12"/>
+    <rect x="48" y="370" width="354" height="90" rx="12"/>
+    <path d="M-110 110 H0 M450 110 H560 M-110 270 H0 M450 270 H560 M-110 415 H0 M450 415 H560"/>
+    <path d="M-110 110 V415 M560 110 V415"/>
+    <circle cx="104" cy="110" r="18" fill="#19a9c4"/>
+    <circle cx="104" cy="270" r="18" fill="#19a9c4"/>
+    <circle cx="104" cy="415" r="18" fill="#19a9c4"/>
+  </g>
+  <text x="116" y="760" font-family="Arial, sans-serif" font-size="54" font-weight="700" fill="#fff">SIMATIC &amp; SINAMICS GUIDE</text>
+  <text x="120" y="820" font-family="Arial, sans-serif" font-size="28" fill="#b7c9ca">Verify the generation, engineering data and electrical envelope.</text>
+</svg>
