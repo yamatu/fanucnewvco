@@ -371,14 +371,15 @@ For the controller side, read [How to choose Siemens SIMATIC PLC parts](/blog/si
 ];
 
 function parseArgs(argv) {
-  const args = { baseUrl: 'http://127.0.0.1:8080/api/v1', envFile: '', dryRun: false };
+  const args = { baseUrl: 'http://127.0.0.1:8080/api/v1', envFile: '', token: '', dryRun: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--base-url') args.baseUrl = argv[++index] || args.baseUrl;
     else if (arg === '--env-file') args.envFile = argv[++index] || '';
+    else if (arg === '--token') args.token = argv[++index] || '';
     else if (arg === '--dry-run') args.dryRun = true;
     else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node scripts/seed_blog_articles.mjs [--base-url URL] [--env-file PATH] [--dry-run]');
+      console.log('Usage: node scripts/seed_blog_articles.mjs [--base-url URL] [--env-file PATH] [--token TOKEN] [--dry-run]');
       process.exit(0);
     }
   }
@@ -482,8 +483,9 @@ async function main() {
   const baseUrl = normalizeBaseUrl(args.baseUrl);
   const username = env.DEFAULT_ADMIN_USERNAME || env.ADMIN_USERNAME || 'admin';
   const password = env.DEFAULT_ADMIN_PASSWORD || env.ADMIN_PASSWORD || (args.dryRun ? 'dry-run' : '');
+  const providedToken = args.token || env.BLOG_SEED_TOKEN || '';
 
-  if (!args.dryRun && !password) {
+  if (!args.dryRun && !providedToken && !password) {
     throw new Error('Admin password is missing. Pass --env-file or set DEFAULT_ADMIN_PASSWORD.');
   }
 
@@ -492,7 +494,7 @@ async function main() {
     return;
   }
 
-  const token = await login(baseUrl, username, password);
+  const token = providedToken || await login(baseUrl, username, password);
   const headers = { Authorization: `Bearer ${token}` };
   const response = await requestJson(`${baseUrl}/admin/news?page=1&page_size=100&content_type=blog`, { headers });
   const existing = new Map(listOf(response).map((article) => [article.slug, article]));
