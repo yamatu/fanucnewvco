@@ -71,6 +71,9 @@ type Product struct {
 	PopularityScore         float64    `json:"popularity_score" gorm:"type:decimal(3,2);default:0.00"`
 	SEOScore                float64    `json:"seo_score" gorm:"type:decimal(3,2);default:0.00"`
 	LastOptimizedAt         *time.Time `json:"last_optimized_at"`
+	AISEOStatus             string     `json:"ai_seo_status" gorm:"column:ai_seo_status;size:20;default:'';index"`
+	AISEOOptimizedAt        *time.Time `json:"ai_seo_optimized_at" gorm:"column:ai_seo_optimized_at"`
+	AISEOOptimizationJobID  string     `json:"ai_seo_optimization_job_id" gorm:"column:ai_seo_optimization_job_id;size:36;index"`
 	IndexNowLastSubmittedAt *time.Time `json:"indexnow_last_submitted_at"`
 	IndexNowSubmitCount     int        `json:"indexnow_submit_count" gorm:"default:0"`
 	IndexNowLastSubmitCode  int        `json:"indexnow_last_submit_code" gorm:"default:0"`

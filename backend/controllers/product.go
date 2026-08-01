@@ -205,6 +205,7 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 	search := c.Query("search")
 	isActive := c.Query("is_active")
 	isFeatured := c.Query("is_featured")
+	aiSEOStatus := strings.TrimSpace(c.Query("ai_seo_status"))
 	sortBy := strings.TrimSpace(strings.ToLower(c.Query("sort_by")))
 	sortDir := strings.TrimSpace(strings.ToLower(c.Query("sort_dir")))
 	if sortDir != "asc" {
@@ -261,6 +262,13 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 
 	if isFeatured != "" {
 		query = query.Where("is_featured = ?", isFeatured == "true")
+	}
+
+	switch aiSEOStatus {
+	case "optimized", "failed", "running":
+		query = query.Where("ai_seo_status = ?", aiSEOStatus)
+	case "not_optimized":
+		query = query.Where("ai_seo_status IS NULL OR ai_seo_status = ''")
 	}
 
 	orderColumn := "id"

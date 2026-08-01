@@ -444,6 +444,66 @@ func SubmitProductURLBestEffort(ctx context.Context, db *gorm.DB, sku string) {
 		}).Error
 }
 
+const maxIndexNowURLsPerRequest = 10000
+
+// SubmitProductBatchURLsBestEffort sends changed product URLs to IndexNow in
+// protocol-sized batches. A large AI SEO job can update 30,000 products, and
+// translated product URLs can exceed IndexNow's 10,000-URL list limit.
+func SubmitProductBatchURLsBestEffort(ctx context.Context, db *gorm.DB, productIDs []uint) {
+	if db == nil || len(productIDs) == 0 {
+		return
+	}
+	service := NewIndexNowService(db)
+	setting, err := service.GetOrCreateSetting()
+	if err != nil || !setting.Enabled || !setting.AutoSubmitProductUpdates || strings.TrimSpace(setting.Key) == "" {
+		return
+	}
+	var products []models.Product
+	if err := db.Preload("Translations").Where("id IN ? AND is_active = ?", productIDs, true).Find(&products).Error; err != nil || len(products) == 0 {
+		return
+	}
+	urls := make([]string, 0, minInt(len(products)*2+2, maxIndexNowURLsPerRequest))
+	seen := make(map[string]bool)
+	submittedIDs := make([]uint, 0, len(products))
+	submitBatch := func() bool {
+		if len(urls) == 0 || len(submittedIDs) == 0 {
+			return true
+		}
+		result, submitErr := service.SubmitURLs(ctx, urls)
+		if submitErr == nil && result != nil {
+			_ = MarkProductsIndexNowSubmitted(db, submittedIDs, result.SubmittedAt, result.StatusCode)
+		}
+		// Best effort means a failed batch must not prevent later product URLs
+		// from being attempted (unless the caller deadline has elapsed).
+		urls = make([]string, 0, maxIndexNowURLsPerRequest)
+		seen = make(map[string]bool)
+		submittedIDs = make([]uint, 0)
+		return ctx.Err() == nil
+	}
+	for _, product := range products {
+		productURLs := BuildProductIndexNowURLs(setting.SiteURL, product)
+		newURLs := 0
+		for _, item := range productURLs {
+			if !seen[item] {
+				newURLs++
+			}
+		}
+		if len(urls) > 0 && len(urls)+newURLs > maxIndexNowURLsPerRequest {
+			if !submitBatch() {
+				return
+			}
+		}
+		submittedIDs = append(submittedIDs, product.ID)
+		for _, item := range productURLs {
+			if !seen[item] {
+				seen[item] = true
+				urls = append(urls, item)
+			}
+		}
+	}
+	_ = submitBatch()
+}
+
 func SubmitArticleURLsBestEffort(ctx context.Context, db *gorm.DB, articleID uint, publicPath string) {
 	if db == nil || articleID == 0 {
 		return

@@ -84,6 +84,9 @@ export interface Product {
   meta_description: string;
   meta_keywords: string;
   disable_auto_seo?: boolean;
+  ai_seo_status?: '' | 'optimized' | 'running' | 'failed';
+  ai_seo_optimized_at?: string;
+  ai_seo_optimization_job_id?: string;
   image_urls: string[];
   // Enhanced fields
   warranty_period?: string;

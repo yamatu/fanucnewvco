@@ -22,6 +22,7 @@ import { SitePageService as SitePageServiceDefault } from './site-page.service';
 import { IndexNowService as IndexNowServiceDefault } from './indexnow.service';
 import SocialMediaServiceDefault from './social-media.service';
 import EbayImportDraftServiceDefault from './ebay-import-draft.service';
+import AIAgentServiceDefault from './ai-agent.service';
 
 // Export all services
 export const AuthService = AuthServiceDefault;
@@ -47,6 +48,7 @@ export const SitePageService = SitePageServiceDefault;
 export const IndexNowService = IndexNowServiceDefault;
 export const SocialMediaService = SocialMediaServiceDefault;
 export const EbayImportDraftService = EbayImportDraftServiceDefault;
+export const AIAgentService = AIAgentServiceDefault;
 
 // Export types
 export type { ProductFilters } from './product.service';
@@ -111,6 +113,7 @@ export class ApiService {
   static indexnow = IndexNowService;
   static socialMedia = SocialMediaService;
   static ebayImportDrafts = EbayImportDraftService;
+  static aiAgent = AIAgentService;
 }
 
 export default ApiService;

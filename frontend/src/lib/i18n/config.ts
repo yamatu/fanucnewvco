@@ -35,8 +35,20 @@ export const LIMITED_TRANSLATION_PUBLIC_PATHS = [
 // These pages have an explicit English canonical entry point. A visitor's
 // browser language or an old locale cookie must not silently move that entry
 // point to another URL; only an explicit locale URL or language selection may
-// choose a translated version.
-export const AUTO_LOCALE_REDIRECT_EXCLUDED_PATHS = ['/categories', '/repair-request'] as const;
+// choose a translated version. This keeps support and policy links reliably
+// English by default while still allowing the language selector to opt in.
+export const AUTO_LOCALE_REDIRECT_EXCLUDED_PATHS = [
+  '/categories',
+  '/repair-request',
+  '/contact',
+  '/faq',
+  '/docs',
+  '/warranty',
+  '/warranty-policy',
+  '/shipping-policy',
+  '/technical-support',
+  '/returns',
+] as const;
 
 export function isLimitedTranslationPublicPath(pathname: string): boolean {
   const normalized = stripLocaleFromPathname(pathname || '/');

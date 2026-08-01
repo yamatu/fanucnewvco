@@ -7,7 +7,6 @@ import {
   detectPublicLocale,
   getLocaleFromPathname,
   isPublicLocale,
-  isLimitedTranslationPublicPath,
   isAutomaticLocaleRedirectAllowed,
   isLocalizablePublicPath,
   localizePublicPath,
@@ -115,13 +114,10 @@ export async function middleware(request: NextRequest) {
   const requestedLocale = request.nextUrl.searchParams.get(PUBLIC_LOCALE_SELECTION_PARAM);
   if (isPublicLocale(requestedLocale) && isLocalizablePublicPath(pathname)) {
     const url = request.nextUrl.clone();
-    const effectiveRequestedLocale = isLimitedTranslationPublicPath(pathname) && requestedLocale !== 'zh'
-      ? DEFAULT_PUBLIC_LOCALE
-      : requestedLocale;
-    url.pathname = localizePublicPath(pathname, effectiveRequestedLocale);
+    url.pathname = localizePublicPath(pathname, requestedLocale);
     url.searchParams.delete(PUBLIC_LOCALE_SELECTION_PARAM);
     const response = NextResponse.redirect(url, 307);
-    saveLocalePreference(response, request, effectiveRequestedLocale);
+    saveLocalePreference(response, request, requestedLocale);
     preventLocaleRedirectCaching(response);
     return response;
   }
@@ -133,30 +129,6 @@ export async function middleware(request: NextRequest) {
   }
 
 
-  if (pathLocale && isLimitedTranslationPublicPath(pathname) && pathLocale !== 'zh') {
-    const url = request.nextUrl.clone();
-    url.pathname = localizePublicPath(pathname, DEFAULT_PUBLIC_LOCALE);
-    return NextResponse.redirect(url, 308);
-  }
-
-  if (!pathLocale && isLimitedTranslationPublicPath(pathname)) {
-    const preferredLimitedLocale = request.cookies.get(PUBLIC_LOCALE_COOKIE)?.value === 'zh'
-      || detectPublicLocale(request.headers.get('accept-language'), getRequestCountry(request)) === 'zh'
-      ? 'zh'
-      : DEFAULT_PUBLIC_LOCALE;
-    if (
-      preferredLimitedLocale === 'zh'
-      && isAutomaticLocaleRedirectAllowed(pathname)
-      && !isSearchEngineCrawler(userAgent)
-    ) {
-      const url = request.nextUrl.clone();
-      url.pathname = localizePublicPath(pathname, 'zh');
-      const response = NextResponse.redirect(url, 307);
-      preventLocaleRedirectCaching(response);
-      return response;
-    }
-  }
-
   const rawSavedLocale = request.cookies.get(PUBLIC_LOCALE_COOKIE)?.value;
   const savedLocale = isPublicLocale(rawSavedLocale) ? normalizePublicLocale(rawSavedLocale) : null;
   const isCrawler = isSearchEngineCrawler(userAgent);
@@ -165,9 +137,7 @@ export async function middleware(request: NextRequest) {
     getRequestCountry(request),
   );
   const preferredLocale = savedLocale || detectedLocale;
-  const automaticLocale = isLimitedTranslationPublicPath(pathname) && preferredLocale !== 'zh'
-    ? DEFAULT_PUBLIC_LOCALE
-    : preferredLocale;
+  const automaticLocale = preferredLocale;
   // A localized URL is internally rewritten to its unprefixed route. Next may
   // run middleware again for that rewritten request, so only auto-detect on an
   // actual unprefixed browser URL. Otherwise /zh -> rewrite / -> redirect /zh

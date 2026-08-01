@@ -2,6 +2,7 @@ package main
 
 import (
 	"fanuc-backend/config"
+	"fanuc-backend/controllers"
 	"fanuc-backend/middleware"
 	"fanuc-backend/routes"
 	"fanuc-backend/services"
@@ -46,6 +47,9 @@ func main() {
 	config.ConnectDatabase()
 	// Connect to Redis (optional: rate limit + cache)
 	config.ConnectRedis()
+	// Resume bounded AI SEO jobs that were queued or interrupted by a container
+	// restart. This is especially important for the automatic 30,000-product queue.
+	controllers.ResumeAIAgentSEOJobs()
 
 	// Set Gin mode
 	ginMode := strings.TrimSpace(os.Getenv("GIN_MODE"))

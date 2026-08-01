@@ -28,7 +28,8 @@ import {
   ChartBarIcon,
   NewspaperIcon,
   ClipboardDocumentListIcon,
-  ShareIcon
+  ShareIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth, useLogout } from '@/hooks/useAuth';
@@ -38,6 +39,7 @@ import { queryKeys } from '@/lib/react-query';
 import { Order } from '@/types';
 import { OrderService } from '@/services';
 import { formatCurrency } from '@/lib/utils';
+import AIAgentAssistant from '@/components/admin/AIAgentAssistant';
 
 const navigation = [
   { key: 'nav.dashboard', name: 'Dashboard', href: '/admin', icon: HomeIcon },
@@ -62,6 +64,8 @@ const navigation = [
   { key: 'nav.socialMedia', name: 'Social Media', href: '/admin/social-media', icon: ShareIcon },
   { key: 'nav.news', name: 'News & Articles', href: '/admin/news', icon: NewspaperIcon },
   { key: 'nav.sitePages', name: 'Site Pages', href: '/admin/site-pages', icon: DocumentTextIcon },
+  { key: 'nav.aiAssistant', name: 'AI Assistant', href: '/admin/ai-assistant', icon: SparklesIcon },
+  { key: 'nav.aiSeo', name: 'AI SEO Records', href: '/admin/ai-seo', icon: SparklesIcon },
 ];
 
 interface AdminLayoutProps {
@@ -501,6 +505,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
 	              {children}
 	            </div>
 	        </main>
+	        <AIAgentAssistant />
 	        </div>
 	      </div>
 	  );

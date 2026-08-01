@@ -118,3 +118,9 @@ func newPublicHTTPClient(timeout time.Duration) *http.Client {
 		},
 	}
 }
+
+// NewPublicHTTPClient is the safe outbound client for configured third-party
+// providers. It prevents provider URLs from becoming an SSRF primitive.
+func NewPublicHTTPClient(timeout time.Duration) *http.Client {
+	return newPublicHTTPClient(timeout)
+}

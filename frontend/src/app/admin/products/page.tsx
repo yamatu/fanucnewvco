@@ -24,6 +24,7 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import Pagination from '@/components/common/Pagination';
 import MediaPickerModal from '@/components/admin/MediaPickerModal';
 import { ProductService, CategoryService } from '@/services';
+import { AIAgentService, type AIAgentSEOJob } from '@/services/ai-agent.service';
 import type {
   BulkAutoCategorizeResult,
   BulkCategorizeOptimizeResult,
@@ -62,6 +63,8 @@ type AutoCategorizeProgress = {
   message: string;
 };
 
+type AISEOFilter = 'all' | 'optimized' | 'not_optimized' | 'running' | 'failed';
+
 const AUTO_CATEGORIZE_BATCH_SIZE = 100;
 const BULK_UPDATE_BATCH_SIZE = 100;
 
@@ -77,12 +80,20 @@ function AdminProductsContent() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [aiSEOFilter, setAISEOFilter] = useState<AISEOFilter>('all');
   const [sortBy, setSortBy] = useState<'created_at' | 'updated_at' | 'price' | 'name'>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20); // Dynamic page size
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectAllResults, setSelectAllResults] = useState<boolean>(false);
+  const [showAISEOModal, setShowAISEOModal] = useState(false);
+  const [aiSEOJobMode, setAISEOJobMode] = useState<'selected' | 'auto_candidates'>('selected');
+  const [aiSEOIncludeFailed, setAISEOIncludeFailed] = useState(false);
+  const [aiSEOPrompt, setAISEOPrompt] = useState('');
+  const [activeAISEOJob, setActiveAISEOJob] = useState<AIAgentSEOJob | null>(null);
+  const [isPausingAISEOJob, setIsPausingAISEOJob] = useState(false);
+  const [isStartingAISEOJob, setIsStartingAISEOJob] = useState(false);
 
   // XLSX import modal
   const [showImportModal, setShowImportModal] = useState(false);
@@ -94,6 +105,7 @@ function AdminProductsContent() {
   const [importTask, setImportTask] = useState<ProductImportTaskSnapshot | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const importPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const aiSEOPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showCategoryImagePicker, setShowCategoryImagePicker] = useState(false);
   const [categoryImageBrand, setCategoryImageBrand] = useState('');
   const [categoryImageMode, setCategoryImageMode] = useState<'fill_empty' | 'replace_all'>('fill_empty');
@@ -153,6 +165,10 @@ function AdminProductsContent() {
         clearInterval(importPollRef.current);
         importPollRef.current = null;
       }
+      if (aiSEOPollRef.current) {
+        clearInterval(aiSEOPollRef.current);
+        aiSEOPollRef.current = null;
+      }
     };
   }, []);
 
@@ -189,6 +205,7 @@ function AdminProductsContent() {
     category: string;
     brand: string;
     status: string;
+    aiSeoStatus: AISEOFilter;
     sortBy: 'created_at' | 'updated_at' | 'price' | 'name';
     sortDir: 'asc' | 'desc';
     page: number;
@@ -200,6 +217,7 @@ function AdminProductsContent() {
     const finalCategory = updates.category !== undefined ? updates.category : selectedCategory;
     const finalBrand = updates.brand !== undefined ? updates.brand : selectedBrand;
     const finalStatus = updates.status !== undefined ? updates.status : statusFilter;
+    const finalAISEOStatus = updates.aiSeoStatus !== undefined ? updates.aiSeoStatus : aiSEOFilter;
     const finalSortBy = updates.sortBy !== undefined ? updates.sortBy : sortBy;
     const finalSortDir = updates.sortDir !== undefined ? updates.sortDir : sortDir;
     const finalPage = updates.page !== undefined ? updates.page : currentPage;
@@ -209,6 +227,7 @@ function AdminProductsContent() {
     if (finalCategory) params.set('category', finalCategory);
     if (finalBrand) params.set('brand', finalBrand);
     if (finalStatus && finalStatus !== 'all') params.set('status', finalStatus);
+    if (finalAISEOStatus !== 'all') params.set('aiSeoStatus', finalAISEOStatus);
     if (finalSortBy !== 'created_at') params.set('sortBy', finalSortBy);
     if (finalSortDir !== 'desc') params.set('sortDir', finalSortDir);
     if (finalPage && finalPage > 1) params.set('page', String(finalPage));
@@ -228,6 +247,7 @@ function AdminProductsContent() {
     if (selectedCategory) params.set('category', selectedCategory);
     if (selectedBrand) params.set('brand', selectedBrand);
     if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
+    if (aiSEOFilter !== 'all') params.set('aiSeoStatus', aiSEOFilter);
     if (sortBy !== 'created_at') params.set('sortBy', sortBy);
     if (sortDir !== 'desc') params.set('sortDir', sortDir);
     if (currentPage && currentPage > 1) params.set('page', String(currentPage));
@@ -243,6 +263,7 @@ function AdminProductsContent() {
     const c = searchParams.get('category') || '';
     const b = searchParams.get('brand') || '';
     const st = (searchParams.get('status') as 'all' | 'active' | 'inactive' | 'featured') || 'all';
+    const seo = (searchParams.get('aiSeoStatus') as AISEOFilter) || 'all';
     const sb = (searchParams.get('sortBy') as 'created_at' | 'updated_at' | 'price' | 'name') || 'created_at';
     const sd = (searchParams.get('sortDir') as 'asc' | 'desc') || 'desc';
     const p = parseInt(searchParams.get('page') || '1', 10);
@@ -252,6 +273,7 @@ function AdminProductsContent() {
     setSelectedCategory(c);
     setSelectedBrand(b);
     setStatusFilter(st);
+    setAISEOFilter(['all', 'optimized', 'not_optimized', 'running', 'failed'].includes(seo) ? seo : 'all');
     setSortBy(['created_at', 'updated_at', 'price', 'name'].includes(sb) ? sb : 'created_at');
     setSortDir(sd === 'asc' ? 'asc' : 'desc');
     setCurrentPage(Number.isFinite(p) && p > 0 ? p : 1);
@@ -265,6 +287,7 @@ function AdminProductsContent() {
       category: selectedCategory,
       brand: selectedBrand,
       status: statusFilter,
+      aiSEOStatus: aiSEOFilter,
       sortBy,
       sortDir,
       page: currentPage,
@@ -277,6 +300,7 @@ function AdminProductsContent() {
       brand: selectedBrand || undefined,
       is_active: statusFilter === 'active' ? 'true' : statusFilter === 'inactive' ? 'false' : undefined,
       is_featured: statusFilter === 'featured' ? 'true' : undefined,
+      ai_seo_status: aiSEOFilter === 'all' ? undefined : aiSEOFilter,
       sort_by: sortBy,
       sort_dir: sortDir,
       page: currentPage,
@@ -1022,6 +1046,14 @@ function AdminProductsContent() {
     updateURL({ status: value, page: 1 });
   };
 
+  const handleAISEOFilterChange = (value: AISEOFilter) => {
+    setAISEOFilter(value);
+    setCurrentPage(1);
+    setSelectedIds([]);
+    setSelectAllResults(false);
+    updateURL({ aiSeoStatus: value, page: 1 });
+  };
+
   const handleSortChange = (value: string) => {
     const [nextSortByRaw, nextSortDirRaw] = value.split(':');
     const nextSortBy = (['created_at', 'updated_at', 'price', 'name'].includes(nextSortByRaw)
@@ -1053,10 +1085,11 @@ function AdminProductsContent() {
     setSelectedCategory('');
     setSelectedBrand('');
     setStatusFilter('all');
+    setAISEOFilter('all');
     setSortBy('created_at');
     setSortDir('desc');
     setCurrentPage(1);
-    updateURL({ search: '', category: '', brand: '', status: 'all', sortBy: 'created_at', sortDir: 'desc', page: 1 });
+    updateURL({ search: '', category: '', brand: '', status: 'all', aiSeoStatus: 'all', sortBy: 'created_at', sortDir: 'desc', page: 1 });
   };
 
   const toggleSelectAllOnPage = (checked: boolean, current: Product[]) => {
@@ -1204,6 +1237,117 @@ function AdminProductsContent() {
 
   // Use products directly from API (already filtered and paginated)
   const filteredProducts = products;
+  const selectedCurrentPageIds = selectedIds.filter((id) => filteredProducts.some((product) => product.id === id));
+
+  const stopAISEOPolling = () => {
+    if (aiSEOPollRef.current) {
+      clearInterval(aiSEOPollRef.current);
+      aiSEOPollRef.current = null;
+    }
+  };
+
+  const isAISEOJobFinished = (status: AIAgentSEOJob['status']) => (
+    status === 'completed' || status === 'completed_with_errors' || status === 'failed' || status === 'paused' || status === 'cancelled'
+  );
+
+  const refreshAISEOJob = async (jobID: string) => {
+    try {
+      const job = await AIAgentService.getSEOJob(jobID);
+      setActiveAISEOJob(job);
+      if (isAISEOJobFinished(job.status)) {
+        stopAISEOPolling();
+        queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
+        if (job.status === 'completed') {
+          toast.success(locale === 'zh' ? `AI SEO 优化完成：成功 ${job.succeeded} 个商品` : `AI SEO job completed: ${job.succeeded} products optimized`);
+        } else if (job.status === 'completed_with_errors') {
+          toast.error(locale === 'zh' ? `AI SEO 已完成，但有 ${job.failed} 个商品失败` : `AI SEO job completed with ${job.failed} failed products`);
+        } else if (job.status === 'paused') {
+          toast.success(locale === 'zh' ? 'AI SEO 任务已暂停；未处理商品会保留在队列中，可在 AI SEO 优化记录继续。' : 'AI SEO job paused. Unprocessed products remain queued and can be resumed in AI SEO Records.');
+        } else if (job.status === 'cancelled') {
+          toast.success(locale === 'zh' ? 'AI SEO 任务已结束；未处理商品已释放，可在以后重新优化。' : 'AI SEO job ended. Unprocessed products were released for future optimization.');
+        } else {
+          toast.error(job.error || (locale === 'zh' ? 'AI SEO 任务失败' : 'AI SEO job failed'));
+        }
+        return true;
+      }
+    } catch (error: unknown) {
+      stopAISEOPolling();
+      toast.error(getErrorMessage(error, locale === 'zh' ? '无法读取 AI SEO 任务进度' : 'Unable to read AI SEO job progress'));
+      return true;
+    }
+    return false;
+  };
+
+  const startAISEOPolling = async (jobID: string) => {
+    stopAISEOPolling();
+    const isFinished = await refreshAISEOJob(jobID);
+    if (isFinished) return;
+    aiSEOPollRef.current = setInterval(() => {
+      void refreshAISEOJob(jobID);
+    }, 2500);
+  };
+
+  const pauseActiveAISEOJob = async () => {
+    if (!activeAISEOJob || !['queued', 'running'].includes(activeAISEOJob.status)) return;
+    setIsPausingAISEOJob(true);
+    try {
+      const job = await AIAgentService.pauseSEOJob(activeAISEOJob.id);
+      setActiveAISEOJob(job);
+      stopAISEOPolling();
+      toast.success(locale === 'zh' ? 'AI SEO 任务已暂停。已发出的请求可能会完成当前商品。' : 'AI SEO job paused. Requests already sent may finish their current product.');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, locale === 'zh' ? '暂停 AI SEO 任务失败' : 'Unable to pause AI SEO job'));
+    } finally {
+      setIsPausingAISEOJob(false);
+    }
+  };
+
+  const startAISEO = async () => {
+    if (aiSEOJobMode === 'selected' && selectAllResults) {
+      toast.error(locale === 'zh' ? '为避免误操作，AI SEO 仅支持勾选当前页的明确产品，不支持“选择全部结果”。' : 'AI SEO only supports explicit selections on the current page, not “select all results”.');
+      return;
+    }
+    if (aiSEOJobMode === 'selected' && selectedCurrentPageIds.length === 0) {
+      toast.error(locale === 'zh' ? '请先勾选当前页需要 AI SEO 优化的商品' : 'Select products on this page for AI SEO first');
+      return;
+    }
+    if (aiSEOJobMode === 'selected' && selectedCurrentPageIds.length > 30000) {
+      toast.error(locale === 'zh' ? '每次 AI SEO 任务最多选择 30000 个商品' : 'An AI SEO job can include up to 30000 products');
+      return;
+    }
+    const prompt = aiSEOPrompt.trim();
+    if (prompt.length < 2) {
+      toast.error(locale === 'zh' ? '请输入至少 2 个字符的 SEO 优化提示词' : 'Enter an SEO instruction with at least 2 characters');
+      return;
+    }
+    setIsStartingAISEOJob(true);
+    try {
+      const categoryID = Number(selectedCategory);
+      const job = aiSEOJobMode === 'auto_candidates'
+        ? await AIAgentService.startSEOCandidateJob({
+            prompt,
+            limit: 30000,
+            category_id: Number.isSafeInteger(categoryID) && categoryID > 0 ? categoryID : undefined,
+            include_descendants: Boolean(selectedCategory),
+            brand: selectedBrand || undefined,
+            search: searchQuery || undefined,
+            include_failed: aiSEOIncludeFailed,
+          })
+        : await AIAgentService.startSEOJob(selectedCurrentPageIds, prompt);
+      setActiveAISEOJob(job);
+      setShowAISEOModal(false);
+      if (aiSEOJobMode === 'selected') setSelectedIds([]);
+      setAISEOPrompt('');
+      toast.success(locale === 'zh'
+        ? `${aiSEOJobMode === 'auto_candidates' ? 'AI SEO 自动候选任务' : 'AI SEO 任务'}已启动：${job.total} 个商品`
+        : `${aiSEOJobMode === 'auto_candidates' ? 'AI SEO candidate job' : 'AI SEO job'} started for ${job.total} products`);
+      void startAISEOPolling(job.id);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, locale === 'zh' ? '创建 AI SEO 任务失败' : 'Unable to start AI SEO job'));
+    } finally {
+      setIsStartingAISEOJob(false);
+    }
+  };
 
   return (
     <AdminLayout>
@@ -1217,6 +1361,13 @@ function AdminProductsContent() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin/ai-seo"
+              className="inline-flex items-center px-4 py-2 border border-violet-200 rounded-md shadow-sm text-sm font-medium text-violet-700 bg-violet-50 hover:bg-violet-100"
+            >
+              <SparklesIcon className="h-4 w-4 mr-2" />
+              {locale === 'zh' ? 'AI SEO 优化记录' : 'AI SEO Records'}
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -1613,6 +1764,41 @@ function AdminProductsContent() {
               </button>
 
               <button
+                onClick={() => {
+                  if (selectAllResults) {
+                    toast.error(locale === 'zh' ? 'AI SEO 仅支持当前页手动勾选的商品，不支持“选择全部结果”。' : 'AI SEO supports explicit product selections on this page only.');
+                    return;
+                  }
+                  if (selectedCurrentPageIds.length === 0) {
+                    toast.error(locale === 'zh' ? '请先勾选当前页需要优化的商品' : 'Select products on the current page first');
+                    return;
+                  }
+                  if (selectedCurrentPageIds.length > 30000) {
+                    toast.error(locale === 'zh' ? '每次最多可选 30000 个商品进行 AI SEO 优化' : 'Choose no more than 30000 products for each AI SEO job');
+                    return;
+                  }
+                  setAISEOJobMode('selected');
+                  setShowAISEOModal(true);
+                }}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isStartingAISEOJob || selectAllResults || selectedCurrentPageIds.length === 0 || selectedCurrentPageIds.length > 30000}
+                title={locale === 'zh' ? '仅优化当前页明确勾选的商品，每次最多 30000 个' : 'Optimize explicitly checked products on this page only, up to 30000 per job'}
+              >
+                <SparklesIcon className="h-4 w-4 mr-2" />
+                {locale === 'zh' ? `AI SEO 优化（当前页已选 ${selectedCurrentPageIds.length}）` : `AI SEO (${selectedCurrentPageIds.length} selected)`}
+              </button>
+
+              <button
+                onClick={() => { setAISEOJobMode('auto_candidates'); setShowAISEOModal(true); }}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-fuchsia-700 hover:bg-fuchsia-800 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isStartingAISEOJob}
+                title={locale === 'zh' ? '自动选择最多 30000 个启用、未 AI 优化且内容较薄弱的产品；可按当前分类、品牌和搜索范围限定。' : 'Automatically select up to 30000 active, not-yet-AI-optimized products with thinner content, optionally scoped by the current category, brand, and search.'}
+              >
+                <SparklesIcon className="h-4 w-4 mr-2" />
+                {locale === 'zh' ? 'AI 自动候选优化（最多 30000）' : 'AI Auto Candidates (up to 30000)'}
+              </button>
+
+              <button
                 onClick={bulkDisableAutoSEO}
                 className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={disableAutoSEOProgress.status === 'preparing' || disableAutoSEOProgress.status === 'running' || (!selectAllResults && selectedIds.length === 0)}
@@ -1668,6 +1854,42 @@ function AdminProductsContent() {
                 </div>
               )}
             </div>
+            {selectAllResults && (
+              <p className="mt-3 text-sm text-amber-700">
+                {locale === 'zh' ? 'AI SEO 为防止大批量误操作，不能使用“选择全部结果”；请取消全选后，在当前页逐项勾选。' : 'To prevent accidental large jobs, AI SEO cannot use “select all results”. Clear it, then check products explicitly on this page.'}
+              </p>
+            )}
+            {activeAISEOJob && (
+              <div className={`mt-4 rounded-lg border p-4 ${
+                activeAISEOJob.status === 'failed' || activeAISEOJob.status === 'cancelled'
+                  ? 'border-rose-200 bg-rose-50'
+                  : activeAISEOJob.status === 'completed' || activeAISEOJob.status === 'completed_with_errors'
+                    ? 'border-emerald-200 bg-emerald-50'
+                    : activeAISEOJob.status === 'paused'
+                      ? 'border-orange-200 bg-orange-50'
+                    : 'border-violet-200 bg-violet-50'
+              }`}>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">{locale === 'zh' ? 'AI SEO 任务进度' : 'AI SEO job progress'}</div>
+                    <div className="mt-1 text-xs text-gray-600">{locale === 'zh' ? `任务 ${activeAISEOJob.id.slice(0, 8)}…` : `Job ${activeAISEOJob.id.slice(0, 8)}…`} · {activeAISEOJob.status}</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {(activeAISEOJob.status === 'queued' || activeAISEOJob.status === 'running') && <button type="button" onClick={() => void pauseActiveAISEOJob()} disabled={isPausingAISEOJob} className="rounded-lg border border-orange-300 bg-orange-50 px-3 py-1.5 text-sm font-semibold text-orange-800 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50">{isPausingAISEOJob ? (locale === 'zh' ? '暂停中…' : 'Pausing…') : (locale === 'zh' ? '暂停任务' : 'Pause job')}</button>}
+                    <Link href="/admin/ai-seo" className="text-sm font-medium text-violet-700 hover:text-violet-900">{activeAISEOJob.status === 'paused' ? (locale === 'zh' ? '前往继续任务' : 'Resume in records') : (locale === 'zh' ? '查看全部记录' : 'View all records')}</Link>
+                  </div>
+                </div>
+                <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/80">
+                  <div className="h-full rounded-full bg-violet-600 transition-all" style={{ width: `${activeAISEOJob.total > 0 ? Math.min(100, Math.round((activeAISEOJob.processed / activeAISEOJob.total) * 100)) : 0}%` }} />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-3 text-sm text-gray-700">
+                  <span>{locale === 'zh' ? '已处理' : 'Processed'}: {activeAISEOJob.processed}/{activeAISEOJob.total}</span>
+                  <span>{locale === 'zh' ? '成功' : 'Succeeded'}: {activeAISEOJob.succeeded}</span>
+                  <span>{locale === 'zh' ? '失败' : 'Failed'}: {activeAISEOJob.failed}</span>
+                </div>
+                {activeAISEOJob.error && <p className="mt-2 text-sm text-rose-700">{activeAISEOJob.error}</p>}
+              </div>
+            )}
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">{locale === 'zh' ? '批量品牌 / SEO 品牌' : 'Bulk Brand / SEO Brand'}</span>
@@ -2100,6 +2322,24 @@ function AdminProductsContent() {
               </select>
             </div>
 
+            <div>
+              <label htmlFor="ai-seo-status" className="block text-sm font-medium text-gray-700 mb-1">
+                {locale === 'zh' ? 'AI SEO 状态' : 'AI SEO Status'}
+              </label>
+              <select
+                id="ai-seo-status"
+                value={aiSEOFilter}
+                onChange={(e) => handleAISEOFilterChange(e.target.value as AISEOFilter)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">{locale === 'zh' ? '全部 AI SEO 状态' : 'All AI SEO statuses'}</option>
+                <option value="not_optimized">{locale === 'zh' ? '未 AI 优化' : 'Not AI optimized'}</option>
+                <option value="optimized">{locale === 'zh' ? 'AI 已优化' : 'AI optimized'}</option>
+                <option value="running">{locale === 'zh' ? 'AI 处理中' : 'AI processing'}</option>
+                <option value="failed">{locale === 'zh' ? 'AI 优化失败' : 'AI failed'}</option>
+              </select>
+            </div>
+
             {/* Sort */}
             <div>
               <label htmlFor="sort" className="block text-sm font-medium text-gray-700 mb-1">
@@ -2181,6 +2421,9 @@ function AdminProductsContent() {
                     {t('products.table.status', locale === 'zh' ? '状态' : 'Status')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    AI SEO
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {locale === 'zh' ? '编辑时间' : 'Last Edited'}
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -2256,6 +2499,20 @@ function AdminProductsContent() {
                           </span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {product.ai_seo_status === 'optimized' ? (
+                        <div>
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">{locale === 'zh' ? 'AI 已优化' : 'AI Optimized'}</span>
+                          {product.ai_seo_optimized_at && <div className="mt-1 text-xs text-gray-400">{new Date(product.ai_seo_optimized_at).toLocaleDateString()}</div>}
+                        </div>
+                      ) : product.ai_seo_status === 'running' ? (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-violet-100 text-violet-800">{locale === 'zh' ? 'AI 处理中' : 'AI Processing'}</span>
+                      ) : product.ai_seo_status === 'failed' ? (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-rose-100 text-rose-800">{locale === 'zh' ? 'AI 失败' : 'AI Failed'}</span>
+                      ) : (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">{locale === 'zh' ? '未 AI 优化' : 'Not AI optimized'}</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div>{new Date(product.updated_at || product.created_at).toLocaleDateString()}</div>
@@ -2344,6 +2601,49 @@ function AdminProductsContent() {
           )}
         </div>
       </div>
+      {showAISEOModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="ai-seo-modal-title">
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
+              <div>
+                <div className="flex items-center gap-2 text-violet-700"><SparklesIcon className="h-5 w-5" /><h2 id="ai-seo-modal-title" className="text-lg font-semibold text-gray-900">{locale === 'zh' ? (aiSEOJobMode === 'auto_candidates' ? 'AI SEO 自动候选优化' : 'AI SEO 优化已选商品') : (aiSEOJobMode === 'auto_candidates' ? 'AI SEO automatic candidate optimization' : 'AI SEO optimize selected products')}</h2></div>
+                <p className="mt-2 text-sm text-gray-600">{aiSEOJobMode === 'auto_candidates'
+                  ? (locale === 'zh' ? '系统会在当前分类、品牌、搜索词范围内，自动选择最多 30000 个启用、未 AI 优化、内容较薄弱的商品。已在其他 AI SEO 任务中排队或处理的商品会被排除。' : 'The system will choose up to 30000 active, not-yet-AI-optimized products with thinner content within the current category, brand, and search scope. Products queued or running in another AI SEO job are excluded.')
+                  : (locale === 'zh' ? `本次只处理当前页手动勾选的 ${selectedCurrentPageIds.length} 个商品。每个商品由 AI 单独处理。` : `This job will process only the ${selectedCurrentPageIds.length} products explicitly checked on this page. AI handles each product separately.`)}</p>
+              </div>
+              <button type="button" onClick={() => setShowAISEOModal(false)} disabled={isStartingAISEOJob} className="rounded-md p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-50" aria-label={locale === 'zh' ? '关闭' : 'Close'}><XMarkIcon className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-4 px-5 py-5">
+              <div className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-sm text-violet-900">
+                {locale === 'zh' ? 'AI 会校正产品默认名称，并更新长描述、简短描述、Meta 标题、Meta 描述和关键词。它会从现有分类中选择正确分类；确实不存在时才自动创建新分类并迁移产品。不会修改价格、库存或图片。任务完成后会刷新站点缓存；若后台已启用 IndexNow，也会批量通知搜索引擎更新 URL。' : 'AI corrects the default product name and updates the long description, short description, meta title, meta description, and keywords. It selects an existing correct category, or creates a genuinely missing category and moves the product only when necessary. It cannot change price, inventory, or images. Completion refreshes site caches and submits changed URLs in one batch when IndexNow is enabled.'}
+              </div>
+              {aiSEOJobMode === 'auto_candidates' && (
+                <label className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                  <input type="checkbox" checked={aiSEOIncludeFailed} onChange={(event) => setAISEOIncludeFailed(event.target.checked)} className="mt-0.5 rounded border-gray-300 text-violet-600 focus:ring-violet-500" />
+                  <span>{locale === 'zh' ? '同时纳入此前 AI 优化失败的商品（默认只选择从未 AI 优化的商品）。' : 'Also include products that failed a previous AI SEO attempt (by default only never-AI-optimized products are selected).'}</span>
+                </label>
+              )}
+              <label className="block text-sm font-medium text-gray-800">
+                {locale === 'zh' ? '本次优化提示词' : 'Optimization instruction'}
+                <textarea
+                  value={aiSEOPrompt}
+                  onChange={(event) => setAISEOPrompt(event.target.value)}
+                  maxLength={2000}
+                  rows={6}
+                  autoFocus
+                  placeholder={locale === 'zh' ? '例如：面向英文工业自动化采购用户优化 SEO；校正错误产品名称和分类，保持 SKU、型号、料号准确；仅在现有分类不合适时创建新分类，避免夸大宣传。' : 'Example: Optimize SEO for English industrial automation buyers. Correct inaccurate product names and categories; keep SKU, model, and part number exact; create a category only when no existing category fits, and avoid unsupported claims.'}
+                  className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                />
+              </label>
+              <p className="text-xs text-gray-500">{aiSEOPrompt.length}/2000 · {locale === 'zh' ? '任务创建后可在“AI SEO 优化记录”中查看每个 SKU 的成功、处理中或失败状态，也可暂停后继续。' : 'After creation, AI SEO Records shows the status for every SKU, and lets you pause and resume the job.'}</p>
+            </div>
+            <div className="flex flex-col-reverse gap-2 border-t border-gray-200 px-5 py-4 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setShowAISEOModal(false)} disabled={isStartingAISEOJob} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">{locale === 'zh' ? '取消' : 'Cancel'}</button>
+              <button type="button" onClick={() => void startAISEO()} disabled={isStartingAISEOJob || aiSEOPrompt.trim().length < 2} className="inline-flex items-center justify-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"><SparklesIcon className="mr-2 h-4 w-4" />{isStartingAISEOJob ? (locale === 'zh' ? '正在创建任务…' : 'Starting job…') : (aiSEOJobMode === 'auto_candidates' ? (locale === 'zh' ? '自动选择并优化最多 30000 个商品' : 'Select and optimize up to 30000 candidates') : (locale === 'zh' ? `开始优化 ${selectedCurrentPageIds.length} 个商品` : `Optimize ${selectedCurrentPageIds.length} products`))}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <MediaPickerModal
         open={showCategoryImagePicker}
         onClose={() => setShowCategoryImagePicker(false)}

@@ -48,6 +48,7 @@ func SetupRoutes(r *gin.Engine) {
 	productOptimizationController := &controllers.ProductOptimizationController{}
 	indexNowController := &controllers.IndexNowController{}
 	ebayImportDraftController := &controllers.EbayImportDraftController{}
+	aiAgentController := &controllers.AIAgentController{}
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -142,6 +143,25 @@ func SetupRoutes(r *gin.Engine) {
 		admin := v1.Group("/admin")
 		admin.Use(middleware.AuthMiddleware())
 		{
+			// AI catalog assistant: it returns reviewable proposals; writes require a second explicit apply call.
+			aiAgent := admin.Group("/ai-agent")
+			aiAgent.Use(middleware.EditorOrAdmin())
+			{
+				aiAgent.GET("/status", aiAgentController.Status)
+				aiAgent.POST("/chat", aiAgentController.Chat)
+				aiAgent.POST("/apply", aiAgentController.Apply)
+				aiAgent.POST("/seo/jobs", aiAgentController.StartSelectedSEO)
+				aiAgent.POST("/seo/candidates", aiAgentController.StartCandidateSEO)
+				aiAgent.GET("/seo/jobs", aiAgentController.ListSEOJobs)
+				aiAgent.GET("/seo/jobs/:id", aiAgentController.GetSEOJob)
+				aiAgent.POST("/seo/jobs/:id/pause", aiAgentController.PauseSEOJob)
+				aiAgent.POST("/seo/jobs/:id/resume", aiAgentController.ResumeSEOJob)
+				aiAgent.POST("/seo/jobs/:id/end", aiAgentController.EndPausedSEOJob)
+				aiAgent.GET("/seo/stats", aiAgentController.GetSEOStats)
+				aiAgent.GET("/settings", middleware.AdminOnly(), aiAgentController.GetSettings)
+				aiAgent.PUT("/settings", middleware.AdminOnly(), aiAgentController.UpdateSettings)
+			}
+
 			// Dashboard statistics (admin and editor access)
 			dashboard := admin.Group("/dashboard")
 			dashboard.Use(middleware.EditorOrAdmin())
