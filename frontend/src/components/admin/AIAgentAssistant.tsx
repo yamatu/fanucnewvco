@@ -3,8 +3,10 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
   ArrowPathIcon,
+  ChatBubbleLeftRightIcon,
   CheckCircleIcon,
   ChevronDownIcon,
+  CurrencyDollarIcon,
   ExclamationTriangleIcon,
   PaperAirplaneIcon,
   SparklesIcon,
@@ -18,12 +20,12 @@ import {
   AIAgentStatus,
 } from '@/services/ai-agent.service';
 import { useAdminI18n } from '@/lib/admin-i18n';
+import AIPriceSyncPanel from '@/components/admin/AIPriceSyncPanel';
 
 const SUGGESTED_PROMPTS = [
   '检查 SKU A06B-XXXX 的分类是否正确，并给出 SEO 优化建议',
   '为 FANUC 伺服驱动分类生成中文、德语 SEO 内容',
   '检查现有分类；没有合适分类时请提出创建建议',
-  '按我提供的型号和售价生成改价建议：A06B-XXXX = 1280.00 USD',
 ];
 
 const actionLabels: Record<string, { zh: string; en: string }> = {
@@ -142,6 +144,7 @@ export default function AIAgentAssistant() {
   const { locale } = useAdminI18n();
   const zh = locale === 'zh';
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'assistant' | 'prices'>('assistant');
   const [status, setStatus] = useState<AIAgentStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const [messages, setMessages] = useState<AIAgentMessage[]>([]);
@@ -230,7 +233,7 @@ export default function AIAgentAssistant() {
   return (
     <div className="fixed bottom-5 right-5 z-[70] print:hidden">
       {open && (
-        <section className="mb-3 flex h-[min(680px,calc(100vh-7.5rem))] w-[calc(100vw-2.5rem)] max-w-[440px] flex-col overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-2xl" aria-label={zh ? 'AI 商品优化助手' : 'AI catalog optimization assistant'}>
+        <section className="mb-3 flex h-[min(700px,calc(100vh-7.5rem))] w-[calc(100vw-2.5rem)] max-w-[520px] flex-col overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-2xl" aria-label={zh ? 'AI 商品优化助手' : 'AI catalog optimization assistant'}>
           <header className="flex items-center justify-between bg-gradient-to-r from-violet-700 to-indigo-700 px-4 py-3 text-white">
             <div className="flex items-center gap-2">
               <SparklesIcon className="h-5 w-5" />
@@ -240,12 +243,18 @@ export default function AIAgentAssistant() {
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <button type="button" onClick={reset} className="rounded p-1.5 hover:bg-white/15" title={zh ? '新对话' : 'New conversation'}><ArrowPathIcon className="h-4 w-4" /></button>
+              {mode === 'assistant' && <button type="button" onClick={reset} className="rounded p-1.5 hover:bg-white/15" title={zh ? '新对话' : 'New conversation'} aria-label={zh ? '新对话' : 'New conversation'}><ArrowPathIcon className="h-4 w-4" /></button>}
               <button type="button" onClick={() => setOpen(false)} className="rounded p-1.5 hover:bg-white/15" aria-label={zh ? '关闭' : 'Close'}><XMarkIcon className="h-5 w-5" /></button>
             </div>
           </header>
 
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 p-3">
+          <div className="grid grid-cols-2 border-b border-gray-200 bg-white p-1" role="tablist" aria-label={zh ? '优化模式' : 'Optimization mode'}>
+            <button type="button" role="tab" aria-selected={mode === 'assistant'} onClick={() => setMode('assistant')} className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold ${mode === 'assistant' ? 'bg-violet-100 text-violet-800' : 'text-gray-600 hover:bg-gray-50'}`}><ChatBubbleLeftRightIcon className="h-4 w-4" />{zh ? '目录与 SEO' : 'Catalog & SEO'}</button>
+            <button type="button" role="tab" aria-selected={mode === 'prices'} onClick={() => setMode('prices')} className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold ${mode === 'prices' ? 'bg-emerald-100 text-emerald-800' : 'text-gray-600 hover:bg-gray-50'}`}><CurrencyDollarIcon className="h-4 w-4" />{zh ? '价格同步' : 'Price sync'}</button>
+          </div>
+
+          {mode === 'prices' ? <AIPriceSyncPanel zh={zh} /> : <>
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 p-3" role="tabpanel">
             {statusLoading && <p className="pt-6 text-center text-sm text-gray-500">{zh ? '正在检查 AI 配置…' : 'Checking AI configuration…'}</p>}
             {!statusLoading && status && !status.configured && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
@@ -289,11 +298,12 @@ export default function AIAgentAssistant() {
 
           <form onSubmit={send} className="border-t border-gray-200 bg-white p-3">
             <div className="flex items-end gap-2 rounded-xl border border-gray-300 bg-white p-1.5 focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-100">
-              <textarea value={input} onChange={(event) => setInput(event.target.value)} disabled={!status?.configured || sending} rows={2} maxLength={4000} placeholder={zh ? '例如：型号 A06B-xxxx 售价 1280.00 USD；请生成改价建议' : 'Example: model A06B-xxxx sale price 1280.00 USD; create a price-update proposal'} className="min-h-[42px] flex-1 resize-none border-0 bg-transparent px-2 py-1 text-sm outline-none placeholder:text-gray-400 disabled:cursor-not-allowed" />
+              <textarea value={input} onChange={(event) => setInput(event.target.value)} disabled={!status?.configured || sending} rows={2} maxLength={4000} aria-label={zh ? 'AI 优化指令' : 'AI optimization instruction'} placeholder={zh ? '例如：检查 A06B-xxxx 的分类和 SEO' : 'Example: review the category and SEO for A06B-xxxx'} className="min-h-[42px] flex-1 resize-none border-0 bg-transparent px-2 py-1 text-sm outline-none placeholder:text-gray-400 disabled:cursor-not-allowed" />
               <button type="submit" disabled={!input.trim() || !status?.configured || sending} className="rounded-lg bg-violet-600 p-2 text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-gray-300" aria-label={zh ? '发送' : 'Send'}><PaperAirplaneIcon className="h-4 w-4" /></button>
             </div>
             <p className="mt-1.5 text-[11px] text-gray-400">{zh ? 'AI 仅生成建议；价格仅使用你填写的“型号 = 售价”，每项须确认后才会应用。' : 'AI creates proposals only. Price updates use only your “model = sale price” input and require confirmation.'}</p>
           </form>
+          </>}
         </section>
       )}
       <button type="button" onClick={() => setOpen((current) => !current)} className="group flex h-14 items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-4 text-sm font-semibold text-white shadow-xl transition hover:scale-[1.02] hover:from-violet-700 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-violet-200" aria-expanded={open} aria-label={zh ? '打开 AI 商品优化助手' : 'Open AI catalog assistant'}>

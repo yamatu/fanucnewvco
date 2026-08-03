@@ -79,6 +79,75 @@ const PRIMARY_HOME_SECTIONS: Array<{ key: string; defaultSort: number }> = [
 type StructuredContent = Record<string, unknown>;
 type HeroSlideRecord = Record<string, unknown> & { image?: unknown };
 
+function compactText(value: string | undefined, max: number): string {
+  const text = String(value || '').trim();
+  return text.length > max ? `${text.slice(0, max).trimEnd()}...` : text;
+}
+
+function compactHomepageProduct(product: Product): Product {
+  const summary = compactText(product.short_description || product.meta_description || product.description, 240);
+  const category = product.category ? {
+    ...product.category,
+    children: undefined,
+    products: undefined,
+    translations: undefined,
+  } : product.category;
+  return {
+    id: product.id,
+    sku: product.sku,
+    name: product.name,
+    slug: product.slug,
+    short_description: summary,
+    description: summary,
+    price: product.price,
+    compare_price: product.compare_price,
+    stock_quantity: product.stock_quantity,
+    min_stock_level: product.min_stock_level,
+    dimensions: product.dimensions,
+    brand: product.brand,
+    model: product.model,
+    part_number: product.part_number,
+    category_id: product.category_id,
+    category,
+    is_active: product.is_active,
+    is_featured: product.is_featured,
+    meta_title: product.meta_title,
+    meta_description: compactText(product.meta_description, 180),
+    meta_keywords: '',
+    image_urls: product.image_urls || [],
+    created_at: product.created_at,
+    updated_at: product.updated_at,
+    images: product.images?.slice(0, 1),
+    attributes: product.attributes?.slice(0, 2),
+  };
+}
+
+function compactHomepageArticle(article: Article): Article {
+  return {
+    id: article.id,
+    title: article.title,
+    slug: article.slug,
+    summary: compactText(article.summary || article.meta_description, 240),
+    content: '',
+    content_type: article.content_type,
+    custom_path: article.custom_path,
+    public_path: article.public_path,
+    featured_image: article.featured_image,
+    image_urls: [],
+    is_published: article.is_published,
+    is_featured: article.is_featured,
+    meta_title: article.meta_title,
+    meta_description: compactText(article.meta_description, 180),
+    meta_keywords: '',
+    author_id: article.author_id,
+    view_count: article.view_count,
+    sort_order: article.sort_order,
+    published_at: article.published_at,
+    created_at: article.created_at,
+    updated_at: article.updated_at,
+  };
+}
+
 function parseStructuredContent(data: unknown): StructuredContent | null {
   if (typeof data === 'string') {
     try {
@@ -176,10 +245,10 @@ export default async function Home() {
     getHomepageContentList(),
     getPublicSocialMediaSettings(),
     NewsService.getArticles({ page: 1, page_size: 3, content_type: 'blog', is_featured: 'true' })
-      .then((result) => (result.data || []).map((article) => localizeArticleOrDefault(article, locale)))
+      .then((result) => (result.data || []).map((article) => compactHomepageArticle(localizeArticleOrDefault(article, locale))))
       .catch(() => [] as Article[]),
     ProductService.getFeaturedProducts(6)
-      .then((products) => products.map((product) => localizeProductContent(product, locale)))
+      .then((products) => products.map((product) => compactHomepageProduct(localizeProductContent(product, locale))))
       .catch(() => [] as Product[]),
   ]);
   const byKey: Record<string, HomepageContent | undefined> = Object.fromEntries(
@@ -228,7 +297,7 @@ export default async function Home() {
           __html: JSON.stringify(combinedStructuredData)
         }}
       />
-      <PublicLayout>
+      <PublicLayout socialMediaSettings={socialMediaSettings}>
         {renderQueue.map((s) => {
           if (s.key === 'hero_section') return <HeroSection key={s.key} content={s.content} />;
           if (s.key === 'company_stats') return <CompanyStats key={s.key} content={s.content} />;

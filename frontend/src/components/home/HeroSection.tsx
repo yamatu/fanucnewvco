@@ -37,7 +37,7 @@ function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
     if (content?.subtitle) s0.subtitle = content.subtitle;
     if (content?.description && !isLegacyFanucHero(content.description)) s0.description = content.description;
     if (content?.image_url) s0.image = content.image_url;
-    if (content?.button_text) s0.cta = { ...(s0.cta || {}), primary: { ...(s0.cta?.primary || {}), text: content.button_text, href: content.button_url || s0.cta?.primary?.href || '/products' }, secondary: s0.cta?.secondary || { text: 'Learn More', href: '/about' } };
+    if (content?.button_text) s0.cta = { ...(s0.cta || {}), primary: { ...(s0.cta?.primary || {}), text: content.button_text, href: content.button_url || s0.cta?.primary?.href || '/products' }, secondary: s0.cta?.secondary || { text: 'Get a Quote', href: '/contact?inquiry_type=quote' } };
     slides[0] = s0;
   }
 
@@ -56,25 +56,53 @@ export function HeroSection({ content }: Props) {
   const slides = heroData.slides;
   const autoPlayMs = heroData.autoPlayMs || 6000;
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const activeSlide = slides[currentSlide] || slides[0] || DEFAULT_HERO_DATA.slides[0];
   const fallbackImage =
     DEFAULT_HERO_DATA.slides[currentSlide % DEFAULT_HERO_DATA.slides.length]?.image ||
     DEFAULT_HERO_DATA.slides[0].image;
   const imageSrc = failedImages.has(activeSlide.image) ? fallbackImage : activeSlide.image;
-  const localizedSlide = locale === 'en' ? activeSlide : {
-    ...activeSlide,
-    title: t('home.hero.title'),
-    subtitle: t('home.hero.subtitle'),
-    description: t('home.hero.description'),
-    cta: {
-      primary: { ...activeSlide.cta.primary, text: t('home.hero.primary'), href: '/products' },
-      secondary: { ...activeSlide.cta.secondary, text: t('home.hero.secondary'), href: '/about' },
-    },
-  };
+  const localizedSlide = locale === 'en'
+    ? {
+        ...activeSlide,
+        cta: {
+          ...activeSlide.cta,
+          secondary: {
+            ...activeSlide.cta.secondary,
+            text: t('home.hero.secondary'),
+            href: '/contact?inquiry_type=quote',
+          },
+        },
+      }
+    : {
+        ...activeSlide,
+        title: t('home.hero.title'),
+        subtitle: t('home.hero.subtitle'),
+        description: t('home.hero.description'),
+        cta: {
+          primary: { ...activeSlide.cta.primary, text: t('home.hero.primary'), href: '/products' },
+          secondary: {
+            ...activeSlide.cta.secondary,
+            text: t('home.hero.secondary'),
+            href: '/contact?inquiry_type=quote',
+          },
+        },
+      };
 
-  // Auto-play functionality
+  // LCP collection remains open until the first interaction. Starting the
+  // full-viewport carousel earlier can replace the LCP candidate at 6s.
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const enableAutoPlay = () => setIsAutoPlaying(true);
+    window.addEventListener('pointerdown', enableAutoPlay, { once: true, passive: true });
+    window.addEventListener('keydown', enableAutoPlay, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', enableAutoPlay);
+      window.removeEventListener('keydown', enableAutoPlay);
+    };
+  }, [slides.length]);
+
   useEffect(() => {
     if (!isAutoPlaying || slides.length <= 1) return;
 
@@ -112,7 +140,9 @@ export function HeroSection({ content }: Props) {
           className="h-full w-full object-cover"
           sizes="100vw"
           priority={currentSlide === 0}
+          loading={currentSlide === 0 ? 'eager' : 'lazy'}
           fetchPriority={currentSlide === 0 ? 'high' : 'auto'}
+          quality={70}
           unoptimized={imageSrc.startsWith('/uploads/')}
           onError={() => {
             if (imageSrc === fallbackImage) return;

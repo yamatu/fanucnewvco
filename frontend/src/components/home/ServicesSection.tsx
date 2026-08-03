@@ -116,7 +116,7 @@ export function ServicesSection({ content }: Props) {
                     href={href(service.href || '/contact')}
                     className="text-[#003a78] hover:text-[#003a78] font-semibold text-sm flex items-center group-hover:translate-x-2 transition-transform duration-300"
                   >
-                    {t('common.learnMore')}
+                    {locale === 'en' ? `View ${service.title}` : `${service.title} · ${t('common.learnMore')}`}
                     <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>

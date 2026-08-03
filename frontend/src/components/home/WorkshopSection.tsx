@@ -193,7 +193,7 @@ export function WorkshopSection({ content }: Props) {
                 href={href(data.statsBlock?.ctaSecondary?.href || '/about')}
                 className="border border-white/60 text-white hover:bg-white hover:text-slate-950 px-8 py-3 rounded-md font-semibold transition-colors duration-300"
               >
-                {locale === 'en' ? data.statsBlock?.ctaSecondary?.text || t('common.learnMore') : t('common.learnMore')}
+                {locale === 'en' ? 'View Workshop Details' : `${t('home.workshop.title')} · ${t('common.learnMore')}`}
               </a>
             </div>
           </div>

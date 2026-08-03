@@ -56,6 +56,39 @@ export interface AIAgentReply {
   suggestions: AIAgentAction[];
 }
 
+export type AIAgentPriceRowStatus =
+  | 'matched'
+  | 'unmatched'
+  | 'ambiguous'
+  | 'conflict'
+  | 'invalid'
+  | 'duplicate';
+
+export interface AIAgentPricePreviewRow {
+  line: number;
+  model: string;
+  price: number;
+  currency?: string;
+  status: AIAgentPriceRowStatus;
+  message?: string;
+  product_id?: number;
+  sku?: string;
+  product_name?: string;
+  current_price?: number;
+}
+
+export interface AIAgentPricePreview {
+  total: number;
+  matched: number;
+  unmatched: number;
+  ambiguous: number;
+  conflicts: number;
+  invalid: number;
+  duplicates: number;
+  rows: AIAgentPricePreviewRow[];
+  suggestions: AIAgentAction[];
+}
+
 export type AIAgentSEOJobStatus = 'queued' | 'running' | 'paused' | 'cancelled' | 'completed' | 'completed_with_errors' | 'failed';
 export type AIAgentSEOItemStatus = 'queued' | 'running' | 'optimized' | 'failed' | 'cancelled';
 
@@ -137,6 +170,12 @@ export class AIAgentService {
     const response = await apiClient.post<APIResponse<Array<Record<string, unknown>>>>('/admin/ai-agent/apply', { actions });
     if (response.data.success) return response.data.data || [];
     throw new Error(response.data.message || 'AI suggestions could not be applied');
+  }
+
+  static async previewPrices(text: string): Promise<AIAgentPricePreview> {
+    const response = await apiClient.post<APIResponse<AIAgentPricePreview>>('/admin/ai-agent/prices/preview', { text });
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Price list could not be matched');
   }
 
   static async startSEOJob(productIds: number[], prompt: string): Promise<AIAgentSEOJob> {

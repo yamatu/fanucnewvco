@@ -28,7 +28,7 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
       image: 'https://s2.loli.net/2025/08/26/Vo4JfbtW5H2GMEN.png',
       cta: {
         primary: { text: 'Browse Products', href: '/products' },
-        secondary: { text: 'Request a Repair', href: '/repair-request' },
+        secondary: { text: 'Get a Quote', href: '/contact?inquiry_type=quote' },
       },
     },
     {
@@ -40,7 +40,7 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
       image: 'https://s2.loli.net/2025/08/26/17MRNhXEcrKTdDY.png',
       cta: {
         primary: { text: 'View Facility', href: '/about' },
-        secondary: { text: 'Contact Us', href: '/contact' },
+        secondary: { text: 'Get a Quote', href: '/contact?inquiry_type=quote' },
       },
     },
     {
@@ -52,7 +52,7 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
       image: 'https://s2.loli.net/2025/08/26/17MRNhXEcrKTdDY.png',
       cta: {
         primary: { text: 'Request a Repair', href: '/repair-request' },
-        secondary: { text: 'Browse Products', href: '/products' },
+        secondary: { text: 'Get a Quote', href: '/contact?inquiry_type=quote' },
       },
     },
   ],
@@ -272,7 +272,7 @@ export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
     ctaDescription:
       'Schedule a virtual tour or visit our facility to see how we manage inspection, storage and export packing.',
     ctaPrimary: { text: 'Schedule Tour', href: '/contact' },
-    ctaSecondary: { text: 'Learn More', href: '/about' },
+    ctaSecondary: { text: 'View Workshop Details', href: '/about' },
   },
 };
 

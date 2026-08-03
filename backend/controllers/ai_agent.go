@@ -3,6 +3,7 @@ package controllers
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fanuc-backend/config"
@@ -50,7 +51,36 @@ type aiAgentReply struct {
 }
 
 type aiAgentApplyRequest struct {
-	Actions []aiAction `json:"actions" binding:"required,min=1,max=30"`
+	Actions []aiAction `json:"actions" binding:"required,min=1,max=200"`
+}
+
+type aiPricePreviewRequest struct {
+	Text string `json:"text" binding:"required"`
+}
+
+type aiPriceImportRow struct {
+	Line         int      `json:"line"`
+	Model        string   `json:"model"`
+	Price        float64  `json:"price"`
+	Currency     string   `json:"currency,omitempty"`
+	Status       string   `json:"status"`
+	Message      string   `json:"message,omitempty"`
+	ProductID    *uint    `json:"product_id,omitempty"`
+	SKU          string   `json:"sku,omitempty"`
+	ProductName  string   `json:"product_name,omitempty"`
+	CurrentPrice *float64 `json:"current_price,omitempty"`
+}
+
+type aiPricePreviewResponse struct {
+	Total       int                `json:"total"`
+	Matched     int                `json:"matched"`
+	Unmatched   int                `json:"unmatched"`
+	Ambiguous   int                `json:"ambiguous"`
+	Conflicts   int                `json:"conflicts"`
+	Invalid     int                `json:"invalid"`
+	Duplicates  int                `json:"duplicates"`
+	Rows        []aiPriceImportRow `json:"rows"`
+	Suggestions []aiAction         `json:"suggestions"`
 }
 
 type openAIChatRequest struct {
@@ -84,6 +114,11 @@ Action rules:
 SEO constraints: meta_title <= 60 characters where practical; meta_description <= 160 characters where practical; use accurate industrial automation terminology; never make unsupported compatibility, stock, certification, warranty, or performance claims. If context is insufficient, ask one concise follow-up question and return no suggestions.`
 
 var aiLanguageCode = regexp.MustCompile(`^[a-z]{2,3}(-[A-Z]{2})?$`)
+var aiPriceLinePattern = regexp.MustCompile(`(?i)^\s*(.+?)(?:\s*(?:=|:|,|\t)\s*|\s+)(\$)?\s*(\d+(?:\.\d{1,2})?)\s*(USD|US\$|\$)?\s*$`)
+var strictPricePattern = regexp.MustCompile(`^\d+(?:\.\d{1,2})?$`)
+
+const aiAgentMessageMaxRunes = 4000
+const aiPriceImportMaxRows = 200
 
 func getOrCreateAIAgentSetting(db *gorm.DB) (*models.AIAgentSetting, error) {
 	var setting models.AIAgentSetting
@@ -247,7 +282,7 @@ func (ac *AIAgentController) Chat(c *gin.Context) {
 		return
 	}
 	req.Message = strings.TrimSpace(req.Message)
-	if len([]rune(req.Message)) < 2 || len([]rune(req.Message)) > 4000 {
+	if len([]rune(req.Message)) < 2 || len([]rune(req.Message)) > aiAgentMessageMaxRunes {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Message must contain 2-4000 characters"})
 		return
 	}
@@ -288,13 +323,278 @@ func (ac *AIAgentController) Chat(c *gin.Context) {
 		c.JSON(http.StatusBadGateway, models.APIResponse{Success: false, Message: "AI response was not a valid proposal. Please try again.", Error: err.Error()})
 		return
 	}
-	// The apply endpoint accepts up to 30 actions in one transaction. Keep the
-	// same bound here so a pasted administrator price list can be reviewed and
-	// applied as one controlled batch.
+	// Chat-generated proposals remain capped at 30 actions. The dedicated price
+	// preview can submit a larger reviewed batch without expanding this AI path.
 	if len(reply.Suggestions) > 30 {
 		reply.Suggestions = reply.Suggestions[:30]
 	}
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "AI proposal generated", Data: reply})
+}
+
+// PreviewPrices parses an administrator-supplied model/price list and matches
+// each identifier directly against the current catalogue. The model is not
+// asked to interpret or calculate prices, so every proposed value is traceable
+// to the submitted text and can be revalidated by Apply before it is written.
+func (ac *AIAgentController) PreviewPrices(c *gin.Context) {
+	var req aiPricePreviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid price list", Error: err.Error()})
+		return
+	}
+	req.Text = strings.TrimSpace(req.Text)
+	if len([]rune(req.Text)) < 2 || len([]rune(req.Text)) > aiAgentMessageMaxRunes {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Price list must contain 2-4000 characters"})
+		return
+	}
+
+	rows, identifiers := parseAIPriceImport(req.Text)
+	if len(rows) == 0 {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Price list does not contain any non-empty rows"})
+		return
+	}
+	if len(rows) > aiPriceImportMaxRows {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Price list can contain at most 200 non-empty rows"})
+		return
+	}
+
+	products := make([]models.Product, 0)
+	if len(identifiers) > 0 {
+		expression := "UPPER(REPLACE(TRIM(sku), ' ', '')) IN ? OR UPPER(REPLACE(TRIM(model), ' ', '')) IN ? OR UPPER(REPLACE(TRIM(part_number), ' ', '')) IN ?"
+		if err := config.GetDB().Select("id", "sku", "name", "model", "part_number", "price").Where(expression, identifiers, identifiers, identifiers).Find(&products).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Could not match the price list to products", Error: err.Error()})
+			return
+		}
+	}
+
+	preview := buildAIPricePreview(rows, products)
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Price list matched for review", Data: preview})
+}
+
+func parseAIPriceImport(text string) ([]aiPriceImportRow, []string) {
+	if rows, identifiers, ok := parseAIPriceDelimited(text); ok {
+		return rows, identifiers
+	}
+	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
+	rows := make([]aiPriceImportRow, 0, len(lines))
+	identifiers := make([]string, 0, len(lines))
+	seenIdentifiers := map[string]bool{}
+	for lineIndex, line := range lines {
+		line = strings.TrimSpace(strings.TrimPrefix(line, "\ufeff"))
+		if line == "" {
+			continue
+		}
+		header := strings.ToLower(strings.NewReplacer("\t", ",", " ", "", "\"", "").Replace(line))
+		if lineIndex == 0 && (header == "model,price" || header == "sku,price" || header == "partnumber,price" || header == "part_number,price" || header == "modelprice" || header == "\u578b\u53f7,\u4ef7\u683c") {
+			continue
+		}
+		row := aiPriceImportRow{Line: lineIndex + 1, Status: "invalid"}
+		matches := aiPriceLinePattern.FindStringSubmatch(line)
+		if len(matches) != 5 {
+			row.Model = truncateRunes(line, 120)
+			row.Message = "Use one row per item: MODEL PRICE, MODEL = PRICE, or MODEL,PRICE"
+			rows = append(rows, row)
+			continue
+		}
+		row.Model = strings.TrimSpace(matches[1])
+		price, err := strictPriceField(matches[3])
+		if err != nil || normalizePriceModel(row.Model) == "" {
+			row.Message = "Model or price is invalid"
+			rows = append(rows, row)
+			continue
+		}
+		row.Price = price
+		if matches[2] != "" || matches[4] != "" {
+			row.Currency = "USD"
+		}
+		row.Status = "pending"
+		rows = append(rows, row)
+		normalized := normalizePriceModel(row.Model)
+		if !seenIdentifiers[normalized] {
+			seenIdentifiers[normalized] = true
+			identifiers = append(identifiers, normalized)
+		}
+	}
+	return rows, identifiers
+}
+
+func parseAIPriceDelimited(text string) ([]aiPriceImportRow, []string, bool) {
+	firstLine := ""
+	for _, line := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n") {
+		if strings.TrimSpace(line) != "" {
+			firstLine = line
+			break
+		}
+	}
+	delimiter := rune(0)
+	if strings.Contains(firstLine, "\t") {
+		delimiter = '\t'
+	} else if strings.Contains(firstLine, ",") {
+		delimiter = ','
+	}
+	if delimiter == 0 {
+		return nil, nil, false
+	}
+
+	reader := csv.NewReader(strings.NewReader(text))
+	reader.Comma = delimiter
+	reader.FieldsPerRecord = -1
+	reader.TrimLeadingSpace = true
+	records, err := reader.ReadAll()
+	if err != nil || len(records) == 0 {
+		return nil, nil, false
+	}
+
+	modelColumn, priceColumn, dataStart := 0, 1, 0
+	if modelIndex, priceIndex, found := aiPriceHeaderColumns(records[0]); found {
+		modelColumn, priceColumn, dataStart = modelIndex, priceIndex, 1
+	}
+	rows := make([]aiPriceImportRow, 0, len(records)-dataStart)
+	identifiers := make([]string, 0, len(records)-dataStart)
+	seenIdentifiers := map[string]bool{}
+	for recordIndex, record := range records[dataStart:] {
+		lineNumber := recordIndex + dataStart + 1
+		if len(record) <= modelColumn || len(record) <= priceColumn {
+			rows = append(rows, aiPriceImportRow{Line: lineNumber, Model: strings.Join(record, string(delimiter)), Status: "invalid", Message: "Model or price column is missing"})
+			continue
+		}
+		model := strings.TrimSpace(record[modelColumn])
+		price, currency, priceErr := parseAIPriceValue(record[priceColumn])
+		row := aiPriceImportRow{Line: lineNumber, Model: model, Price: price, Currency: currency, Status: "pending"}
+		if priceErr != nil || normalizePriceModel(model) == "" {
+			row.Status = "invalid"
+			row.Message = "Model or price is invalid"
+			rows = append(rows, row)
+			continue
+		}
+		rows = append(rows, row)
+		normalized := normalizePriceModel(model)
+		if !seenIdentifiers[normalized] {
+			seenIdentifiers[normalized] = true
+			identifiers = append(identifiers, normalized)
+		}
+	}
+	return rows, identifiers, true
+}
+
+func aiPriceHeaderColumns(record []string) (int, int, bool) {
+	modelColumn, priceColumn := -1, -1
+	for index, value := range record {
+		header := strings.ToLower(strings.NewReplacer(" ", "", "_", "", "-", "", "\ufeff", "").Replace(strings.TrimSpace(value)))
+		switch header {
+		case "model", "sku", "partnumber", "mpn", "\u578b\u53f7", "\u6599\u53f7":
+			modelColumn = index
+		case "price", "saleprice", "soldprice", "\u4ef7\u683c", "\u552e\u4ef7":
+			priceColumn = index
+		}
+	}
+	return modelColumn, priceColumn, modelColumn >= 0 && priceColumn >= 0
+}
+
+func parseAIPriceValue(value string) (float64, string, error) {
+	raw := strings.TrimSpace(value)
+	upper := strings.ToUpper(raw)
+	currency := ""
+	if strings.Contains(raw, "$") || strings.HasSuffix(upper, "USD") {
+		currency = "USD"
+	}
+	if strings.HasSuffix(upper, "USD") {
+		raw = strings.TrimSpace(raw[:len(raw)-3])
+	}
+	raw = strings.TrimSpace(strings.ReplaceAll(raw, "$", ""))
+	raw = strings.ReplaceAll(raw, ",", "")
+	price, err := strictPriceField(raw)
+	return price, currency, err
+}
+
+func buildAIPricePreview(rows []aiPriceImportRow, products []models.Product) aiPricePreviewResponse {
+	preview := aiPricePreviewResponse{Total: len(rows), Rows: rows, Suggestions: []aiAction{}}
+	productMatches := map[string]map[uint]models.Product{}
+	for _, product := range products {
+		for _, value := range []string{product.SKU, product.Model, product.PartNumber} {
+			normalized := normalizePriceModel(value)
+			if normalized == "" {
+				continue
+			}
+			if productMatches[normalized] == nil {
+				productMatches[normalized] = map[uint]models.Product{}
+			}
+			productMatches[normalized][product.ID] = product
+		}
+	}
+
+	rowGroups := map[string][]int{}
+	for index := range preview.Rows {
+		if preview.Rows[index].Status == "pending" {
+			normalized := normalizePriceModel(preview.Rows[index].Model)
+			rowGroups[normalized] = append(rowGroups[normalized], index)
+		}
+	}
+
+	for normalized, indexes := range rowGroups {
+		conflict := false
+		for _, index := range indexes[1:] {
+			if preview.Rows[index].Price != preview.Rows[indexes[0]].Price {
+				conflict = true
+				break
+			}
+		}
+		if conflict {
+			for _, index := range indexes {
+				preview.Rows[index].Status = "conflict"
+				preview.Rows[index].Message = "The same model has different submitted prices"
+				preview.Conflicts++
+			}
+			continue
+		}
+
+		matches := productMatches[normalized]
+		if len(matches) == 0 {
+			preview.Rows[indexes[0]].Status = "unmatched"
+			preview.Rows[indexes[0]].Message = "No exact SKU, model, or part-number match"
+			preview.Unmatched++
+		} else if len(matches) > 1 {
+			preview.Rows[indexes[0]].Status = "ambiguous"
+			preview.Rows[indexes[0]].Message = "Identifier matches more than one product"
+			preview.Ambiguous++
+		} else {
+			var product models.Product
+			for _, candidate := range matches {
+				product = candidate
+			}
+			row := &preview.Rows[indexes[0]]
+			row.Status = "matched"
+			row.ProductID = &product.ID
+			row.SKU = product.SKU
+			row.ProductName = product.Name
+			currentPrice := product.Price
+			row.CurrentPrice = &currentPrice
+			preview.Matched++
+			preview.Suggestions = append(preview.Suggestions, aiAction{
+				Type:  "update_product_price",
+				Title: fmt.Sprintf("%s: %.2f -> %.2f", product.SKU, product.Price, row.Price),
+				Data: map[string]any{
+					"product_id":     product.ID,
+					"matching_model": row.Model,
+					"current_price":  product.Price,
+					"sale_price":     row.Price,
+					"currency":       row.Currency,
+				},
+			})
+		}
+
+		for _, index := range indexes[1:] {
+			preview.Rows[index].Status = "duplicate"
+			preview.Rows[index].Message = "Duplicate row with the same price was ignored"
+			preview.Duplicates++
+		}
+	}
+
+	for _, row := range preview.Rows {
+		if row.Status == "invalid" {
+			preview.Invalid++
+		}
+	}
+	return preview
 }
 
 func requestAIAgentCompletion(ctx context.Context, setting *models.AIAgentSetting, apiKey string, messages []aiChatMessage, maxTokens int) (string, error) {
@@ -339,6 +639,14 @@ func (ac *AIAgentController) Apply(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid AI proposal", Error: err.Error()})
 		return
+	}
+	if len(req.Actions) > 30 {
+		for _, action := range req.Actions {
+			if action.Type != "update_product_price" {
+				c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Only reviewed price updates can exceed 30 actions per batch"})
+				return
+			}
+		}
 	}
 	db := config.GetDB()
 	results := make([]gin.H, 0, len(req.Actions))
@@ -561,7 +869,7 @@ func strictPriceField(value any) (float64, error) {
 	default:
 		return 0, errors.New("sale_price must be a number supplied by the administrator")
 	}
-	if !regexp.MustCompile(`^\d+(?:\.\d{1,2})?$`).MatchString(raw) {
+	if !strictPricePattern.MatchString(raw) {
 		return 0, errors.New("sale_price must be a non-negative amount with at most two decimal places")
 	}
 	price, err := strconv.ParseFloat(raw, 64)

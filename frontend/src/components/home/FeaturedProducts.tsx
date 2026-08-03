@@ -188,7 +188,7 @@ export function FeaturedProducts({
                 </h3>
                 
                 <p className="text-sm text-slate-600 mb-3 line-clamp-2">
-                  {product.description}
+                  {product.short_description || product.description}
                 </p>
 
                 {/* Features */}

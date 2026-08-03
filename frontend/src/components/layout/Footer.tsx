@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { FaFacebookF, FaInstagram, FaLinkedinIn, FaXTwitter } from 'react-icons/fa6';
 import { queryKeys } from '@/lib/react-query';
 import type { SocialMediaURLKey } from '@/lib/social-media';
+import type { SocialMediaSettings } from '@/types';
 import { SocialMediaService } from '@/services/social-media.service';
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
@@ -68,13 +69,14 @@ const socialPlatforms: Array<{
   { key: 'linkedin_url', name: 'LinkedIn', Icon: FaLinkedinIn },
 ];
 
-export function Footer() {
+export function Footer({ initialSocialSettings }: { initialSocialSettings?: SocialMediaSettings | null }) {
   const { t, href } = usePublicI18n();
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const siteUrl = getSiteUrl();
   const { data: socialSettings } = useQuery({
     queryKey: queryKeys.socialMedia.public(),
     queryFn: () => SocialMediaService.getPublic(),
+    initialData: initialSocialSettings || undefined,
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
@@ -265,7 +267,9 @@ export function Footer() {
               {t('footer.newsletter')}
             </p>
             <form className="flex" onSubmit={handleSubscribe}>
+              <label htmlFor="footer-newsletter-email" className="sr-only">{t('footer.emailPlaceholder')}</label>
               <input
+                id="footer-newsletter-email"
                 type="email"
                 placeholder={t('footer.emailPlaceholder')}
                 value={newsletterEmail}

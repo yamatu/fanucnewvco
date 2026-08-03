@@ -217,7 +217,7 @@ export function Header() {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-2 xl:flex min-[1800px]:gap-6">
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-2 xl:flex min-[1800px]:gap-6" aria-label={t('header.primaryNavigation')}>
             {navigation.map((item) => {
               if (item.key === 'nav.categories') {
                 return (
@@ -259,6 +259,7 @@ export function Header() {
                     <div className="flex">
                       <input
                         type="text"
+                        aria-label={t('header.searchProducts')}
                         placeholder={t('header.searchProducts')}
                         value={searchQuery}
                         onChange={(e) => handleSearchInput(e.target.value)}
@@ -387,7 +388,7 @@ export function Header() {
 
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
-        <div id="responsive-navigation" className="border-t border-slate-200 bg-white min-[1720px]:hidden">
+        <nav id="responsive-navigation" className="border-t border-slate-200 bg-white min-[1720px]:hidden" aria-label={t('header.mobileNavigation')}>
           <div className="px-4 py-4 space-y-4">
             {navigation.map((item) => {
               if (item.key === 'nav.categories') {
@@ -410,6 +411,7 @@ export function Header() {
               <form onSubmit={handleSearch} className="flex">
                 <input
                   type="text"
+                  aria-label={t('header.searchProducts')}
                   placeholder={t('header.searchProducts')}
                 value={searchQuery}
                 onChange={(e) => handleSearchInput(e.target.value)}
@@ -455,7 +457,7 @@ export function Header() {
               </div>
             )}
           </div>
-        </div>
+        </nav>
       )}
 
       {/* Search Overlay for mobile */}
