@@ -45,8 +45,6 @@ go run ./cmd/bulk-seo-optimize -brand FANUC -search A06B
 
 Authenticated admin/editor routes:
 
-- `PUT /api/v1/admin/products/bulk-auto-categorize`
-- `PUT /api/v1/admin/products/bulk-categorize-optimize`
 - `GET /api/v1/admin/products/optimization-status`
 - `POST /api/v1/admin/products/optimize`
 - `POST /api/v1/admin/products/bulk-optimize`
