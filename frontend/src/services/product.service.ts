@@ -608,6 +608,25 @@ export class ProductService {
     throw new Error(response.data.message || response.data.error || 'Failed to import products');
   }
 
+  // Admin: import quote exports (品牌/型号/价格/交期) from CSV.
+  static async importProductQuotesCsv(
+    file: File,
+    onUploadProgress?: (progressPct: number) => void
+  ): Promise<ProductImportTaskSnapshot> {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await apiClient.post<APIResponse<ProductImportTaskSnapshot>>('/admin/products/import/csv', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 0,
+      onUploadProgress: (event: AxiosProgressEvent) => {
+        if (!onUploadProgress || !event?.total) return;
+        onUploadProgress(Math.min(100, Math.max(0, Math.round((event.loaded * 100) / event.total))));
+      },
+    });
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || response.data.error || 'Failed to import quote CSV');
+  }
+
   static async getImportProductsTask(taskId: string): Promise<ProductImportTaskSnapshot> {
     const response = await apiClient.get<APIResponse<ProductImportTaskSnapshot>>(`/admin/products/import/xlsx/tasks/${encodeURIComponent(taskId)}`);
     if (response.data.success && response.data.data) return response.data.data;

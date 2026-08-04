@@ -192,6 +192,7 @@ func SetupRoutes(r *gin.Engine) {
 				// Bulk import (XLSX)
 				products.GET("/import/template", productController.DownloadImportTemplate)
 				products.POST("/import/xlsx", productController.ImportProductsXLSX)
+				products.POST("/import/csv", productController.ImportProductsQuoteCSV)
 				products.GET("/import/xlsx/tasks/:id", productController.GetProductImportTask)
 
 				// Bulk update is_active / is_featured
@@ -262,6 +263,8 @@ func SetupRoutes(r *gin.Engine) {
 				orders.GET("/:id", orderController.GetOrder)
 				orders.PUT("/:id", orderController.UpdateOrder)
 				orders.PUT("/:id/status", orderController.UpdateOrderStatus)
+				orders.POST("/:id/refund", orderController.RefundOrder)
+				orders.POST("/:id/refund/:refundID/sync", orderController.SyncRefund)
 				orders.DELETE("/:id", orderController.DeleteOrder)
 			}
 

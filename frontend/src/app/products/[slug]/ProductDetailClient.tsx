@@ -15,6 +15,7 @@ import {
   ClockIcon,
   MagnifyingGlassIcon,
   ChevronDownIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import Layout from '@/components/layout/Layout';
@@ -24,7 +25,7 @@ import { ProductService, CategoryService, ShippingRateService } from '@/services
 import type { ShippingRatePublic, ShippingQuote } from '@/services/shipping-rate.service';
 import type { PaginationResponse, Product, ProductFAQ, ProductImage, ProductReview, Category } from '@/types';
 import { queryKeys } from '@/lib/react-query';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 import { useRouter } from 'next/navigation';
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
@@ -277,7 +278,7 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
       ``,
       `Product: ${computedHeading}`,
       `SKU: ${product.sku}`,
-      `Price: ${formatCurrency(product.price)}`,
+      hasProductPrice(product) ? `Price: ${formatCurrency(product.price)}` : `Price: Please quote`,
       ``,
       `Link: ${url}`,
       ``,
@@ -287,13 +288,13 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
   };
 
   const handleBuyNow = () => {
-    if (!product) return;
+    if (!product || !hasProductPrice(product)) return;
     addItem(product, quantity);
     router.push('/checkout/guest');
   };
 
   const handleAddToCart = () => {
-    if (product) {
+    if (product && hasProductPrice(product)) {
       addItem(product, quantity);
     }
   };
@@ -377,6 +378,10 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
     skuOnlyName ? categoryName : '',
   ].filter(Boolean);
   const computedHeading = buildSemanticProductName(semanticProduct) || headingParts.join(' ').replace(/\s+/g, ' ').trim();
+  const canPurchase = hasProductPrice(product);
+  // Keep this href identical during SSR and hydration. The SKU/model is enough
+  // for the sales team to identify the quote request without leaking a runtime URL.
+  const quoteEmailHref = `mailto:sales@vibocnc.com?subject=${encodeURIComponent(`Quote request: ${product.sku}`)}&body=${encodeURIComponent(`Hello, please provide price and lead time for ${computedHeading} (${product.sku}).`)}`;
 
   const getFallbackDescription = () => {
     const sku = product.sku || '';
@@ -527,7 +532,14 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
 
               <div className="mt-3">
                 <h2 className="sr-only">{t('product.information')}</h2>
-                <p className="text-3xl font-bold tracking-tight text-[#0b3e75]">{formatCurrency(product.price)}</p>
+                {canPurchase ? (
+                  <p className="text-3xl font-bold tracking-tight text-[#0b3e75]">{formatCurrency(product.price)}</p>
+                ) : (
+                  <div>
+                    <p className="text-xl font-bold text-[#0b3e75]">{t('product.contactForQuote')}</p>
+                    <p className="mt-1 text-sm text-slate-600">{t('product.quotePriceHint')}</p>
+                  </div>
+                )}
               </div>
 
               {/* SKU */}
@@ -540,13 +552,15 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
 
               {/* Actions — moved above specs */}
               <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  onClick={handleAddToCart}
-                  className="site-primary-action px-5 py-3 text-sm"
-                >
-                  <ShoppingCartIcon className="h-5 w-5 mr-2" />
-                  {t('common.addToCart')}
-                </button>
+                {canPurchase && (
+                  <button
+                    onClick={handleAddToCart}
+                    className="site-primary-action px-5 py-3 text-sm"
+                  >
+                    <ShoppingCartIcon className="h-5 w-5 mr-2" />
+                    {t('common.addToCart')}
+                  </button>
+                )}
                 <button
                   onClick={handleWhatsAppInquiry}
                   className="inline-flex items-center rounded-md border border-green-600 bg-green-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-700"
@@ -556,12 +570,22 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
                   </svg>
                   {t('product.whatsApp')}
                 </button>
-                <button
-                  onClick={handleBuyNow}
-                  className="inline-flex items-center rounded-md border border-[#0b3e75] bg-[#0b3e75] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#082f5a]"
-                >
-                  {t('product.buyNow')}
-                </button>
+                {canPurchase ? (
+                  <button
+                    onClick={handleBuyNow}
+                    className="inline-flex items-center rounded-md border border-[#0b3e75] bg-[#0b3e75] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#082f5a]"
+                  >
+                    {t('product.buyNow')}
+                  </button>
+                ) : (
+                  <a
+                    href={quoteEmailHref}
+                    className="inline-flex items-center rounded-md border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50"
+                  >
+                    <EnvelopeIcon className="mr-2 h-5 w-5" />
+                    {t('product.emailForQuote')}
+                  </a>
+                )}
               </div>
 
               {/* Key specs */}

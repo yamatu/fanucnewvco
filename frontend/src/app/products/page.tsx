@@ -331,7 +331,7 @@ export default async function ProductsPage({
               ? product.image_urls[0]
               : `${baseUrl}/images/default-product.svg`,
             'url': `${baseUrl}${localizePublicPath(`/products/${toProductPathId(product.sku)}`, locale)}`,
-            'offers': {
+            'offers': product.price > 0 ? {
               '@type': 'Offer',
               'price': product.price || 0,
               'priceCurrency': 'USD',
@@ -342,7 +342,7 @@ export default async function ProductsPage({
                 '@type': 'Organization',
                 'name': 'Vibocnc',
               },
-            },
+            } : undefined,
           },
         })),
       },

@@ -382,6 +382,9 @@ export interface Order {
   payment_status: string;
   payment_method: string;
   payment_id: string;
+  refunded_amount?: number;
+  refunded_at?: string;
+  stock_restored_at?: string;
 
   tracking_number?: string;
   shipping_carrier?: string;
@@ -397,6 +400,21 @@ export interface Order {
   currency: string;
   notes: string;
   items?: OrderItem[];
+  refunds?: Refund[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Refund {
+  id: number;
+  order_id: number;
+  provider_refund_id?: string;
+  capture_id: string;
+  amount: number;
+  currency: string;
+  reason?: string;
+  status: string;
+  requested_by?: number;
   created_at: string;
   updated_at: string;
 }

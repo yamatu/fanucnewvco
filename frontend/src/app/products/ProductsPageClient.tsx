@@ -16,7 +16,7 @@ import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import Layout from '@/components/layout/Layout';
 import SmartPagination from '@/components/ui/SmartPagination';
 import CategoryFilterTree from '@/components/categories/CategoryFilterTree';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
@@ -83,6 +83,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
   const totalProducts = initialData.total;
 
   const handleAddToCart = (product: any) => {
+    if (!hasProductPrice(product)) return;
     addItem(product, 1);
   };
 
@@ -231,12 +232,12 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
             {/* Main Content */}
             <div className="flex-1">
               {/* Enhanced Toolbar */}
-              <div className="site-toolbar p-4 mb-6">
-                <div className="flex flex-col space-y-4">
+              <div className="site-toolbar mb-6 p-3 sm:p-4">
+                <div className="flex flex-col gap-3 sm:gap-4">
                   {/* Top row - Results info and view controls */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-                    <div className="flex items-center space-x-4">
-                      <span className="text-sm text-slate-700">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:items-center">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+                      <span className="min-w-0 text-sm text-slate-700">
                         {t('products.showing', { shown: sortedProducts.length, total: totalProducts })}
                         {(searchQuery || selectedCategory) && (
                           <span className="text-slate-500"> ({t('products.filtered')})</span>
@@ -271,13 +272,13 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                   </div>
 
                   {/* Bottom row - Sort and page size */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-                    <div className="flex items-center space-x-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1 sm:flex-none">
                       {/* Sort */}
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="site-select px-3 py-2 text-sm"
+                        className="site-select w-full px-3 py-2 text-sm sm:w-auto"
                       >
                         <option value="name">{t('products.sortNameAsc')}</option>
                         <option value="name_desc">{t('products.sortNameDesc')}</option>
@@ -292,7 +293,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                     </div>
 
                     {/* Clear filters and page info */}
-                    <div className="flex items-center space-x-4">
+                    <div className="ml-auto flex min-w-0 items-center gap-3">
                       {(searchQuery || selectedCategory) && (
                         <button
                           onClick={clearAllFilters}
@@ -360,7 +361,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
 
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-xl font-bold text-[#0b3e75]">
-                            {formatCurrency(product.price)}
+                            {hasProductPrice(product) ? formatCurrency(product.price) : t('products.contactForQuote')}
                           </span>
 
                           <div className="flex items-center space-x-2">
@@ -371,14 +372,16 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                             >
                               <EyeIcon className="h-5 w-5" />
                             </Link>
-                            <button
-                              onClick={() => handleAddToCart(product)}
-                              className="site-primary-action px-3 py-2 text-sm"
-                              title={`Add ${product.name} to cart`}
-                            >
-                              <ShoppingCartIcon className="h-4 w-4 mr-1" />
-                              {t('common.addToCart')}
-                            </button>
+                            {hasProductPrice(product) && (
+                              <button
+                                onClick={() => handleAddToCart(product)}
+                                className="site-primary-action px-3 py-2 text-sm"
+                                title={`Add ${product.name} to cart`}
+                              >
+                                <ShoppingCartIcon className="h-4 w-4 mr-1" />
+                                {t('common.addToCart')}
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -422,7 +425,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
 
                         <div className="flex-shrink-0 text-left sm:text-right">
                           <div className="text-xl font-bold text-[#0b3e75] mb-2">
-                            {formatCurrency(product.price)}
+                            {hasProductPrice(product) ? formatCurrency(product.price) : t('products.contactForQuote')}
                           </div>
                           <div className="flex items-center gap-2">
                             <button
@@ -442,14 +445,16 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                             >
                               <EyeIcon className="h-5 w-5" />
                             </Link>
-                            <button
-                              onClick={() => handleAddToCart(product)}
-                              className="site-primary-action px-4 py-2 text-sm"
-                              title={`Add ${product.name} to cart`}
-                            >
-                              <ShoppingCartIcon className="h-4 w-4 mr-2" />
-                              {t('common.addToCart')}
-                            </button>
+                            {hasProductPrice(product) && (
+                              <button
+                                onClick={() => handleAddToCart(product)}
+                                className="site-primary-action px-4 py-2 text-sm"
+                                title={`Add ${product.name} to cart`}
+                              >
+                                <ShoppingCartIcon className="h-4 w-4 mr-2" />
+                                {t('common.addToCart')}
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>

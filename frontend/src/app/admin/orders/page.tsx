@@ -110,6 +110,8 @@ export default function AdminOrdersPage() {
       pending: { label: t('orders.pay.pending', locale === 'zh' ? '待支付' : 'Pending'), color: 'bg-yellow-100 text-yellow-800' },
       paid: { label: t('orders.pay.paid', locale === 'zh' ? '已支付' : 'Paid'), color: 'bg-green-100 text-green-800' },
       failed: { label: t('orders.pay.failed', locale === 'zh' ? '失败' : 'Failed'), color: 'bg-red-100 text-red-800' },
+      refund_pending: { label: locale === 'zh' ? '退款处理中' : 'Refund pending', color: 'bg-yellow-100 text-yellow-800' },
+      partially_refunded: { label: locale === 'zh' ? '部分退款' : 'Partially refunded', color: 'bg-orange-100 text-orange-800' },
       refunded: { label: t('orders.pay.refunded', locale === 'zh' ? '已退款' : 'Refunded'), color: 'bg-gray-100 text-gray-800' },
     };
 

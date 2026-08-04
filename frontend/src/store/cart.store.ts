@@ -34,6 +34,10 @@ export const useCartStore = create<CartState & CartActions>()(
 
       // Actions
       addItem: (product, quantity = 1) => {
+        if (!product || Number(product.price) <= 0) {
+          toast.error('Please contact us for a quote before ordering this product.');
+          return;
+        }
         const { items } = get();
         const existingItem = items.find(item => item.product.id === product.id);
 

@@ -10,7 +10,7 @@ import { queryKeys } from '@/lib/react-query';
 import ProductFilters from '@/components/products/ProductFilters';
 import Pagination from '@/components/common/Pagination';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 import {
   AdjustmentsHorizontalIcon,
@@ -180,6 +180,7 @@ export default function CategoryProductsClient({
   };
 
   const handleAddToCart = (product: Product) => {
+    if (!hasProductPrice(product)) return;
     addItem(product, 1);
   };
 
@@ -200,11 +201,11 @@ export default function CategoryProductsClient({
   return (
     <div>
       {/* Toolbar */}
-      <div className="site-toolbar p-4 mb-6">
-        <div className="flex flex-col space-y-4">
+      <div className="site-toolbar mb-6 p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:gap-4">
           {/* Top row */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <div className="flex items-center space-x-4">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:items-center">
+            <div className="min-w-0">
               <span className="text-sm text-slate-700">
                 {pagination ? (
                   <>Showing {((pagination.page - 1) * pagination.page_size) + 1}-{Math.min(pagination.page * pagination.page_size, pagination.total)} of {pagination.total} products</>
@@ -237,12 +238,12 @@ export default function CategoryProductsClient({
           </div>
 
           {/* Bottom row */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 sm:flex-none">
               <select
                 value={sortValue}
                 onChange={handleSortChange}
-                className="site-select px-3 py-2 text-sm"
+                className="site-select min-w-0 flex-1 px-3 py-2 text-sm sm:flex-none"
               >
                 <option value="name">{t('products.sortNameAsc')}</option>
                 <option value="name_desc">{t('products.sortNameDesc')}</option>
@@ -265,7 +266,7 @@ export default function CategoryProductsClient({
               </button>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="ml-auto flex min-w-0 items-center gap-3">
               {hasActiveFilters && (
                 <button
                   onClick={clearFilters}
@@ -339,7 +340,7 @@ export default function CategoryProductsClient({
 
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-xl font-bold text-[#0b3e75]">
-                        {formatCurrency(product.price)}
+                        {hasProductPrice(product) ? formatCurrency(product.price) : t('products.contactForQuote')}
                       </span>
 
                       <div className="flex items-center space-x-2">
@@ -350,14 +351,16 @@ export default function CategoryProductsClient({
                         >
                           <EyeIcon className="h-5 w-5" />
                         </Link>
-                        <button
-                          onClick={() => handleAddToCart(product)}
-                          className="site-primary-action px-3 py-2 text-sm"
-                          title={t('common.addToCart')}
-                        >
-                          <ShoppingCartIcon className="h-4 w-4 mr-1" />
-                          {t('common.addToCart')}
-                        </button>
+                        {hasProductPrice(product) && (
+                          <button
+                            onClick={() => handleAddToCart(product)}
+                            className="site-primary-action px-3 py-2 text-sm"
+                            title={t('common.addToCart')}
+                          >
+                            <ShoppingCartIcon className="h-4 w-4 mr-1" />
+                            {t('common.addToCart')}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -400,7 +403,7 @@ export default function CategoryProductsClient({
 
                     <div className="flex-shrink-0 text-left sm:text-right">
                       <div className="text-xl font-bold text-[#0b3e75] mb-2">
-                        {formatCurrency(product.price)}
+                        {hasProductPrice(product) ? formatCurrency(product.price) : t('products.contactForQuote')}
                       </div>
                       <div className="flex items-center gap-2">
                         <Link
@@ -410,14 +413,16 @@ export default function CategoryProductsClient({
                         >
                           <EyeIcon className="h-5 w-5" />
                         </Link>
-                        <button
-                          onClick={() => handleAddToCart(product)}
-                          className="site-primary-action px-4 py-2 text-sm"
-                          title={t('common.addToCart')}
-                        >
-                          <ShoppingCartIcon className="h-4 w-4 mr-2" />
-                          {t('common.addToCart')}
-                        </button>
+                        {hasProductPrice(product) && (
+                          <button
+                            onClick={() => handleAddToCart(product)}
+                            className="site-primary-action px-4 py-2 text-sm"
+                            title={t('common.addToCart')}
+                          >
+                            <ShoppingCartIcon className="h-4 w-4 mr-2" />
+                            {t('common.addToCart')}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

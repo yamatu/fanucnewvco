@@ -111,6 +111,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 - 订单邮件通知（创建/付款）：`docs/ORDER_EMAIL_NOTIFICATIONS.md`
 - AI 商品分类、SEO 与多语言优化助手：`docs/AI_CATALOG_ASSISTANT.md`
 - 产品 XLSX 批量导入（FANUC v1）：`docs/PRODUCT_XLSX_IMPORT.md`
+- 报价 CSV 导入（已有报价/未报价型号）：`docs/PRODUCT_QUOTE_CSV_IMPORT.md`
 - 产品默认图片 + SKU 水印：`docs/PRODUCT_IMAGE_WATERMARK.md`
 - 运费模板（按国家）+ XLSX 导入：`docs/SHIPPING_RATES.md`
 - 用户系统说明：`USER_SYSTEM_COMPLETE.md`、`USER_SYSTEM_IMPLEMENTATION.md`

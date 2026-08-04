@@ -82,11 +82,16 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 			return
 		}
 
-		// Use price from frontend if provided, otherwise use product price
-		unitPrice := item.UnitPrice
-		if unitPrice <= 0 {
-			unitPrice = product.Price
+		if product.Price <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": fmt.Sprintf("Product %s requires a quotation before ordering", product.SKU),
+			})
+			return
 		}
+
+		// Prices are authoritative server-side; never trust a browser-submitted unit price.
+		unitPrice := product.Price
 
 		itemTotal := unitPrice * float64(item.Quantity)
 		subtotalAmount += itemTotal
@@ -277,7 +282,6 @@ func (oc *OrderController) ProcessPayment(c *gin.Context) {
 		})
 		return
 	}
-
 	// Check if order is already paid
 	if order.PaymentStatus == "paid" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -482,7 +486,7 @@ func (oc *OrderController) GetOrder(c *gin.Context) {
 	orderID := c.Param("id")
 
 	var order models.Order
-	if err := config.DB.Preload("Items.Product").Preload("User").
+	if err := config.DB.Preload("Items.Product").Preload("Refunds").Preload("User").
 		First(&order, orderID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
@@ -601,10 +605,17 @@ func (oc *OrderController) DeleteOrder(c *gin.Context) {
 	orderID := c.Param("id")
 
 	var order models.Order
-	if err := config.DB.Preload("Items").First(&order, orderID).Error; err != nil {
+	if err := config.DB.Preload("Items").Preload("Refunds").First(&order, orderID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
 			"message": "Order not found",
+		})
+		return
+	}
+	if len(order.Refunds) > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Orders with refund history cannot be deleted",
 		})
 		return
 	}
@@ -742,8 +753,16 @@ func (oc *OrderController) UpdateOrder(c *gin.Context) {
 		order.Status = req.Status
 	}
 	if req.PaymentStatus != "" {
-		// Validate payment status
-		validPaymentStatuses := []string{"pending", "paid", "failed", "refunded"}
+		// Refund states are written only by the PayPal refund endpoint so an
+		// admin edit cannot mark an order refunded without a provider result.
+		if (req.PaymentStatus == "refunded" || req.PaymentStatus == "partially_refunded" || req.PaymentStatus == "refund_pending") && req.PaymentStatus != order.PaymentStatus {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "Use the refund action to change payment to a refund status",
+			})
+			return
+		}
+		validPaymentStatuses := []string{"pending", "paid", "failed", "refund_pending", "partially_refunded", "refunded"}
 		validPaymentStatus := false
 		for _, status := range validPaymentStatuses {
 			if req.PaymentStatus == status {

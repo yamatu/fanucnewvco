@@ -90,9 +90,10 @@ function AdminProductsContent() {
   const [isPausingAISEOJob, setIsPausingAISEOJob] = useState(false);
   const [isStartingAISEOJob, setIsStartingAISEOJob] = useState(false);
 
-  // XLSX import modal
+  // Product/quote import modal
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [importFormat, setImportFormat] = useState<'xlsx' | 'csv'>('xlsx');
   const [importBrand, setImportBrand] = useState<string>('');
   const [importOverwrite, setImportOverwrite] = useState<boolean>(false);
   const [importCreateMissing, setImportCreateMissing] = useState<boolean>(true);
@@ -509,7 +510,10 @@ function AdminProductsContent() {
 
   const importMutation = useMutation({
     mutationFn: async () => {
-      if (!importFile) throw new Error(locale === 'zh' ? '请选择 .xlsx 文件' : 'Please select an .xlsx file');
+      if (!importFile) throw new Error(locale === 'zh' ? '请选择导入文件' : 'Please select an import file');
+      if (importFormat === 'csv') {
+        return ProductService.importProductQuotesCsv(importFile, (pct) => setUploadProgress(pct));
+      }
       return ProductService.importProductsXlsx(importFile, {
         brand: importBrand,
         overwrite: importOverwrite,
@@ -928,6 +932,7 @@ function AdminProductsContent() {
                 setShowImportModal(true);
                 setImportResult(null);
                 setImportFile(null);
+                setImportFormat('xlsx');
                 setImportTask(null);
                 setUploadProgress(0);
                 stopImportPolling();
@@ -952,8 +957,8 @@ function AdminProductsContent() {
             <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
               <div className="flex items-center justify-between border-b px-4 py-3">
                 <div>
-				  <div className="text-lg font-semibold text-gray-900">{t('products.import.modalTitle', locale === 'zh' ? '批量导入产品（XLSX）' : 'Bulk Import Products (XLSX)')}</div>
-				  <div className="text-xs text-gray-500">{t('products.import.columns', locale === 'zh' ? '模板列：型号 / 价格 / 数量 / 重量kg / 分类' : 'Template columns: Model, Price, Quantity, WeightKg, Category')}</div>
+                  <div className="text-lg font-semibold text-gray-900">{locale === 'zh' ? '批量导入产品 / 报价' : 'Bulk Product / Quote Import'}</div>
+                  <div className="text-xs text-gray-500">{importFormat === 'csv' ? (locale === 'zh' ? '报价 CSV：品牌 / 型号 / 价格 / 交期' : 'Quote CSV: Brand / Model / Price / Lead time') : (locale === 'zh' ? '商品 XLSX：型号 / 价格 / 数量 / 重量kg / 分类' : 'Product XLSX: Model / Price / Quantity / WeightKg / Category')}</div>
                 </div>
                 <button
                   onClick={() => {
@@ -967,7 +972,30 @@ function AdminProductsContent() {
               </div>
 
               <div className="p-4 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                <div className="inline-flex w-full rounded-md border border-gray-200 bg-gray-50 p-1 sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => { setImportFormat('xlsx'); setImportFile(null); setImportResult(null); setImportTask(null); stopImportPolling(); }}
+                    className={`flex-1 rounded px-3 py-2 text-sm font-medium sm:flex-none ${importFormat === 'xlsx' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600'}`}
+                  >
+                    {locale === 'zh' ? '商品 XLSX' : 'Product XLSX'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setImportFormat('csv'); setImportFile(null); setImportResult(null); setImportTask(null); stopImportPolling(); }}
+                    className={`flex-1 rounded px-3 py-2 text-sm font-medium sm:flex-none ${importFormat === 'csv' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600'}`}
+                  >
+                    {locale === 'zh' ? '报价 CSV' : 'Quote CSV'}
+                  </button>
+                </div>
+
+                {importFormat === 'csv' && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    {locale === 'zh' ? '上传已有报价.csv 或未报价型号.csv。已有 SKU 不会重复创建；空价格会创建为“联系询价”产品，且不会清空网站上已有价格。' : 'Upload your quoted or unquoted CSV. Existing SKUs are updated without duplicates; blank prices create quote-only products and never erase an existing site price.'}
+                  </div>
+                )}
+
+                {importFormat === 'xlsx' && <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                   <div className="w-full sm:w-auto">
 					<label className="block text-sm font-medium text-gray-700 mb-1">{t('products.import.brand', locale === 'zh' ? '品牌' : 'Brand')}</label>
                     <select
@@ -990,13 +1018,13 @@ function AdminProductsContent() {
                     <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
 					{t('products.import.downloadTemplate', locale === 'zh' ? '下载模板' : 'Download Template')}
                   </button>
-                </div>
+                </div>}
 
                 <div>
-				  <label className="block text-sm font-medium text-gray-700 mb-1">{t('products.import.uploadXlsx', locale === 'zh' ? '上传 .xlsx 文件' : 'Upload .xlsx')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{importFormat === 'csv' ? (locale === 'zh' ? '上传 .csv 文件' : 'Upload .csv') : t('products.import.uploadXlsx', locale === 'zh' ? '上传 .xlsx 文件' : 'Upload .xlsx')}</label>
                   <input
                     type="file"
-                    accept=".xlsx"
+                    accept={importFormat === 'csv' ? '.csv,text/csv' : '.xlsx'}
                     onChange={(e) => {
                       const f = e.target.files?.[0] || null;
                       setImportFile(f);
@@ -1007,10 +1035,10 @@ function AdminProductsContent() {
                     }}
                     className="block w-full text-sm"
                   />
-				  <p className="mt-1 text-xs text-gray-500">{t('products.import.hint', locale === 'zh' ? '系统会按 SKU/型号/料号匹配；更新价格/库存/重量。表格分类列支持“父级 > 子级”，分类不存在时会自动创建。' : 'We will match by SKU/model/part number, then update price/stock/weight. The Category column supports Parent > Child and missing categories are created automatically.')}</p>
+                  <p className="mt-1 text-xs text-gray-500">{importFormat === 'csv' ? (locale === 'zh' ? '支持中文或英文列名，系统会识别 BOM、带逗号的美元价格和重复型号。' : 'Chinese or English headers are supported, including BOM, comma-formatted prices and duplicate models.') : t('products.import.hint', locale === 'zh' ? '系统会按 SKU/型号/料号匹配；更新价格/库存/重量。表格分类列支持“父级 > 子级”，分类不存在时会自动创建。' : 'We will match by SKU/model/part number, then update price/stock/weight. The Category column supports Parent > Child and missing categories are created automatically.')}</p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                {importFormat === 'xlsx' && <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
                   <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                     <input
                       type="checkbox"
@@ -1029,7 +1057,7 @@ function AdminProductsContent() {
                     />
 					{t('products.import.overwrite', locale === 'zh' ? '覆盖名称/描述/SEO' : 'Overwrite name/description/SEO')}
                   </label>
-                </div>
+                </div>}
 
                 {(importMutation.isPending || importTask) && (
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-3">

@@ -13,6 +13,10 @@ export function formatCurrency(amount: number, currency: string = 'USD'): string
   }).format(amount);
 }
 
+export function hasProductPrice(product?: { price?: number | null }): boolean {
+  return Number(product?.price) > 0;
+}
+
 // Format date
 export function formatDate(date: string | Date): string {
   const d = new Date(date);

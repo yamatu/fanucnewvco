@@ -182,7 +182,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PU
       "@type": "Audience",
       "audienceType": "CNC maintenance buyers and industrial automation service teams"
     },
-    "offers": {
+    "offers": product.price > 0 ? {
       "@type": "Offer",
       "url": productUrl,
       "price": product.price,
@@ -231,7 +231,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PU
           }
         }
       }
-    }
+    } : undefined
   };
 
   // Add aggregate rating if reviews exist

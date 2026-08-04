@@ -16,15 +16,18 @@ type Order struct {
 	UserID *uint      `json:"user_id" gorm:"index"`
 	User   *AdminUser `json:"user,omitempty" gorm:"foreignKey:UserID"`
 
-	CustomerEmail   string `json:"customer_email" gorm:"type:varchar(255);not null"`
-	CustomerName    string `json:"customer_name" gorm:"type:varchar(255);not null"`
-	CustomerPhone   string `json:"customer_phone" gorm:"type:varchar(50)"`
-	ShippingAddress string `json:"shipping_address" gorm:"type:text"`
-	BillingAddress  string `json:"billing_address" gorm:"type:text"`
-	Status          string `json:"status" gorm:"type:varchar(50);default:'pending'"`         // pending, paid, shipped, delivered, cancelled
-	PaymentStatus   string `json:"payment_status" gorm:"type:varchar(50);default:'pending'"` // pending, paid, failed, refunded
-	PaymentMethod   string `json:"payment_method" gorm:"type:varchar(50)"`                   // paypal, stripe, etc.
-	PaymentID       string `json:"payment_id" gorm:"type:varchar(255)"`                      // External payment ID
+	CustomerEmail   string     `json:"customer_email" gorm:"type:varchar(255);not null"`
+	CustomerName    string     `json:"customer_name" gorm:"type:varchar(255);not null"`
+	CustomerPhone   string     `json:"customer_phone" gorm:"type:varchar(50)"`
+	ShippingAddress string     `json:"shipping_address" gorm:"type:text"`
+	BillingAddress  string     `json:"billing_address" gorm:"type:text"`
+	Status          string     `json:"status" gorm:"type:varchar(50);default:'pending'"`         // pending, paid, shipped, delivered, cancelled
+	PaymentStatus   string     `json:"payment_status" gorm:"type:varchar(50);default:'pending'"` // pending, paid, failed, refund_pending, partially_refunded, refunded
+	PaymentMethod   string     `json:"payment_method" gorm:"type:varchar(50)"`                   // paypal, stripe, etc.
+	PaymentID       string     `json:"payment_id" gorm:"type:varchar(255)"`                      // External payment ID
+	RefundedAmount  float64    `json:"refunded_amount" gorm:"type:decimal(10,2);default:0"`
+	RefundedAt      *time.Time `json:"refunded_at"`
+	StockRestoredAt *time.Time `json:"stock_restored_at"`
 
 	// Shipping
 	TrackingNumber     string      `json:"tracking_number" gorm:"type:varchar(255)"`
@@ -42,8 +45,28 @@ type Order struct {
 	Currency           string      `json:"currency" gorm:"type:varchar(10);default:'USD'"`
 	Notes              string      `json:"notes" gorm:"type:text"`
 	Items              []OrderItem `json:"items,omitempty" gorm:"foreignKey:OrderID"`
+	Refunds            []Refund    `json:"refunds,omitempty" gorm:"foreignKey:OrderID"`
 	CreatedAt          time.Time   `json:"created_at"`
 	UpdatedAt          time.Time   `json:"updated_at"`
+}
+
+// Refund records each provider refund attempt and its final state.
+type Refund struct {
+	ID                   uint                `json:"id" gorm:"primaryKey"`
+	OrderID              uint                `json:"order_id" gorm:"not null;index"`
+	Order                *Order              `json:"order,omitempty" gorm:"foreignKey:OrderID"`
+	PaymentTransactionID *uint               `json:"payment_transaction_id" gorm:"index"`
+	PaymentTransaction   *PaymentTransaction `json:"payment_transaction,omitempty" gorm:"foreignKey:PaymentTransactionID"`
+	ProviderRefundID     string              `json:"provider_refund_id" gorm:"size:255;index"`
+	CaptureID            string              `json:"capture_id" gorm:"size:255;index;not null"`
+	Amount               float64             `json:"amount" gorm:"type:decimal(10,2);not null"`
+	Currency             string              `json:"currency" gorm:"size:10;not null"`
+	Reason               string              `json:"reason" gorm:"size:500"`
+	Status               string              `json:"status" gorm:"size:32;not null;index"`
+	ProviderResponse     string              `json:"-" gorm:"type:longtext"`
+	RequestedBy          *uint               `json:"requested_by" gorm:"index"`
+	CreatedAt            time.Time           `json:"created_at"`
+	UpdatedAt            time.Time           `json:"updated_at"`
 }
 
 type OrderItem struct {

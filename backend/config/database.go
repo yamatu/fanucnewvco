@@ -131,6 +131,7 @@ func ConnectDatabase() {
 			&models.Order{},
 			&models.OrderItem{},
 			&models.PaymentTransaction{},
+			&models.Refund{},
 			&models.Banner{},
 			&models.HomepageContent{},
 			&models.CompanyProfile{},

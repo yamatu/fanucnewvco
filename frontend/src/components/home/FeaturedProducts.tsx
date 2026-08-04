@@ -10,7 +10,7 @@ import {
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { useCart } from '@/store/cart.store';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
@@ -149,7 +149,7 @@ export function FeaturedProducts({
                     <EyeIcon className="h-5 w-5" />
                   </Link>
                   
-                  {(product.stock_quantity ?? 0) > 0 && (
+                  {(product.stock_quantity ?? 0) > 0 && hasProductPrice(product) && (
                     <button
                       onClick={() => handleAddToCart(product)}
                       className="relative z-20 bg-orange-500 text-white p-3 rounded-full hover:bg-[#003a78] transition-colors"
@@ -161,13 +161,13 @@ export function FeaturedProducts({
 
                 {/* Badges */}
                 <div className="absolute top-4 left-4 flex flex-col space-y-2">
-                  {product.compare_price && product.compare_price > product.price && (
+                  {hasProductPrice(product) && product.compare_price && product.compare_price > product.price && (
                     <span className="bg-orange-500 text-white px-2 py-1 rounded text-sm font-semibold" suppressHydrationWarning>
                       {t('home.featured.save', { percent: Math.round(((product.compare_price - product.price) / product.compare_price) * 100) })}
                     </span>
                   )}
 
-                  {(product.stock_quantity ?? 0) <= 0 && (
+                  {(product.stock_quantity ?? 0) <= 0 && hasProductPrice(product) && (
                     <span className="bg-gray-500 text-white px-2 py-1 rounded text-sm font-semibold">
                       {t('common.outOfStock')}
                     </span>
@@ -207,33 +207,42 @@ export function FeaturedProducts({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <span className="text-2xl font-bold text-slate-950">
-                      {formatCurrency(product.price)}
+                      {hasProductPrice(product) ? formatCurrency(product.price) : t('products.contactForQuote')}
                     </span>
-                    {product.compare_price && product.compare_price > product.price && (
+                    {hasProductPrice(product) && product.compare_price && product.compare_price > product.price && (
                       <span className="text-lg text-gray-500 line-through">
                         {formatCurrency(product.compare_price)}
                       </span>
                     )}
                   </div>
 
-                  <div className="ml-1 text-sm text-slate-600">
-                    {(product.stock_quantity ?? 0) > 0 ? t('common.inStock', { count: product.stock_quantity }) : t('common.outOfStock')}
-                  </div>
+                  {hasProductPrice(product) && (
+                    <div className="ml-1 text-sm text-slate-600">
+                      {(product.stock_quantity ?? 0) > 0 ? t('common.inStock', { count: product.stock_quantity }) : t('common.outOfStock')}
+                    </div>
+                  )}
 
-                  {(product.stock_quantity ?? 0) > 0 ? (
+                  {(product.stock_quantity ?? 0) > 0 && hasProductPrice(product) ? (
                     <button
                       onClick={() => handleAddToCart(product)}
                       className="relative z-20 bg-orange-500 hover:bg-[#003a78] text-white px-4 py-2 rounded-md font-medium transition-colors duration-300"
                     >
                       {t('common.addToCart')}
                     </button>
-                  ) : (
+                  ) : hasProductPrice(product) ? (
                     <button
                       disabled
                       className="bg-gray-300 text-gray-500 px-4 py-2 rounded-lg font-medium cursor-not-allowed"
                     >
                       {t('common.outOfStock')}
                     </button>
+                  ) : (
+                    <Link
+                      href={href(`/products/${toProductPathId(product.sku)}`)}
+                      className="relative z-20 rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-[#0b3e75] hover:bg-slate-50"
+                    >
+                      {t('products.contactForQuote')}
+                    </Link>
                   )}
                 </div>
               </div>
