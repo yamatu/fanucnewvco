@@ -16,6 +16,9 @@ type FormState = {
   timeout_seconds: number;
   seo_job_concurrency: number;
   seo_candidate_limit: number;
+  default_product_price: number;
+  default_warranty_period: string;
+  default_lead_time: string;
 };
 
 const presets = [
@@ -33,6 +36,9 @@ const blankForm: FormState = {
   timeout_seconds: 75,
   seo_job_concurrency: 2,
   seo_candidate_limit: 30000,
+  default_product_price: 0,
+  default_warranty_period: '12 months',
+  default_lead_time: '3-7 days',
 };
 
 function errorMessage(error: unknown) {
@@ -67,6 +73,9 @@ export default function AIAssistantSettingsPage() {
           timeout_seconds: data.timeout_seconds || 75,
           seo_job_concurrency: data.seo_job_concurrency || 2,
           seo_candidate_limit: data.seo_candidate_limit || 30000,
+          default_product_price: data.default_product_price || 0,
+          default_warranty_period: data.default_warranty_period || '12 months',
+          default_lead_time: data.default_lead_time || '3-7 days',
         });
       })
       .catch((error: unknown) => toast.error(errorMessage(error) || (zh ? '无法读取 AI 配置' : 'Could not load AI settings')))
@@ -87,6 +96,9 @@ export default function AIAssistantSettingsPage() {
         timeout_seconds: Number(form.timeout_seconds),
         seo_job_concurrency: Number(form.seo_job_concurrency),
         seo_candidate_limit: Number(form.seo_candidate_limit),
+        default_product_price: Number(form.default_product_price),
+        default_warranty_period: form.default_warranty_period,
+        default_lead_time: form.default_lead_time,
       });
       setSettings(saved);
       setClearKey(false);
@@ -125,6 +137,17 @@ export default function AIAssistantSettingsPage() {
                 <label className="inline-flex cursor-pointer items-center gap-3"><span className="text-sm font-medium text-gray-700">{form.enabled ? (zh ? '已启用' : 'Enabled') : (zh ? '已关闭' : 'Disabled')}</span><input type="checkbox" checked={form.enabled} onChange={(event) => setForm((current) => ({ ...current, enabled: event.target.checked }))} className="h-5 w-5 rounded border-gray-300 text-violet-600 focus:ring-violet-500" /></label>
               </div>
               {settings?.has_api_key ? <p className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700"><CheckCircleIcon className="h-4 w-4" />{zh ? 'API Key 已加密保存' : 'API key is encrypted and saved'}</p> : <p className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700"><ExclamationTriangleIcon className="h-4 w-4" />{zh ? '请保存 API Key 后再启用' : 'Save an API key before enabling'}</p>}
+            </section>
+
+            <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+              <h2 className="font-semibold text-gray-900">{zh ? 'AI 新建产品默认值' : 'AI product creation defaults'}</h2>
+              <p className="mt-1 text-sm text-gray-500">{zh ? 'AI 只负责识别型号、品牌、分类与 SEO。售价、质保和交期始终使用这里保存的业务默认值；新产品会保持未发布。' : 'AI identifies the model, brand, taxonomy, and SEO. Price, warranty, and lead time always come from these saved business defaults; new products remain unpublished.'}</p>
+              <div className="mt-5 grid gap-4 md:grid-cols-3">
+                <label className="block text-sm font-medium text-gray-700">{zh ? '默认售价（USD）' : 'Default price (USD)'}<input min="0" max="99999999.99" step="0.01" type="number" value={form.default_product_price} onChange={(event) => setForm((current) => ({ ...current, default_product_price: Number(event.target.value) }))} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100" /><span className="mt-1 block text-xs font-normal text-gray-500">{zh ? '设为 0 时禁止 AI 创建产品，避免生成无依据价格。' : 'Set to 0 to block AI product creation and prevent unsupported prices.'}</span></label>
+                <label className="block text-sm font-medium text-gray-700">{zh ? '默认质保' : 'Default warranty'}<input required maxLength={50} value={form.default_warranty_period} onChange={(event) => setForm((current) => ({ ...current, default_warranty_period: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100" /></label>
+                <label className="block text-sm font-medium text-gray-700">{zh ? '默认交期' : 'Default lead time'}<input required maxLength={50} value={form.default_lead_time} onChange={(event) => setForm((current) => ({ ...current, default_lead_time: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100" /></label>
+              </div>
+              <div className="mt-4 flex gap-2 rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs leading-5 text-amber-900"><InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" /><p>{zh ? '确认建议后会创建数据库草稿并自动补齐缺失的品牌父类目和产品类型子类目，但不会启用产品或提交搜索引擎。' : 'Applying a proposal creates a database draft and any missing brand parent/product-type child categories, but does not activate the product or submit it to search engines.'}</p></div>
             </section>
 
             <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">

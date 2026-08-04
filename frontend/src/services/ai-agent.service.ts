@@ -3,6 +3,7 @@ import { APIResponse } from '@/types';
 
 export type AIAgentActionType =
   | 'create_category'
+  | 'create_product'
   | 'update_product'
   | 'update_product_price'
   | 'upsert_product_translation'
@@ -25,6 +26,10 @@ export interface AIAgentStatus {
   model: string;
   provider: string;
   reasoning_effort: string;
+  product_creation_ready: boolean;
+  default_product_price: number;
+  default_warranty_period: string;
+  default_lead_time: string;
 }
 
 export interface AIAgentSettings {
@@ -36,6 +41,9 @@ export interface AIAgentSettings {
   timeout_seconds: number;
   seo_job_concurrency: number;
   seo_candidate_limit: number;
+  default_product_price: number;
+  default_warranty_period: string;
+  default_lead_time: string;
   updated_at?: string;
 }
 
@@ -49,6 +57,9 @@ export interface AIAgentSettingsUpdate {
   timeout_seconds?: number;
   seo_job_concurrency?: number;
   seo_candidate_limit?: number;
+  default_product_price?: number;
+  default_warranty_period?: string;
+  default_lead_time?: string;
 }
 
 export interface AIAgentReply {

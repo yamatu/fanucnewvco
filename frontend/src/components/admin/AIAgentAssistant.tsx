@@ -23,6 +23,7 @@ import { useAdminI18n } from '@/lib/admin-i18n';
 import AIPriceSyncPanel from '@/components/admin/AIPriceSyncPanel';
 
 const SUGGESTED_PROMPTS = [
+  'A06B-XXXX（如果不存在，创建未发布产品草稿并自动补齐品牌父类目和产品类型子类目）',
   '检查 SKU A06B-XXXX 的分类是否正确，并给出 SEO 优化建议',
   '为 FANUC 伺服驱动分类生成中文、德语 SEO 内容',
   '检查现有分类；没有合适分类时请提出创建建议',
@@ -30,6 +31,7 @@ const SUGGESTED_PROMPTS = [
 
 const actionLabels: Record<string, { zh: string; en: string }> = {
   create_category: { zh: '新建分类建议', en: 'New category proposal' },
+  create_product: { zh: '新建产品草稿', en: 'New product draft' },
   update_product: { zh: '商品分类 / SEO 优化', en: 'Product category / SEO update' },
   update_product_price: { zh: '商品售价修改', en: 'Product sale price update' },
   upsert_product_translation: { zh: '商品多语言 SEO', en: 'Product multilingual SEO' },
@@ -58,6 +60,10 @@ function actionSummary(action: AIAgentAction, zh: boolean) {
       return zh
         ? `建议创建分类「${displayValue(d.name)}」`
         : `Create category “${displayValue(d.name)}”`;
+    case 'create_product':
+      return zh
+        ? `创建未发布产品「${displayValue(d.name || d.model)}」；售价 ${displayValue(d.default_price)} USD，质保 ${displayValue(d.warranty_period)}，交期 ${displayValue(d.lead_time)}`
+        : `Create unpublished product “${displayValue(d.name || d.model)}”; price ${displayValue(d.default_price)} USD, warranty ${displayValue(d.warranty_period)}, lead time ${displayValue(d.lead_time)}`;
     case 'update_product':
       return zh
         ? `商品 #${displayValue(d.product_id)}：建议归入「${displayValue(d.category_name || d.category_id || d.category_client_key)}」并优化 SEO`
@@ -79,11 +85,12 @@ function actionSummary(action: AIAgentAction, zh: boolean) {
   }
 }
 
-function ProposalCard({ action, onApply, applying, applied }: {
+function ProposalCard({ action, onApply, applying, applied, requiresBatch }: {
   action: AIAgentAction;
   onApply: () => void;
   applying: boolean;
   applied: boolean;
+  requiresBatch: boolean;
 }) {
   const { locale } = useAdminI18n();
   const [expanded, setExpanded] = useState(false);
@@ -101,6 +108,10 @@ function ProposalCard({ action, onApply, applying, applied }: {
         {applied ? (
           <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-emerald-700">
             <CheckCircleIcon className="h-4 w-4" /> {zh ? '已应用' : 'Applied'}
+          </span>
+        ) : requiresBatch ? (
+          <span className="shrink-0 rounded-md border border-violet-200 bg-white px-2 py-1 text-[10px] font-medium text-violet-700">
+            {zh ? '随整组应用' : 'Apply as group'}
           </span>
         ) : (
           <button
@@ -264,7 +275,7 @@ export default function AIAgentAssistant() {
             {!statusLoading && status?.configured && messages.length === 0 && (
               <div className="space-y-3 py-2">
                 <div className="rounded-xl bg-white p-3 text-sm leading-6 text-gray-700 shadow-sm ring-1 ring-gray-100">
-                  {zh ? '告诉我 SKU、产品名称、目标分类，或输入“型号 = 售价”的价格表。我会先生成可预览的建议；价格只会采用你明确填写的售价，确认后才会写入数据库。' : 'Give me a SKU, product name, category goal, or a “model = sale price” price list. I will create reviewable proposals; prices use only the amounts you explicitly provide and nothing is written until you apply it.'}
+                  {zh ? '直接输入一个型号即可分析。型号不存在时，我会生成品牌父类目、产品类型子类目和未发布产品草稿建议；售价、质保与交期只采用后台保存的默认值。' : 'Enter a model directly. If it does not exist, I will propose the brand parent, product-type child category, and an unpublished product draft; price, warranty, and lead time use only saved admin defaults.'}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {SUGGESTED_PROMPTS.map((prompt) => <button key={prompt} type="button" onClick={() => send(undefined, prompt)} className="rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-left text-xs leading-4 text-violet-700 hover:bg-violet-50">{prompt}</button>)}
@@ -287,7 +298,8 @@ export default function AIAgentAssistant() {
                   )}
                   {message.suggestions.map((action, actionIndex) => {
                     const key = `${messageIndex}-${actionIndex}`;
-                    return <ProposalCard key={key} action={action} applying={applyingKey === key || applyingKey === `all-${messageIndex}`} applied={appliedKeys.includes(key)} onApply={() => apply(action, key)} />;
+                    const requiresBatch = Boolean(action.data?.parent_client_key || action.data?.category_client_key);
+                    return <ProposalCard key={key} action={action} applying={applyingKey === key || applyingKey === `all-${messageIndex}`} applied={appliedKeys.includes(key)} requiresBatch={requiresBatch} onApply={() => apply(action, key)} />;
                   })}
                 </div>}
               </div>
@@ -298,10 +310,10 @@ export default function AIAgentAssistant() {
 
           <form onSubmit={send} className="border-t border-gray-200 bg-white p-3">
             <div className="flex items-end gap-2 rounded-xl border border-gray-300 bg-white p-1.5 focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-100">
-              <textarea value={input} onChange={(event) => setInput(event.target.value)} disabled={!status?.configured || sending} rows={2} maxLength={4000} aria-label={zh ? 'AI 优化指令' : 'AI optimization instruction'} placeholder={zh ? '例如：检查 A06B-xxxx 的分类和 SEO' : 'Example: review the category and SEO for A06B-xxxx'} className="min-h-[42px] flex-1 resize-none border-0 bg-transparent px-2 py-1 text-sm outline-none placeholder:text-gray-400 disabled:cursor-not-allowed" />
+              <textarea value={input} onChange={(event) => setInput(event.target.value)} disabled={!status?.configured || sending} rows={2} maxLength={4000} aria-label={zh ? 'AI 优化指令' : 'AI optimization instruction'} placeholder={zh ? '直接输入型号，例如 A06B-xxxx' : 'Enter a model, for example A06B-xxxx'} className="min-h-[42px] flex-1 resize-none border-0 bg-transparent px-2 py-1 text-sm outline-none placeholder:text-gray-400 disabled:cursor-not-allowed" />
               <button type="submit" disabled={!input.trim() || !status?.configured || sending} className="rounded-lg bg-violet-600 p-2 text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-gray-300" aria-label={zh ? '发送' : 'Send'}><PaperAirplaneIcon className="h-4 w-4" /></button>
             </div>
-            <p className="mt-1.5 text-[11px] text-gray-400">{zh ? 'AI 仅生成建议；价格仅使用你填写的“型号 = 售价”，每项须确认后才会应用。' : 'AI creates proposals only. Price updates use only your “model = sale price” input and require confirmation.'}</p>
+            <p className="mt-1.5 text-[11px] text-gray-400">{status?.product_creation_ready ? (zh ? `产品草稿默认售价 ${status.default_product_price} USD；确认后创建但不发布。` : `Product draft default: ${status.default_product_price} USD; created only after confirmation and kept unpublished.`) : (zh ? '尚未设置默认售价；AI 可分析，但不会创建产品。' : 'No default price is configured; AI can analyze but cannot create products.')}</p>
           </form>
           </>}
         </section>

@@ -20,6 +20,11 @@ type AIAgentSetting struct {
 	// SEOCandidateLimit is the persisted safety ceiling for automatic candidate
 	// selection. Administrators can lower it, but never raise it above 30,000.
 	SEOCandidateLimit int `json:"seo_candidate_limit" gorm:"default:30000"`
+	// Product creation defaults are administrator-owned business values. AI may
+	// propose catalog content, but it never supplies or overrides these fields.
+	DefaultProductPrice   float64 `json:"default_product_price" gorm:"type:decimal(10,2);default:0.00"`
+	DefaultWarrantyPeriod string  `json:"default_warranty_period" gorm:"size:50;default:'12 months'"`
+	DefaultLeadTime       string  `json:"default_lead_time" gorm:"size:50;default:'3-7 days'"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -27,27 +32,33 @@ type AIAgentSetting struct {
 
 // AIAgentSettingResponse is safe for the browser: the encrypted secret never leaves Go.
 type AIAgentSettingResponse struct {
-	Enabled           bool      `json:"enabled"`
-	BaseURL           string    `json:"base_url"`
-	HasAPIKey         bool      `json:"has_api_key"`
-	Model             string    `json:"model"`
-	ReasoningEffort   string    `json:"reasoning_effort"`
-	TimeoutSeconds    int       `json:"timeout_seconds"`
-	SEOJobConcurrency int       `json:"seo_job_concurrency"`
-	SEOCandidateLimit int       `json:"seo_candidate_limit"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	Enabled               bool      `json:"enabled"`
+	BaseURL               string    `json:"base_url"`
+	HasAPIKey             bool      `json:"has_api_key"`
+	Model                 string    `json:"model"`
+	ReasoningEffort       string    `json:"reasoning_effort"`
+	TimeoutSeconds        int       `json:"timeout_seconds"`
+	SEOJobConcurrency     int       `json:"seo_job_concurrency"`
+	SEOCandidateLimit     int       `json:"seo_candidate_limit"`
+	DefaultProductPrice   float64   `json:"default_product_price"`
+	DefaultWarrantyPeriod string    `json:"default_warranty_period"`
+	DefaultLeadTime       string    `json:"default_lead_time"`
+	UpdatedAt             time.Time `json:"updated_at"`
 }
 
 func (s *AIAgentSetting) ToResponse() AIAgentSettingResponse {
 	return AIAgentSettingResponse{
-		Enabled:           s.Enabled,
-		BaseURL:           s.BaseURL,
-		HasAPIKey:         s.APIKeyEnc != "",
-		Model:             s.Model,
-		ReasoningEffort:   s.ReasoningEffort,
-		TimeoutSeconds:    s.TimeoutSeconds,
-		SEOJobConcurrency: s.SEOJobConcurrency,
-		SEOCandidateLimit: s.SEOCandidateLimit,
-		UpdatedAt:         s.UpdatedAt,
+		Enabled:               s.Enabled,
+		BaseURL:               s.BaseURL,
+		HasAPIKey:             s.APIKeyEnc != "",
+		Model:                 s.Model,
+		ReasoningEffort:       s.ReasoningEffort,
+		TimeoutSeconds:        s.TimeoutSeconds,
+		SEOJobConcurrency:     s.SEOJobConcurrency,
+		SEOCandidateLimit:     s.SEOCandidateLimit,
+		DefaultProductPrice:   s.DefaultProductPrice,
+		DefaultWarrantyPeriod: s.DefaultWarrantyPeriod,
+		DefaultLeadTime:       s.DefaultLeadTime,
+		UpdatedAt:             s.UpdatedAt,
 	}
 }
