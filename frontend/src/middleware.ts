@@ -13,6 +13,7 @@ import {
   normalizePublicLocale,
   stripLocaleFromPathname,
 } from '@/lib/i18n/config';
+import { PUBLIC_CONTENT_SIGNAL_POLICY } from '@/lib/robots';
 
 // Define protected routes
 const protectedRoutes = ['/admin'];
@@ -326,6 +327,10 @@ export async function middleware(request: NextRequest) {
     pathname === '/track-order'
   ) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+  }
+
+  if (isLocalizablePublicPath(pathname) && !response.headers.has('X-Robots-Tag')) {
+    response.headers.set('Content-Signal', PUBLIC_CONTENT_SIGNAL_POLICY);
   }
 
   return response;

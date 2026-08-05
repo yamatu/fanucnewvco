@@ -8,7 +8,7 @@ import MediaPickerModal from '@/components/admin/MediaPickerModal';
 import type { HomepageContent } from '@/types';
 import { SortableList } from '@/components/admin/homepage/SortableList';
 import { IconPreview } from '@/components/admin/homepage/icon-options';
-import { DEFAULT_WORKSHOP_SECTION_DATA } from '@/lib/homepage-defaults';
+import { DEFAULT_WORKSHOP_SECTION_DATA, type WorkshopSectionData } from '@/lib/homepage-defaults';
 import { newId } from '@/components/admin/homepage/homepage-schema';
 import { useAdminI18n } from '@/lib/admin-i18n';
 
@@ -46,16 +46,25 @@ type FormValues = {
   sort_order: number;
 };
 
-function parseData(content?: HomepageContent | null): any {
-  const raw = (content as any)?.data;
-  return typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
+function parseData(content?: HomepageContent | null): Partial<WorkshopSectionData> | null {
+  const raw: unknown = content?.data;
+  let parsed: unknown = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null;
+  return parsed as Partial<WorkshopSectionData>;
 }
 
 function fromContent(content?: HomepageContent | null): FormValues {
   const parsed = parseData(content);
   const base = parsed && (Array.isArray(parsed.facilities) || Array.isArray(parsed.capabilities)) ? parsed : DEFAULT_WORKSHOP_SECTION_DATA;
 
-  const facilities = (base.facilities || DEFAULT_WORKSHOP_SECTION_DATA.facilities).map((f: any) => ({
+  const facilities = (base.facilities || DEFAULT_WORKSHOP_SECTION_DATA.facilities).map((f) => ({
     id: newId('facility'),
     icon: String(f.icon || 'beaker'),
     title: String(f.title || ''),
@@ -64,14 +73,14 @@ function fromContent(content?: HomepageContent | null): FormValues {
     featuresText: Array.isArray(f.features) ? f.features.join('\n') : '',
   }));
 
-  const capabilities = (base.capabilities || DEFAULT_WORKSHOP_SECTION_DATA.capabilities).map((c: any) => ({
+  const capabilities = (base.capabilities || DEFAULT_WORKSHOP_SECTION_DATA.capabilities).map((c) => ({
     id: newId('cap'),
     icon: String(c.icon || 'cog'),
     title: String(c.title || ''),
     description: String(c.description || ''),
   }));
 
-  const statsItems = ((base.statsBlock?.items || DEFAULT_WORKSHOP_SECTION_DATA.statsBlock.items) as any[]).map((s: any) => ({
+  const statsItems = (base.statsBlock?.items || DEFAULT_WORKSHOP_SECTION_DATA.statsBlock.items).map((s) => ({
     id: newId('stat'),
     value: String(s.value || ''),
     title: String(s.title || ''),
@@ -90,8 +99,8 @@ function fromContent(content?: HomepageContent | null): FormValues {
     primaryCtaHref: String(base.statsBlock?.ctaPrimary?.href || DEFAULT_WORKSHOP_SECTION_DATA.statsBlock.ctaPrimary.href),
     secondaryCtaText: String(base.statsBlock?.ctaSecondary?.text || DEFAULT_WORKSHOP_SECTION_DATA.statsBlock.ctaSecondary.text),
     secondaryCtaHref: String(base.statsBlock?.ctaSecondary?.href || DEFAULT_WORKSHOP_SECTION_DATA.statsBlock.ctaSecondary.href),
-    is_active: Boolean((content as any)?.is_active ?? true),
-    sort_order: Number((content as any)?.sort_order ?? 40),
+    is_active: Boolean(content?.is_active ?? true),
+    sort_order: Number(content?.sort_order ?? 40),
   };
 }
 
@@ -102,7 +111,7 @@ function splitLines(v: string): string[] {
     .filter(Boolean);
 }
 
-function toData(values: FormValues): any {
+function toData(values: FormValues): WorkshopSectionData {
   return {
     headerTitle: values.headerTitle,
     headerDescription: values.headerDescription,
@@ -137,7 +146,7 @@ export default function WorkshopEditor({
   onSave,
 }: {
   content?: HomepageContent | null;
-  onSave: (payload: { data: any; title?: string; description?: string; is_active: boolean; sort_order: number }) => Promise<void>;
+  onSave: (payload: { data: WorkshopSectionData; title?: string; description?: string; is_active: boolean; sort_order: number }) => Promise<void>;
 }) {
   const { locale, t } = useAdminI18n();
   const defaults = useMemo(() => fromContent(content), [content]);
@@ -231,7 +240,7 @@ export default function WorkshopEditor({
             items={(facilitiesFA.fields || []).map((f, i) => ({ id: String(f.id), _i: i }))}
             onReorder={(next) => {
               const nextFacilities = next.map((n) => facilities[n._i]);
-              facilitiesFA.replace(nextFacilities as any);
+              facilitiesFA.replace(nextFacilities);
             }}
           >
             {(item, drag) => {
@@ -242,7 +251,7 @@ export default function WorkshopEditor({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      ref={drag.setActivatorNodeRef as any}
+                      ref={drag.setActivatorNodeRef}
                       {...drag.attributes}
                       {...drag.listeners}
                       className="p-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing"
@@ -274,9 +283,9 @@ export default function WorkshopEditor({
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Icon</label>
                       <select {...register(`facilities.${idx}.icon` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                        {FACILITY_ICON_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
+                        {FACILITY_ICON_OPTIONS.map((value) => (
+                          <option key={value} value={value}>
+                            {facilityIconLabel(value)}
                           </option>
                         ))}
                       </select>
@@ -326,7 +335,7 @@ export default function WorkshopEditor({
             items={(capabilitiesFA.fields || []).map((f, i) => ({ id: String(f.id), _i: i }))}
             onReorder={(next) => {
               const nextItems = next.map((n) => capabilities[n._i]);
-              capabilitiesFA.replace(nextItems as any);
+              capabilitiesFA.replace(nextItems);
             }}
           >
             {(item, drag) => {
@@ -337,7 +346,7 @@ export default function WorkshopEditor({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      ref={drag.setActivatorNodeRef as any}
+                      ref={drag.setActivatorNodeRef}
                       {...drag.attributes}
                       {...drag.listeners}
                       className="p-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing"
@@ -354,9 +363,9 @@ export default function WorkshopEditor({
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Icon</label>
                       <select {...register(`capabilities.${idx}.icon` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                        {CAP_ICON_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
+                        {CAP_ICON_OPTIONS.map((value) => (
+                          <option key={value} value={value}>
+                            {capIconLabel(value)}
                           </option>
                         ))}
                       </select>
@@ -393,7 +402,7 @@ export default function WorkshopEditor({
               items={(statsFA.fields || []).map((f, i) => ({ id: String(f.id), _i: i }))}
               onReorder={(next) => {
                 const nextItems = next.map((n) => statsItems[n._i]);
-                statsFA.replace(nextItems as any);
+                statsFA.replace(nextItems);
               }}
             >
               {(item, drag) => {
@@ -403,7 +412,7 @@ export default function WorkshopEditor({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        ref={drag.setActivatorNodeRef as any}
+                        ref={drag.setActivatorNodeRef}
                         {...drag.attributes}
                         {...drag.listeners}
                         className="p-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing"

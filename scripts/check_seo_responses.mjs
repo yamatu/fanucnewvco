@@ -121,6 +121,30 @@ for (const route of routes) {
 }
 
 try {
+  const robotsResponse = await fetch(`${targetOrigin}/robots.txt`, {
+    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+  });
+  const robotsTxt = await robotsResponse.text();
+  const contentSignalHeader = robotsResponse.headers.get('content-signal') || '';
+  const errors = [];
+  if (!robotsResponse.ok) errors.push(`HTTP ${robotsResponse.status}`);
+  if (!/text\/plain/i.test(robotsResponse.headers.get('content-type') || '')) errors.push('invalid content type');
+  if (!/Content-Signal:\s*[^\r\n]*ai-train=yes/i.test(robotsTxt)) errors.push('robots.txt does not allow AI training');
+  if (/Content-Signal:\s*[^\r\n]*ai-train=no/i.test(robotsTxt)) errors.push('robots.txt still contains ai-train=no');
+  for (const crawler of ['GPTBot', 'Google-Extended', 'ClaudeBot', 'PerplexityBot']) {
+    if (!new RegExp(`\\bUser-agent:\\s*${crawler}\\b`, 'i').test(robotsTxt)) errors.push(`${crawler} rule is missing`);
+  }
+  if (!new RegExp(`Sitemap:\\s*${targetOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/sitemap\\.xml`, 'i').test(robotsTxt)) errors.push('primary sitemap is missing');
+  if (!/\bai-train=yes\b/i.test(contentSignalHeader)) errors.push('Content-Signal response header does not allow AI training');
+  console.log(`${errors.length ? 'FAIL' : 'PASS'} /robots.txt status=${robotsResponse.status} content-signal=${contentSignalHeader || 'none'}`);
+  for (const error of errors) console.log(`  - ${error}`);
+  failed ||= errors.length > 0;
+} catch (error) {
+  console.log(`FAIL /robots.txt: ${error instanceof Error ? error.message : String(error)}`);
+  failed = true;
+}
+
+try {
   const sitemapResponse = await fetch(`${targetOrigin}/sitemap.xml`, {
     headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
   });
