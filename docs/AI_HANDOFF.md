@@ -442,6 +442,7 @@ curl -fsS http://localhost:3006/api/v1/public/homepage-content | head
   - 依旧保留原本的自动 enrichment 行为。
 - 产品列表页：
   - 可以按当前筛选范围批量触发 AI SEO 任务。
+  - 另有“AI 自动重试失败”模式，只选择 `ai_seo_status=failed` 的启用商品，最多 30000 个，并在任务记录中标记为 `auto_failed`。
 
 ### 验证情况
 

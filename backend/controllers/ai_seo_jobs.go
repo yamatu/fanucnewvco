@@ -57,6 +57,7 @@ type aiSEOCandidateStartRequest struct {
 	Brand              string `json:"brand"`
 	Search             string `json:"search"`
 	IncludeFailed      bool   `json:"include_failed"`
+	FailedOnly         bool   `json:"failed_only"`
 }
 
 type aiSEOOutput struct {
@@ -175,7 +176,11 @@ func (ac *AIAgentController) StartCandidateSEO(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "No eligible AI SEO candidates matched the current scope"})
 		return
 	}
-	job, err := createAIAgentSEOJob(db, products, req.Prompt, "auto_candidates", c.GetUint("user_id"))
+	selectionMode := "auto_candidates"
+	if req.FailedOnly {
+		selectionMode = "auto_failed"
+	}
+	job, err := createAIAgentSEOJob(db, products, req.Prompt, selectionMode, c.GetUint("user_id"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to create AI SEO candidate job", Error: err.Error()})
 		return
@@ -239,11 +244,7 @@ func findAIASEOCandidates(db *gorm.DB, req aiSEOCandidateStartRequest, limit int
 		like := "%" + search + "%"
 		query = query.Where("products.sku LIKE ? OR products.name LIKE ? OR products.description LIKE ? OR products.part_number LIKE ? OR products.model LIKE ?", like, like, like, like, like)
 	}
-	if req.IncludeFailed {
-		query = query.Where("products.ai_seo_status IS NULL OR products.ai_seo_status = '' OR products.ai_seo_status = ?", "failed")
-	} else {
-		query = query.Where("products.ai_seo_status IS NULL OR products.ai_seo_status = ''")
-	}
+	query = applyAIASEOCandidateStatusScope(query, req)
 	// Products can remain queued before a worker reaches them. Excluding queued
 	// job items prevents duplicated work even though their product status has not
 	// changed to running yet.
@@ -266,6 +267,16 @@ func findAIASEOCandidates(db *gorm.DB, req aiSEOCandidateStartRequest, limit int
 		return nil, err
 	}
 	return products, nil
+}
+
+func applyAIASEOCandidateStatusScope(query *gorm.DB, req aiSEOCandidateStartRequest) *gorm.DB {
+	if req.FailedOnly {
+		return query.Where("products.ai_seo_status = ?", "failed")
+	}
+	if req.IncludeFailed {
+		return query.Where("products.ai_seo_status IS NULL OR products.ai_seo_status = '' OR products.ai_seo_status = ?", "failed")
+	}
+	return query.Where("products.ai_seo_status IS NULL OR products.ai_seo_status = ''")
 }
 
 func normalizedAISEOCandidateLimit(setting *models.AIAgentSetting) int {

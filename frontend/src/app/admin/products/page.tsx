@@ -83,7 +83,7 @@ function AdminProductsContent() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectAllResults, setSelectAllResults] = useState<boolean>(false);
   const [showAISEOModal, setShowAISEOModal] = useState(false);
-  const [aiSEOJobMode, setAISEOJobMode] = useState<'selected' | 'auto_candidates'>('selected');
+  const [aiSEOJobMode, setAISEOJobMode] = useState<'selected' | 'auto_candidates' | 'failed_only'>('selected');
   const [aiSEOIncludeFailed, setAISEOIncludeFailed] = useState(false);
   const [aiSEOPrompt, setAISEOPrompt] = useState('');
   const [activeAISEOJob, setActiveAISEOJob] = useState<AIAgentSEOJob | null>(null);
@@ -861,7 +861,7 @@ function AdminProductsContent() {
     setIsStartingAISEOJob(true);
     try {
       const categoryID = Number(selectedCategory);
-      const job = aiSEOJobMode === 'auto_candidates'
+      const job = aiSEOJobMode !== 'selected'
         ? await AIAgentService.startSEOCandidateJob({
             prompt,
             limit: 30000,
@@ -869,7 +869,8 @@ function AdminProductsContent() {
             include_descendants: Boolean(selectedCategory),
             brand: selectedBrand || undefined,
             search: searchQuery || undefined,
-            include_failed: aiSEOIncludeFailed,
+            include_failed: aiSEOJobMode === 'auto_candidates' && aiSEOIncludeFailed,
+            failed_only: aiSEOJobMode === 'failed_only',
           })
         : await AIAgentService.startSEOJob(selectedCurrentPageIds, prompt);
       setActiveAISEOJob(job);
@@ -877,8 +878,8 @@ function AdminProductsContent() {
       if (aiSEOJobMode === 'selected') setSelectedIds([]);
       setAISEOPrompt('');
       toast.success(locale === 'zh'
-        ? `${aiSEOJobMode === 'auto_candidates' ? 'AI SEO 自动候选任务' : 'AI SEO 任务'}已启动：${job.total} 个商品`
-        : `${aiSEOJobMode === 'auto_candidates' ? 'AI SEO candidate job' : 'AI SEO job'} started for ${job.total} products`);
+        ? `${aiSEOJobMode === 'failed_only' ? 'AI SEO 失败重试任务' : aiSEOJobMode === 'auto_candidates' ? 'AI SEO 自动候选任务' : 'AI SEO 任务'}已启动：${job.total} 个商品`
+        : `${aiSEOJobMode === 'failed_only' ? 'AI SEO failed-item retry job' : aiSEOJobMode === 'auto_candidates' ? 'AI SEO candidate job' : 'AI SEO job'} started for ${job.total} products`);
       void startAISEOPolling(job.id);
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, locale === 'zh' ? '创建 AI SEO 任务失败' : 'Unable to start AI SEO job'));
@@ -886,6 +887,9 @@ function AdminProductsContent() {
       setIsStartingAISEOJob(false);
     }
   };
+
+  const isAISEOCandidateMode = aiSEOJobMode !== 'selected';
+  const isAISEOFailedOnly = aiSEOJobMode === 'failed_only';
 
   return (
     <AdminLayout>
@@ -1334,6 +1338,16 @@ function AdminProductsContent() {
               >
                 <SparklesIcon className="h-4 w-4 mr-2" />
                 {locale === 'zh' ? 'AI 自动候选优化（最多 30000）' : 'AI Auto Candidates (up to 30000)'}
+              </button>
+
+              <button
+                onClick={() => { setAISEOJobMode('failed_only'); setAISEOIncludeFailed(false); setShowAISEOModal(true); }}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-rose-700 hover:bg-rose-800 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isStartingAISEOJob}
+                title={locale === 'zh' ? '只选择此前 AI SEO 优化失败的启用商品，最多 30000 个；可按当前分类、品牌和搜索范围限定。' : 'Retry only active products whose previous AI SEO optimization failed, up to 30000, scoped by the current category, brand, and search.'}
+              >
+                <SparklesIcon className="h-4 w-4 mr-2" />
+                {locale === 'zh' ? 'AI 自动重试失败（最多 30000）' : 'AI Retry Failed (up to 30000)'}
               </button>
 
               <button
@@ -1872,9 +1886,11 @@ function AdminProductsContent() {
           <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
             <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
               <div>
-                <div className="flex items-center gap-2 text-violet-700"><SparklesIcon className="h-5 w-5" /><h2 id="ai-seo-modal-title" className="text-lg font-semibold text-gray-900">{locale === 'zh' ? (aiSEOJobMode === 'auto_candidates' ? 'AI SEO 自动候选优化' : 'AI SEO 优化已选商品') : (aiSEOJobMode === 'auto_candidates' ? 'AI SEO automatic candidate optimization' : 'AI SEO optimize selected products')}</h2></div>
-                <p className="mt-2 text-sm text-gray-600">{aiSEOJobMode === 'auto_candidates'
-                  ? (locale === 'zh' ? '系统会在当前分类、品牌、搜索词范围内，自动选择最多 30000 个启用、未 AI 优化、内容较薄弱的商品。已在其他 AI SEO 任务中排队或处理的商品会被排除。' : 'The system will choose up to 30000 active, not-yet-AI-optimized products with thinner content within the current category, brand, and search scope. Products queued or running in another AI SEO job are excluded.')
+                <div className="flex items-center gap-2 text-violet-700"><SparklesIcon className="h-5 w-5" /><h2 id="ai-seo-modal-title" className="text-lg font-semibold text-gray-900">{locale === 'zh' ? (isAISEOFailedOnly ? 'AI SEO 自动重试失败商品' : aiSEOJobMode === 'auto_candidates' ? 'AI SEO 自动候选优化' : 'AI SEO 优化已选商品') : (isAISEOFailedOnly ? 'AI SEO retry failed products' : aiSEOJobMode === 'auto_candidates' ? 'AI SEO automatic candidate optimization' : 'AI SEO optimize selected products')}</h2></div>
+                <p className="mt-2 text-sm text-gray-600">{isAISEOCandidateMode
+                  ? (locale === 'zh'
+                    ? (isAISEOFailedOnly ? '系统会在当前分类、品牌、搜索词范围内，自动选择最多 30000 个此前 AI SEO 优化失败的启用商品进行重试。已在其他 AI SEO 任务中排队或处理的商品会被排除。' : '系统会在当前分类、品牌、搜索词范围内，自动选择最多 30000 个启用商品；默认选择从未 AI 优化且内容较薄弱的商品，也可同时纳入失败商品。已在其他 AI SEO 任务中排队或处理的商品会被排除。')
+                    : (isAISEOFailedOnly ? 'The system will retry up to 30000 active products whose previous AI SEO attempt failed within the current category, brand, and search scope. Products queued or running in another AI SEO job are excluded.' : 'The system will choose up to 30000 active products within the current category, brand, and search scope. By default it selects never-optimized products with thinner content, and it can also include failed attempts. Products queued or running in another AI SEO job are excluded.'))
                   : (locale === 'zh' ? `本次只处理当前页手动勾选的 ${selectedCurrentPageIds.length} 个商品。每个商品由 AI 单独处理。` : `This job will process only the ${selectedCurrentPageIds.length} products explicitly checked on this page. AI handles each product separately.`)}</p>
               </div>
               <button type="button" onClick={() => setShowAISEOModal(false)} disabled={isStartingAISEOJob} className="rounded-md p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-50" aria-label={locale === 'zh' ? '关闭' : 'Close'}><XMarkIcon className="h-5 w-5" /></button>
@@ -1905,7 +1921,7 @@ function AdminProductsContent() {
             </div>
             <div className="flex flex-col-reverse gap-2 border-t border-gray-200 px-5 py-4 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setShowAISEOModal(false)} disabled={isStartingAISEOJob} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">{locale === 'zh' ? '取消' : 'Cancel'}</button>
-              <button type="button" onClick={() => void startAISEO()} disabled={isStartingAISEOJob || aiSEOPrompt.trim().length < 2} className="inline-flex items-center justify-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"><SparklesIcon className="mr-2 h-4 w-4" />{isStartingAISEOJob ? (locale === 'zh' ? '正在创建任务…' : 'Starting job…') : (aiSEOJobMode === 'auto_candidates' ? (locale === 'zh' ? '自动选择并优化最多 30000 个商品' : 'Select and optimize up to 30000 candidates') : (locale === 'zh' ? `开始优化 ${selectedCurrentPageIds.length} 个商品` : `Optimize ${selectedCurrentPageIds.length} products`))}</button>
+              <button type="button" onClick={() => void startAISEO()} disabled={isStartingAISEOJob || aiSEOPrompt.trim().length < 2} className="inline-flex items-center justify-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"><SparklesIcon className="mr-2 h-4 w-4" />{isStartingAISEOJob ? (locale === 'zh' ? '正在创建任务…' : 'Starting job…') : isAISEOFailedOnly ? (locale === 'zh' ? '自动重试失败商品' : 'Retry failed products') : aiSEOJobMode === 'auto_candidates' ? (locale === 'zh' ? '自动选择并优化最多 30000 个商品' : 'Select and optimize up to 30000 candidates') : (locale === 'zh' ? `开始优化 ${selectedCurrentPageIds.length} 个商品` : `Optimize ${selectedCurrentPageIds.length} products`)}</button>
             </div>
           </div>
         </div>

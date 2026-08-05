@@ -117,7 +117,7 @@ export interface AIAgentSEOJobItem {
 export interface AIAgentSEOJob {
   id: string;
   prompt: string;
-  selection_mode: 'selected' | 'auto_candidates';
+  selection_mode: 'selected' | 'auto_candidates' | 'auto_failed';
   status: AIAgentSEOJobStatus;
   total: number;
   processed: number;
@@ -147,6 +147,7 @@ export interface AIAgentSEOCandidateOptions {
   brand?: string;
   search?: string;
   include_failed?: boolean;
+  failed_only?: boolean;
 }
 
 export class AIAgentService {

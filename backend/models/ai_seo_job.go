@@ -7,7 +7,7 @@ import "time"
 type AIAgentSEOJob struct {
 	ID            string `json:"id" gorm:"primaryKey;size:36"`
 	Prompt        string `json:"prompt" gorm:"type:text"`
-	SelectionMode string `json:"selection_mode" gorm:"size:32;default:'selected'"` // selected, auto_candidates
+	SelectionMode string `json:"selection_mode" gorm:"size:32;default:'selected'"` // selected, auto_candidates, auto_failed
 	Status        string `json:"status" gorm:"size:32;index;not null"`             // queued, running, paused, cancelled, completed, completed_with_errors, failed
 	// WorkerToken fences an older worker after a pause/resume race. It is an
 	// internal execution lease, deliberately never returned to the browser.
