@@ -19,7 +19,6 @@ import {
 import { useCart } from '@/store/cart.store';
 import { useCustomer } from '@/store/customer.store';
 import { cn, formatCurrency, getProductImageUrl, getDefaultProductImageWithSku, toProductPathId } from '@/lib/utils';
-import { CartSidebar } from '@/components/cart/CartSidebar';
 import type { Category, Product } from '@/types';
 import { CategoryService, ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
@@ -201,12 +200,14 @@ export function Header() {
           {/* Logo */}
           <div className="flex flex-shrink-0 items-center">
             <Link href={href('/')} className="flex items-center space-x-3">
+              {/* Keep the only high-priority image on the homepage reserved for the Hero LCP. */}
               <Image
                 src="/images/vibocnc-logo.png"
                 alt="Vibocnc"
                 width={186}
                 height={50}
-                priority
+                loading="eager"
+                fetchPriority="low"
                 className="h-8 w-auto object-contain min-[360px]:h-10 sm:h-12"
               />
               <div className="hidden min-[1900px]:block">
@@ -468,8 +469,6 @@ export function Header() {
         />
       )}
 
-      {/* Cart Sidebar */}
-      <CartSidebar />
     </header>
   );
 }

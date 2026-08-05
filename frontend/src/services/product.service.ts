@@ -159,8 +159,18 @@ export class ProductService {
           (error.code === '23' && error.constructor?.name === 'TimeoutError') ||
           error.response?.status === 404 ||
           (error.response?.status && error.response.status >= 500))) {
-        console.warn('🔧 Backend server appears to be down or timed out, returning mock data');
-        return this.getMockProductsData(filters);
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('🔧 Backend server appears to be down or timed out, returning development-only mock data');
+          return this.getMockProductsData(filters);
+        }
+        // Never expose invented catalog values in a production HTML response.
+        return {
+          data: [],
+          page: Number(filters.page || 1),
+          page_size: Number(filters.page_size || 12),
+          total: 0,
+          total_pages: 0,
+        };
       }
 
       throw error;
@@ -636,13 +646,12 @@ export class ProductService {
   // Get featured products (public)
   static async getFeaturedProducts(limit: number = 8): Promise<Product[]> {
     try {
-      // Reuse getProducts so we inherit its fallbacks and mocking
+      // Reuse getProducts so filtering and response handling stay consistent.
       const res = await this.getProducts({ is_featured: 'true', page_size: limit });
       return res.data || [];
     } catch {
-      console.warn('🔧 Falling back to mock featured products');
-      const mock = this.getMockProductsData({ is_featured: 'true', page_size: limit });
-      return mock.data || [];
+      // A missing backend must not turn into fabricated prices or stock claims.
+      return [];
     }
   }
 

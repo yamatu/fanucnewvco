@@ -29,6 +29,7 @@ export default function Clarity() {
 
       const script = document.createElement('script');
       script.async = true;
+      script.defer = true;
       script.src = `https://www.clarity.ms/tag/${CLARITY_PROJECT_ID}`;
       document.head.appendChild(script);
     };

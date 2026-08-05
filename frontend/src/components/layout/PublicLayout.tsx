@@ -1,9 +1,7 @@
 import { ReactNode } from 'react';
 import Header from './Header';
 import Footer from './Footer';
-import CartSidebar from '../cart/CartSidebar';
-import WhatsAppButton from '../ui/WhatsAppButton';
-import MobileLanguageSwitcher from './MobileLanguageSwitcher';
+import DeferredPublicWidgets from './DeferredPublicWidgets';
 import type { SocialMediaSettings } from '@/types';
 
 interface PublicLayoutProps {
@@ -25,9 +23,7 @@ export function PublicLayout({ children, socialMediaSettings }: PublicLayoutProp
         {children}
       </main>
       <Footer initialSocialSettings={socialMediaSettings} />
-      <CartSidebar />
-      <MobileLanguageSwitcher />
-      <WhatsAppButton />
+      <DeferredPublicWidgets />
     </div>
   );
 }

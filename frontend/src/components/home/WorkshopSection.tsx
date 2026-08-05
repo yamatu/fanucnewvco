@@ -94,7 +94,7 @@ export function WorkshopSection({ content }: Props) {
               >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                   {/* Image */}
-                  <div className="relative h-96 lg:h-auto">
+                  <div className="relative h-96 min-h-96 lg:h-auto lg:min-h-[32rem]">
                     <Image
                       src={activeFacility.image}
                       alt={activeFacility.title}

@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
   generateEtags: true,
   poweredByHeader: false,
 
+  experimental: {
+    optimizePackageImports: ['@heroicons/react', 'lucide-react', 'react-icons'],
+  },
+
   // Silence workspace root inference warning when monorepo-like structure exists
   // @ts-expect-error - supported by Next runtime, may not be in TS types
   outputFileTracingRoot: path.join(__dirname, '..'),
@@ -80,6 +84,9 @@ const nextConfig: NextConfig = {
   },
 
   images: {
+    // Cache generated responsive variants so the Hero LCP is not reprocessed
+    // on every deployment request or repeat crawl.
+    minimumCacheTTL: 86400,
     remotePatterns: [
       { protocol: 'https', hostname: 's2.loli.net' },
       { protocol: 'https', hostname: 'i.imgur.com' },

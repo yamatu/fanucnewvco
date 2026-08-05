@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import PublicLayout from '@/components/layout/PublicLayout';
 import HeroSection from '@/components/home/HeroSection';
 import FeaturedProducts from '@/components/home/FeaturedProducts';
@@ -19,9 +20,8 @@ import { getPublicSocialMediaSettings } from '@/services/social-media.server';
 import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
 import { translatePublicMessage } from '@/lib/i18n/messages';
 import { getLocaleConfig } from '@/lib/i18n/config';
-import { NewsService } from '@/services/news.service';
 import { localizeArticleOrDefault, localizeProductContent } from '@/lib/i18n/content';
-import { ProductService } from '@/services/product.service';
+import { getHomepageFeaturedArticles, getHomepageFeaturedProducts } from '@/services/homepage.server';
 
 export const revalidate = 300;
 
@@ -224,11 +224,14 @@ async function sanitizeHeroContent(content?: HomepageContent): Promise<HomepageC
 }
 
 async function getHomepageContentList(): Promise<HomepageContent[]> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
     const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
     // Fetch inactive too so the public page can respect the admin "is_active" toggle (hide sections).
     const res = await fetch(`${backendUrl}/api/v1/public/homepage-content?include_inactive=1`, {
       next: { revalidate: 300, tags: ['homepage-content'] },
+      signal: controller.signal,
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -236,20 +239,32 @@ async function getHomepageContentList(): Promise<HomepageContent[]> {
     return data as HomepageContent[];
   } catch {
     return [];
+  } finally {
+    clearTimeout(timeoutId);
   }
+}
+
+async function DeferredFeaturedProducts({ content, locale }: { content?: HomepageContent | null; locale: Parameters<typeof localizeProductContent>[1] }) {
+  const products = (await getHomepageFeaturedProducts())
+    .map((product) => compactHomepageProduct(localizeProductContent(product, locale)));
+  return <FeaturedProducts content={content} initialProducts={products} />;
+}
+
+async function DeferredHomeBlog({ content, locale }: { content?: HomepageContent | null; locale: Parameters<typeof localizeArticleOrDefault>[1] }) {
+  const articles = (await getHomepageFeaturedArticles())
+    .map((article) => compactHomepageArticle(localizeArticleOrDefault(article, locale)));
+  return <HomeBlogSection content={content} articles={articles} />;
+}
+
+function DeferredSectionFallback({ minHeight = 720 }: { minHeight?: number }) {
+  return <div className="home-deferred-section" style={{ minHeight }} aria-hidden="true" />;
 }
 
 export default async function Home() {
   const locale = await getRequestPublicLocale();
-  const [list, socialMediaSettings, featuredBlogArticles, featuredProducts] = await Promise.all([
+  const [list, socialMediaSettings] = await Promise.all([
     getHomepageContentList(),
     getPublicSocialMediaSettings(),
-    NewsService.getArticles({ page: 1, page_size: 3, content_type: 'blog', is_featured: 'true' })
-      .then((result) => (result.data || []).map((article) => compactHomepageArticle(localizeArticleOrDefault(article, locale))))
-      .catch(() => [] as Article[]),
-    ProductService.getFeaturedProducts(6)
-      .then((products) => products.map((product) => compactHomepageProduct(localizeProductContent(product, locale))))
-      .catch(() => [] as Product[]),
   ]);
   const byKey: Record<string, HomepageContent | undefined> = Object.fromEntries(
     list.map((c) => [c.section_key, c]),
@@ -301,12 +316,24 @@ export default async function Home() {
         {renderQueue.map((s) => {
           if (s.key === 'hero_section') return <HeroSection key={s.key} content={s.content} />;
           if (s.key === 'company_stats') return <CompanyStats key={s.key} content={s.content} />;
-          if (s.key === 'featured_products') return <FeaturedProducts key={s.key} content={s.content} initialProducts={featuredProducts} />;
+          if (s.key === 'featured_products') {
+            return (
+              <Suspense key={s.key} fallback={<DeferredSectionFallback minHeight={860} />}>
+                <DeferredFeaturedProducts content={s.content} locale={locale} />
+              </Suspense>
+            );
+          }
           if (s.key === 'brands_section') return <BrandsSection key={s.key} content={s.content} />;
           if (s.key === 'repair_capabilities') return <RepairCapabilitiesSection key={s.key} content={s.content} />;
           if (s.key === 'workshop_section') return <WorkshopSection key={s.key} content={s.content} />;
           if (s.key === 'services_section') return <ServicesSection key={s.key} content={s.content} />;
-          if (s.key === 'home_blog') return <HomeBlogSection key={s.key} content={s.content} articles={featuredBlogArticles} />;
+          if (s.key === 'home_blog') {
+            return (
+              <Suspense key={s.key} fallback={<DeferredSectionFallback minHeight={620} />}>
+                <DeferredHomeBlog content={s.content} locale={locale} />
+              </Suspense>
+            );
+          }
           return <SimpleContentSection key={s.key} content={s.content} />;
         })}
       </PublicLayout>
