@@ -99,7 +99,7 @@ func GetPredefinedSections() []HomepageSection {
 		{
 			Key:         "workshop_facility",
 			Name:        "Workshop Facility",
-			Description: "5,000sqm Workshop Facility section",
+			Description: "3,500 sqm inspection and service facility section",
 		},
 		{
 			Key:         "workshop_overview",

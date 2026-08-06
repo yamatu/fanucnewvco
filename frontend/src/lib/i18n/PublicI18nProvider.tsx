@@ -1,11 +1,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo } from 'react';
-import { usePathname } from 'next/navigation';
 import {
-  DEFAULT_PUBLIC_LOCALE,
   getLocaleConfig,
-  getLocaleFromPathname,
   localizePublicPath,
   type PublicLocale,
 } from './config';
@@ -27,10 +24,11 @@ export function PublicI18nProvider({
   initialLocale: PublicLocale;
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const locale = pathname
-    ? getLocaleFromPathname(pathname) || DEFAULT_PUBLIC_LOCALE
-    : initialLocale;
+  // Localized URLs are internally rewritten to their unprefixed app route.
+  // During SSR usePathname can therefore expose "/" while the browser is on
+  // "/zh", producing different server/client translations. The layout's
+  // request-derived locale is the authoritative value for this full navigation.
+  const locale = initialLocale;
   const config = getLocaleConfig(locale);
 
   useEffect(() => {

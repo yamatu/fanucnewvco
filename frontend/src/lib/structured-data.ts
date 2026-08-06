@@ -11,9 +11,9 @@ export function generateOrganizationSchema(sameAs: string[] = []) {
     "@id": `${baseUrl}/#organization`,
     "name": SITE_NAME,
     "alternateName": "Vibocnc Industrial Automation Parts",
-    "description": "Multi-brand industrial automation parts, CNC components and repair support from Vibocnc.",
+    "description": "Industrial automation parts and CNC spares across 20+ brands, with model verification, inspection, repair support and worldwide shipping.",
     "url": baseUrl,
-    "foundingDate": "2005",
+    "foundingDate": "2007",
     "logo": {
       "@type": "ImageObject",
       "url": `${baseUrl}/android-chrome-512x512.png`,
@@ -46,7 +46,7 @@ export function generateWebsiteSchema() {
     "@id": `${baseUrl}/#website`,
     "name": SITE_NAME,
     "url": baseUrl,
-    "description": "Multi-brand industrial automation parts, CNC components and repair support from Vibocnc.",
+    "description": "Industrial automation parts and CNC spares across 20+ brands, with model verification, inspection, repair support and worldwide shipping.",
     "publisher": {
       "@type": "Organization",
       "@id": `${baseUrl}/#organization`,

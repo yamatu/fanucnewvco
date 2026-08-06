@@ -213,7 +213,7 @@ func buildFanucDescription(model, partType string) string {
 		"- Repair inventory for machine tool service teams",
 		"",
 		"Why buy from Vibocnc",
-		"- Professional industrial automation supplier since 2005",
+		"- Professional industrial automation supplier since 2007",
 		"- Stocked inventory and fast handling",
 		"- International shipping support",
 		"- Technical confirmation before dispatch when needed",

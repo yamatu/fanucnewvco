@@ -10,7 +10,6 @@ import {
   ClockIcon,
 } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
-import { ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import { FaFacebookF, FaInstagram, FaLinkedinIn, FaXTwitter } from 'react-icons/fa6';
 import { queryKeys } from '@/lib/react-query';
@@ -52,9 +51,6 @@ const footerNavigation = {
     { name: 'Shipping Policy', href: '/shipping-policy' },
     { name: 'Technical Support', href: '/technical-support' },
     { name: 'Returns Policy', href: '/returns' },
-  ],
-  partners: [
-    { name: 'vcocncsapre', href: 'https://www.vcocncspare.com', external: true },
   ],
 };
 
@@ -104,7 +100,7 @@ export function Footer({ initialSocialSettings }: { initialSocialSettings?: Soci
     <footer className="bg-slate-950 text-white">
       {/* Main Footer Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-7">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-6">
           {/* Company Info */}
           <div className="lg:col-span-2">
             <div className="flex items-center space-x-3 mb-6">
@@ -237,26 +233,6 @@ export function Footer({ initialSocialSettings }: { initialSocialSettings?: Soci
             </ul>
           </div>
 
-          {/* Partners & Links */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">{t('footer.partners')}</h3>
-            <ul className="space-y-2">
-              {footerNavigation.partners.map((item) => (
-                <li key={item.name}>
-                  <Link
-                    href={item.external ? item.href : href(item.href)}
-                    {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                    className="text-slate-300 hover:text-orange-200 transition-colors duration-200 flex items-center"
-                  >
-                    {item.name}
-                    {item.external && (
-                      <ExternalLink className="ml-1 h-3 w-3" aria-hidden="true" />
-                    )}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
         </div>
 
         {/* Newsletter Signup */}

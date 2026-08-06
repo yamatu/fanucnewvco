@@ -94,11 +94,11 @@ function getRequestHostname(request: NextRequest): string {
 }
 
 function getCanonicalHostname(): string {
-  const configured = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.vibocnc.com';
+  const configured = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://vibocnc.com';
   try {
     return new URL(configured).hostname.toLowerCase();
   } catch {
-    return 'www.vibocnc.com';
+    return 'vibocnc.com';
   }
 }
 
@@ -162,8 +162,10 @@ export async function middleware(request: NextRequest) {
 
   const requestHostname = getRequestHostname(request);
   const canonicalHostname = getCanonicalHostname();
-  const canonicalApex = canonicalHostname.startsWith('www.') ? canonicalHostname.slice(4) : '';
-  if (canonicalApex && requestHostname === canonicalApex) {
+  const alternateHostname = canonicalHostname.startsWith('www.')
+    ? canonicalHostname.slice(4)
+    : `www.${canonicalHostname}`;
+  if (requestHostname === alternateHostname) {
     const canonicalUrl = request.nextUrl.clone();
     canonicalUrl.protocol = 'https';
     canonicalUrl.hostname = canonicalHostname;

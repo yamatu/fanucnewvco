@@ -11,7 +11,7 @@ import { buildLanguageAlternates, getLocaleConfig, isLocalizablePublicPath, loca
 import { translatePublicMessage } from "@/lib/i18n/messages";
 
 const SITE_DESCRIPTION =
-  "Source multi-brand industrial automation parts, CNC components and repair support from Vibocnc. Current, legacy and obsolete parts with worldwide shipping.";
+  "Vibocnc supplies current, legacy and obsolete CNC and industrial automation parts across 20+ brands, with inspection, repair support and worldwide shipping.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const siteUrl = getSiteUrl();

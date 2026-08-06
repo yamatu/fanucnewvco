@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"fanuc-backend/models"
 	"fanuc-backend/utils"
@@ -211,6 +212,10 @@ func ConnectDatabase() {
 
 	// Clean legacy brand/domain text left by older imports or previous SEO generation.
 	sanitizeLegacyBrandReferences()
+
+	// Upgrade known legacy company facts and duplicated homepage copy without
+	// overwriting unrelated admin-managed content.
+	migrateLegacyCompanyFacts()
 }
 
 func createDefaultAdmin() {
@@ -396,6 +401,180 @@ func sanitizeLegacyBrandReferences() {
 	}
 }
 
+func upgradeLegacyCompanyCopy(value string) string {
+	replacements := [][2]string{
+		{"Vibocnc- One-Stop CNC Solution Supplier", "Industrial Automation Parts, CNC Spares & Repair Support"},
+		{"Your Trusted Partner Since 2005", "FANUC, Siemens, Mitsubishi, ABB and 20+ automation brands"},
+		{"Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.", "Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
+		{"Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
+		{"5,000sqm Workshop Facility", "3,500 sqm Parts Inspection & Service Facility"},
+		{"Top 3 Fanuc Supplier in China", "Organized stock, testing benches and export packing"},
+		{"Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.", "Our Kunshan facility supports organized storage, incoming inspection, functional checks, protective export packing and efficient dispatch for urgent industrial parts orders."},
+		{"20+ Years Professional Service", "15+ Years Supporting Industrial Maintenance"},
+		{"More than 18 years experience we have ability to coordinate specific strengths into a whole, providing clients with solutions that consider various import and export transportation options.", "Our sales and technical teams coordinate part-number checks, sourcing, testing, repair evaluation and international transport as one practical service."},
+		{"More than 20 years", "More than 15 years"},
+		{"20+ Years", "15+ Years"},
+		{"20+ years", "15+ years"},
+		{"5,000sqm", "3,500sqm"},
+		{"5,000 sqm", "3,500 sqm"},
+		{"5,000 m²", "3,500 m²"},
+		{"2005", "2007"},
+	}
+
+	result := value
+	for _, replacement := range replacements {
+		result = strings.ReplaceAll(result, replacement[0], replacement[1])
+	}
+	return result
+}
+
+func upgradeLegacyJSONValue(value any) (any, bool) {
+	switch current := value.(type) {
+	case string:
+		updated := upgradeLegacyCompanyCopy(current)
+		return updated, updated != current
+	case []any:
+		changed := false
+		for index, item := range current {
+			updated, itemChanged := upgradeLegacyJSONValue(item)
+			current[index] = updated
+			changed = changed || itemChanged
+		}
+		return current, changed
+	case map[string]any:
+		changed := false
+		for key, item := range current {
+			updated, itemChanged := upgradeLegacyJSONValue(item)
+			current[key] = updated
+			changed = changed || itemChanged
+		}
+
+		context := strings.ToLower(fmt.Sprintf(
+			"%v %v %v %v",
+			current["label"],
+			current["description"],
+			current["title"],
+			current["subtitle"],
+		))
+		if _, hasValue := current["value"]; hasValue {
+			setIfDifferent := func(key string, value any) {
+				if fmt.Sprint(current[key]) == fmt.Sprint(value) {
+					return
+				}
+				current[key] = value
+				changed = true
+			}
+			setStatValue := func(number float64, display string) {
+				if _, isString := current["value"].(string); isString {
+					setIfDifferent("value", display)
+					return
+				}
+				setIfDifferent("value", number)
+			}
+			setSuffix := func(suffix string) {
+				if _, exists := current["suffix"]; exists {
+					setIfDifferent("suffix", suffix)
+				}
+			}
+			switch {
+			case strings.Contains(context, "years experience") || strings.Contains(context, "industry experience"):
+				setStatValue(15, "15")
+				setSuffix("+")
+				setIfDifferent("description", "Supporting industrial maintenance teams since 2007")
+			case strings.Contains(context, "workshop") || strings.Contains(context, "facility") || strings.Contains(context, "square meters") || strings.Contains(context, "sqm"):
+				setStatValue(3500, "3,500")
+				setSuffix(" sqm")
+			case strings.Contains(context, "brand"):
+				setStatValue(20, "20")
+				setSuffix("+")
+				setIfDifferent("description", "FANUC, Siemens, Mitsubishi, ABB and other automation brands")
+			}
+		}
+		return current, changed
+	default:
+		return value, false
+	}
+}
+
+func migrateLegacyCompanyFacts() {
+	if os.Getenv("DISABLE_COMPANY_FACTS_MIGRATION") == "true" {
+		return
+	}
+
+	silentDB := DB.Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)})
+	updatedRecords := int64(0)
+
+	var profiles []models.CompanyProfile
+	if err := silentDB.Find(&profiles).Error; err == nil {
+		for index := range profiles {
+			profile := &profiles[index]
+			changed := false
+			if profile.EstablishmentYear == "2005" {
+				profile.EstablishmentYear = "2007"
+				changed = true
+			}
+			if profile.WorkshopSize == "5,000sqm" || profile.WorkshopSize == "5,000 sqm" {
+				profile.WorkshopSize = "3,500sqm"
+				changed = true
+			}
+			for _, field := range []*string{&profile.Description1, &profile.Description2} {
+				updated := upgradeLegacyCompanyCopy(*field)
+				if updated != *field {
+					*field = updated
+					changed = true
+				}
+			}
+			for statIndex := range profile.Stats {
+				stat := &profile.Stats[statIndex]
+				if stat.Value == "2005" && strings.EqualFold(stat.Label, "Established") {
+					stat.Value = "2007"
+					stat.Description = "Founded in Kunshan, China"
+					changed = true
+				}
+			}
+			if changed && silentDB.Save(profile).Error == nil {
+				updatedRecords++
+			}
+		}
+	}
+
+	var contents []models.HomepageContent
+	if err := silentDB.Find(&contents).Error; err == nil {
+		for index := range contents {
+			content := &contents[index]
+			changed := false
+			for _, field := range []*string{&content.Title, &content.Subtitle, &content.Description} {
+				updated := upgradeLegacyCompanyCopy(*field)
+				if updated != *field {
+					*field = updated
+					changed = true
+				}
+			}
+
+			if len(content.Data) > 0 && string(content.Data) != "null" {
+				var decoded any
+				if err := json.Unmarshal(content.Data, &decoded); err == nil {
+					updated, dataChanged := upgradeLegacyJSONValue(decoded)
+					if dataChanged {
+						if encoded, err := json.Marshal(updated); err == nil {
+							content.Data = encoded
+							changed = true
+						}
+					}
+				}
+			}
+
+			if changed && silentDB.Save(content).Error == nil {
+				updatedRecords++
+			}
+		}
+	}
+
+	if updatedRecords > 0 {
+		log.Printf("Legacy company facts upgraded: %d record(s)", updatedRecords)
+	}
+}
+
 func createDefaultCategories() {
 	// Check if categories already exist
 	var count int64
@@ -574,14 +753,14 @@ func createDefaultCompanyProfile() {
 	defaultProfile := models.CompanyProfile{
 		CompanyName:       "Vibocnc",
 		CompanySubtitle:   "Industrial Automation Specialists",
-		EstablishmentYear: "2005",
+		EstablishmentYear: "2007",
 		Location:          "Kunshan, China",
-		WorkshopSize:      "5,000sqm",
-		Description1:      "Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.",
+		WorkshopSize:      "3,500sqm",
+		Description1:      "Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.",
 		Description2:      "We support multiple automation brands with 27 workers, 10 sales professionals and more than 100,000 items regularly stocked. Daily parcel volume is around 50-100 pieces, with testing, repair and worldwide delivery support.",
 		Achievement:       "Multi-Brand Automation Parts Supplier",
 		Stats: models.CompanyStatsArray{
-			{Icon: "CalendarIcon", Value: "2005", Label: "Established", Description: "Years of experience"},
+			{Icon: "CalendarIcon", Value: "2007", Label: "Established", Description: "Founded in Kunshan, China"},
 			{Icon: "UserGroupIcon", Value: "27", Label: "Workers", Description: "Professional team"},
 			{Icon: "UserGroupIcon", Value: "10", Label: "Sales Staff", Description: "Dedicated sales team"},
 			{Icon: "ArchiveBoxIcon", Value: "100,000", Label: "Items Stocked", Description: "Regular inventory"},

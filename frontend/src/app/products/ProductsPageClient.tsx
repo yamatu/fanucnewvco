@@ -180,7 +180,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                   <div className="text-blue-100">{t('about.parcels')}</div>
                 </div>
                 <div className="site-stat-card">
-                  <div className="text-2xl font-bold text-white">10+</div>
+                  <div className="text-2xl font-bold text-white">20+</div>
                   <div className="text-blue-100">{t('about.topSupplier')}</div>
                 </div>
               </div>

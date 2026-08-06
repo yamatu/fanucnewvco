@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { DEFAULT_COMPANY_STATS_DATA, type CompanyStatsData } from '@/lib/homepage-defaults';
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
+import { normalizeCompanyStat, normalizeLegacyCompanyText } from '@/lib/company-facts';
 
 type Props = { content?: HomepageContent | null };
 
@@ -30,13 +31,14 @@ const ICONS: Record<string, any> = {
 function normalizeCompanyStatsData(input: any): CompanyStatsData {
   if (!input) return DEFAULT_COMPANY_STATS_DATA;
   const data = typeof input === 'string' ? (() => { try { return JSON.parse(input); } catch { return null; } })() : input;
-  const stats = Array.isArray(data?.stats) && data.stats.length > 0 ? data.stats : DEFAULT_COMPANY_STATS_DATA.stats;
+  const statsSource = Array.isArray(data?.stats) && data.stats.length > 0 ? data.stats : DEFAULT_COMPANY_STATS_DATA.stats;
+  const stats = statsSource.map((stat: Record<string, unknown>) => normalizeCompanyStat(stat));
   return {
-    headerTitle: data?.headerTitle || DEFAULT_COMPANY_STATS_DATA.headerTitle,
-    headerDescription: data?.headerDescription || DEFAULT_COMPANY_STATS_DATA.headerDescription,
+    headerTitle: normalizeLegacyCompanyText(data?.headerTitle || DEFAULT_COMPANY_STATS_DATA.headerTitle),
+    headerDescription: normalizeLegacyCompanyText(data?.headerDescription || DEFAULT_COMPANY_STATS_DATA.headerDescription),
     stats,
-    ctaTitle: data?.ctaTitle || DEFAULT_COMPANY_STATS_DATA.ctaTitle,
-    ctaDescription: data?.ctaDescription || DEFAULT_COMPANY_STATS_DATA.ctaDescription,
+    ctaTitle: normalizeLegacyCompanyText(data?.ctaTitle || DEFAULT_COMPANY_STATS_DATA.ctaTitle),
+    ctaDescription: normalizeLegacyCompanyText(data?.ctaDescription || DEFAULT_COMPANY_STATS_DATA.ctaDescription),
     ctaPrimary: data?.ctaPrimary || DEFAULT_COMPANY_STATS_DATA.ctaPrimary,
     ctaSecondary: data?.ctaSecondary || DEFAULT_COMPANY_STATS_DATA.ctaSecondary,
   };
@@ -48,8 +50,8 @@ export function CompanyStats({ content }: Props) {
   const data: CompanyStatsData = {
     ...base,
     // Back-compat: allow simple fields to affect the section even if `data` is null.
-    headerTitle: content?.title && !/FANUC and CNC Spare Parts Supplier/i.test(content.title) ? content.title : base.headerTitle,
-    headerDescription: content?.description || base.headerDescription,
+    headerTitle: content?.title && !/FANUC and CNC Spare Parts Supplier/i.test(content.title) ? normalizeLegacyCompanyText(content.title) : base.headerTitle,
+    headerDescription: content?.description ? normalizeLegacyCompanyText(content.description) : base.headerDescription,
     ctaPrimary: content?.button_text
       ? { text: content.button_text, href: content.button_url || base.ctaPrimary.href }
       : base.ctaPrimary,

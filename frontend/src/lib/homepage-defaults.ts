@@ -21,10 +21,10 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
   slides: [
     {
       id: 1,
-      title: 'Industrial Automation Parts for Critical Equipment',
-      subtitle: 'Multi-brand CNC, motion control and factory automation supply',
+      title: 'Industrial Automation Parts, CNC Spares & Repair Support',
+      subtitle: 'FANUC, Siemens, Mitsubishi, ABB and 20+ automation brands',
       description:
-        'Source current, legacy and obsolete automation parts from leading manufacturers, including PLC modules, HMI panels, servo drives, motors, inverters, power supplies, control boards and robot components.',
+        'Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
       image: 'https://s2.loli.net/2025/08/26/Vo4JfbtW5H2GMEN.png',
       cta: {
         primary: { text: 'Browse Products', href: '/products' },
@@ -33,10 +33,10 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
     },
     {
       id: 2,
-      title: '100,000+ Automation Parts in Stock',
-      subtitle: 'Sourcing support across major industrial brands',
+      title: '3,500 sqm Parts Inspection & Service Facility',
+      subtitle: 'Organized stock, testing benches and export packing',
       description:
-        'Our team manages more than 100,000 stocked industrial parts with inspection, packaging and export processes built for urgent CNC repair and replacement orders.',
+        'Our Kunshan facility supports organized storage, incoming inspection, functional checks, protective export packing and efficient dispatch for urgent industrial parts orders.',
       image: 'https://s2.loli.net/2025/08/26/17MRNhXEcrKTdDY.png',
       cta: {
         primary: { text: 'View Facility', href: '/about' },
@@ -45,10 +45,10 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
     },
     {
       id: 3,
-      title: 'Parts Supply, Repair Evaluation and Support',
-      subtitle: 'One team for sourcing, inspection, repair and delivery',
+      title: '15+ Years Supporting Industrial Maintenance',
+      subtitle: 'Part-number checks, sourcing, testing and repair evaluation',
       description:
-        'Our sales and technical teams coordinate model checks, repair evaluation, testing, protective packing and worldwide delivery so maintenance teams can reduce unplanned downtime.',
+        'Our sales and technical teams coordinate part-number checks, sourcing, testing, repair evaluation and international transport as one practical service.',
       image: 'https://s2.loli.net/2025/08/26/17MRNhXEcrKTdDY.png',
       cta: {
         primary: { text: 'Request a Repair', href: '/repair-request' },
@@ -86,17 +86,17 @@ export const DEFAULT_COMPANY_STATS_DATA: CompanyStatsData = {
     {
       id: 1,
       icon: 'calendar',
-      value: 18,
+      value: 15,
       suffix: '+',
       label: 'Years Experience',
-      description: 'Established in 2005 in Kunshan, China',
+      description: 'Supporting industrial maintenance teams since 2007',
       color: 'text-teal-700',
     },
     {
       id: 2,
       icon: 'building',
-      value: 5000,
-      suffix: 'sqm',
+      value: 3500,
+      suffix: ' sqm',
       label: 'Workshop Facility',
       description: 'Modern infrastructure for quality service',
       color: 'text-teal-700',
@@ -113,8 +113,8 @@ export const DEFAULT_COMPANY_STATS_DATA: CompanyStatsData = {
     {
       id: 4,
       icon: 'shield',
-      value: 3,
-      suffix: '',
+      value: 20,
+      suffix: '+',
       label: 'Major Brands Supported',
       description: 'FANUC, Siemens, Mitsubishi, ABB, Allen-Bradley, Omron and more',
       color: 'text-teal-700',
@@ -195,7 +195,7 @@ export type WorkshopSectionData = {
 };
 
 export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
-  headerTitle: '5,000sqm Modern Workshop Facility',
+  headerTitle: '3,500 sqm Parts Inspection & Service Facility',
   headerDescription:
     'Our facility combines structured inventory, inspection benches and export packing to deliver dependable CNC spare parts and service.',
   facilities: [
@@ -264,7 +264,7 @@ export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
   ],
   statsBlock: {
     items: [
-      { value: '5,000', title: 'Square Meters', subtitle: 'Modern facility space' },
+      { value: '3,500', title: 'Square Meters', subtitle: 'Parts inspection and service facility' },
       { value: '24/7', title: 'Operations', subtitle: 'Continuous production' },
       { value: 'ISO', title: 'Certified', subtitle: 'Quality standards' },
     ],

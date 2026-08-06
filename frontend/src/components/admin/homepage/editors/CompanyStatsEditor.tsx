@@ -10,6 +10,7 @@ import { IconPreview } from '@/components/admin/homepage/icon-options';
 import { DEFAULT_COMPANY_STATS_DATA } from '@/lib/homepage-defaults';
 import { newId } from '@/components/admin/homepage/homepage-schema';
 import { useAdminI18n } from '@/lib/admin-i18n';
+import { normalizeCompanyStat, normalizeLegacyCompanyText } from '@/lib/company-facts';
 
 type StatForm = {
   id: string;
@@ -43,22 +44,25 @@ function parseData(content?: HomepageContent | null): any {
 function fromContent(content?: HomepageContent | null): FormValues {
   const parsed = parseData(content);
   const base = parsed && Array.isArray(parsed.stats) ? parsed : DEFAULT_COMPANY_STATS_DATA;
-  const stats = (base.stats || DEFAULT_COMPANY_STATS_DATA.stats).map((s: any) => ({
-    id: newId('stat'),
-    icon: String(s.icon || 'calendar'),
-    value: Number(s.value || 0),
-    suffix: String(s.suffix || ''),
-    label: String(s.label || ''),
-    description: String(s.description || ''),
-    color: String(s.color || 'text-yellow-600'),
-  }));
+  const stats = (base.stats || DEFAULT_COMPANY_STATS_DATA.stats).map((rawStat: any) => {
+    const s = normalizeCompanyStat(rawStat);
+    return {
+      id: newId('stat'),
+      icon: String(s.icon || 'calendar'),
+      value: Number(s.value || 0),
+      suffix: String(s.suffix || ''),
+      label: normalizeLegacyCompanyText(s.label),
+      description: normalizeLegacyCompanyText(s.description),
+      color: String(s.color || 'text-yellow-600'),
+    };
+  });
 
   return {
-    headerTitle: String(base.headerTitle || content?.title || DEFAULT_COMPANY_STATS_DATA.headerTitle),
-    headerDescription: String(base.headerDescription || content?.description || DEFAULT_COMPANY_STATS_DATA.headerDescription),
+    headerTitle: normalizeLegacyCompanyText(base.headerTitle || content?.title || DEFAULT_COMPANY_STATS_DATA.headerTitle),
+    headerDescription: normalizeLegacyCompanyText(base.headerDescription || content?.description || DEFAULT_COMPANY_STATS_DATA.headerDescription),
     stats,
-    ctaTitle: String(base.ctaTitle || DEFAULT_COMPANY_STATS_DATA.ctaTitle),
-    ctaDescription: String(base.ctaDescription || DEFAULT_COMPANY_STATS_DATA.ctaDescription),
+    ctaTitle: normalizeLegacyCompanyText(base.ctaTitle || DEFAULT_COMPANY_STATS_DATA.ctaTitle),
+    ctaDescription: normalizeLegacyCompanyText(base.ctaDescription || DEFAULT_COMPANY_STATS_DATA.ctaDescription),
     primaryCtaText: String(base.ctaPrimary?.text || DEFAULT_COMPANY_STATS_DATA.ctaPrimary.text),
     primaryCtaHref: String(base.ctaPrimary?.href || DEFAULT_COMPANY_STATS_DATA.ctaPrimary.href),
     secondaryCtaText: String(base.ctaSecondary?.text || DEFAULT_COMPANY_STATS_DATA.ctaSecondary.text),
@@ -106,6 +110,23 @@ export default function CompanyStatsEditor({
 
   const { fields, append, remove, replace } = useFieldArray({ control, name: 'stats' });
   const stats = watch('stats');
+  const previewTitle = watch('headerTitle');
+  const previewDescription = watch('headerDescription');
+
+  const iconLabel = (value: string) => {
+    const key = String(value || '').toLowerCase();
+    const map: Record<string, string> = {
+      calendar: t('homepage.icon.calendar', locale === 'zh' ? '日历' : 'Calendar'),
+      building: t('homepage.icon.building', locale === 'zh' ? '大楼' : 'Building'),
+      users: t('homepage.icon.users', locale === 'zh' ? '用户' : 'Users'),
+      shield: t('homepage.icon.shield', locale === 'zh' ? '盾牌' : 'Shield'),
+      cog: t('homepage.icon.cog', locale === 'zh' ? '齿轮' : 'Cog'),
+      truck: t('homepage.icon.truck', locale === 'zh' ? '卡车' : 'Truck'),
+      globe: t('homepage.icon.globe', locale === 'zh' ? '地球' : 'Globe'),
+      clock: t('homepage.icon.clock', locale === 'zh' ? '时钟' : 'Clock'),
+    };
+    return map[key] || value;
+  };
 
   const onSubmit = async (values: FormValues) => {
     const data = toData(values);
@@ -122,7 +143,36 @@ export default function CompanyStatsEditor({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <div className="lg:col-span-5">
+      <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-4 lg:self-start">
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-950 text-white">
+          <div className="border-b border-white/10 px-4 py-3">
+            <div className="text-xs font-semibold uppercase text-orange-300">
+              {locale === 'zh' ? '实时预览' : 'Live Preview'}
+            </div>
+            <h3 className="mt-2 text-lg font-semibold leading-snug">
+              {previewTitle?.trim() || (locale === 'zh' ? '公司数据标题' : 'Company stats title')}
+            </h3>
+            <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-300">
+              {previewDescription?.trim() || (locale === 'zh' ? '区块描述会显示在这里。' : 'The section description will appear here.')}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-y divide-white/10">
+            {(stats || []).slice(0, 8).map((stat, index) => (
+              <div key={stat.id || index} className="min-h-28 p-4">
+                <div className="flex items-center gap-2 text-orange-300">
+                  <IconPreview name={String(stat.icon || 'calendar')} />
+                  <span className="text-xl font-bold text-white">
+                    {Number(stat.value || 0).toLocaleString()}{stat.suffix || ''}
+                  </span>
+                </div>
+                <div className="mt-2 text-xs font-medium leading-5 text-slate-200">
+                  {stat.label || `${locale === 'zh' ? '项目' : 'Item'} ${index + 1}`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
             <div className="font-medium text-gray-900">{t('homepage.stats.items', locale === 'zh' ? '统计项' : 'Stats Items')}</div>
@@ -318,17 +368,3 @@ export default function CompanyStatsEditor({
     </div>
   );
 }
-  const iconLabel = (value: string) => {
-    const key = String(value || '').toLowerCase();
-    const map: Record<string, string> = {
-      calendar: t('homepage.icon.calendar', locale === 'zh' ? '日历' : 'Calendar'),
-      building: t('homepage.icon.building', locale === 'zh' ? '大楼' : 'Building'),
-      users: t('homepage.icon.users', locale === 'zh' ? '用户' : 'Users'),
-      shield: t('homepage.icon.shield', locale === 'zh' ? '盾牌' : 'Shield'),
-      cog: t('homepage.icon.cog', locale === 'zh' ? '齿轮' : 'Cog'),
-      truck: t('homepage.icon.truck', locale === 'zh' ? '卡车' : 'Truck'),
-      globe: t('homepage.icon.globe', locale === 'zh' ? '地球' : 'Globe'),
-      clock: t('homepage.icon.clock', locale === 'zh' ? '时钟' : 'Clock'),
-    };
-    return map[key] || value;
-  };

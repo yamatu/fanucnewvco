@@ -117,7 +117,7 @@ func httpGet(u string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; VIBOCNCBot/1.0; +https://www.vibocnc.com)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; VIBOCNCBot/1.0; +https://vibocnc.com)")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	client := newPublicHTTPClient(15 * time.Second)
 	return client.Do(req)
@@ -132,7 +132,7 @@ func httpHead(u string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; VIBOCNCBot/1.0; +https://www.vibocnc.com)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; VIBOCNCBot/1.0; +https://vibocnc.com)")
 	client := newPublicHTTPClient(10 * time.Second)
 	return client.Do(req)
 }

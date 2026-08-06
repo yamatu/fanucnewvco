@@ -195,7 +195,7 @@ function ContactContent() {
                   <BuildingOfficeIcon className="h-6 w-6 text-[#0b3e75] mt-1 flex-shrink-0" />
                   <div>
                     <h3 className="font-semibold text-gray-900">{t('contact.facility')}</h3>
-                    <p className="text-gray-600">5,000 sqm Workshop</p>
+                    <p className="text-gray-600">3,500 sqm Inspection & Service Facility</p>
                   </div>
                 </div>
 

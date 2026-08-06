@@ -128,7 +128,7 @@ export async function generateMetadata({ searchParams }: {
   const hasSearch = !!searchQuery;
 
   let title = 'Industrial Automation Parts & Components';
-  let description = 'Professional CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.';
+  let description = 'Industrial automation and CNC parts supplier since 2007. Browse current, legacy and obsolete components across 20+ brands with worldwide shipping.';
   const requestLocale = await getRequestPublicLocale();
   const defaultMetadataPaths = await getLocalizedMetadataPaths('/products');
 
@@ -191,7 +191,7 @@ export async function generateMetadata({ searchParams }: {
 
   if (hasSearch) {
     title = `Search: ${searchQuery} - Parts`;
-    description = `Search results for "${searchQuery}" in industrial automation parts and components. Professional supplier since 2005.`;
+    description = `Search results for "${searchQuery}" in CNC and industrial automation parts from a multi-brand supplier established in 2007.`;
   }
 
   return {

@@ -9,7 +9,7 @@ import {
   inferProductTypeLabel,
 } from '@/lib/product-seo';
 
-const PUBLIC_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.vibocnc.com').replace(/\/+$/, '');
+const PUBLIC_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://vibocnc.com').replace(/\/+$/, '');
 
 const DEFAULT_SITE_NAME = 'Vibocnc';
 const GENERIC_BRAND_LABEL = 'industrial automation';

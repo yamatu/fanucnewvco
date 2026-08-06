@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { HomepageContent } from '@/types';
 import { DEFAULT_HERO_DATA, type HeroSectionData } from '@/lib/homepage-defaults';
+import { normalizeLegacyCompanyText } from '@/lib/company-facts';
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 type Props = { content?: HomepageContent | null };
@@ -33,9 +34,9 @@ function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
   const slides = [...baseSlides];
   if (slides.length > 0) {
     const s0 = { ...slides[0] };
-    if (content?.title && !isLegacyFanucHero(content.title)) s0.title = content.title;
-    if (content?.subtitle) s0.subtitle = content.subtitle;
-    if (content?.description && !isLegacyFanucHero(content.description)) s0.description = content.description;
+    if (content?.title && !isLegacyFanucHero(content.title)) s0.title = normalizeLegacyCompanyText(content.title);
+    if (content?.subtitle) s0.subtitle = normalizeLegacyCompanyText(content.subtitle);
+    if (content?.description && !isLegacyFanucHero(content.description)) s0.description = normalizeLegacyCompanyText(content.description);
     if (content?.image_url) s0.image = content.image_url;
     if (content?.button_text) s0.cta = { ...(s0.cta || {}), primary: { ...(s0.cta?.primary || {}), text: content.button_text, href: content.button_url || s0.cta?.primary?.href || '/products' }, secondary: s0.cta?.secondary || { text: 'Get a Quote', href: '/contact?inquiry_type=quote' } };
     slides[0] = s0;
@@ -44,7 +45,9 @@ function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
   return {
     slides: slides.map((slide) => ({
       ...slide,
-      title: normalizeBrandName(String(slide.title || '')),
+      title: normalizeBrandName(normalizeLegacyCompanyText(slide.title)),
+      subtitle: normalizeLegacyCompanyText(slide.subtitle),
+      description: normalizeLegacyCompanyText(slide.description),
     })),
     autoPlayMs,
   };

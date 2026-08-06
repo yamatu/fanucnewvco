@@ -11,6 +11,7 @@ import { SortableList } from '@/components/admin/homepage/SortableList';
 import { DEFAULT_HERO_DATA } from '@/lib/homepage-defaults';
 import { newId, type HeroEditorData } from '@/components/admin/homepage/homepage-schema';
 import { useAdminI18n } from '@/lib/admin-i18n';
+import { normalizeLegacyCompanyText } from '@/lib/company-facts';
 
 type FormValues = {
   autoPlayMs: number;
@@ -36,9 +37,9 @@ function fromContent(content?: HomepageContent | null): FormValues {
   const base: any = parsed && Array.isArray(parsed.slides) ? parsed : DEFAULT_HERO_DATA;
   const slides = (base.slides || []).map((s: any) => ({
     id: String(s.id ?? newId('slide')),
-    title: String(s.title || ''),
-    subtitle: String(s.subtitle || ''),
-    description: String(s.description || ''),
+    title: normalizeLegacyCompanyText(s.title),
+    subtitle: normalizeLegacyCompanyText(s.subtitle),
+    description: normalizeLegacyCompanyText(s.description),
     image: String(s.image || ''),
     primaryText: String(s.cta?.primary?.text || ''),
     primaryHref: String(s.cta?.primary?.href || ''),
@@ -48,9 +49,9 @@ function fromContent(content?: HomepageContent | null): FormValues {
 
   // If user previously edited simple fields, reflect into first slide.
   if (slides[0]) {
-    if (content?.title) slides[0].title = content.title;
-    if (content?.subtitle) slides[0].subtitle = content.subtitle;
-    if (content?.description) slides[0].description = content.description;
+    if (content?.title) slides[0].title = normalizeLegacyCompanyText(content.title);
+    if (content?.subtitle) slides[0].subtitle = normalizeLegacyCompanyText(content.subtitle);
+    if (content?.description) slides[0].description = normalizeLegacyCompanyText(content.description);
     if (content?.image_url) slides[0].image = content.image_url;
     if (content?.button_text) slides[0].primaryText = content.button_text;
     if (content?.button_url) slides[0].primaryHref = content.button_url;

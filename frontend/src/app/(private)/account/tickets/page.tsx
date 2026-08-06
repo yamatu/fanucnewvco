@@ -40,7 +40,7 @@ export default function ContactPage() {
       icon: MapPinIcon,
       label: 'Address',
       value: 'Kunshan, Jiangsu Province, China',
-      description: '5,000 sqm workshop facility',
+      description: '3,500 sqm inspection and service facility',
     },
     {
       icon: GlobeAltIcon,
@@ -146,7 +146,7 @@ export default function ContactPage() {
                 <h3 className="text-sm font-medium text-blue-800">About Vibocnc</h3>
                 <div className="mt-2 text-sm text-blue-700">
                   <p>
-                    Established in 2005, we supply parts and support for leading industrial automation brands worldwide.
+                    Established in 2007, we supply parts and support for 20+ industrial automation brands worldwide.
                     We specialize in automation components including System units, Circuit boards,
                     PLC, HMI, Inverters, Encoders, Amplifiers, Servomotors, and Servodrives from
                     manufacturers like AB, ABB, FANUC, Mitsubishi, and Siemens.

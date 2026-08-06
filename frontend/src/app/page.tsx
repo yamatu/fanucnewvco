@@ -25,9 +25,9 @@ import { getHomepageFeaturedArticles, getHomepageFeaturedProducts } from '@/serv
 
 export const revalidate = 300;
 
-const HOME_TITLE = withSiteName('Industrial Automation Parts & Repair Services');
+const HOME_TITLE = withSiteName('Industrial Automation Parts Supplier & CNC Spares');
 const HOME_DESCRIPTION =
-  'Source multi-brand industrial automation parts, CNC components and repair support from Vibocnc. Current, legacy and obsolete parts with worldwide shipping.';
+  'Vibocnc supplies current, legacy and obsolete CNC and industrial automation parts across 20+ brands, with inspection, repair support and worldwide shipping.';
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = getSiteUrl();

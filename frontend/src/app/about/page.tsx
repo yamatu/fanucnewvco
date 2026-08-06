@@ -23,12 +23,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = translatePublicMessage(locale, 'about.title');
   return {
     title,
-    description: 'Vibocnc is a multi-brand industrial automation parts supplier established in 2005 in Kunshan, China, with 100,000+ stocked items, inspection, repair support and worldwide shipping.',
+    description: 'Founded in 2007, Vibocnc supplies CNC and industrial automation parts across 20+ brands from a 3,500 sqm facility in Kunshan, China.',
     keywords: 'Vibocnc, about Vibocnc, industrial automation parts supplier China, CNC parts supplier, PLC HMI servo parts, Kunshan automation company',
     alternates: { canonical, languages },
     openGraph: {
       title: withSiteName(title),
-      description: 'Multi-brand industrial automation parts supplier since 2005 with 100,000+ stocked items, 37 employees, a 5,000 sqm workshop and worldwide shipping.',
+      description: 'Industrial automation parts supplier since 2007, supporting 20+ brands from a 3,500 sqm inspection and service facility with worldwide shipping.',
       url: canonical,
       type: 'website',
     },
@@ -49,12 +49,12 @@ export default async function About() {
     "@context": "https://schema.org",
     "@type": "AboutPage",
     "name": translatePublicMessage(locale, 'about.title'),
-    "description": "Learn about Vibocnc, a multi-brand industrial automation parts supplier in China since 2005.",
+    "description": "Learn about Vibocnc, a multi-brand industrial automation parts supplier founded in China in 2007.",
     "url": localizedAboutUrl,
     "mainEntity": {
       "@type": "Organization",
       "name": "Vibocnc",
-      "foundingDate": "2005",
+      "foundingDate": "2007",
       "foundingLocation": {
         "@type": "Place",
         "name": "Kunshan, Jiangsu, China"
@@ -80,7 +80,7 @@ export default async function About() {
         "Encoders",
         "Amplifiers"
       ],
-      "slogan": "Your Industrial Automation Parts Partner Since 2005"
+      "slogan": "Your Industrial Automation Parts Partner Since 2007"
     }
   };
 
@@ -125,11 +125,11 @@ export default async function About() {
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="site-subtle-card p-4">
-                  <div className="text-2xl font-bold text-[#0b3e75]">20+</div>
+                  <div className="text-2xl font-bold text-[#0b3e75]">15+</div>
                   <div className="text-sm text-gray-600">{translatePublicMessage(locale, 'about.years')}</div>
                 </div>
                 <div className="site-subtle-card p-4">
-                  <div className="text-2xl font-bold text-[#0b3e75]">10+</div>
+                  <div className="text-2xl font-bold text-[#0b3e75]">20+</div>
                   <div className="text-sm text-gray-600">{translatePublicMessage(locale, 'about.topSupplier')}</div>
                 </div>
               </div>
@@ -162,7 +162,7 @@ export default async function About() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="site-detail-panel text-center p-8">
               <BuildingOfficeIcon className="h-12 w-12 text-[#0b3e75] mx-auto mb-4" />
-              <div className="text-3xl font-bold text-gray-900 mb-2">5,000</div>
+              <div className="text-3xl font-bold text-gray-900 mb-2">3,500</div>
               <div className="text-gray-600">{translatePublicMessage(locale, 'about.workshop')}</div>
             </div>
 

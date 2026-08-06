@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { DEFAULT_WORKSHOP_SECTION_DATA, type WorkshopSectionData } from '@/lib/homepage-defaults';
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
+import { normalizeLegacyCompanyText } from '@/lib/company-facts';
 
 type Props = { content?: HomepageContent | null };
 
@@ -35,11 +36,19 @@ function normalizeWorkshopData(input: any): WorkshopSectionData {
   const facilities = Array.isArray(data?.facilities) && data.facilities.length > 0 ? data.facilities : DEFAULT_WORKSHOP_SECTION_DATA.facilities;
   const capabilities = Array.isArray(data?.capabilities) && data.capabilities.length > 0 ? data.capabilities : DEFAULT_WORKSHOP_SECTION_DATA.capabilities;
   return {
-    headerTitle: data?.headerTitle || DEFAULT_WORKSHOP_SECTION_DATA.headerTitle,
-    headerDescription: data?.headerDescription || DEFAULT_WORKSHOP_SECTION_DATA.headerDescription,
+    headerTitle: normalizeLegacyCompanyText(data?.headerTitle || DEFAULT_WORKSHOP_SECTION_DATA.headerTitle),
+    headerDescription: normalizeLegacyCompanyText(data?.headerDescription || DEFAULT_WORKSHOP_SECTION_DATA.headerDescription),
     facilities,
     capabilities,
-    statsBlock: data?.statsBlock || DEFAULT_WORKSHOP_SECTION_DATA.statsBlock,
+    statsBlock: {
+      ...(data?.statsBlock || DEFAULT_WORKSHOP_SECTION_DATA.statsBlock),
+      items: (data?.statsBlock?.items || DEFAULT_WORKSHOP_SECTION_DATA.statsBlock.items).map((item: any) => ({
+        ...item,
+        value: normalizeLegacyCompanyText(item.value),
+        title: normalizeLegacyCompanyText(item.title),
+        subtitle: normalizeLegacyCompanyText(item.subtitle),
+      })),
+    },
   };
 }
 
@@ -49,8 +58,8 @@ export function WorkshopSection({ content }: Props) {
   const base = normalizeWorkshopData((content as any)?.data);
   const data: WorkshopSectionData = {
     ...base,
-    headerTitle: content?.title || base.headerTitle,
-    headerDescription: content?.description || base.headerDescription,
+    headerTitle: content?.title ? normalizeLegacyCompanyText(content.title) : base.headerTitle,
+    headerDescription: content?.description ? normalizeLegacyCompanyText(content.description) : base.headerDescription,
   };
   const activeFacility = data.facilities[activeTab] || data.facilities[0];
 

@@ -173,7 +173,7 @@ export class HomepageService {
       { key: 'brands_section', name: 'Brands We Supply', description: 'Multi-brand automation parts supply grid' },
       { key: 'repair_capabilities', name: 'Repair Capabilities', description: 'Repairable equipment types and typical faults' },
       { key: 'home_blog', name: 'Featured Blog Articles', description: 'Published Blog articles marked as Featured' },
-      { key: 'workshop_facility', name: 'Workshop Facility', description: '5,000sqm Workshop Facility section' },
+      { key: 'workshop_facility', name: 'Workshop Facility', description: '3,500 sqm inspection and service facility section' },
       { key: 'workshop_overview', name: 'Workshop Overview', description: 'Modern Facility overview' },
       { key: 'inventory_management', name: 'Inventory Management', description: 'Organized storage information' },
       { key: 'quality_control', name: 'Quality Control', description: 'Quality assurance information' },

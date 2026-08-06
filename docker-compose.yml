@@ -52,8 +52,8 @@ services:
       GIN_MODE: release
       HOST: 0.0.0.0
       PORT: 8080
-      SITE_URL: ${SITE_URL:-https://www.vibocnc.com}
-      BASE_URL: ${BASE_URL:-https://www.vibocnc.com}
+      SITE_URL: ${SITE_URL:-https://vibocnc.com}
+      BASE_URL: ${BASE_URL:-https://vibocnc.com}
       FRONTEND_URL: ${FRONTEND_URL:-http://frontend:3000}
       REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
 
@@ -65,7 +65,7 @@ services:
 
       # CORS: allow the browser origin(s) you access the site from.
       # If you run Nginx on the host for TLS, set CORS_ORIGINS to your domain(s).
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://www.vibocnc.com}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://vibocnc.com}
 
       # Redis (rate limit + cache)
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
@@ -164,7 +164,7 @@ services:
         # SSR 端访问后端用 service 名；浏览器端走 /api/v1 相对路径（由“宿主机 Nginx”反代）
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://backend:8080}
         # 对外站点 URL。生产默认应指向真实域名，避免 canonical / og:url 退回开发地址。
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://www.vibocnc.com}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://vibocnc.com}
         NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-Vibocnc}
         NEXT_PUBLIC_SITE_DESCRIPTION: ${NEXT_PUBLIC_SITE_DESCRIPTION:-Industrial automation components and CNC spare parts}
         NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
@@ -174,10 +174,10 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      SITE_URL: ${SITE_URL:-https://www.vibocnc.com}
+      SITE_URL: ${SITE_URL:-https://vibocnc.com}
       # Also pass these at runtime so dynamic routes (robots/sitemaps/SSR) can read them without rebuild.
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://backend:8080}
-      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://www.vibocnc.com}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://vibocnc.com}
       NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-Vibocnc}
       NEXT_PUBLIC_SITE_DESCRIPTION: ${NEXT_PUBLIC_SITE_DESCRIPTION:-Industrial automation components and CNC spare parts}
       NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
