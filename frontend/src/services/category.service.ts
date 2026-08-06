@@ -1,9 +1,38 @@
 import { apiClient } from '@/lib/api';
-import { 
+import {
   APIResponse, 
   Category, 
   CategoryCreateRequest 
 } from '@/types';
+
+export interface CategoryReference {
+  id: number;
+  name: string;
+  slug: string;
+  parent_id?: number | null;
+  product_count?: number;
+}
+
+export interface CategoryProductReference {
+  id: number;
+  sku: string;
+  name: string;
+  slug: string;
+  brand: string;
+  model: string;
+  is_active: boolean;
+}
+
+export interface CategoryDeletionImpact {
+  category: CategoryReference;
+  parent?: CategoryReference | null;
+  direct_children: CategoryReference[];
+  descendant_count: number;
+  direct_products: CategoryProductReference[];
+  product_count: number;
+  replacement_categories: CategoryReference[];
+  can_delete: boolean;
+}
 
 export class CategoryService {
   // Get categories (public) - hierarchical structure
@@ -192,6 +221,22 @@ export class CategoryService {
       `/admin/categories/${id}`
     );
     
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to delete category');
+    }
+  }
+
+  static async getDeletionImpact(id: number): Promise<CategoryDeletionImpact> {
+    const response = await apiClient.get<APIResponse<CategoryDeletionImpact>>(
+      `/admin/categories/${id}/deletion-impact`
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to inspect category dependencies');
+  }
+
+  static async reassignAndDeleteCategory(id: number, replacementCategoryId?: number | null): Promise<void> {
+    const query = replacementCategoryId ? `?reassign_to=${encodeURIComponent(String(replacementCategoryId))}` : '';
+    const response = await apiClient.delete<APIResponse<void>>(`/admin/categories/${id}${query}`);
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to delete category');
     }

@@ -304,14 +304,15 @@ export async function middleware(request: NextRequest) {
   // users and crawlers keeps rendering fast and avoids crawler-only behavior.
 
   // Add security headers
-  response.headers.set('X-Frame-Options', 'DENY');
+  // Allow the public homepage to render inside the same-origin admin preview.
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   response.headers.set(
     'Content-Security-Policy',
-    "base-uri 'self'; frame-ancestors 'none'; object-src 'none'"
+    "base-uri 'self'; frame-ancestors 'self'; object-src 'none'"
   );
 
   // Order lookups can contain customer data and must never enter a search index.
@@ -329,6 +330,11 @@ export async function middleware(request: NextRequest) {
     pathname === '/track-order'
   ) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+  }
+
+  if (request.nextUrl.searchParams.get('admin_preview') === '1') {
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
   }
 
   if (isLocalizablePublicPath(pathname) && !response.headers.has('X-Robots-Tag')) {

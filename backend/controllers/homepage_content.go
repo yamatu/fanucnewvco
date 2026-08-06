@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"regexp"
@@ -17,6 +18,12 @@ import (
 
 // HomepageContentController handles homepage content operations
 type HomepageContentController struct{}
+
+func invalidateHomepageCaches(ctx context.Context, reason string) {
+	services.InvalidatePublicCaches(ctx, reason, []string{"/"})
+	services.TriggerNextRevalidate(nil, []string{"/"}, false)
+	services.TriggerNextRevalidateTags([]string{"homepage-content"})
+}
 
 var homepageSectionKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{2,63}$`)
 
@@ -133,7 +140,7 @@ func (hc *HomepageContentController) CreateHomepageContent(c *gin.Context) {
 		return
 	}
 
-	services.InvalidatePublicCaches(c.Request.Context(), "homepage:create", nil)
+	invalidateHomepageCaches(c.Request.Context(), "homepage:create")
 	c.JSON(http.StatusCreated, content)
 }
 
@@ -191,7 +198,7 @@ func (hc *HomepageContentController) UpdateHomepageContent(c *gin.Context) {
 		return
 	}
 
-	services.InvalidatePublicCaches(c.Request.Context(), "homepage:update", nil)
+	invalidateHomepageCaches(c.Request.Context(), "homepage:update")
 	c.JSON(http.StatusOK, content)
 }
 
@@ -272,7 +279,7 @@ func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Conte
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create homepage content"})
 				return
 			}
-			services.InvalidatePublicCaches(c.Request.Context(), "homepage:create", nil)
+			invalidateHomepageCaches(c.Request.Context(), "homepage:create")
 			c.JSON(http.StatusCreated, content)
 
 			return
@@ -316,7 +323,7 @@ func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Conte
 		return
 	}
 
-	services.InvalidatePublicCaches(c.Request.Context(), "homepage:update", nil)
+	invalidateHomepageCaches(c.Request.Context(), "homepage:update")
 	c.JSON(http.StatusOK, content)
 }
 
@@ -352,7 +359,7 @@ func (hc *HomepageContentController) DeleteHomepageContent(c *gin.Context) {
 		return
 	}
 
-	services.InvalidatePublicCaches(c.Request.Context(), "homepage:delete", nil)
+	invalidateHomepageCaches(c.Request.Context(), "homepage:delete")
 	c.JSON(http.StatusOK, gin.H{"message": "Homepage content deleted successfully"})
 }
 

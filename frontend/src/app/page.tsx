@@ -224,16 +224,16 @@ async function sanitizeHeroContent(content?: HomepageContent): Promise<HomepageC
   };
 }
 
-async function getHomepageContentList(): Promise<HomepageContent[]> {
+async function getHomepageContentList(options?: { fresh?: boolean }): Promise<HomepageContent[]> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
     const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
     // Fetch inactive too so the public page can respect the admin "is_active" toggle (hide sections).
-    const res = await fetch(`${backendUrl}/api/v1/public/homepage-content?include_inactive=1`, {
-      next: { revalidate: 300, tags: ['homepage-content'] },
-      signal: controller.signal,
-    });
+    const endpoint = `${backendUrl}/api/v1/public/homepage-content?include_inactive=1`;
+    const res = options?.fresh
+      ? await fetch(endpoint, { cache: 'no-store', signal: controller.signal })
+      : await fetch(endpoint, { next: { revalidate: 300, tags: ['homepage-content'] }, signal: controller.signal });
     if (!res.ok) return [];
     const data = await res.json();
     if (!Array.isArray(data)) return [];
@@ -270,8 +270,8 @@ export default async function Home({
   const previewParams = searchParams ? await searchParams : undefined;
   const isAdminPreview = previewParams?.admin_preview === '1';
   const [list, socialMediaSettings] = await Promise.all([
-    getHomepageContentList(),
-    getPublicSocialMediaSettings(),
+    getHomepageContentList({ fresh: isAdminPreview }),
+    getPublicSocialMediaSettings({ fresh: isAdminPreview }),
   ]);
   const byKey: Record<string, HomepageContent | undefined> = Object.fromEntries(
     list.map((c) => [c.section_key, c]),

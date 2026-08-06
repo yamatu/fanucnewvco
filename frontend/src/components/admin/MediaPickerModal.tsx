@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { XMarkIcon, MagnifyingGlassIcon, PhotoIcon, ArrowUpTrayIcon, TrashIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, MagnifyingGlassIcon, PhotoIcon, ArrowUpTrayIcon, TrashIcon, EyeIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from '@heroicons/react/24/outline';
 import { MediaService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import type { MediaAsset } from '@/services/media.service';
@@ -322,7 +322,7 @@ export default function MediaPickerModal({ open, onClose, onSelect, multiple = f
                       <button type="button" onClick={() => toggle(asset)} className="block w-full text-left">
                       <div className="aspect-square bg-gray-50 p-1">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={asset.url} alt={asset.alt_text || asset.original_name} className="h-full w-full object-contain" loading="lazy" />
+                        <img src={asset.url} alt={asset.alt_text || asset.original_name} className="h-full w-full object-contain" loading="lazy" decoding="async" />
                       </div>
                       <div className="p-2">
                         <div className="text-xs font-medium text-gray-900 truncate">{asset.original_name}</div>
@@ -343,23 +343,54 @@ export default function MediaPickerModal({ open, onClose, onSelect, multiple = f
             <div className="text-sm text-gray-600">
               {t('media.picker.total', 'Total: {total}', { total })}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+                className="rounded-md border border-gray-200 p-2 text-gray-700 disabled:opacity-50 hover:bg-gray-50"
+                title={t('media.picker.first', 'First page')}
+                aria-label={t('media.picker.first', 'First page')}
+              >
+                <ChevronDoubleLeftIcon className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
               >
                 {t('media.picker.prev', 'Prev')}
               </button>
-              <div className="text-sm text-gray-700">
-                {t('common.page', 'Page {page} / {pages}', { page, pages: totalPages })}
-              </div>
+              <label className="flex items-center gap-1 text-sm text-gray-700">
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={page}
+                  onChange={(event) => setPage(Math.min(totalPages, Math.max(1, Number(event.target.value) || 1)))}
+                  className="w-16 rounded-md border border-gray-200 px-2 py-2 text-center text-sm"
+                  aria-label={t('media.picker.jump', 'Jump to page')}
+                />
+                <span>/ {totalPages}</span>
+              </label>
               <button
+                type="button"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
               >
                 {t('media.picker.next', 'Next')}
+              </button>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+                className="rounded-md border border-gray-200 p-2 text-gray-700 disabled:opacity-50 hover:bg-gray-50"
+                title={t('media.picker.last', 'Last page')}
+                aria-label={t('media.picker.last', 'Last page')}
+              >
+                <ChevronDoubleRightIcon className="h-4 w-4" />
               </button>
             </div>
           </div>

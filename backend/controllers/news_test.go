@@ -45,3 +45,18 @@ func TestDefaultArticleCustomPath(t *testing.T) {
 		}
 	}
 }
+
+func TestIsGeneratedArticleCustomPath(t *testing.T) {
+	if !isGeneratedArticleCustomPath("/news/release", "news", "release") {
+		t.Fatal("expected the canonical news path to be detected as generated")
+	}
+	if !isGeneratedArticleCustomPath("blog/guide", "blog", "guide") {
+		t.Fatal("expected the canonical blog path to be detected as generated")
+	}
+	if !isGeneratedArticleCustomPath("news/guide", "blog", "guide") {
+		t.Fatal("expected a stale generated news path on a blog article to be repairable")
+	}
+	if isGeneratedArticleCustomPath("guides/cnc/guide", "blog", "guide") {
+		t.Fatal("explicit custom paths must not be treated as generated")
+	}
+}

@@ -61,6 +61,27 @@ func TriggerNextRevalidate(skus []string, paths []string, alsoAllProducts bool) 
 	}
 }
 
+// TriggerNextRevalidateTags invalidates arbitrary Next.js fetch-cache tags.
+// It is used for shared content such as the editable homepage sections.
+func TriggerNextRevalidateTags(tags []string) {
+	frontendURL := strings.TrimRight(strings.TrimSpace(os.Getenv("FRONTEND_URL")), "/")
+	secret := strings.TrimSpace(os.Getenv("REVALIDATE_SECRET"))
+	if frontendURL == "" || secret == "" {
+		return
+	}
+
+	endpoint := frontendURL + "/api/revalidate"
+	seen := map[string]bool{}
+	for _, tag := range tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" || seen[tag] {
+			continue
+		}
+		seen[tag] = true
+		go doRevalidateRequest(endpoint, secret, "", tag)
+	}
+}
+
 func doRevalidateRequest(endpoint, secret, path, tag string) {
 	body := map[string]string{}
 	if path != "" {

@@ -19,7 +19,7 @@ export default function HomepagePreviewMarker({ sectionKey, label, children }: P
   };
 
   return (
-    <div className="group relative outline outline-2 outline-dashed outline-orange-400/70 outline-offset-[-2px]">
+    <div data-admin-homepage-marker={sectionKey} className="group relative outline outline-2 outline-dashed outline-orange-400/70 outline-offset-[-2px]">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[80] flex justify-end p-3">
         <button
           type="button"

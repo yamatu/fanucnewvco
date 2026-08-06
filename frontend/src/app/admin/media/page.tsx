@@ -14,6 +14,8 @@ import {
   TrashIcon,
   XMarkIcon,
   PhotoIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
 } from '@heroicons/react/24/outline';
 
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -767,6 +769,7 @@ export default function AdminMediaPage() {
                           alt={asset.alt_text || asset.original_name}
                           className="h-full w-full object-contain"
                           loading="lazy"
+                          decoding="async"
                         />
                         <span className="absolute bottom-2 right-2 rounded bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100">
                           <EyeIcon className="h-4 w-4" />
@@ -799,23 +802,54 @@ export default function AdminMediaPage() {
                       </span>
                     ) : null}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage(1)}
+                    className="rounded-md border border-gray-200 p-2 text-gray-700 disabled:opacity-50 hover:bg-gray-50"
+                    title={locale === 'zh' ? '第一页' : 'First page'}
+                    aria-label={locale === 'zh' ? '第一页' : 'First page'}
+                  >
+                    <ChevronDoubleLeftIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
                     disabled={page <= 1}
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
                   >
                     {t('common.prev', locale === 'zh' ? '上一页' : 'Prev')}
                   </button>
-                  <div className="text-sm text-gray-700">
-                    {t('common.page', locale === 'zh' ? '第 {page} 页 / 共 {pages} 页' : 'Page {page} / {pages}', { page, pages: totalPages })}
-                  </div>
+                  <label className="flex items-center gap-1 text-sm text-gray-700">
+                    <input
+                      type="number"
+                      min={1}
+                      max={totalPages}
+                      value={page}
+                      onChange={(event) => setPage(Math.min(totalPages, Math.max(1, Number(event.target.value) || 1)))}
+                      className="w-16 rounded-md border border-gray-200 px-2 py-2 text-center text-sm"
+                      aria-label={locale === 'zh' ? '跳转页码' : 'Jump to page'}
+                    />
+                    <span>/ {totalPages}</span>
+                  </label>
                   <button
+                    type="button"
                     disabled={page >= totalPages}
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
                   >
                     {t('common.next', locale === 'zh' ? '下一页' : 'Next')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage(totalPages)}
+                    className="rounded-md border border-gray-200 p-2 text-gray-700 disabled:opacity-50 hover:bg-gray-50"
+                    title={locale === 'zh' ? '最后一页' : 'Last page'}
+                    aria-label={locale === 'zh' ? '最后一页' : 'Last page'}
+                  >
+                    <ChevronDoubleRightIcon className="h-4 w-4" />
                   </button>
                 </div>
               </div>

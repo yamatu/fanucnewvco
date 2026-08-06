@@ -16,6 +16,163 @@ import (
 
 type CategoryController struct{}
 
+type categoryReference struct {
+	ID           uint   `json:"id"`
+	Name         string `json:"name"`
+	Slug         string `json:"slug"`
+	ParentID     *uint  `json:"parent_id,omitempty"`
+	ProductCount int64  `json:"product_count,omitempty"`
+}
+
+type categoryProductReference struct {
+	ID       uint   `json:"id"`
+	SKU      string `json:"sku"`
+	Name     string `json:"name"`
+	Slug     string `json:"slug"`
+	Brand    string `json:"brand"`
+	Model    string `json:"model"`
+	IsActive bool   `json:"is_active"`
+}
+
+type categoryDeletionImpactResponse struct {
+	Category              categoryReference          `json:"category"`
+	Parent                *categoryReference         `json:"parent,omitempty"`
+	DirectChildren        []categoryReference        `json:"direct_children"`
+	DescendantCount       int                        `json:"descendant_count"`
+	DirectProducts        []categoryProductReference `json:"direct_products"`
+	ProductCount          int64                      `json:"product_count"`
+	ReplacementCategories []categoryReference        `json:"replacement_categories"`
+	CanDelete             bool                       `json:"can_delete"`
+}
+
+func categoryDescendantIDs(db *gorm.DB, rootID uint) ([]uint, error) {
+	var rows []struct {
+		ID       uint  `gorm:"column:id"`
+		ParentID *uint `gorm:"column:parent_id"`
+	}
+	if err := db.Model(&models.Category{}).Select("id, parent_id").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	childrenByParent := make(map[uint][]uint, len(rows))
+	for _, row := range rows {
+		if row.ParentID != nil {
+			childrenByParent[*row.ParentID] = append(childrenByParent[*row.ParentID], row.ID)
+		}
+	}
+
+	seen := map[uint]bool{rootID: true}
+	queue := []uint{rootID}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		for _, childID := range childrenByParent[current] {
+			if seen[childID] {
+				continue
+			}
+			seen[childID] = true
+			queue = append(queue, childID)
+		}
+	}
+
+	ids := make([]uint, 0, len(seen)-1)
+	for id := range seen {
+		if id != rootID {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
+}
+
+func categoryReferenceFor(category models.Category, productCounts map[uint]int64) categoryReference {
+	return categoryReference{ID: category.ID, Name: category.Name, Slug: category.Slug, ParentID: category.ParentID, ProductCount: productCounts[category.ID]}
+}
+
+func (cc *CategoryController) buildDeletionImpact(db *gorm.DB, categoryID uint) (*categoryDeletionImpactResponse, error) {
+	var category models.Category
+	if err := db.First(&category, categoryID).Error; err != nil {
+		return nil, err
+	}
+
+	var children []models.Category
+	if err := db.Where("parent_id = ?", categoryID).Order("sort_order ASC, name ASC").Find(&children).Error; err != nil {
+		return nil, err
+	}
+	var countRows []struct {
+		CategoryID uint  `gorm:"column:category_id"`
+		Count      int64 `gorm:"column:count"`
+	}
+	if err := db.Model(&models.Product{}).Select("category_id, COUNT(*) AS count").Group("category_id").Scan(&countRows).Error; err != nil {
+		return nil, err
+	}
+	productCounts := make(map[uint]int64, len(countRows))
+	for _, row := range countRows {
+		productCounts[row.CategoryID] = row.Count
+	}
+	productCount := productCounts[categoryID]
+	var products []models.Product
+	if err := db.Select("id, sku, name, slug, brand, model, is_active").Where("category_id = ?", categoryID).Order("id DESC").Limit(100).Find(&products).Error; err != nil {
+		return nil, err
+	}
+
+	descendants, err := categoryDescendantIDs(db, categoryID)
+	if err != nil {
+		return nil, err
+	}
+	excluded := append([]uint{categoryID}, descendants...)
+	var replacements []models.Category
+	query := db.Where("id NOT IN ?", excluded).Order("sort_order ASC, name ASC")
+	if err := query.Find(&replacements).Error; err != nil {
+		return nil, err
+	}
+
+	impact := &categoryDeletionImpactResponse{
+		Category:              categoryReferenceFor(category, productCounts),
+		DescendantCount:       len(descendants),
+		ProductCount:          productCount,
+		CanDelete:             len(children) == 0 && productCount == 0,
+		DirectChildren:        make([]categoryReference, 0, len(children)),
+		DirectProducts:        make([]categoryProductReference, 0, len(products)),
+		ReplacementCategories: make([]categoryReference, 0, len(replacements)),
+	}
+	if category.ParentID != nil {
+		var parent models.Category
+		if err := db.First(&parent, *category.ParentID).Error; err == nil {
+			ref := categoryReferenceFor(parent, productCounts)
+			impact.Parent = &ref
+		}
+	}
+	for _, child := range children {
+		impact.DirectChildren = append(impact.DirectChildren, categoryReferenceFor(child, productCounts))
+	}
+	for _, product := range products {
+		impact.DirectProducts = append(impact.DirectProducts, categoryProductReference{ID: product.ID, SKU: product.SKU, Name: product.Name, Slug: product.Slug, Brand: product.Brand, Model: product.Model, IsActive: product.IsActive})
+	}
+	for _, replacement := range replacements {
+		impact.ReplacementCategories = append(impact.ReplacementCategories, categoryReferenceFor(replacement, productCounts))
+	}
+	return impact, nil
+}
+
+// GetCategoryDeletionImpact previews the products and child categories that
+// must be handled before a category can be removed.
+func (cc *CategoryController) GetCategoryDeletionImpact(c *gin.Context) {
+	categoryID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid category ID", Error: "invalid_id"})
+		return
+	}
+	impact, err := cc.buildDeletionImpact(config.GetDB(), uint(categoryID))
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Category not found", Error: "category_not_found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database error", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Category deletion impact retrieved successfully", Data: impact})
+}
+
 // GetCategories returns paginated list of categories
 func (cc *CategoryController) GetCategories(c *gin.Context) {
 	db := config.GetDB()
@@ -358,7 +515,16 @@ func (cc *CategoryController) DeleteCategory(c *gin.Context) {
 
 	db := config.GetDB()
 
-	// Check if category has products
+	var category models.Category
+	if err := db.First(&category, uint(categoryID)).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Category not found", Error: "category_not_found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database error", Error: err.Error()})
+		return
+	}
+
 	var productCount int64
 	if err := db.Model(&models.Product{}).Where("category_id = ?", uint(categoryID)).Count(&productCount).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{
@@ -369,37 +535,79 @@ func (cc *CategoryController) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	if productCount > 0 {
-		c.JSON(http.StatusConflict, models.APIResponse{
-			Success: false,
-			Message: "Cannot delete category with existing products",
-			Error:   "category_has_products",
-		})
-		return
-	}
-
-	// Check if category has children
 	var childCount int64
 	if err := db.Model(&models.Category{}).Where("parent_id = ?", uint(categoryID)).Count(&childCount).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIResponse{
-			Success: false,
-			Message: "Database error",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database error", Error: err.Error()})
 		return
 	}
 
-	if childCount > 0 {
+	reassignValue := strings.TrimSpace(c.Query("reassign_to"))
+	var replacementID *uint
+	if reassignValue != "" {
+		value, parseErr := strconv.ParseUint(reassignValue, 10, 32)
+		if parseErr != nil || value == 0 {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid replacement category", Error: "invalid_replacement_category"})
+			return
+		}
+		replacement := uint(value)
+		if replacement == uint(categoryID) {
+			c.JSON(http.StatusConflict, models.APIResponse{Success: false, Message: "A category cannot be reassigned to itself", Error: "invalid_replacement_category"})
+			return
+		}
+		descendants, descErr := categoryDescendantIDs(db, uint(categoryID))
+		if descErr != nil {
+			c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database error", Error: descErr.Error()})
+			return
+		}
+		for _, descendantID := range descendants {
+			if descendantID == replacement {
+				c.JSON(http.StatusConflict, models.APIResponse{Success: false, Message: "A category cannot be moved into its own descendant", Error: "invalid_replacement_category"})
+				return
+			}
+		}
+		var replacementCategory models.Category
+		if err := db.First(&replacementCategory, replacement).Error; err != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Replacement category not found", Error: "replacement_category_not_found"})
+			return
+		}
+		replacementID = &replacement
+	}
+
+	if productCount > 0 && replacementID == nil {
 		c.JSON(http.StatusConflict, models.APIResponse{
-			Success: false,
-			Message: "Cannot delete category with subcategories",
-			Error:   "category_has_children",
+			Success: false, Message: "Products must be reassigned before deleting this category", Error: "replacement_category_required",
+			Data: gin.H{"product_count": productCount, "child_count": childCount},
 		})
 		return
 	}
 
-	// Delete category
-	if err := db.Delete(&models.Category{}, uint(categoryID)).Error; err != nil {
+	if childCount > 0 && replacementID == nil && productCount == 0 {
+		// Empty parent categories can be removed safely by preserving their
+		// children under the deleted category's former parent.
+		replacementID = category.ParentID
+	}
+
+	if childCount > 0 && replacementID == nil {
+		c.JSON(http.StatusConflict, models.APIResponse{
+			Success: false, Message: "Child categories must be reassigned before deleting this category", Error: "replacement_category_required",
+			Data: gin.H{"product_count": productCount, "child_count": childCount},
+		})
+		return
+	}
+
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		if replacementID != nil && productCount > 0 {
+			if err := tx.Model(&models.Product{}).Where("category_id = ?", uint(categoryID)).Update("category_id", *replacementID).Error; err != nil {
+				return err
+			}
+		}
+		if childCount > 0 {
+			if err := tx.Model(&models.Category{}).Where("parent_id = ?", uint(categoryID)).Update("parent_id", replacementID).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Delete(&models.Category{}, uint(categoryID)).Error
+	}); err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to delete category",
@@ -408,7 +616,8 @@ func (cc *CategoryController) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	services.InvalidatePublicCaches(c.Request.Context(), "category:delete", nil)
+	services.InvalidatePublicCaches(c.Request.Context(), "category:delete", []string{"/categories", "/products", "/"})
+	services.TriggerNextRevalidate(nil, []string{"/categories", "/products", "/"}, true)
 
 	c.JSON(http.StatusOK, models.APIResponse{
 		Success: true,

@@ -7,6 +7,7 @@ import (
 	"fanuc-backend/middleware"
 	"fanuc-backend/services"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -179,6 +180,7 @@ func SetupRoutes(r *gin.Engine) {
 			categories.Use(middleware.EditorOrAdmin())
 			{
 				categories.GET("", categoryController.GetCategories)
+				categories.GET("/:id/deletion-impact", categoryController.GetCategoryDeletionImpact)
 				categories.GET("/:id", categoryController.GetCategory)
 				categories.POST("", categoryController.CreateCategory)
 				categories.PUT("/reorder", categoryController.ReorderCategories)
@@ -553,5 +555,13 @@ func SetupRoutes(r *gin.Engine) {
 	// Serve static files (uploaded images)
 	uploads := r.Group("/uploads")
 	uploads.Use(middleware.HotlinkProtectionMiddleware())
+	uploads.Use(func(c *gin.Context) {
+		// Media filenames are SHA-256 based, so immutable caching is safe and
+		// avoids downloading the same gallery image on every admin page.
+		if strings.HasPrefix(c.Request.URL.Path, "/uploads/media/") {
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		}
+		c.Next()
+	})
 	uploads.StaticFS("/", http.Dir("./uploads"))
 }

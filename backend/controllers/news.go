@@ -111,6 +111,16 @@ func defaultArticleCustomPath(contentType, slug string) string {
 	return normalizeContentType(contentType) + "/" + strings.Trim(slug, "/")
 }
 
+// isGeneratedArticleCustomPath identifies the path that was automatically
+// assigned when an article was created without an explicit custom URL. It is
+// important to distinguish this from a deliberate custom path while editing.
+func isGeneratedArticleCustomPath(path, contentType, slug string) bool {
+	normalized := normalizeCustomPath(path)
+	return normalized == defaultArticleCustomPath(contentType, slug) ||
+		normalized == defaultArticleCustomPath("news", slug) ||
+		normalized == defaultArticleCustomPath("blog", slug)
+}
+
 func normalizeContentType(contentType string) string {
 	if strings.EqualFold(strings.TrimSpace(contentType), "blog") {
 		return "blog"
@@ -652,12 +662,14 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 	}
 	slug = ensureUniqueSlug(db, slugify(slug), article.ID)
 
-	customPath := normalizeCustomPath(req.CustomPath)
-	if customPath != "" {
-		customPath = ensureUniqueCustomPath(db, customPath, article.ID)
-	} else {
-		customPath = ensureUniqueCustomPath(db, defaultArticleCustomPath(req.ContentType, slug), article.ID)
+	requestedCustomPath := normalizeCustomPath(req.CustomPath)
+	// The admin form submits the stored path. If that path is the generated
+	// default, regenerate it for the new type/slug instead of freezing the old
+	// `/news/...` path after a news -> blog edit.
+	if requestedCustomPath == "" || isGeneratedArticleCustomPath(requestedCustomPath, article.ContentType, article.Slug) {
+		requestedCustomPath = defaultArticleCustomPath(req.ContentType, slug)
 	}
+	customPath := ensureUniqueCustomPath(db, requestedCustomPath, article.ID)
 
 	featuredImage := strings.TrimSpace(req.FeaturedImage)
 	imageURLs := req.ImageURLs
