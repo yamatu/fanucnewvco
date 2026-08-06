@@ -31,6 +31,7 @@ import FeaturedProductsEditor from '@/components/admin/homepage/editors/Featured
 import WorkshopEditor from '@/components/admin/homepage/editors/WorkshopEditor';
 import ServicesEditor from '@/components/admin/homepage/editors/ServicesEditor';
 import SimpleSectionEditor from '@/components/admin/homepage/editors/SimpleSectionEditor';
+import HomepageLivePreview from '@/components/admin/homepage/HomepageLivePreview';
 
 type SectionDef = { id: string; key: string; name: string; description: string; predefined?: boolean; sortOrder: number };
 type SectionFilter = 'all' | 'primary' | 'custom' | 'active' | 'inactive';
@@ -128,6 +129,8 @@ export default function AdminHomepageContentPage() {
   const [layoutPanelOpen, setLayoutPanelOpen] = useState(false);
   const [createPanelOpen, setCreatePanelOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateSectionForm>(EMPTY_CREATE_FORM);
+  const [previewOpen, setPreviewOpen] = useState(true);
+  const [previewVersion, setPreviewVersion] = useState(0);
 
   const {
     data: sections = [],
@@ -258,6 +261,7 @@ export default function AdminHomepageContentPage() {
     onSuccess: async () => {
       toast.success(locale === 'zh' ? '已保存' : 'Saved');
       await queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
+      setPreviewVersion((version) => version + 1);
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, locale === 'zh' ? '保存失败' : 'Failed to save'));
@@ -277,6 +281,7 @@ export default function AdminHomepageContentPage() {
       setLayoutDirty(false);
       toast.success(locale === 'zh' ? '布局顺序已保存' : 'Layout saved');
       await queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
+      setPreviewVersion((version) => version + 1);
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, locale === 'zh' ? '保存布局失败' : 'Failed to save layout'));
@@ -310,6 +315,7 @@ export default function AdminHomepageContentPage() {
       setHideEmptyCustom(false);
       toast.success(locale === 'zh' ? '自定义区块已创建，完善内容后再启用' : 'Custom section created. Complete it before enabling.');
       await queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
+      setPreviewVersion((version) => version + 1);
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, locale === 'zh' ? '创建区块失败' : 'Failed to create section'));
@@ -326,6 +332,7 @@ export default function AdminHomepageContentPage() {
           : (locale === 'zh' ? '区块已停用' : 'Section disabled')
       );
       await queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
+      setPreviewVersion((version) => version + 1);
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, locale === 'zh' ? '更新状态失败' : 'Failed to update status'));
@@ -338,6 +345,7 @@ export default function AdminHomepageContentPage() {
       setSelectedKey('hero_section');
       toast.success(locale === 'zh' ? '自定义区块已删除' : 'Custom section deleted');
       await queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
+      setPreviewVersion((version) => version + 1);
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, locale === 'zh' ? '删除区块失败' : 'Failed to delete section'));
@@ -346,6 +354,7 @@ export default function AdminHomepageContentPage() {
 
   const refreshAll = async () => {
     await Promise.all([refetchSections(), refetchContents()]);
+    setPreviewVersion((version) => version + 1);
   };
 
   const isLoading = sectionsLoading || contentsLoading;
@@ -368,6 +377,14 @@ export default function AdminHomepageContentPage() {
   }
 
   const editorType = getEditorType(selectedKey);
+
+  const selectPreviewSection = (sectionKey: string) => {
+    if (!mergedSections.some((section) => section.key === sectionKey)) return;
+    setSelectedKey(sectionKey);
+    window.setTimeout(() => {
+      document.getElementById('homepage-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+  };
 
   return (
     <AdminLayout>
@@ -411,8 +428,20 @@ export default function AdminHomepageContentPage() {
               <EyeIcon className="h-5 w-5" />
               {locale === 'zh' ? '预览首页' : 'Preview Home'}
             </a>
+            <button
+              type="button"
+              onClick={() => setPreviewOpen((open) => !open)}
+              className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+            >
+              <EyeIcon className="h-5 w-5" />
+              {previewOpen ? (locale === 'zh' ? '收起样式预览' : 'Hide style preview') : (locale === 'zh' ? '打开样式预览' : 'Show style preview')}
+            </button>
           </div>
         </div>
+
+        {previewOpen && !isLoading && (
+          <HomepageLivePreview locale={locale} selectedKey={selectedKey} version={previewVersion} onSelectSection={selectPreviewSection} />
+        )}
 
         {createPanelOpen && sectionsReady && (
           <form
@@ -725,7 +754,7 @@ export default function AdminHomepageContentPage() {
             </div>
 
             {/* Editor */}
-            <div className="lg:col-span-8 space-y-4">
+            <div id="homepage-editor" className="scroll-mt-6 lg:col-span-8 space-y-4">
               {selectedSection && (
                 <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">

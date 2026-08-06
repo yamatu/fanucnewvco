@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Fragment, Suspense, type ReactNode } from 'react';
 import PublicLayout from '@/components/layout/PublicLayout';
 import HeroSection from '@/components/home/HeroSection';
 import FeaturedProducts from '@/components/home/FeaturedProducts';
@@ -22,6 +22,7 @@ import { translatePublicMessage } from '@/lib/i18n/messages';
 import { getLocaleConfig } from '@/lib/i18n/config';
 import { localizeArticleOrDefault, localizeProductContent } from '@/lib/i18n/content';
 import { getHomepageFeaturedArticles, getHomepageFeaturedProducts } from '@/services/homepage.server';
+import HomepagePreviewMarker from '@/components/admin/homepage/HomepagePreviewMarker';
 
 export const revalidate = 300;
 
@@ -260,8 +261,14 @@ function DeferredSectionFallback({ minHeight = 720 }: { minHeight?: number }) {
   return <div className="home-deferred-section" style={{ minHeight }} aria-hidden="true" />;
 }
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams?: Promise<{ admin_preview?: string }>;
+}) {
   const locale = await getRequestPublicLocale();
+  const previewParams = searchParams ? await searchParams : undefined;
+  const isAdminPreview = previewParams?.admin_preview === '1';
   const [list, socialMediaSettings] = await Promise.all([
     getHomepageContentList(),
     getPublicSocialMediaSettings(),
@@ -314,27 +321,34 @@ export default async function Home() {
       />
       <PublicLayout socialMediaSettings={socialMediaSettings}>
         {renderQueue.map((s) => {
-          if (s.key === 'hero_section') return <HeroSection key={s.key} content={s.content} />;
-          if (s.key === 'company_stats') return <CompanyStats key={s.key} content={s.content} />;
-          if (s.key === 'featured_products') {
-            return (
-              <Suspense key={s.key} fallback={<DeferredSectionFallback minHeight={860} />}>
+          let section: ReactNode;
+          if (s.key === 'hero_section') section = <HeroSection content={s.content} />;
+          else if (s.key === 'company_stats') section = <CompanyStats content={s.content} />;
+          else if (s.key === 'featured_products') {
+            section = (
+              <Suspense fallback={<DeferredSectionFallback minHeight={860} />}>
                 <DeferredFeaturedProducts content={s.content} locale={locale} />
               </Suspense>
             );
-          }
-          if (s.key === 'brands_section') return <BrandsSection key={s.key} content={s.content} />;
-          if (s.key === 'repair_capabilities') return <RepairCapabilitiesSection key={s.key} content={s.content} />;
-          if (s.key === 'workshop_section') return <WorkshopSection key={s.key} content={s.content} />;
-          if (s.key === 'services_section') return <ServicesSection key={s.key} content={s.content} />;
-          if (s.key === 'home_blog') {
-            return (
-              <Suspense key={s.key} fallback={<DeferredSectionFallback minHeight={620} />}>
+          } else if (s.key === 'brands_section') section = <BrandsSection content={s.content} />;
+          else if (s.key === 'repair_capabilities') section = <RepairCapabilitiesSection content={s.content} />;
+          else if (s.key === 'workshop_section') section = <WorkshopSection content={s.content} />;
+          else if (s.key === 'services_section') section = <ServicesSection content={s.content} />;
+          else if (s.key === 'home_blog') {
+            section = (
+              <Suspense fallback={<DeferredSectionFallback minHeight={620} />}>
                 <DeferredHomeBlog content={s.content} locale={locale} />
               </Suspense>
             );
-          }
-          return <SimpleContentSection key={s.key} content={s.content} />;
+          } else section = <SimpleContentSection content={s.content} />;
+
+          return isAdminPreview ? (
+            <HomepagePreviewMarker key={s.key} sectionKey={s.key} label={`Edit ${s.key}`}>
+              {section}
+            </HomepagePreviewMarker>
+          ) : (
+            <Fragment key={s.key}>{section}</Fragment>
+          );
         })}
       </PublicLayout>
     </>

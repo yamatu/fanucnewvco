@@ -149,6 +149,7 @@ func SetupRoutes(r *gin.Engine) {
 			{
 				aiAgent.GET("/status", aiAgentController.Status)
 				aiAgent.POST("/chat", aiAgentController.Chat)
+				aiAgent.POST("/article-draft", aiAgentController.GenerateArticleDraft)
 				aiAgent.POST("/prices/preview", aiAgentController.PreviewPrices)
 				aiAgent.POST("/apply", aiAgentController.Apply)
 				aiAgent.POST("/seo/jobs", aiAgentController.StartSelectedSEO)

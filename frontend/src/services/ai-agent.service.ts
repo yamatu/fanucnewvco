@@ -67,6 +67,25 @@ export interface AIAgentReply {
   suggestions: AIAgentAction[];
 }
 
+export interface AIAgentArticleDraftRequest {
+  topic: string;
+  keywords?: string;
+  language?: string;
+  content_type?: 'news' | 'blog';
+  tone?: string;
+  outline?: string;
+}
+
+export interface AIAgentArticleDraft {
+  title: string;
+  slug: string;
+  summary: string;
+  content: string;
+  meta_title: string;
+  meta_description: string;
+  meta_keywords: string;
+}
+
 export type AIAgentPriceRowStatus =
   | 'matched'
   | 'unmatched'
@@ -182,6 +201,12 @@ export class AIAgentService {
     const response = await apiClient.post<APIResponse<Array<Record<string, unknown>>>>('/admin/ai-agent/apply', { actions });
     if (response.data.success) return response.data.data || [];
     throw new Error(response.data.message || 'AI suggestions could not be applied');
+  }
+
+  static async generateArticleDraft(payload: AIAgentArticleDraftRequest): Promise<AIAgentArticleDraft> {
+    const response = await apiClient.post<APIResponse<AIAgentArticleDraft>>('/admin/ai-agent/article-draft', payload);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'AI article draft could not be generated');
   }
 
   static async previewPrices(text: string): Promise<AIAgentPricePreview> {

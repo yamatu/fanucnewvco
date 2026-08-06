@@ -20,6 +20,7 @@ import { useAdminI18n } from '@/lib/admin-i18n';
 import type { ArticleCreateRequest } from '@/types';
 import MarkdownContent from '@/components/content/MarkdownContent';
 import TranslationEditor from '@/components/admin/TranslationEditor';
+import AIArticleWriter from '@/components/admin/AIArticleWriter';
 
 export default function NewArticlePage() {
   const { locale, t } = useAdminI18n();
@@ -79,6 +80,24 @@ export default function NewArticlePage() {
     setValue('content', current + `\n\n![](${url})\n\n`);
   };
 
+  const applyAIDraft = (draft: {
+    title: string;
+    slug: string;
+    summary: string;
+    content: string;
+    meta_title: string;
+    meta_description: string;
+    meta_keywords: string;
+  }) => {
+    setValue('title', draft.title, { shouldDirty: true, shouldValidate: true });
+    setValue('slug', draft.slug, { shouldDirty: true });
+    setValue('summary', draft.summary, { shouldDirty: true });
+    setValue('content', draft.content, { shouldDirty: true, shouldValidate: true });
+    setValue('meta_title', draft.meta_title, { shouldDirty: true });
+    setValue('meta_description', draft.meta_description, { shouldDirty: true });
+    setValue('meta_keywords', draft.meta_keywords, { shouldDirty: true });
+  };
+
   return (
     <AdminLayout>
       <div className="max-w-5xl mx-auto space-y-6">
@@ -94,6 +113,8 @@ export default function NewArticlePage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content - 2 cols */}
             <div className="lg:col-span-2 space-y-6">
+              <AIArticleWriter contentType={watchContentType} onApply={applyAIDraft} />
+
               {/* Title */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <label className="block text-sm font-medium text-gray-700 mb-1">{t('news.type.label')}</label>
