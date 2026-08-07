@@ -318,31 +318,15 @@ export default async function ProductsPage({
         'itemListElement': data.products.slice(0, 10).map((product, index: number) => ({
           '@type': 'ListItem',
           'position': index + 1,
+          // Product rich results belong on individual product pages. The
+          // catalogue contains quote-only items without a public price, so
+          // represent each visible entry as a crawlable WebPage instead of
+          // emitting incomplete Product entities.
           'item': {
-            '@type': 'Product',
+            '@type': 'WebPage',
             'name': product.name,
             'description': product.description || `${product.name} - Professional industrial part`,
-            'sku': product.sku,
-            'brand': {
-              '@type': 'Brand',
-              'name': product.brand || 'Vibocnc',
-            },
-            'image': product.image_urls && product.image_urls.length > 0
-              ? product.image_urls[0]
-              : `${baseUrl}/images/default-product.svg`,
             'url': `${baseUrl}${localizePublicPath(`/products/${toProductPathId(product.sku)}`, locale)}`,
-            'offers': product.price > 0 ? {
-              '@type': 'Offer',
-              'price': product.price || 0,
-              'priceCurrency': 'USD',
-              'availability': product.stock_quantity > 0
-                ? 'https://schema.org/InStock'
-                : 'https://schema.org/PreOrder',
-              'seller': {
-                '@type': 'Organization',
-                'name': 'Vibocnc',
-              },
-            } : undefined,
           },
         })),
       },

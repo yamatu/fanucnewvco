@@ -564,6 +564,10 @@ func migrateLegacyCompanyFacts() {
 				}
 			}
 
+			if upgradeHomepageSEOContent(content) {
+				changed = true
+			}
+
 			if changed && silentDB.Save(content).Error == nil {
 				updatedRecords++
 			}
@@ -573,6 +577,71 @@ func migrateLegacyCompanyFacts() {
 	if updatedRecords > 0 {
 		log.Printf("Legacy company facts upgraded: %d record(s)", updatedRecords)
 	}
+}
+
+const (
+	legacyHomepageHeroTitle  = "Industrial Automation Parts, CNC Spares & Repair Support"
+	brandedHomepageHeroTitle = "Vibocnc Industrial Automation Parts, CNC Spares & Repair Support"
+)
+
+func upgradeHomepageSEOContent(content *models.HomepageContent) bool {
+	if content == nil {
+		return false
+	}
+
+	changed := false
+	if content.SectionKey == "hero_section" {
+		if strings.TrimSpace(content.Title) == legacyHomepageHeroTitle {
+			content.Title = brandedHomepageHeroTitle
+			changed = true
+		}
+
+		if len(content.Data) > 0 && strings.TrimSpace(string(content.Data)) != "null" {
+			var decoded map[string]any
+			if err := json.Unmarshal(content.Data, &decoded); err == nil {
+				if slides, ok := decoded["slides"].([]any); ok && len(slides) > 0 {
+					if firstSlide, ok := slides[0].(map[string]any); ok {
+						if title, ok := firstSlide["title"].(string); ok && strings.TrimSpace(title) == legacyHomepageHeroTitle {
+							firstSlide["title"] = brandedHomepageHeroTitle
+							if encoded, err := json.Marshal(decoded); err == nil {
+								content.Data = encoded
+								changed = true
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if content.SectionKey == "brands_section" && !content.IsActive {
+		hasText := false
+		for _, value := range []string{
+			content.Title,
+			content.Subtitle,
+			content.Description,
+			content.ImageURL,
+			content.ButtonText,
+			content.ButtonURL,
+		} {
+			if strings.TrimSpace(value) != "" {
+				hasText = true
+				break
+			}
+		}
+		rawData := strings.TrimSpace(string(content.Data))
+		hasData := rawData != "" && rawData != "null" && rawData != "{}"
+		if !hasText && !hasData {
+			content.Title = "Brands We Supply"
+			content.Description = "Browse current, legacy and obsolete automation parts from established industrial manufacturers, with model verification and worldwide shipping support."
+			content.ButtonText = "Browse All Automation Parts"
+			content.ButtonURL = "/products"
+			content.IsActive = true
+			changed = true
+		}
+	}
+
+	return changed
 }
 
 func createDefaultCategories() {

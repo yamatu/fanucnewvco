@@ -53,7 +53,9 @@ export default async function About() {
     "url": localizedAboutUrl,
     "mainEntity": {
       "@type": "Organization",
+      "@id": `${baseUrl}/#organization`,
       "name": "Vibocnc",
+      "url": baseUrl,
       "foundingDate": "2007",
       "foundingLocation": {
         "@type": "Place",

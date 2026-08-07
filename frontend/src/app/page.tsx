@@ -14,28 +14,40 @@ import type { Article, HomepageContent, Product } from '@/types';
 import type { Metadata } from 'next';
 import { getSiteUrl } from '@/lib/url';
 import { DEFAULT_HERO_DATA } from '@/lib/homepage-defaults';
-import { SITE_NAME, withSiteName } from '@/lib/seo';
+import { SITE_NAME } from '@/lib/seo';
 import { getSocialMediaURLs } from '@/lib/social-media';
 import { getPublicSocialMediaSettings } from '@/services/social-media.server';
 import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
 import { translatePublicMessage } from '@/lib/i18n/messages';
-import { getLocaleConfig } from '@/lib/i18n/config';
+import { getLocaleConfig, localizePublicPath } from '@/lib/i18n/config';
 import { localizeArticleOrDefault, localizeProductContent } from '@/lib/i18n/content';
 import { getHomepageFeaturedArticles, getHomepageFeaturedProducts } from '@/services/homepage.server';
 import HomepagePreviewMarker from '@/components/admin/homepage/HomepagePreviewMarker';
 
 export const revalidate = 300;
 
-const HOME_TITLE = withSiteName('Industrial Automation Parts Supplier & CNC Spares');
+const HOME_TITLE = 'Vibocnc | Industrial Automation Parts & CNC Spares';
 const HOME_DESCRIPTION =
-  'Vibocnc supplies current, legacy and obsolete CNC and industrial automation parts across 20+ brands, with inspection, repair support and worldwide shipping.';
+  'Vibocnc supplies current, legacy and obsolete industrial automation parts and CNC spares across 20+ brands, with inspection, repair and worldwide shipping.';
+
+function getHomeTitle(locale: string): string {
+  if (locale === 'en') return HOME_TITLE;
+  const localizedTitle = translatePublicMessage(locale as Parameters<typeof translatePublicMessage>[0], 'home.hero.title');
+  return /\bvibocnc\b/i.test(localizedTitle) ? localizedTitle : `Vibocnc | ${localizedTitle}`;
+}
+
+function getHomeDescription(locale: string): string {
+  return locale === 'en'
+    ? HOME_DESCRIPTION
+    : translatePublicMessage(locale as Parameters<typeof translatePublicMessage>[0], 'home.hero.description');
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = getSiteUrl();
   const { locale, canonical, languages } = await getLocalizedMetadataPaths('/');
   const ogImageUrl = new URL('/images/og-image.jpg', baseUrl).toString();
-  const title = locale === 'en' ? HOME_TITLE : withSiteName(translatePublicMessage(locale, 'home.hero.title'));
-  const description = locale === 'en' ? HOME_DESCRIPTION : translatePublicMessage(locale, 'home.hero.description');
+  const title = getHomeTitle(locale);
+  const description = getHomeDescription(locale);
 
   return {
     title: { absolute: title },
@@ -83,6 +95,17 @@ type HeroSlideRecord = Record<string, unknown> & { image?: unknown };
 function compactText(value: string | undefined, max: number): string {
   const text = String(value || '').trim();
   return text.length > max ? `${text.slice(0, max).trimEnd()}...` : text;
+}
+
+function isLegacyDisabledBrandsSection(content?: HomepageContent): boolean {
+  if (!content || content.section_key !== 'brands_section' || content.is_active !== false) return false;
+  const hasText = [content.title, content.subtitle, content.description, content.image_url, content.button_text, content.button_url]
+    .some((value) => String(value || '').trim().length > 0);
+  const rawData = String(content.data ?? '').trim();
+  const hasData = rawData !== '' && rawData !== 'null' && rawData !== '{}';
+  // Older deployments shipped a blank, disabled placeholder. Restore only
+  // that placeholder so an intentionally configured section can stay hidden.
+  return !hasText && !hasData;
 }
 
 function compactHomepageProduct(product: Product): Product {
@@ -266,6 +289,7 @@ export default async function Home({
 }: {
   searchParams?: Promise<{ admin_preview?: string }>;
 }) {
+  const baseUrl = getSiteUrl();
   const locale = await getRequestPublicLocale();
   const previewParams = searchParams ? await searchParams : undefined;
   const isAdminPreview = previewParams?.admin_preview === '1';
@@ -284,7 +308,7 @@ export default async function Home({
       return {
         key: s.key,
         sort: Number(content?.sort_order ?? s.defaultSort),
-        isActive: content ? content.is_active !== false : true,
+        isActive: content ? content.is_active !== false || isLegacyDisabledBrandsSection(content) : true,
         content: content ?? null,
       };
     }),
@@ -303,12 +327,30 @@ export default async function Home({
   // Enhanced structured data using the new utility functions
   const organizationSchema = generateOrganizationSchema(getSocialMediaURLs(socialMediaSettings));
   const websiteSchema = generateWebsiteSchema();
+  const homepageUrl = `${baseUrl}${localizePublicPath('/', locale)}`;
+  const homepageSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${homepageUrl}#webpage`,
+    "url": homepageUrl,
+    "name": getHomeTitle(locale),
+    "description": getHomeDescription(locale),
+    "inLanguage": getLocaleConfig(locale).hreflang,
+    "isPartOf": { "@id": `${baseUrl}/#website` },
+    "about": { "@id": `${baseUrl}/#organization` },
+    "publisher": { "@id": `${baseUrl}/#organization` },
+    "speakable": {
+      "@type": "SpeakableSpecification",
+      "cssSelector": ["h1", ".home-brand-summary", "#brands-we-supply"],
+    },
+  };
 
   const combinedStructuredData = {
     "@context": "https://schema.org",
     "@graph": [
       organizationSchema,
-      websiteSchema
+      websiteSchema,
+      homepageSchema,
     ]
   };
   return (

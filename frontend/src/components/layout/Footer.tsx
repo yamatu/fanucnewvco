@@ -21,10 +21,10 @@ import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 const footerNavigation = {
   products: [
     { name: 'All Automation Parts', href: '/products' },
-    { name: 'Servo Drives & Motors', href: '/products?search=servo' },
-    { name: 'HMI & Operator Panels', href: '/products?search=HMI' },
-    { name: 'PLC & I/O Modules', href: '/products?search=PLC' },
-    { name: 'Power Supplies & Inverters', href: '/products?search=power%20supply' },
+    { name: 'FANUC Servo Drives', href: '/categories/fanuc/fanuc-servo-amplifier-drive' },
+    { name: 'FANUC Operator Panels', href: '/categories/fanuc/fanuc-operator-panel-mdi' },
+    { name: 'FANUC I/O Modules', href: '/categories/fanuc/fanuc-i-o-module' },
+    { name: 'FANUC Power Supplies', href: '/categories/fanuc/fanuc-power-supply' },
   ],
   services: [
     { name: 'Multi-Brand Parts Supply', href: '/products' },
@@ -103,21 +103,25 @@ export function Footer({ initialSocialSettings }: { initialSocialSettings?: Soci
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-6">
           {/* Company Info */}
           <div className="lg:col-span-2">
-            <div className="flex items-center space-x-3 mb-6">
+            <Link
+              href={href('/')}
+              aria-label="Vibocnc home"
+              className="mb-6 flex items-center space-x-3 focus:outline-none focus:ring-2 focus:ring-orange-300"
+            >
               <div className="rounded-md bg-white px-3 py-2">
                 <Image
                   src="/images/vibocnc-logo.png"
-                  alt="Vibocnc"
+                  alt="Vibocnc industrial automation parts"
                   width={150}
                   height={40}
                   className="h-9 w-auto object-contain"
                 />
               </div>
               <div>
-                <div className="text-xl font-bold">{t('header.hub')}</div>
-                <div className="text-sm text-slate-400">{t('footer.since')}</div>
+                <div className="text-xl font-bold">Vibocnc</div>
+                <div className="text-sm text-slate-400">{t('header.hub')} - {t('footer.since')}</div>
               </div>
-            </div>
+            </Link>
 
             <p className="text-slate-300 mb-6 max-w-md">{t('footer.description')}</p>
 

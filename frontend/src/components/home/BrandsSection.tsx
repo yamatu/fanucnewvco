@@ -4,22 +4,33 @@ import Link from 'next/link';
 import type { HomepageContent } from '@/types';
 import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
-type BrandItem = { name: string; focus: string; href: string };
+type BrandItem = { name: string; focus: string; href?: string };
+
+const CANONICAL_BRAND_PATHS: Record<string, string> = {
+  fanuc: '/categories/fanuc',
+  mitsubishi: '/categories/mitsubishi',
+  sick: '/categories/sick',
+  tamagawa: '/categories/tamagawa',
+  allenbradley: '/categories/ab',
+  ab: '/categories/ab',
+  huawei: '/categories/huawei',
+};
 
 const DEFAULT_BRANDS: BrandItem[] = [
   { name: 'FANUC', focus: 'CNC, robot and motion parts', href: '/categories/fanuc' },
-  { name: 'Siemens', focus: 'PLC, HMI and drive systems', href: '/products?brand=Siemens' },
   { name: 'Mitsubishi', focus: 'Servo, PLC and inverter parts', href: '/categories/mitsubishi' },
-  { name: 'ABB', focus: 'Drives and automation components', href: '/products?brand=ABB' },
-  { name: 'Omron', focus: 'Controllers, sensors and HMI', href: '/products?brand=Omron' },
-  { name: 'Yaskawa', focus: 'Servo and drive components', href: '/products?brand=Yaskawa' },
-  { name: 'Schneider', focus: 'PLC, HMI and power control', href: '/products?brand=Schneider' },
-  { name: 'Allen-Bradley', focus: 'PLC and factory control parts', href: '/products?brand=Allen-Bradley' },
-  { name: 'Bosch Rexroth', focus: 'Motion and drive technology', href: '/products?brand=Bosch%20Rexroth' },
-  { name: 'Danfoss', focus: 'Industrial drives and controls', href: '/products?brand=Danfoss' },
+  { name: 'Allen-Bradley', focus: 'PLC and factory control parts', href: '/categories/ab' },
   { name: 'SICK', focus: 'Sensors, safety, encoders and vision', href: '/categories/sick' },
   { name: 'Tamagawa', focus: 'Encoders, resolvers and servo feedback', href: '/categories/tamagawa' },
+  { name: 'Huawei', focus: 'Industrial power and control components', href: '/categories/huawei' },
 ];
+
+function getBrandHref(brand: BrandItem): string {
+  const key = brand.name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return CANONICAL_BRAND_PATHS[key]
+    || brand.href
+    || `/products?brand=${encodeURIComponent(brand.name)}`;
+}
 
 function parseData(content?: HomepageContent | null) {
   const raw = content?.data;
@@ -31,7 +42,7 @@ function parseData(content?: HomepageContent | null) {
 }
 
 export default function BrandsSection({ content }: { content?: HomepageContent | null }) {
-  const { href } = usePublicI18n();
+  const { t, href } = usePublicI18n();
   const data = parseData(content);
   const brands = Array.isArray(data?.brands) && data.brands.length > 0
     ? data.brands as BrandItem[]
@@ -41,6 +52,12 @@ export default function BrandsSection({ content }: { content?: HomepageContent |
     || 'We source current, legacy and obsolete automation components from leading industrial manufacturers. Send us the exact part number when a model is difficult to find.';
   const buttonText = content?.button_text || 'Browse All Automation Parts';
   const buttonUrl = content?.button_url || '/products';
+  const vibocncLinks = [
+    { label: `Vibocnc ${t('nav.products')}`, href: '/products' },
+    { label: `${t('nav.about')} Vibocnc`, href: '/about' },
+    { label: `Vibocnc ${t('nav.repair')}`, href: '/repair-request' },
+    { label: `${t('nav.contact')} Vibocnc`, href: '/contact' },
+  ];
 
   return (
     <section id="brands-we-supply" className="home-deferred-section border-y border-slate-200 bg-[#eef3f8] py-16 lg:py-20">
@@ -49,16 +66,29 @@ export default function BrandsSection({ content }: { content?: HomepageContent |
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#0b3e75]">Multi-brand supply</p>
           <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{title}</h2>
           <p className="mt-5 max-w-lg text-base leading-7 text-slate-600">{description}</p>
+          <div className="home-brand-summary mt-6 border-t border-slate-300 pt-5">
+            <p className="text-sm leading-6 text-slate-700">
+              <strong className="text-slate-950">Vibocnc</strong> supplies current, legacy and obsolete industrial automation parts and CNC spares. Browse the catalogue, review our company capabilities, request a repair evaluation or contact sales.
+            </p>
+            <nav aria-label="Vibocnc company links" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+              {vibocncLinks.map((item) => (
+                <Link key={item.href} href={href(item.href)} className="text-[#0b3e75] underline decoration-slate-300 underline-offset-4 hover:text-orange-700">
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
           <Link href={href(buttonUrl)} className="mt-7 inline-flex items-center gap-2 font-bold text-[#0b3e75] hover:text-orange-700">
             {buttonText}<span aria-hidden="true">→</span>
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {brands.slice(0, 15).map((brand) => (
             <Link
               key={brand.name}
-              href={href(brand.href || `/products?brand=${encodeURIComponent(brand.name)}`)}
+              href={href(getBrandHref(brand))}
+              aria-label={`${brand.name} industrial automation parts`}
               className="group flex min-h-32 flex-col justify-between rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg"
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-lg font-black text-[#0b3e75]">

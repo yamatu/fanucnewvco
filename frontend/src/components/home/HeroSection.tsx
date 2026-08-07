@@ -15,6 +15,12 @@ function normalizeBrandName(text: string): string {
   return text.replace(/\bvibo\s*cnc\b/gi, 'Vibocnc');
 }
 
+function ensureHomepageBrandTitle(text: string, index: number): string {
+  const normalized = normalizeBrandName(text).trim();
+  if (index !== 0 || /\bvibocnc\b/i.test(normalized)) return normalized;
+  return `Vibocnc ${normalized}`;
+}
+
 function isLegacyFanucHero(text?: string): boolean {
   const value = String(text || '');
   return /FANUC Spare Parts Supply/i.test(value)
@@ -22,7 +28,7 @@ function isLegacyFanucHero(text?: string): boolean {
 }
 
 function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
-  const raw = (content as any)?.data;
+  const raw = content?.data;
   const parsed = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
 
   // Start from structured data if provided, otherwise defaults.
@@ -43,9 +49,9 @@ function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
   }
 
   return {
-    slides: slides.map((slide) => ({
+    slides: slides.map((slide, index) => ({
       ...slide,
-      title: normalizeBrandName(normalizeLegacyCompanyText(slide.title)),
+      title: ensureHomepageBrandTitle(normalizeLegacyCompanyText(slide.title), index),
       subtitle: normalizeLegacyCompanyText(slide.subtitle),
       description: normalizeLegacyCompanyText(slide.description),
     })),
@@ -80,7 +86,7 @@ export function HeroSection({ content }: Props) {
       }
     : {
         ...activeSlide,
-        title: t('home.hero.title'),
+        title: ensureHomepageBrandTitle(t('home.hero.title'), 0),
         subtitle: t('home.hero.subtitle'),
         description: t('home.hero.description'),
         cta: {

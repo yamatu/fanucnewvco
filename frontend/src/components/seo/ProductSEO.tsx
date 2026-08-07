@@ -148,7 +148,12 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PU
   })) || [];
   const additionalProperties = [...specProperties, ...attributeProperties];
 
-  // Generate rich structured data for the product
+  // Google requires Product markup to contain a real offer, review, or rating.
+  // Quote-only records without approved reviews remain valid WebPage content,
+  // but are not eligible for a Product rich result.
+  const hasProductRichResultData = product.price > 0 || hasReviews;
+
+  // Generate rich structured data for the product when the record supports it.
   const structuredData: { [key: string]: JsonLdValue } = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -189,47 +194,11 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PU
       "priceCurrency": "USD",
       "availability": product.stock_quantity > 0
         ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
+        : "https://schema.org/BackOrder",
       "seller": {
         "@type": "Organization",
         "name": "Vibocnc",
         "url": baseUrl
-      },
-      "eligibleQuantity": product.minimum_order_quantity ? {
-        "@type": "QuantitativeValue",
-        "minValue": product.minimum_order_quantity
-      } : undefined,
-      "priceValidUntil": new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      "itemCondition": mapConditionType(product.condition_type),
-      "hasMerchantReturnPolicy": {
-        "@type": "MerchantReturnPolicy",
-        "applicableCountry": "US",
-        "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
-        "merchantReturnDays": 30,
-        "returnMethod": "https://schema.org/ReturnByMail",
-        "returnFees": "https://schema.org/FreeReturn"
-      },
-      "shippingDetails": {
-        "@type": "OfferShippingDetails",
-        "shippingDestination": {
-          "@type": "DefinedRegion",
-          "name": "Worldwide"
-        },
-        "deliveryTime": {
-          "@type": "ShippingDeliveryTime",
-          "handlingTime": {
-            "@type": "QuantitativeValue",
-            "minValue": 1,
-            "maxValue": 3,
-            "unitCode": "d"
-          },
-          "transitTime": {
-            "@type": "QuantitativeValue",
-            "minValue": 3,
-            "maxValue": 10,
-            "unitCode": "d"
-          }
-        }
       }
     } : undefined
   };
@@ -414,9 +383,13 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PU
       "name": DEFAULT_SITE_NAME,
       "url": baseUrl,
     },
-    "about": {
-      "@id": productId,
-    },
+    "about": hasProductRichResultData
+      ? { "@id": productId }
+      : {
+          "@type": "Thing",
+          "name": semanticName,
+          "identifier": product.sku,
+        },
     "speakable": {
       "@type": "SpeakableSpecification",
       "cssSelector": ["h1", ".product-summary", ".product-description", ".product-specs"]
@@ -425,13 +398,16 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PU
 
   return (
     <>
-      {/* Product Structured Data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData)
-        }}
-      />
+      {/* Product Structured Data is only emitted when Google has a real
+          offer, review, or aggregate rating to validate. */}
+      {hasProductRichResultData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData)
+          }}
+        />
+      )}
 
       {/* Breadcrumb Structured Data */}
       <script

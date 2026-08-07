@@ -5,8 +5,8 @@ const warningBytes = Number(process.env.SEO_HTML_WARNING_BYTES || 1_500_000);
 const googlebotLimitBytes = 2 * 1024 * 1024;
 
 const routes = [
-  { path: '/', indexable: true, hreflang: true },
-  { path: '/products', indexable: true, hreflang: true },
+  { path: '/', indexable: true, hreflang: true, homepage: true },
+  { path: '/products', indexable: true, hreflang: true, productCollection: true },
   { path: '/categories', indexable: true, hreflang: true },
   { path: '/blog', indexable: true, hreflang: true },
   { path: '/news', indexable: true, hreflang: true },
@@ -21,9 +21,16 @@ const routes = [
 const auditedSku = process.env.SEO_AUDIT_SKU || (targetOrigin.includes('vibocnc.com') ? 'A06B-6092-H275#H508' : '');
 if (auditedSku) {
   const encodedSku = encodeURIComponent(auditedSku).replace(/%2F/gi, '-');
+  const canonicalProductPath = `/products/${encodedSku}`;
   routes.splice(4, 0,
-    { path: `/products/${encodedSku}`, indexable: true, hreflang: true, product: true, sku: auditedSku },
-    { path: `/es/products/${encodedSku}`, indexable: false, hreflang: false, untranslatedLocale: true },
+    { path: canonicalProductPath, indexable: true, hreflang: true, product: true, sku: auditedSku },
+    {
+      path: `/es${canonicalProductPath}`,
+      indexable: true,
+      hreflang: false,
+      untranslatedLocale: true,
+      expectedRedirectPath: canonicalProductPath,
+    },
   );
 }
 
@@ -74,6 +81,33 @@ function findH1(html) {
   return decodeHtml((html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
 }
 
+function parseJsonLd(html) {
+  const documents = [];
+  const parseErrors = [];
+  const scripts = html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  for (const match of scripts) {
+    try {
+      documents.push(JSON.parse(match[1]));
+    } catch (error) {
+      parseErrors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  return { documents, parseErrors };
+}
+
+function collectTypedNodes(value, type, result = []) {
+  if (Array.isArray(value)) {
+    for (const item of value) collectTypedNodes(item, type, result);
+    return result;
+  }
+  if (!value || typeof value !== 'object') return result;
+
+  const nodeTypes = Array.isArray(value['@type']) ? value['@type'] : [value['@type']];
+  if (nodeTypes.includes(type)) result.push(value);
+  for (const child of Object.values(value)) collectTypedNodes(child, type, result);
+  return result;
+}
+
 for (const route of routes) {
   const url = `${targetOrigin}${route.path}`;
   try {
@@ -87,6 +121,9 @@ for (const route of routes) {
     const headerRobots = (response.headers.get('x-robots-tag') || '').toLowerCase();
     const noindex = robots.includes('noindex') || headerRobots.includes('noindex');
     const errors = [];
+    const { documents: jsonLdDocuments, parseErrors: jsonLdParseErrors } = parseJsonLd(html);
+    const productNodes = collectTypedNodes(jsonLdDocuments, 'Product');
+    const websiteNodes = collectTypedNodes(jsonLdDocuments, 'WebSite');
 
     if (!response.ok) errors.push(`HTTP ${response.status}`);
     if (buffer.byteLength >= googlebotLimitBytes) errors.push(`exceeds Googlebot's 2 MiB text limit (${buffer.byteLength} bytes)`);
@@ -94,7 +131,26 @@ for (const route of routes) {
     if (route.indexable === noindex) errors.push(route.indexable ? 'unexpected noindex' : 'missing noindex');
     if (route.indexable && !hasLink(html, 'canonical')) errors.push('missing canonical');
     if (route.hreflang && !hasLink(html, 'alternate', 'hreflang=["\']x-default["\']')) errors.push('missing x-default hreflang');
-    if (route.product && !html.includes('"@type":"Product"')) errors.push('missing Product JSON-LD');
+    for (const parseError of jsonLdParseErrors) errors.push(`invalid JSON-LD (${parseError})`);
+    for (const productNode of productNodes) {
+      if (!productNode.offers && !productNode.review && !productNode.aggregateRating) {
+        errors.push(`Product JSON-LD lacks offers, review, or aggregateRating (${productNode.name || productNode.sku || 'unnamed product'})`);
+      }
+    }
+    if (route.productCollection && productNodes.length > 0) {
+      errors.push(`catalogue emits ${productNodes.length} Product node(s); use WebPage ItemList entries instead`);
+    }
+    if (route.homepage) {
+      const title = findTitle(html);
+      const heading = findH1(html);
+      if (!/^vibocnc\b/i.test(title)) errors.push(`homepage title is not brand-first (${title})`);
+      if (!/\bvibocnc\b/i.test(heading)) errors.push(`homepage H1 does not contain Vibocnc (${heading})`);
+      const website = websiteNodes.find((node) => node.name === 'Vibocnc');
+      const alternateNames = Array.isArray(website?.alternateName) ? website.alternateName : [website?.alternateName];
+      if (!website) errors.push('homepage is missing the Vibocnc WebSite entity');
+      else if (!alternateNames.includes('vibocnc.com')) errors.push('WebSite entity is missing the vibocnc.com alternateName');
+      if (!html.includes('id="brands-we-supply"')) errors.push('homepage brand links section is missing');
+    }
     if (route.product && route.sku) {
       const title = findTitle(html);
       const description = findDescription(html);
@@ -106,7 +162,10 @@ for (const route of routes) {
       if (/\bFANUC\b[^|]{0,80}\bFANUC\b/i.test(title)) errors.push(`title repeats brand (${title})`);
     }
     if (route.untranslatedLocale) {
-      if (response.url === url) errors.push('untranslated localized URL did not redirect to the English canonical');
+      const finalPath = new URL(response.url).pathname;
+      if (finalPath !== route.expectedRedirectPath) {
+        errors.push(`untranslated localized URL did not redirect to the English canonical (${response.url})`);
+      }
       if (noindex) errors.push('redirect destination unexpectedly contains noindex');
     }
 
@@ -358,16 +417,33 @@ try {
 }
 
 try {
-  const response = await fetch(`${targetOrigin}/?site_locale=en`, {
-    redirect: 'follow',
+  const selectionResponse = await fetch(`${targetOrigin}/?site_locale=en`, {
+    redirect: 'manual',
     headers: {
       cookie: 'vibocnc_locale=es',
       'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)',
     },
   });
+  const errors = [];
+  const location = selectionResponse.headers.get('location') || '';
+  const setCookie = selectionResponse.headers.get('set-cookie') || '';
+  if (![301, 302, 303, 307, 308].includes(selectionResponse.status)) {
+    errors.push(`language selection did not redirect (HTTP ${selectionResponse.status})`);
+  }
+  if (!location) errors.push('language selection redirect is missing Location');
+  if (!/\bvibocnc_locale=en(?:;|$)/i.test(setCookie)) errors.push('language selection did not persist the English locale cookie');
+
+  const response = location
+    ? await fetch(new URL(location, targetOrigin), {
+        redirect: 'follow',
+        headers: {
+          cookie: 'vibocnc_locale=en',
+          'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)',
+        },
+      })
+    : selectionResponse;
   const html = await response.text();
   const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
-  const errors = [];
   if (!response.ok) errors.push(`HTTP ${response.status}`);
   if (actualLang !== 'en') errors.push(`expected html lang=en, got ${actualLang || 'none'}`);
   if (new URL(response.url).pathname !== '/') errors.push(`unexpected final URL (${response.url})`);

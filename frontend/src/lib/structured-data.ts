@@ -3,15 +3,20 @@ import { SITE_NAME } from '@/lib/seo';
 
 export function generateOrganizationSchema(sameAs: string[] = []) {
   const baseUrl = getSiteUrl();
-  const socialProfiles = [...new Set(sameAs.filter((url) => /^https?:\/\//i.test(url)))];
+  const socialProfiles = [...new Set(sameAs.filter((url) => {
+    if (!/^https?:\/\//i.test(url)) return false;
+    // A personal LinkedIn profile should not be asserted as the company's
+    // sameAs entity. Keep official company profiles and other configured URLs.
+    return !/^https?:\/\/(?:www\.)?linkedin\.com\/in\//i.test(url);
+  }))];
 
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${baseUrl}/#organization`,
     "name": SITE_NAME,
-    "alternateName": "Vibocnc Industrial Automation Parts",
-    "description": "Industrial automation parts and CNC spares across 20+ brands, with model verification, inspection, repair support and worldwide shipping.",
+    "alternateName": ["VIBOCNC", "Vibo CNC", "Vibocnc Industrial Automation Parts"],
+    "description": "Vibocnc is an industrial automation parts and CNC spares supplier across 20+ brands, with model verification, inspection, repair support and worldwide shipping.",
     "url": baseUrl,
     "foundingDate": "2007",
     "logo": {
@@ -45,8 +50,9 @@ export function generateWebsiteSchema() {
     "@type": "WebSite",
     "@id": `${baseUrl}/#website`,
     "name": SITE_NAME,
+    "alternateName": ["VIBOCNC", "Vibo CNC", "vibocnc.com"],
     "url": baseUrl,
-    "description": "Industrial automation parts and CNC spares across 20+ brands, with model verification, inspection, repair support and worldwide shipping.",
+    "description": "Vibocnc is an industrial automation parts and CNC spares supplier across 20+ brands, with model verification, inspection, repair support and worldwide shipping.",
     "publisher": {
       "@type": "Organization",
       "@id": `${baseUrl}/#organization`,

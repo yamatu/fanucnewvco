@@ -21,7 +21,7 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
   slides: [
     {
       id: 1,
-      title: 'Industrial Automation Parts, CNC Spares & Repair Support',
+      title: 'Vibocnc Industrial Automation Parts, CNC Spares & Repair Support',
       subtitle: 'FANUC, Siemens, Mitsubishi, ABB and 20+ automation brands',
       description:
         'Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
@@ -406,7 +406,7 @@ export const DEFAULT_FEATURED_PRODUCTS_SECTION_DATA: FeaturedProductsSectionData
   ctaHref: '/products',
 };
 
-export function getDefaultDataBySectionKey(key: string): any | null {
+export function getDefaultDataBySectionKey(key: string): unknown | null {
   if (key === 'hero_section') return DEFAULT_HERO_DATA;
   if (key === 'company_stats') return DEFAULT_COMPANY_STATS_DATA;
   if (key === 'workshop_section') return DEFAULT_WORKSHOP_SECTION_DATA;

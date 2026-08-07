@@ -12,7 +12,7 @@ const CONTENT_SITEMAP_PATHS = [
   '/sitemap-blog.xml',
 ] as const
 
-export function buildSitemapIndex(baseUrl: string, productSitemapPaths: readonly string[] = []) {
+function buildSitemapIndex(baseUrl: string, productSitemapPaths: readonly string[] = []) {
   const sitemapPaths = [...CONTENT_SITEMAP_PATHS, ...productSitemapPaths]
   return `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

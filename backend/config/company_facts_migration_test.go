@@ -1,6 +1,12 @@
 package config
 
-import "testing"
+import (
+	"encoding/json"
+	"fanuc-backend/models"
+	"testing"
+
+	"gorm.io/datatypes"
+)
 
 func TestUpgradeLegacyCompanyCopy(t *testing.T) {
 	legacy := "Vibocnc- One-Stop CNC Solution Supplier | Your Trusted Partner Since 2005 | 5,000sqm Workshop Facility"
@@ -46,5 +52,54 @@ func TestUpgradeLegacyJSONValueNormalizesCompanyStats(t *testing.T) {
 	workshopStat := updated[3].(map[string]any)
 	if workshopStat["value"] != "3,500" {
 		t.Fatalf("workshop stat value = %v, want 3,500", workshopStat["value"])
+	}
+}
+
+func TestUpgradeHomepageSEOContentAddsBrandToHero(t *testing.T) {
+	content := models.HomepageContent{
+		SectionKey: "hero_section",
+		Title:      legacyHomepageHeroTitle,
+		Data: datatypes.JSON(`{
+			"slides": [{"title": "Industrial Automation Parts, CNC Spares & Repair Support"}]
+		}`),
+	}
+
+	if !upgradeHomepageSEOContent(&content) {
+		t.Fatal("upgradeHomepageSEOContent() did not report a hero change")
+	}
+	if content.Title != brandedHomepageHeroTitle {
+		t.Fatalf("hero title = %q, want %q", content.Title, brandedHomepageHeroTitle)
+	}
+
+	var decoded map[string]any
+	if err := json.Unmarshal(content.Data, &decoded); err != nil {
+		t.Fatalf("decode upgraded hero data: %v", err)
+	}
+	firstSlide := decoded["slides"].([]any)[0].(map[string]any)
+	if firstSlide["title"] != brandedHomepageHeroTitle {
+		t.Fatalf("first slide title = %q, want %q", firstSlide["title"], brandedHomepageHeroTitle)
+	}
+	if upgradeHomepageSEOContent(&content) {
+		t.Fatal("upgradeHomepageSEOContent() should be idempotent")
+	}
+}
+
+func TestUpgradeHomepageSEOContentRestoresOnlyBlankBrandsPlaceholder(t *testing.T) {
+	content := models.HomepageContent{SectionKey: "brands_section", IsActive: false}
+
+	if !upgradeHomepageSEOContent(&content) {
+		t.Fatal("upgradeHomepageSEOContent() did not restore the blank brands section")
+	}
+	if !content.IsActive || content.Title != "Brands We Supply" || content.ButtonURL != "/products" {
+		t.Fatalf("restored brands section = %+v", content)
+	}
+
+	// Once the placeholder has real content, a later admin toggle must be kept.
+	content.IsActive = false
+	if upgradeHomepageSEOContent(&content) {
+		t.Fatal("upgradeHomepageSEOContent() overrode an intentional brands toggle")
+	}
+	if content.IsActive {
+		t.Fatal("configured brands section was unexpectedly re-enabled")
 	}
 }

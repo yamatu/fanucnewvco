@@ -6,14 +6,14 @@ import { withSiteName, withoutSiteNameSuffix } from '@/lib/seo';
 import { toProductPathId } from '@/lib/utils';
 import type { Product, ProductImage } from '@/types';
 import ProductDetailClient from './ProductDetailClient';
-import { redirect, notFound } from 'next/navigation';
+import { permanentRedirect, redirect, notFound } from 'next/navigation';
 import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
 import {
   getAvailableTranslationLocales,
   hasTranslationForLocale,
   localizeProductContent,
 } from '@/lib/i18n/content';
-import { localizePublicPath } from '@/lib/i18n/config';
+import { DEFAULT_PUBLIC_LOCALE, PUBLIC_LOCALE_SELECTION_PARAM, localizePublicPath } from '@/lib/i18n/config';
 import { buildProductSeoDescription, buildProductSeoKeywords, inferProductTypeLabel } from '@/lib/product-seo';
 
 const DEFAULT_SITE_NAME = 'Vibocnc';
@@ -247,6 +247,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   // Canonical redirect to the normalized product slug shared with sitemap and links.
   const canonicalId = getCanonicalProductSlug(initialProduct, sku || '');
+  if (canonicalId && locale !== DEFAULT_PUBLIC_LOCALE && !hasRequestedTranslation) {
+    const canonicalPath = localizePublicPath(`/products/${canonicalId}`, DEFAULT_PUBLIC_LOCALE);
+    // Reset a saved locale on the intermediate request so browsers do not get
+    // redirected back to the untranslated URL by locale middleware.
+    permanentRedirect(`${canonicalPath}?${PUBLIC_LOCALE_SELECTION_PARAM}=${DEFAULT_PUBLIC_LOCALE}`);
+  }
   if (canonicalId && canonicalId !== slug) {
     redirect(localizePublicPath(`/products/${canonicalId}`, hasRequestedTranslation ? locale : 'en'));
   }
