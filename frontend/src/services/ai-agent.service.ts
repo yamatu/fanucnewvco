@@ -33,6 +33,7 @@ export interface AIAgentStatus {
   default_product_price: number;
   default_warranty_period: string;
   default_lead_time: string;
+  capabilities?: string[];
 }
 
 export interface AIAgentSettings {
@@ -177,6 +178,7 @@ export interface AIAgentSEOJobItem {
 export interface AIAgentSEOJob {
   id: string;
   prompt: string;
+  focus?: AIAgentSEOFocus[];
   selection_mode: 'selected' | 'auto_candidates' | 'auto_failed';
   status: AIAgentSEOJobStatus;
   ai_profile_id?: number;
@@ -203,6 +205,8 @@ export interface AIAgentSEOStats {
   running: number;
 }
 
+export type AIAgentSEOFocus = 'all' | 'category' | 'seo' | 'content';
+
 export interface AIAgentSEOCandidateOptions {
   prompt: string;
   limit?: number;
@@ -212,6 +216,10 @@ export interface AIAgentSEOCandidateOptions {
   search?: string;
   include_failed?: boolean;
   failed_only?: boolean;
+  /** Include products that already have an AI SEO result in a scoped rewrite. */
+  include_optimized?: boolean;
+  ai_seo_status?: 'all' | 'optimized' | 'not_optimized' | 'running' | 'failed';
+  focus?: AIAgentSEOFocus[];
 }
 
 export class AIAgentService {
@@ -289,10 +297,11 @@ export class AIAgentService {
     throw new Error(response.data.message || 'Price list could not be matched');
   }
 
-  static async startSEOJob(productIds: number[], prompt: string): Promise<AIAgentSEOJob> {
+  static async startSEOJob(productIds: number[], prompt: string, focus: AIAgentSEOFocus = 'all'): Promise<AIAgentSEOJob> {
     const response = await apiClient.post<APIResponse<AIAgentSEOJob>>('/admin/ai-agent/seo/jobs', {
       product_ids: productIds,
       prompt,
+      focus: [focus],
     });
     if (response.data.success && response.data.data) return response.data.data;
     throw new Error(response.data.message || 'Unable to start AI SEO job');

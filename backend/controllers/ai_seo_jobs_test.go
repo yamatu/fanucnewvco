@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -28,6 +29,7 @@ func TestApplyAIASEOCandidateStatusScope(t *testing.T) {
 		{name: "never optimized only", wantUnstarted: true},
 		{name: "never optimized and failed", req: aiSEOCandidateStartRequest{IncludeFailed: true}, wantFailed: true, wantUnstarted: true},
 		{name: "failed only overrides include failed", req: aiSEOCandidateStartRequest{IncludeFailed: true, FailedOnly: true}, wantFailed: true},
+		{name: "explicit optimized status", req: aiSEOCandidateStartRequest{IncludeOptimized: true, SEOStatus: "optimized"}},
 	}
 
 	for _, test := range tests {
@@ -61,5 +63,65 @@ func TestPinAIAgentSEOJobProfile(t *testing.T) {
 	}
 	if job.AIProfileName != profile.Name || job.AIModel != profile.Model || job.AIAPIMode != profile.APIMode {
 		t.Fatalf("job profile snapshot = %#v", job)
+	}
+}
+
+func TestParseAISEOOutputAcceptsDeepSeekWrappedJSON(t *testing.T) {
+	raw := "Here is the result:\n```json\n{" +
+		"\"result\":{\"title\":\"FANUC servo drive\",\"metaTitle\":\"FANUC Servo Drive | VIBOCNC\",\"metaDescription\":\"Industrial automation servo drive replacement.\",\"description\":\"Verified servo drive reference.\",\"category\":\"Servo Drives\"}}\n```\nDone."
+	output, err := parseAISEOOutput(raw)
+	if err != nil {
+		t.Fatalf("wrapped DeepSeek JSON should parse: %v", err)
+	}
+	if output.CorrectedName != "FANUC servo drive" || output.Category.Action != "existing" || output.Category.Name != "Servo Drives" {
+		t.Fatalf("unexpected parsed output: %#v", output)
+	}
+}
+
+func TestParseAISEOOutputAcceptsStringWrappedAndCaseInsensitiveJSON(t *testing.T) {
+	raw := `{"OUTPUT":"prefix {\"TITLE\":\"A06B servo drive\",\"CATEGORY_NAME\":\"Servo Drives\"} suffix"}`
+	output, err := parseAISEOOutput(raw)
+	if err != nil {
+		t.Fatalf("string-wrapped DeepSeek JSON should parse: %v", err)
+	}
+	if output.CorrectedName != "A06B servo drive" || output.Category.Name != "Servo Drives" {
+		t.Fatalf("unexpected parsed output: %#v", output)
+	}
+}
+
+func TestParseAISEOOutputTreatsCategoryNameAsExistingSelection(t *testing.T) {
+	output, err := parseAISEOOutput(`{"title":"A06B servo drive","category_name":"Servo Drives"}`)
+	if err != nil {
+		t.Fatalf("category_name JSON should parse: %v", err)
+	}
+	if output.Category.Action != "existing" || output.Category.Name != "Servo Drives" {
+		t.Fatalf("category_name should select an existing category: %#v", output.Category)
+	}
+}
+
+func TestParseAISEOOutputAcceptsCategoryParentAndArrays(t *testing.T) {
+	raw := `{"corrected_name":"A06B drive","meta_title":"A06B drive","meta_description":"Drive replacement","meta_keywords":["FANUC","servo drive"],"short_description":"Drive","description":"Drive description","category":{"action":"create","name":"Servo Drives","description":"Servo drive category","parent_name":"FANUC"}}`
+	output, err := parseAISEOOutput(raw)
+	if err != nil {
+		t.Fatalf("category parent JSON should parse: %v", err)
+	}
+	if output.Category.Action != "create" || output.Category.ParentName != "FANUC" || output.MetaKeywords != "FANUC, servo drive" {
+		t.Fatalf("unexpected category/keywords: %#v", output)
+	}
+	if _, err := json.Marshal(output); err != nil {
+		t.Fatalf("parsed output should remain serializable: %v", err)
+	}
+}
+
+func TestAISEOFocusMarkerAndCompletion(t *testing.T) {
+	prompt := applyAISEOFocusToPrompt("Reclassify by brand parent", []string{"category"})
+	scope := aiSEOScopeFromPrompt(prompt)
+	if !scope["category"] || scope["all"] {
+		t.Fatalf("unexpected scope: %#v", scope)
+	}
+	product := models.Product{Name: "Original", MetaTitle: "Original title", Description: "Original description", CategoryID: 9}
+	output := completeAISEOOutput(aiSEOOutput{Category: aiSEOCategory{Action: "keep"}}, product)
+	if output.CorrectedName != product.Name || output.MetaTitle != product.MetaTitle || output.Category.ID != product.CategoryID {
+		t.Fatalf("completion did not preserve out-of-scope fields: %#v", output)
 	}
 }

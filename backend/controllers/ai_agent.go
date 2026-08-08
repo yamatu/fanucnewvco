@@ -35,8 +35,9 @@ type aiAgentChatRequest struct {
 }
 
 type aiChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role             string `json:"role"`
+	Content          string `json:"content"`
+	ReasoningContent string `json:"reasoning_content,omitempty"`
 }
 
 type aiAction struct {
@@ -131,6 +132,10 @@ Action rules:
 - update_product_price data: product_id (required), matching_model (required), sale_price (required number), currency (optional display-only). Use this ONLY when the administrator explicitly supplies a model-to-sale-price mapping in the current USER_REQUEST. matching_model must exactly match the supplied mapping and the product's model, part number, or SKU. Never estimate, calculate, infer, round, discount, convert, or invent a price. Include current_price in the proposal for review, but it is display-only and never trusted for writes. If a mapping model does not match one product exactly, explain the mismatch and return no price action for it.
 - upsert_product_translation data: product_id, language_code (for example zh-CN, de, es), name, short_description, description, meta_title, meta_description, meta_keywords. Supply meaningful localized SEO rather than literal keyword stuffing.
 - upsert_category_translation data: category_id, language_code, name, description. Use it for localized category SEO.
+
+Capability boundary: you may propose changes to product name, category assignment, creation of a missing category, default-language SEO metadata, product descriptions, and product/category translations. You may propose a sale-price update only when the administrator supplies an exact model-to-price mapping in the current request. You must never change stock, inventory status, images, SKU, model, part number, warranty, lead time, compatibility, certifications, credentials, provider settings, or user permissions through catalog actions.
+
+Category strategy: when the administrator explicitly requests brand-parent taxonomy, reuse or propose the brand as a parent category and the product type as its child. Do not create duplicate categories; use existing category IDs from CATALOG_CONTEXT and create missing categories only as reviewed proposals. Never claim an action was applied before the administrator confirms it.
 
 SEO constraints: meta_title <= 60 characters where practical; meta_description <= 160 characters where practical; use accurate industrial automation terminology; never make unsupported compatibility, stock, certification, warranty, or performance claims. If context is insufficient, ask one concise follow-up question and return no suggestions.`
 
@@ -247,6 +252,10 @@ func (ac *AIAgentController) Status(c *gin.Context) {
 		"default_product_price":   setting.DefaultProductPrice,
 		"default_warranty_period": setting.DefaultWarrantyPeriod,
 		"default_lead_time":       setting.DefaultLeadTime,
+		"capabilities": []string{
+			"product_name", "category_assignment", "category_creation", "seo_metadata",
+			"product_content", "product_translation", "category_translation",
+		},
 	}})
 }
 
@@ -937,7 +946,14 @@ func requestAIAgentCompletion(ctx context.Context, setting *models.AIAgentSettin
 	if err := json.Unmarshal(body, &providerResponse); err != nil || len(providerResponse.Choices) == 0 {
 		return "", errors.New("AI provider returned an invalid response")
 	}
-	return providerResponse.Choices[0].Message.Content, nil
+	content := providerResponse.Choices[0].Message.Content
+	if strings.TrimSpace(content) == "" {
+		content = providerResponse.Choices[0].Message.ReasoningContent
+	}
+	if strings.TrimSpace(content) == "" {
+		return "", errors.New("AI provider returned an empty response")
+	}
+	return content, nil
 }
 
 func buildOpenAIChatRequest(setting *models.AIAgentSetting, messages []aiChatMessage, maxTokens int) openAIChatRequest {
