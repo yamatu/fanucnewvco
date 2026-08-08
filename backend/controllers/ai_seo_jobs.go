@@ -478,15 +478,13 @@ func processAIAgentSEOJob(jobID string) {
 	if claim.Error != nil || claim.RowsAffected == 0 {
 		return
 	}
-	var jobProfile struct {
-		AIProfileID *uint
-	}
-	if err := db.Model(&models.AIAgentSEOJob{}).Select("ai_profile_id").Where("id = ?", jobID).Take(&jobProfile).Error; err != nil {
+	profileID, err := loadAIAgentSEOJobProfileID(db, jobID)
+	if err != nil {
 		failQueuedAIAgentSEOItems(jobID, "AI job profile could not be loaded")
 		finishAIAgentSEOJob(jobID, workerToken, "failed", "AI job profile could not be loaded")
 		return
 	}
-	setting, _, apiKey, err := loadAIAgentConfigForProfile(jobProfile.AIProfileID)
+	setting, _, apiKey, err := loadAIAgentConfigForProfile(profileID)
 	if err != nil || !setting.Enabled || apiKey == "" {
 		if !isAISEOJobRunning(db, jobID, workerToken) {
 			return
@@ -540,6 +538,25 @@ func processAIAgentSEOJob(jobID string) {
 	if finish.Error == nil && finish.RowsAffected > 0 {
 		publishAIAgentSEOJobCompletion(jobID)
 	}
+}
+
+func loadAIAgentSEOJobProfileID(db *gorm.DB, jobID string) (*uint, error) {
+	// Legacy installations predate named profiles. Falling back to the active
+	// profile keeps queued jobs runnable while the additive migration is pending.
+	if !hasAIAgentSEOJobProfileIDColumn(db) {
+		return nil, nil
+	}
+	var jobProfile struct {
+		AIProfileID *uint
+	}
+	err := db.Model(&models.AIAgentSEOJob{}).
+		Select("ai_profile_id").
+		Where("id = ?", jobID).
+		Take(&jobProfile).Error
+	if isMissingAIAgentProfileIDError(err) {
+		return nil, nil
+	}
+	return jobProfile.AIProfileID, err
 }
 
 func processAIAgentSEOItem(ctx context.Context, setting *models.AIAgentSetting, apiKey, jobID, workerToken string, item models.AIAgentSEOJobItem) {

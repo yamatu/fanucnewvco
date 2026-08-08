@@ -63,14 +63,32 @@ func scopeActiveAIAgentSEOJobs(query *gorm.DB, profileID uint, hasProfileIDColum
 	return query
 }
 
+func isMissingAIAgentProfileIDError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "unknown column") && strings.Contains(message, "ai_profile_id")
+}
+
+func hasAIAgentSEOJobProfileIDColumn(db *gorm.DB) bool {
+	return db != nil && db.Migrator().HasColumn(&models.AIAgentSEOJob{}, "AIProfileID")
+}
+
 func countActiveAIAgentSEOJobsForProfile(tx *gorm.DB, profileID uint) (int64, error) {
-	hasProfileIDColumn := tx.Migrator().HasColumn(&models.AIAgentSEOJob{}, "AIProfileID")
+	hasProfileIDColumn := hasAIAgentSEOJobProfileIDColumn(tx)
 	var count int64
 	err := scopeActiveAIAgentSEOJobs(
 		tx.Model(&models.AIAgentSEOJob{}),
 		profileID,
 		hasProfileIDColumn,
 	).Count(&count).Error
+	// A deployment can race an additive migration, and older binaries may have
+	// cached the schema capability. Retry without profile scoping if MySQL still
+	// reports the legacy missing-column error.
+	if err != nil && isMissingAIAgentProfileIDError(err) {
+		err = scopeActiveAIAgentSEOJobs(tx.Model(&models.AIAgentSEOJob{}), profileID, false).Count(&count).Error
+	}
 	return count, err
 }
 

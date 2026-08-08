@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"fanuc-backend/models"
 	"fanuc-backend/utils"
 	"strings"
@@ -169,6 +170,18 @@ func TestScopeActiveAIAgentSEOJobsSupportsLegacySchema(t *testing.T) {
 				t.Fatalf("active status scope missing: SQL = %s", sql)
 			}
 		})
+	}
+}
+
+func TestIsMissingAIAgentProfileIDError(t *testing.T) {
+	if !isMissingAIAgentProfileIDError(errors.New("Error 1054 (42S22): Unknown column 'ai_profile_id' in 'where clause'")) {
+		t.Fatal("legacy ai_profile_id error was not recognized")
+	}
+	if isMissingAIAgentProfileIDError(errors.New("Error 1054 (42S22): Unknown column 'model' in 'field list'")) {
+		t.Fatal("unrelated missing column was treated as ai_profile_id")
+	}
+	if isMissingAIAgentProfileIDError(nil) {
+		t.Fatal("nil error was treated as a missing column")
 	}
 }
 
