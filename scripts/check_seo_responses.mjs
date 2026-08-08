@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-const targetOrigin = (process.argv[2] || process.env.SEO_AUDIT_ORIGIN || 'https://www.vibocnc.com').replace(/\/+$/, '');
+const targetOrigin = (process.argv[2] || process.env.SEO_AUDIT_ORIGIN || 'https://vibocnc.com').replace(/\/+$/, '');
+const canonicalOrigin = (process.env.SEO_CANONICAL_ORIGIN || 'https://vibocnc.com').replace(/\/+$/, '');
 const warningBytes = Number(process.env.SEO_HTML_WARNING_BYTES || 1_500_000);
 const googlebotLimitBytes = 2 * 1024 * 1024;
 
@@ -10,7 +11,7 @@ const routes = [
   { path: '/categories', indexable: true, hreflang: true },
   { path: '/blog', indexable: true, hreflang: true },
   { path: '/news', indexable: true, hreflang: true },
-  { path: '/fr', indexable: true, hreflang: true },
+  { path: '/fr', indexable: false, hreflang: false, localizedHomepage: true },
   { path: '/products?search=fanuc', indexable: false, hreflang: false },
   { path: '/login', indexable: false, hreflang: false },
   { path: '/account', indexable: false, hreflang: false },
@@ -63,6 +64,25 @@ function findMeta(html, name) {
 function hasLink(html, rel, extra = '') {
   const tags = html.match(/<link\b[^>]*>/gi) || [];
   return tags.some((tag) => new RegExp(`rel=["']${rel}["']`, 'i').test(tag) && (!extra || new RegExp(extra, 'i').test(tag)));
+}
+
+function findLinkHref(html, rel, hreflang = '') {
+  const tags = html.match(/<link\b[^>]*>/gi) || [];
+  const tag = tags.find((candidate) => (
+    new RegExp(`rel=["']${rel}["']`, 'i').test(candidate)
+    && (!hreflang || new RegExp(`hreflang=["']${hreflang}["']`, 'i').test(candidate))
+  ));
+  return decodeHtml(tag?.match(/\bhref=["']([^"']+)["']/i)?.[1] || '');
+}
+
+function comparableUrl(value) {
+  try {
+    const url = new URL(value);
+    url.hash = '';
+    return url.href;
+  } catch {
+    return value;
+  }
 }
 
 function decodeHtml(value) {
@@ -143,12 +163,30 @@ for (const route of routes) {
     if (route.homepage) {
       const title = findTitle(html);
       const heading = findH1(html);
+      const canonicalHref = findLinkHref(html, 'canonical');
+      const englishHref = findLinkHref(html, 'alternate', 'en');
+      const defaultHref = findLinkHref(html, 'alternate', 'x-default');
       if (!/^vibocnc\b/i.test(title)) errors.push(`homepage title is not brand-first (${title})`);
       if (!/\bvibocnc\b/i.test(heading)) errors.push(`homepage H1 does not contain Vibocnc (${heading})`);
+      if (comparableUrl(canonicalHref) !== comparableUrl(canonicalOrigin)) {
+        errors.push(`homepage canonical is not the English root (${canonicalHref || 'missing'})`);
+      }
+      if (comparableUrl(englishHref) !== comparableUrl(canonicalOrigin)) {
+        errors.push(`homepage en hreflang is not the English root (${englishHref || 'missing'})`);
+      }
+      if (comparableUrl(defaultHref) !== comparableUrl(canonicalOrigin)) {
+        errors.push(`homepage x-default hreflang is not the English root (${defaultHref || 'missing'})`);
+      }
       const website = websiteNodes.find((node) => node.name === 'Vibocnc');
+      const faqPages = collectTypedNodes(jsonLdDocuments, 'FAQPage');
       const alternateNames = Array.isArray(website?.alternateName) ? website.alternateName : [website?.alternateName];
       if (!website) errors.push('homepage is missing the Vibocnc WebSite entity');
       else if (!alternateNames.includes('vibocnc.com')) errors.push('WebSite entity is missing the vibocnc.com alternateName');
+      if (!html.includes('id="about-vibocnc"')) errors.push('homepage Vibocnc entity section is missing');
+      if (!html.includes('id="vibocnc-faq"')) errors.push('homepage visible Vibocnc FAQ is missing');
+      if (!faqPages.some((node) => Array.isArray(node.mainEntity) && node.mainEntity.length >= 4)) {
+        errors.push('homepage FAQPage data is missing or incomplete');
+      }
       if (!html.includes('id="brands-we-supply"')) errors.push('homepage brand links section is missing');
     }
     if (route.product && route.sku) {
@@ -167,6 +205,17 @@ for (const route of routes) {
         errors.push(`untranslated localized URL did not redirect to the English canonical (${response.url})`);
       }
       if (noindex) errors.push('redirect destination unexpectedly contains noindex');
+    }
+    if (route.localizedHomepage) {
+      const canonicalHref = findLinkHref(html, 'canonical');
+      const englishHref = findLinkHref(html, 'alternate', 'en');
+      const defaultHref = findLinkHref(html, 'alternate', 'x-default');
+      if (new URL(response.url).pathname !== route.path) errors.push(`localized homepage moved unexpectedly (${response.url})`);
+      if (comparableUrl(canonicalHref) !== comparableUrl(`${canonicalOrigin}${route.path}`)) {
+        errors.push(`localized homepage is not self-canonical (${canonicalHref || 'missing'})`);
+      }
+      if (comparableUrl(englishHref) !== comparableUrl(canonicalOrigin)) errors.push('localized homepage en link does not target the English root');
+      if (comparableUrl(defaultHref) !== comparableUrl(canonicalOrigin)) errors.push('localized homepage x-default link does not target the English root');
     }
 
     const status = errors.length ? 'FAIL' : 'PASS';
@@ -193,7 +242,7 @@ try {
   for (const crawler of ['GPTBot', 'Google-Extended', 'ClaudeBot', 'PerplexityBot']) {
     if (!new RegExp(`\\bUser-agent:\\s*${crawler}\\b`, 'i').test(robotsTxt)) errors.push(`${crawler} rule is missing`);
   }
-  if (!new RegExp(`Sitemap:\\s*${targetOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/sitemap\\.xml`, 'i').test(robotsTxt)) errors.push('primary sitemap is missing');
+  if (!new RegExp(`Sitemap:\\s*${canonicalOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/sitemap\\.xml`, 'i').test(robotsTxt)) errors.push('primary sitemap is missing');
   if (!/\bai-train=yes\b/i.test(contentSignalHeader)) errors.push('Content-Signal response header does not allow AI training');
   console.log(`${errors.length ? 'FAIL' : 'PASS'} /robots.txt status=${robotsResponse.status} content-signal=${contentSignalHeader || 'none'}`);
   for (const error of errors) console.log(`  - ${error}`);
@@ -218,6 +267,35 @@ try {
   failed ||= errors.length > 0;
 } catch (error) {
   console.log(`FAIL /sitemap.xml: ${error instanceof Error ? error.message : String(error)}`);
+  failed = true;
+}
+
+try {
+  const response = await fetch(`${targetOrigin}/sitemap-static.xml`, {
+    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+  });
+  const xml = await response.text();
+  const errors = [];
+  const rootBlock = (xml.match(/<url>[\s\S]*?<\/url>/gi) || []).find((block) => {
+    const location = block.match(/<loc>([^<]+)<\/loc>/i)?.[1] || '';
+    return comparableUrl(location) === comparableUrl(canonicalOrigin);
+  }) || '';
+  if (!response.ok) errors.push(`HTTP ${response.status}`);
+  if (!rootBlock) errors.push('English homepage entry is missing');
+  if (!new RegExp(`hreflang=["']en["'][^>]+href=["']${canonicalOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`, 'i').test(rootBlock)) {
+    errors.push('English homepage sitemap alternate is incorrect');
+  }
+  if (!new RegExp(`hreflang=["']x-default["'][^>]+href=["']${canonicalOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`, 'i').test(rootBlock)) {
+    errors.push('x-default homepage sitemap alternate is incorrect');
+  }
+  if (/hreflang=["'](?:zh-CN|es|de|fr|it|pt|ja|ko|ru|ar)["']/i.test(rootBlock)) {
+    errors.push('mixed-language localized homepages are still advertised in the sitemap');
+  }
+  console.log(`${errors.length ? 'FAIL' : 'PASS'} /sitemap-static.xml status=${response.status} English-home-only=${Boolean(rootBlock)}`);
+  for (const error of errors) console.log(`  - ${error}`);
+  failed ||= errors.length > 0;
+} catch (error) {
+  console.log(`FAIL /sitemap-static.xml: ${error instanceof Error ? error.message : String(error)}`);
   failed = true;
 }
 
@@ -453,6 +531,80 @@ try {
 } catch (error) {
   console.log(`FAIL language-switch es->en: ${error instanceof Error ? error.message : String(error)}`);
   failed = true;
+}
+
+try {
+  const response = await fetch(`${targetOrigin}/`, {
+    redirect: 'manual',
+    headers: {
+      cookie: 'vibocnc_locale=zh',
+      'accept-language': 'zh-CN,zh;q=0.9',
+      'user-agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+    },
+  });
+  const html = await response.text();
+  const errors = [];
+  const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
+  const canonicalHref = findLinkHref(html, 'canonical');
+  if (!response.ok) errors.push(`HTTP ${response.status}`);
+  if (response.headers.get('location')) errors.push(`Googlebot was redirected (${response.headers.get('location')})`);
+  if (actualLang !== 'en') errors.push(`expected English root for Googlebot, got lang=${actualLang || 'none'}`);
+  if (comparableUrl(canonicalHref) !== comparableUrl(canonicalOrigin)) {
+    errors.push(`Googlebot received a non-English canonical (${canonicalHref || 'missing'})`);
+  }
+  console.log(`${errors.length ? 'FAIL' : 'PASS'} homepage Googlebot language stability status=${response.status} lang=${actualLang || 'none'}`);
+  for (const error of errors) console.log(`  - ${error}`);
+  failed ||= errors.length > 0;
+} catch (error) {
+  console.log(`FAIL homepage Googlebot language stability: ${error instanceof Error ? error.message : String(error)}`);
+  failed = true;
+}
+
+for (const legacyEnglishPath of ['/en', '/en/products']) {
+  try {
+    const response = await fetch(`${targetOrigin}${legacyEnglishPath}`, {
+      redirect: 'manual',
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+    });
+    const expectedPath = legacyEnglishPath.slice(3) || '/';
+    const location = response.headers.get('location') || '';
+    const errors = [];
+    if (![301, 308].includes(response.status)) errors.push(`expected permanent redirect, got HTTP ${response.status}`);
+    if (new URL(location || '/', targetOrigin).pathname !== expectedPath) errors.push(`unexpected redirect target (${location || 'missing'})`);
+    console.log(`${errors.length ? 'FAIL' : 'PASS'} ${legacyEnglishPath} English-prefix redirect status=${response.status} location=${location || 'none'}`);
+    for (const error of errors) console.log(`  - ${error}`);
+    failed ||= errors.length > 0;
+  } catch (error) {
+    console.log(`FAIL ${legacyEnglishPath} English-prefix redirect: ${error instanceof Error ? error.message : String(error)}`);
+    failed = true;
+  }
+}
+
+const targetUrl = new URL(targetOrigin);
+const canonicalUrl = new URL(canonicalOrigin);
+if (targetUrl.hostname === canonicalUrl.hostname && !['localhost', '127.0.0.1', '0.0.0.0'].includes(targetUrl.hostname)) {
+  const alternateHostname = canonicalUrl.hostname.startsWith('www.')
+    ? canonicalUrl.hostname.slice(4)
+    : `www.${canonicalUrl.hostname}`;
+  const alternateOrigin = `${canonicalUrl.protocol}//${alternateHostname}${canonicalUrl.port ? `:${canonicalUrl.port}` : ''}`;
+  try {
+    const response = await fetch(`${alternateOrigin}/`, {
+      redirect: 'manual',
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+    });
+    const location = response.headers.get('location') || '';
+    const errors = [];
+    if (![301, 308].includes(response.status)) errors.push(`expected permanent redirect, got HTTP ${response.status}`);
+    if (comparableUrl(new URL(location || '/', alternateOrigin).href) !== comparableUrl(canonicalOrigin)) {
+      errors.push(`unexpected canonical-host redirect target (${location || 'missing'})`);
+    }
+    console.log(`${errors.length ? 'FAIL' : 'PASS'} canonical hostname redirect status=${response.status} location=${location || 'none'}`);
+    for (const error of errors) console.log(`  - ${error}`);
+    failed ||= errors.length > 0;
+  } catch (error) {
+    console.log(`FAIL canonical hostname redirect: ${error instanceof Error ? error.message : String(error)}`);
+    failed = true;
+  }
 }
 
 process.exitCode = failed ? 1 : 0;

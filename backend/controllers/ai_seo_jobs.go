@@ -95,7 +95,7 @@ func (ac *AIAgentController) StartSelectedSEO(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Choose between 1 and 30000 products"})
 		return
 	}
-	setting, apiKey, err := loadAIAgentConfig()
+	setting, _, apiKey, err := loadAIAgentConfigWithProfile()
 	if err != nil || !setting.Enabled || apiKey == "" {
 		message := "AI assistant is not configured. An administrator must configure and enable it first."
 		if err != nil {
@@ -138,7 +138,7 @@ func (ac *AIAgentController) StartCandidateSEO(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "AI SEO prompt must contain at least 2 characters"})
 		return
 	}
-	setting, apiKey, err := loadAIAgentConfig()
+	setting, _, apiKey, err := loadAIAgentConfigWithProfile()
 	if err != nil || !setting.Enabled || apiKey == "" {
 		message := "AI assistant is not configured. An administrator must configure and enable it first."
 		if err != nil {
@@ -206,6 +206,22 @@ func createAIAgentSEOJob(db *gorm.DB, products []models.Product, prompt, selecti
 		items = append(items, models.AIAgentSEOJobItem{JobID: job.ID, ProductID: product.ID, SKU: product.SKU, Status: "queued"})
 	}
 	if err := db.Transaction(func(tx *gorm.DB) error {
+		setting, err := getAIAgentSettingForUpdate(tx)
+		if err != nil {
+			return err
+		}
+		profile, err := getActiveAIAgentProfileForUpdate(tx, setting)
+		if err != nil {
+			return err
+		}
+		effective := *setting
+		if profile != nil {
+			copyAIAgentProfileToSetting(&effective, profile)
+		}
+		if !effective.Enabled || strings.TrimSpace(effective.APIKeyEnc) == "" {
+			return errors.New("AI configuration changed before the SEO job could be created")
+		}
+		pinAIAgentSEOJobProfile(job, &effective, profile)
 		if err := tx.Create(job).Error; err != nil {
 			return err
 		}
@@ -216,6 +232,25 @@ func createAIAgentSEOJob(db *gorm.DB, products []models.Product, prompt, selecti
 		return nil, err
 	}
 	return job, nil
+}
+
+func pinAIAgentSEOJobProfile(job *models.AIAgentSEOJob, setting *models.AIAgentSetting, profile *models.AIAgentProfile) {
+	if job == nil {
+		return
+	}
+	if setting != nil {
+		job.AIProfileID = setting.ActiveProfileID
+		job.AIModel = setting.Model
+		job.AIAPIMode = setting.APIMode
+	}
+	if profile != nil {
+		job.AIProfileID = &profile.ID
+		job.AIProfileName = profile.Name
+		job.AIModel = profile.Model
+		if profile.APIMode != "" {
+			job.AIAPIMode = profile.APIMode
+		}
+	}
 }
 
 func findAIASEOCandidates(db *gorm.DB, req aiSEOCandidateStartRequest, limit int) ([]models.Product, error) {
@@ -443,7 +478,15 @@ func processAIAgentSEOJob(jobID string) {
 	if claim.Error != nil || claim.RowsAffected == 0 {
 		return
 	}
-	setting, apiKey, err := loadAIAgentConfig()
+	var jobProfile struct {
+		AIProfileID *uint
+	}
+	if err := db.Model(&models.AIAgentSEOJob{}).Select("ai_profile_id").Where("id = ?", jobID).Take(&jobProfile).Error; err != nil {
+		failQueuedAIAgentSEOItems(jobID, "AI job profile could not be loaded")
+		finishAIAgentSEOJob(jobID, workerToken, "failed", "AI job profile could not be loaded")
+		return
+	}
+	setting, _, apiKey, err := loadAIAgentConfigForProfile(jobProfile.AIProfileID)
 	if err != nil || !setting.Enabled || apiKey == "" {
 		if !isAISEOJobRunning(db, jobID, workerToken) {
 			return

@@ -47,3 +47,19 @@ func TestApplyAIASEOCandidateStatusScope(t *testing.T) {
 		})
 	}
 }
+
+func TestPinAIAgentSEOJobProfile(t *testing.T) {
+	activeID := uint(4)
+	setting := &models.AIAgentSetting{ActiveProfileID: &activeID, Model: "legacy-model", APIMode: aiAgentAPIModeStandard}
+	profile := &models.AIAgentProfile{ID: 7, Name: "High quality", Model: "provider/custom-model", APIMode: aiAgentAPIModeReasoning}
+	job := &models.AIAgentSEOJob{}
+
+	pinAIAgentSEOJobProfile(job, setting, profile)
+
+	if job.AIProfileID == nil || *job.AIProfileID != profile.ID {
+		t.Fatalf("job profile ID = %v, want %d", job.AIProfileID, profile.ID)
+	}
+	if job.AIProfileName != profile.Name || job.AIModel != profile.Model || job.AIAPIMode != profile.APIMode {
+		t.Fatalf("job profile snapshot = %#v", job)
+	}
+}

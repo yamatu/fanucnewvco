@@ -15,6 +15,7 @@ import {
 import { toast } from 'react-hot-toast';
 import {
   AIAgentAction,
+  AI_AGENT_CONFIG_CHANGED_EVENT,
   AIAgentMessage,
   AIAgentService,
   AIAgentStatus,
@@ -173,6 +174,12 @@ export default function AIAgentAssistant() {
       .catch((error: unknown) => toast.error(errorMessage(error) || (zh ? '无法读取 AI 设置' : 'Could not load AI settings')))
       .finally(() => setStatusLoading(false));
   }, [open, status, zh]);
+
+  useEffect(() => {
+    const refreshStatus = () => setStatus(null);
+    window.addEventListener(AI_AGENT_CONFIG_CHANGED_EVENT, refreshStatus);
+    return () => window.removeEventListener(AI_AGENT_CONFIG_CHANGED_EVENT, refreshStatus);
+  }, []);
 
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });

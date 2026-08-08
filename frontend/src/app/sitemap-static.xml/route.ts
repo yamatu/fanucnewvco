@@ -10,9 +10,10 @@ export const revalidate = 86400 // 24 hours
 // modification timestamp. A request timestamp falsely tells crawlers that every
 // static page changed each time they fetch the sitemap.
 const STATIC_CONTENT_LAST_MODIFIED = process.env.SITEMAP_STATIC_LAST_MODIFIED || '2026-07-30T00:00:00.000Z'
-const HOME_CONTENT_LAST_MODIFIED = process.env.SITEMAP_HOME_LAST_MODIFIED || '2026-08-06T00:00:00.000Z'
+const HOME_CONTENT_LAST_MODIFIED = process.env.SITEMAP_HOME_LAST_MODIFIED || '2026-08-08T00:00:00.000Z'
 const ALL_PUBLIC_LOCALES = PUBLIC_LOCALES.map((locale) => locale.code)
 const EN_ZH_LOCALES = ['en', 'zh'] as const
+const ENGLISH_HOME_LOCALE = ['en'] as const
 
 export async function GET() {
   const baseUrl = await getRequestBaseUrl()
@@ -25,7 +26,7 @@ export async function GET() {
       lastModified: homeLastModified,
       changeFrequency: 'daily',
       priority: '1.0',
-      availableLocales: ALL_PUBLIC_LOCALES,
+      availableLocales: ENGLISH_HOME_LOCALE,
     },
     {
       pathname: '/products',

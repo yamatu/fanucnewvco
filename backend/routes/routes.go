@@ -163,6 +163,11 @@ func SetupRoutes(r *gin.Engine) {
 				aiAgent.GET("/seo/stats", aiAgentController.GetSEOStats)
 				aiAgent.GET("/settings", middleware.AdminOnly(), aiAgentController.GetSettings)
 				aiAgent.PUT("/settings", middleware.AdminOnly(), aiAgentController.UpdateSettings)
+				aiAgent.GET("/profiles", middleware.AdminOnly(), aiAgentController.ListProfiles)
+				aiAgent.POST("/profiles", middleware.AdminOnly(), aiAgentController.CreateProfile)
+				aiAgent.PUT("/profiles/:id", middleware.AdminOnly(), aiAgentController.UpdateProfile)
+				aiAgent.DELETE("/profiles/:id", middleware.AdminOnly(), aiAgentController.DeleteProfile)
+				aiAgent.POST("/profiles/:id/activate", middleware.AdminOnly(), aiAgentController.ActivateProfile)
 			}
 
 			// Dashboard statistics (admin and editor access)

@@ -25,7 +25,10 @@ export interface AIAgentStatus {
   configured: boolean;
   model: string;
   provider: string;
+  api_mode: 'standard_chat' | 'reasoning_chat';
   reasoning_effort: string;
+  active_profile_id?: number;
+  active_profile_name?: string;
   product_creation_ready: boolean;
   default_product_price: number;
   default_warranty_period: string;
@@ -33,10 +36,13 @@ export interface AIAgentStatus {
 }
 
 export interface AIAgentSettings {
+  active_profile_id?: number;
+  active_profile_name?: string;
   enabled: boolean;
   base_url: string;
   has_api_key: boolean;
   model: string;
+  api_mode: 'standard_chat' | 'reasoning_chat';
   reasoning_effort: string;
   timeout_seconds: number;
   seo_job_concurrency: number;
@@ -47,12 +53,47 @@ export interface AIAgentSettings {
   updated_at?: string;
 }
 
+export interface AIAgentProfile {
+  id: number;
+  name: string;
+  base_url: string;
+  has_api_key: boolean;
+  model: string;
+  api_mode: 'standard_chat' | 'reasoning_chat';
+  reasoning_effort: string;
+  timeout_seconds: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AIAgentProfileWrite {
+  name: string;
+  base_url: string;
+  api_key?: string;
+  clear_api_key?: boolean;
+  reuse_active_api_key?: boolean;
+  model: string;
+  api_mode: 'standard_chat' | 'reasoning_chat';
+  reasoning_effort: string;
+  timeout_seconds: number;
+}
+
+export const AI_AGENT_CONFIG_CHANGED_EVENT = 'ai-agent-config-changed';
+
+export function notifyAIAgentConfigChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AI_AGENT_CONFIG_CHANGED_EVENT));
+  }
+}
+
 export interface AIAgentSettingsUpdate {
   enabled?: boolean;
   base_url?: string;
   api_key?: string;
   clear_api_key?: boolean;
   model?: string;
+  api_mode?: 'standard_chat' | 'reasoning_chat';
   reasoning_effort?: string;
   timeout_seconds?: number;
   seo_job_concurrency?: number;
@@ -138,6 +179,10 @@ export interface AIAgentSEOJob {
   prompt: string;
   selection_mode: 'selected' | 'auto_candidates' | 'auto_failed';
   status: AIAgentSEOJobStatus;
+  ai_profile_id?: number;
+  ai_profile_name?: string;
+  ai_model?: string;
+  ai_api_mode?: 'standard_chat' | 'reasoning_chat';
   total: number;
   processed: number;
   succeeded: number;
@@ -186,6 +231,35 @@ export class AIAgentService {
     const response = await apiClient.put<APIResponse<AIAgentSettings>>('/admin/ai-agent/settings', payload);
     if (response.data.success && response.data.data) return response.data.data;
     throw new Error(response.data.message || 'Unable to save AI settings');
+  }
+
+  static async listProfiles(): Promise<AIAgentProfile[]> {
+    const response = await apiClient.get<APIResponse<AIAgentProfile[]>>('/admin/ai-agent/profiles');
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Unable to load AI profiles');
+  }
+
+  static async createProfile(payload: AIAgentProfileWrite): Promise<AIAgentProfile> {
+    const response = await apiClient.post<APIResponse<AIAgentProfile>>('/admin/ai-agent/profiles', payload);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Unable to create AI profile');
+  }
+
+  static async updateProfile(id: number, payload: AIAgentProfileWrite): Promise<AIAgentProfile> {
+    const response = await apiClient.put<APIResponse<AIAgentProfile>>(`/admin/ai-agent/profiles/${id}`, payload);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Unable to update AI profile');
+  }
+
+  static async deleteProfile(id: number): Promise<void> {
+    const response = await apiClient.delete<APIResponse<null>>(`/admin/ai-agent/profiles/${id}`);
+    if (!response.data.success) throw new Error(response.data.message || 'Unable to delete AI profile');
+  }
+
+  static async activateProfile(id: number): Promise<AIAgentSettings> {
+    const response = await apiClient.post<APIResponse<AIAgentSettings>>(`/admin/ai-agent/profiles/${id}/activate`);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Unable to activate AI profile');
   }
 
   static async chat(message: string, history: AIAgentMessage[]): Promise<AIAgentReply> {

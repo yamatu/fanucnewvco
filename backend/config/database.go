@@ -145,6 +145,7 @@ func ConnectDatabase() {
 			&models.TicketAttachment{},
 			&models.MediaAsset{},
 			&models.CloudflareCacheSetting{},
+			&models.AIAgentProfile{},
 			&models.AIAgentSetting{},
 			&models.AIAgentSEOJob{},
 			&models.AIAgentSEOJobItem{},
@@ -216,6 +217,92 @@ func ConnectDatabase() {
 	// Upgrade known legacy company facts and duplicated homepage copy without
 	// overwriting unrelated admin-managed content.
 	migrateLegacyCompanyFacts()
+
+	// Preserve the former singleton provider configuration as the first named
+	// AI profile. This migration is idempotent and copies encrypted key material
+	// without decrypting or rotating it.
+	migrateLegacyAIAgentProfile()
+}
+
+func legacyAIAgentProfileFromSetting(setting models.AIAgentSetting) models.AIAgentProfile {
+	apiMode := setting.APIMode
+	if apiMode == "" {
+		apiMode = "standard_chat"
+	}
+	return models.AIAgentProfile{
+		Name:            "Default",
+		BaseURL:         setting.BaseURL,
+		APIKeyEnc:       setting.APIKeyEnc,
+		Model:           setting.Model,
+		APIMode:         apiMode,
+		ReasoningEffort: setting.ReasoningEffort,
+		TimeoutSeconds:  setting.TimeoutSeconds,
+	}
+}
+
+func migrateLegacyAIAgentProfile() {
+	if DB == nil || !DB.Migrator().HasTable(&models.AIAgentSetting{}) ||
+		!DB.Migrator().HasTable(&models.AIAgentProfile{}) ||
+		!DB.Migrator().HasColumn(&models.AIAgentSetting{}, "ActiveProfileID") {
+		return
+	}
+
+	silentDB := DB.Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)})
+	createdProfile := false
+	err := silentDB.Transaction(func(tx *gorm.DB) error {
+		var setting models.AIAgentSetting
+		err := tx.First(&setting, 1).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			setting = models.AIAgentSetting{
+				ID: 1, BaseURL: "https://api.openai.com/v1", Model: "gpt-5.6-terra", APIMode: "standard_chat",
+				ReasoningEffort: "medium", TimeoutSeconds: 75, SEOJobConcurrency: 2, SEOCandidateLimit: 30000,
+				DefaultWarrantyPeriod: "12 months", DefaultLeadTime: "3-7 days",
+			}
+			if err := tx.Create(&setting).Error; err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		}
+
+		if setting.ActiveProfileID != nil {
+			var count int64
+			if err := tx.Model(&models.AIAgentProfile{}).Where("id = ?", *setting.ActiveProfileID).Count(&count).Error; err != nil {
+				return err
+			}
+			if count > 0 {
+				return nil
+			}
+		}
+
+		var profile models.AIAgentProfile
+		if err := tx.Order("id ASC").First(&profile).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+			profile = legacyAIAgentProfileFromSetting(setting)
+			if err := tx.Create(&profile).Error; err != nil {
+				return err
+			}
+			createdProfile = true
+		} else if err != nil {
+			return err
+		}
+
+		return tx.Model(&models.AIAgentSetting{}).Where("id = ?", setting.ID).Updates(map[string]any{
+			"active_profile_id": profile.ID,
+			"base_url":          profile.BaseURL,
+			"api_key_enc":       profile.APIKeyEnc,
+			"model":             profile.Model,
+			"api_mode":          profile.APIMode,
+			"reasoning_effort":  profile.ReasoningEffort,
+			"timeout_seconds":   profile.TimeoutSeconds,
+		}).Error
+	})
+	if err != nil {
+		log.Printf("AI profile migration warning: %v", err)
+		return
+	}
+	if createdProfile {
+		log.Println("Legacy AI provider settings migrated to the Default profile")
+	}
 }
 
 func createDefaultAdmin() {
@@ -419,6 +506,23 @@ func upgradeLegacyCompanyCopy(value string) string {
 		{"5,000 sqm", "3,500 sqm"},
 		{"5,000 m²", "3,500 m²"},
 		{"2005", "2007"},
+		{"Yearly Turnover: 200M", "Worldwide Delivery Support"},
+		{"Yearly Turnover / 200M", "Worldwide Delivery Support"},
+		{"200M Yearly Turnover", "Worldwide Delivery Support"},
+		{"Yearly Turnover", "Worldwide Delivery Support"},
+		{"ISO Certified", "Documented Inspection"},
+		{"International quality management standards", "Documented inspection and quality-control procedures"},
+		{"24/7 Operations", "Responsive Service"},
+		{"24/7 Support Available", "Responsive Support"},
+		{"24/7 Availability", "Responsive Support"},
+		{"24/7 availability", "Responsive support"},
+		{"Quality certification process", "Documented inspection process"},
+		{"Certified technicians", "Experienced technicians"},
+		{"Certified specialists", "Automation parts specialists"},
+		{"Join thousands of satisfied customers worldwide.", "Contact our team to discuss your automation parts requirements."},
+		{"Continuous production", "Parts inspection and service support"},
+		{"Quality Guaranteed", "Quality Checked"},
+		{"Quality guarantee", "Quality checks"},
 	}
 
 	result := value
@@ -428,6 +532,45 @@ func upgradeLegacyCompanyCopy(value string) string {
 	return result
 }
 
+func normalizeLegacyClaimValue(value any) string {
+	return strings.ToLower(strings.Join(strings.Fields(fmt.Sprint(value)), " "))
+}
+
+func isUnsupportedLegacyStat(value, label, description, title, subtitle any) bool {
+	normalizedValue := normalizeLegacyClaimValue(value)
+	normalizedLabel := normalizeLegacyClaimValue(label)
+	normalizedTitle := normalizeLegacyClaimValue(title)
+	normalizedDescription := normalizeLegacyClaimValue(description)
+	normalizedSubtitle := normalizeLegacyClaimValue(subtitle)
+
+	if normalizedLabel == "yearly turnover" || normalizedTitle == "yearly turnover" ||
+		(normalizedValue == "200m" && (normalizedDescription == "annual revenue" || normalizedSubtitle == "annual revenue")) {
+		return true
+	}
+	if normalizedValue == "24/7" && (normalizedLabel == "operations" || normalizedTitle == "operations") {
+		return true
+	}
+	if (normalizedLabel == "operations" || normalizedTitle == "operations") &&
+		(normalizedDescription == "continuous production" || normalizedSubtitle == "continuous production") {
+		return true
+	}
+	return normalizedValue == "iso" && (normalizedLabel == "certified" || normalizedTitle == "certified")
+}
+
+func isUnsupportedLegacyJSONItem(value any) bool {
+	item, ok := value.(map[string]any)
+	if !ok {
+		return false
+	}
+	return isUnsupportedLegacyStat(
+		item["value"],
+		item["label"],
+		item["description"],
+		item["title"],
+		item["subtitle"],
+	)
+}
+
 func upgradeLegacyJSONValue(value any) (any, bool) {
 	switch current := value.(type) {
 	case string:
@@ -435,12 +578,17 @@ func upgradeLegacyJSONValue(value any) (any, bool) {
 		return updated, updated != current
 	case []any:
 		changed := false
-		for index, item := range current {
+		updatedItems := make([]any, 0, len(current))
+		for _, item := range current {
+			if isUnsupportedLegacyJSONItem(item) {
+				changed = true
+				continue
+			}
 			updated, itemChanged := upgradeLegacyJSONValue(item)
-			current[index] = updated
+			updatedItems = append(updatedItems, updated)
 			changed = changed || itemChanged
 		}
-		return current, changed
+		return updatedItems, changed
 	case map[string]any:
 		changed := false
 		for key, item := range current {
@@ -496,6 +644,80 @@ func upgradeLegacyJSONValue(value any) (any, bool) {
 	}
 }
 
+func upgradeLegacyCompanyProfile(profile *models.CompanyProfile) bool {
+	if profile == nil {
+		return false
+	}
+
+	changed := false
+	if profile.EstablishmentYear == "2005" {
+		profile.EstablishmentYear = "2007"
+		changed = true
+	}
+	if profile.WorkshopSize == "5,000sqm" || profile.WorkshopSize == "5,000 sqm" {
+		profile.WorkshopSize = "3,500sqm"
+		changed = true
+	}
+	for _, field := range []*string{
+		&profile.CompanySubtitle,
+		&profile.Description1,
+		&profile.Description2,
+		&profile.Achievement,
+	} {
+		updated := upgradeLegacyCompanyCopy(*field)
+		if updated != *field {
+			*field = updated
+			changed = true
+		}
+	}
+
+	statsChanged := false
+	updatedStats := make(models.CompanyStatsArray, 0, len(profile.Stats))
+	for _, stat := range profile.Stats {
+		if isUnsupportedLegacyStat(stat.Value, stat.Label, stat.Description, "", "") {
+			statsChanged = true
+			continue
+		}
+		if stat.Value == "2005" && strings.EqualFold(stat.Label, "Established") {
+			stat.Value = "2007"
+			stat.Description = "Founded in Kunshan, China"
+			statsChanged = true
+		}
+		updatedLabel := upgradeLegacyCompanyCopy(stat.Label)
+		updatedDescription := upgradeLegacyCompanyCopy(stat.Description)
+		if updatedLabel != stat.Label || updatedDescription != stat.Description {
+			stat.Label = updatedLabel
+			stat.Description = updatedDescription
+			statsChanged = true
+		}
+		updatedStats = append(updatedStats, stat)
+	}
+	if statsChanged {
+		profile.Stats = updatedStats
+		changed = true
+	}
+
+	for index, expertise := range profile.Expertise {
+		updated := upgradeLegacyCompanyCopy(expertise)
+		if updated != expertise {
+			profile.Expertise[index] = updated
+			changed = true
+		}
+	}
+	for index := range profile.WorkshopFacilities {
+		facility := &profile.WorkshopFacilities[index]
+		updatedTitle := upgradeLegacyCompanyCopy(facility.Title)
+		updatedDescription := upgradeLegacyCompanyCopy(facility.Description)
+		if updatedTitle != facility.Title || updatedDescription != facility.Description {
+			facility.Title = updatedTitle
+			facility.Description = updatedDescription
+			changed = true
+		}
+	}
+
+	return changed
+}
+
 func migrateLegacyCompanyFacts() {
 	if os.Getenv("DISABLE_COMPANY_FACTS_MIGRATION") == "true" {
 		return
@@ -508,31 +730,7 @@ func migrateLegacyCompanyFacts() {
 	if err := silentDB.Find(&profiles).Error; err == nil {
 		for index := range profiles {
 			profile := &profiles[index]
-			changed := false
-			if profile.EstablishmentYear == "2005" {
-				profile.EstablishmentYear = "2007"
-				changed = true
-			}
-			if profile.WorkshopSize == "5,000sqm" || profile.WorkshopSize == "5,000 sqm" {
-				profile.WorkshopSize = "3,500sqm"
-				changed = true
-			}
-			for _, field := range []*string{&profile.Description1, &profile.Description2} {
-				updated := upgradeLegacyCompanyCopy(*field)
-				if updated != *field {
-					*field = updated
-					changed = true
-				}
-			}
-			for statIndex := range profile.Stats {
-				stat := &profile.Stats[statIndex]
-				if stat.Value == "2005" && strings.EqualFold(stat.Label, "Established") {
-					stat.Value = "2007"
-					stat.Description = "Founded in Kunshan, China"
-					changed = true
-				}
-			}
-			if changed && silentDB.Save(profile).Error == nil {
+			if upgradeLegacyCompanyProfile(profile) && silentDB.Save(profile).Error == nil {
 				updatedRecords++
 			}
 		}
@@ -834,7 +1032,6 @@ func createDefaultCompanyProfile() {
 			{Icon: "UserGroupIcon", Value: "10", Label: "Sales Staff", Description: "Dedicated sales team"},
 			{Icon: "ArchiveBoxIcon", Value: "100,000", Label: "Items Stocked", Description: "Regular inventory"},
 			{Icon: "TruckIcon", Value: "50-100", Label: "Daily Parcels", Description: "Shipments per day"},
-			{Icon: "CurrencyDollarIcon", Value: "200M", Label: "Yearly Turnover", Description: "Annual revenue"},
 		},
 		Expertise: models.StringArray{
 			"AB & ABB Components",

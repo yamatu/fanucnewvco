@@ -68,7 +68,7 @@ export default function BrandsSection({ content }: { content?: HomepageContent |
           <p className="mt-5 max-w-lg text-base leading-7 text-slate-600">{description}</p>
           <div className="home-brand-summary mt-6 border-t border-slate-300 pt-5">
             <p className="text-sm leading-6 text-slate-700">
-              <strong className="text-slate-950">Vibocnc</strong> supplies current, legacy and obsolete industrial automation parts and CNC spares. Browse the catalogue, review our company capabilities, request a repair evaluation or contact sales.
+              Search the <strong className="text-slate-950">Vibocnc</strong> catalogue by manufacturer, model or exact part number, or send the label details to our team for review.
             </p>
             <nav aria-label="Vibocnc company links" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
               {vibocncLinks.map((item) => (

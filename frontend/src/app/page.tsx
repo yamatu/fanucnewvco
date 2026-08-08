@@ -9,6 +9,7 @@ import SimpleContentSection from '@/components/home/SimpleContentSection';
 import BrandsSection from '@/components/home/BrandsSection';
 import RepairCapabilitiesSection from '@/components/home/RepairCapabilitiesSection';
 import HomeBlogSection from '@/components/home/HomeBlogSection';
+import HomeBrandAuthoritySection, { HOMEPAGE_BRAND_FAQS } from '@/components/home/HomeBrandAuthoritySection';
 import { generateOrganizationSchema, generateWebsiteSchema } from '@/lib/structured-data';
 import type { Article, HomepageContent, Product } from '@/types';
 import type { Metadata } from 'next';
@@ -44,7 +45,10 @@ function getHomeDescription(locale: string): string {
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = getSiteUrl();
-  const { locale, canonical, languages } = await getLocalizedMetadataPaths('/');
+  // Translated home routes remain available to visitors, but several dynamic
+  // homepage sections are still English-only. Keep them out of search until
+  // each locale is complete instead of advertising mixed-language alternates.
+  const { locale, canonical, languages } = await getLocalizedMetadataPaths('/', ['en']);
   const ogImageUrl = new URL('/images/og-image.jpg', baseUrl).toString();
   const title = getHomeTitle(locale);
   const description = getHomeDescription(locale);
@@ -53,6 +57,11 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { absolute: title },
     description,
     alternates: { canonical, languages },
+    robots: locale === 'en' ? undefined : {
+      index: false,
+      follow: true,
+      googleBot: { index: false, follow: true },
+    },
     openGraph: {
       type: 'website',
       locale: getLocaleConfig(locale).hreflang.replace('-', '_'),
@@ -327,10 +336,11 @@ export default async function Home({
   // Enhanced structured data using the new utility functions
   const organizationSchema = generateOrganizationSchema(getSocialMediaURLs(socialMediaSettings));
   const websiteSchema = generateWebsiteSchema();
-  const homepageUrl = `${baseUrl}${localizePublicPath('/', locale)}`;
+  const localizedHomepagePath = localizePublicPath('/', locale);
+  const homepageUrl = `${baseUrl}${localizedHomepagePath === '/' ? '' : localizedHomepagePath}`;
   const homepageSchema = {
     "@context": "https://schema.org",
-    "@type": "WebPage",
+    "@type": locale === 'en' ? ["WebPage", "FAQPage"] : "WebPage",
     "@id": `${homepageUrl}#webpage`,
     "url": homepageUrl,
     "name": getHomeTitle(locale),
@@ -339,9 +349,19 @@ export default async function Home({
     "isPartOf": { "@id": `${baseUrl}/#website` },
     "about": { "@id": `${baseUrl}/#organization` },
     "publisher": { "@id": `${baseUrl}/#organization` },
+    ...(locale === 'en' ? {
+      "mainEntity": HOMEPAGE_BRAND_FAQS.map((item) => ({
+        "@type": "Question",
+        "name": item.question,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": item.answer,
+        },
+      })),
+    } : {}),
     "speakable": {
       "@type": "SpeakableSpecification",
-      "cssSelector": ["h1", ".home-brand-summary", "#brands-we-supply"],
+      "cssSelector": ["h1", "#about-vibocnc .entity-summary", "#vibocnc-faq .faq-answer"],
     },
   };
 
@@ -384,14 +404,20 @@ export default async function Home({
             );
           } else section = <SimpleContentSection content={s.content} />;
 
-          return isAdminPreview ? (
-            <HomepagePreviewMarker key={s.key} sectionKey={s.key} label={`Edit ${s.key}`}>
-              {section}
-            </HomepagePreviewMarker>
-          ) : (
-            <Fragment key={s.key}>{section}</Fragment>
+          return (
+            <Fragment key={s.key}>
+              {isAdminPreview ? (
+                <HomepagePreviewMarker sectionKey={s.key} label={`Edit ${s.key}`}>
+                  {section}
+                </HomepagePreviewMarker>
+              ) : section}
+              {s.key === 'hero_section' ? <HomeBrandAuthoritySection locale={locale} /> : null}
+            </Fragment>
           );
         })}
+        {!renderQueue.some((section) => section.key === 'hero_section') ? (
+          <HomeBrandAuthoritySection locale={locale} primaryHeading />
+        ) : null}
       </PublicLayout>
     </>
   );

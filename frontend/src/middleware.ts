@@ -104,6 +104,11 @@ function getCanonicalHostname(): string {
 
 export async function middleware(request: NextRequest) {
   const rawPathname = request.nextUrl.pathname;
+  if (rawPathname === '/en' || rawPathname.startsWith('/en/')) {
+    const url = request.nextUrl.clone();
+    url.pathname = rawPathname.slice(3) || '/';
+    return NextResponse.redirect(url, 308);
+  }
   const pathLocale = getLocaleFromPathname(rawPathname);
   const pathname = stripLocaleFromPathname(rawPathname);
   const forwardedSiteLocale = request.headers.get('x-site-locale');

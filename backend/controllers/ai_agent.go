@@ -103,11 +103,12 @@ type aiPricePreviewResponse struct {
 }
 
 type openAIChatRequest struct {
-	Model           string          `json:"model"`
-	Messages        []aiChatMessage `json:"messages"`
-	Temperature     float64         `json:"temperature"`
-	MaxTokens       int             `json:"max_tokens"`
-	ReasoningEffort string          `json:"reasoning_effort,omitempty"`
+	Model               string          `json:"model"`
+	Messages            []aiChatMessage `json:"messages"`
+	Temperature         *float64        `json:"temperature,omitempty"`
+	MaxTokens           *int            `json:"max_tokens,omitempty"`
+	MaxCompletionTokens *int            `json:"max_completion_tokens,omitempty"`
+	ReasoningEffort     string          `json:"reasoning_effort,omitempty"`
 }
 
 type openAIChatResponse struct {
@@ -158,12 +159,15 @@ const aiPriceImportMaxRows = 200
 func getOrCreateAIAgentSetting(db *gorm.DB) (*models.AIAgentSetting, error) {
 	var setting models.AIAgentSetting
 	if err := db.First(&setting, 1).Error; err == nil {
+		if setting.APIMode == "" {
+			setting.APIMode = aiAgentAPIModeStandard
+		}
 		return &setting, nil
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 	setting = models.AIAgentSetting{
-		ID: 1, BaseURL: "https://api.openai.com/v1", Model: "gpt-5.6-terra",
+		ID: 1, BaseURL: "https://api.openai.com/v1", Model: "gpt-5.6-terra", APIMode: aiAgentAPIModeStandard,
 		ReasoningEffort: "medium", TimeoutSeconds: 75, SEOJobConcurrency: 2, SEOCandidateLimit: 30000,
 		DefaultWarrantyPeriod: "12 months", DefaultLeadTime: "3-7 days",
 	}
@@ -174,32 +178,70 @@ func getOrCreateAIAgentSetting(db *gorm.DB) (*models.AIAgentSetting, error) {
 }
 
 func loadAIAgentConfig() (*models.AIAgentSetting, string, error) {
-	setting, err := getOrCreateAIAgentSetting(config.GetDB())
+	setting, _, apiKey, err := loadAIAgentConfigWithProfile()
+	return setting, apiKey, err
+}
+
+func loadAIAgentConfigWithProfile() (*models.AIAgentSetting, *models.AIAgentProfile, string, error) {
+	setting, profile, err := loadEffectiveAIAgentSetting(config.GetDB())
+	return decryptAIAgentConfig(setting, profile, err)
+}
+
+// loadAIAgentConfigForProfile is used by durable jobs. New interactive calls
+// pass nil and use the active profile; a saved profile ID keeps resumed work on
+// the same provider even when an administrator switches the global selection.
+func loadAIAgentConfigForProfile(profileID *uint) (*models.AIAgentSetting, *models.AIAgentProfile, string, error) {
+	if profileID == nil || *profileID == 0 {
+		return loadAIAgentConfigWithProfile()
+	}
+	db := config.GetDB()
+	setting, err := getOrCreateAIAgentSetting(db)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
+	}
+	var profile models.AIAgentProfile
+	if err := db.First(&profile, *profileID).Error; err != nil {
+		return nil, nil, "", fmt.Errorf("saved AI profile %d is unavailable: %w", *profileID, err)
+	}
+	effective := *setting
+	effective.ActiveProfileID = &profile.ID
+	copyAIAgentProfileToSetting(&effective, &profile)
+	return decryptAIAgentConfig(&effective, &profile, nil)
+}
+
+func decryptAIAgentConfig(setting *models.AIAgentSetting, profile *models.AIAgentProfile, err error) (*models.AIAgentSetting, *models.AIAgentProfile, string, error) {
+	if err != nil {
+		return nil, nil, "", err
 	}
 	if !setting.Enabled || strings.TrimSpace(setting.APIKeyEnc) == "" {
-		return setting, "", nil
+		return setting, profile, "", nil
 	}
 	key, err := utils.DecryptSecret(setting.APIKeyEnc)
 	if err != nil {
-		return nil, "", fmt.Errorf("could not decrypt saved AI API key: %w", err)
+		return nil, nil, "", fmt.Errorf("could not decrypt saved AI API key: %w", err)
 	}
-	return setting, key, nil
+	return setting, profile, key, nil
 }
 
 // Status deliberately excludes credentials and the full provider URL.
 func (ac *AIAgentController) Status(c *gin.Context) {
-	setting, _, err := loadAIAgentConfig()
+	setting, profile, _, err := loadAIAgentConfigWithProfile()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to load AI settings", Error: err.Error()})
 		return
 	}
 	u, _ := url.Parse(setting.BaseURL)
+	activeProfileName := ""
+	if profile != nil {
+		activeProfileName = profile.Name
+	}
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Data: gin.H{
 		"configured":              setting.Enabled && setting.APIKeyEnc != "",
+		"active_profile_id":       setting.ActiveProfileID,
+		"active_profile_name":     activeProfileName,
 		"model":                   setting.Model,
 		"provider":                u.Hostname(),
+		"api_mode":                setting.APIMode,
 		"reasoning_effort":        setting.ReasoningEffort,
 		"product_creation_ready":  aiProductCreationReady(setting),
 		"default_product_price":   setting.DefaultProductPrice,
@@ -211,12 +253,16 @@ func (ac *AIAgentController) Status(c *gin.Context) {
 // GetSettings and UpdateSettings are admin-only routes. Editors can use a saved AI
 // configuration but cannot see, replace, or clear the provider credential.
 func (ac *AIAgentController) GetSettings(c *gin.Context) {
-	setting, err := getOrCreateAIAgentSetting(config.GetDB())
+	setting, profile, err := loadEffectiveAIAgentSetting(config.GetDB())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to load AI settings", Error: err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Data: setting.ToResponse()})
+	response := setting.ToResponse()
+	if profile != nil {
+		response.ActiveProfileName = profile.Name
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Data: response})
 }
 
 type updateAIAgentSettingsRequest struct {
@@ -225,6 +271,7 @@ type updateAIAgentSettingsRequest struct {
 	APIKey                *string  `json:"api_key"`
 	ClearAPIKey           bool     `json:"clear_api_key"`
 	Model                 *string  `json:"model"`
+	APIMode               *string  `json:"api_mode"`
 	ReasoningEffort       *string  `json:"reasoning_effort"`
 	TimeoutSeconds        *int     `json:"timeout_seconds"`
 	SEOJobConcurrency     *int     `json:"seo_job_concurrency"`
@@ -234,64 +281,63 @@ type updateAIAgentSettingsRequest struct {
 	DefaultLeadTime       *string  `json:"default_lead_time"`
 }
 
-var allowedReasoningEfforts = map[string]bool{"": true, "none": true, "low": true, "medium": true, "high": true, "xhigh": true, "max": true}
-
 func (ac *AIAgentController) UpdateSettings(c *gin.Context) {
 	var req updateAIAgentSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid AI settings", Error: err.Error()})
 		return
 	}
-	setting, err := getOrCreateAIAgentSetting(config.GetDB())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to load AI settings", Error: err.Error()})
-		return
-	}
+
+	var encryptedAPIKey *string
 	if req.BaseURL != nil {
-		baseURL := strings.TrimRight(strings.TrimSpace(*req.BaseURL), "/")
-		parsed, parseErr := url.Parse(baseURL)
-		if parseErr != nil || parsed == nil || parsed.Hostname() == "" || (parsed.Scheme != "https" && parsed.Scheme != "http") {
-			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "AI base URL must be a valid HTTP(S) URL"})
+		baseURL, validationErr := normalizeAIAgentBaseURL(*req.BaseURL)
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid AI base URL", Error: validationErr.Error()})
 			return
 		}
-		setting.BaseURL = baseURL
+		req.BaseURL = &baseURL
 	}
 	if req.Model != nil {
-		model := trimField(*req.Model, 120)
-		if model == "" {
-			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Model is required"})
+		model, validationErr := normalizeAIAgentModel(*req.Model)
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid model", Error: validationErr.Error()})
 			return
 		}
-		setting.Model = model
+		req.Model = &model
+	}
+	if req.APIMode != nil {
+		apiMode, validationErr := normalizeAIAgentAPIMode(*req.APIMode)
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid API mode", Error: validationErr.Error()})
+			return
+		}
+		req.APIMode = &apiMode
 	}
 	if req.ReasoningEffort != nil {
-		effort := strings.ToLower(strings.TrimSpace(*req.ReasoningEffort))
-		if !allowedReasoningEfforts[effort] {
-			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Unsupported reasoning effort"})
+		effort, validationErr := normalizeAIAgentReasoningEffort(*req.ReasoningEffort)
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid reasoning effort", Error: validationErr.Error()})
 			return
 		}
-		setting.ReasoningEffort = effort
+		req.ReasoningEffort = &effort
 	}
 	if req.TimeoutSeconds != nil {
-		if *req.TimeoutSeconds < 15 || *req.TimeoutSeconds > 180 {
-			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Timeout must be between 15 and 180 seconds"})
+		if validationErr := validateAIAgentTimeout(*req.TimeoutSeconds); validationErr != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid timeout", Error: validationErr.Error()})
 			return
 		}
-		setting.TimeoutSeconds = *req.TimeoutSeconds
 	}
 	if req.SEOJobConcurrency != nil {
 		if *req.SEOJobConcurrency < 1 || *req.SEOJobConcurrency > 50 {
 			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "AI SEO concurrency must be between 1 and 50"})
 			return
 		}
-		setting.SEOJobConcurrency = *req.SEOJobConcurrency
 	}
 	if req.SEOCandidateLimit != nil {
 		if *req.SEOCandidateLimit < 1 || *req.SEOCandidateLimit > 30000 {
 			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "AI SEO candidate limit must be between 1 and 30000"})
 			return
 		}
-		setting.SEOCandidateLimit = *req.SEOCandidateLimit
 	}
 	if req.DefaultProductPrice != nil {
 		price, priceErr := strictPriceField(*req.DefaultProductPrice)
@@ -299,7 +345,7 @@ func (ac *AIAgentController) UpdateSettings(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Default product price must be 0 or a valid amount with at most two decimal places"})
 			return
 		}
-		setting.DefaultProductPrice = price
+		req.DefaultProductPrice = &price
 	}
 	if req.DefaultWarrantyPeriod != nil {
 		value := truncateRunes(strings.TrimSpace(*req.DefaultWarrantyPeriod), 50)
@@ -307,7 +353,7 @@ func (ac *AIAgentController) UpdateSettings(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Default warranty period is required"})
 			return
 		}
-		setting.DefaultWarrantyPeriod = value
+		req.DefaultWarrantyPeriod = &value
 	}
 	if req.DefaultLeadTime != nil {
 		value := truncateRunes(strings.TrimSpace(*req.DefaultLeadTime), 50)
@@ -315,31 +361,156 @@ func (ac *AIAgentController) UpdateSettings(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Default lead time is required"})
 			return
 		}
-		setting.DefaultLeadTime = value
-	}
-	if req.Enabled != nil {
-		setting.Enabled = *req.Enabled
-	}
-	if req.ClearAPIKey {
-		setting.APIKeyEnc = ""
+		req.DefaultLeadTime = &value
 	}
 	if req.APIKey != nil && strings.TrimSpace(*req.APIKey) != "" {
-		enc, encryptErr := utils.EncryptSecret(strings.TrimSpace(*req.APIKey))
+		apiKey, validationErr := normalizeAIAgentAPIKey(*req.APIKey)
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid AI API key", Error: validationErr.Error()})
+			return
+		}
+		enc, encryptErr := utils.EncryptSecret(apiKey)
 		if encryptErr != nil {
 			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Could not encrypt AI API key", Error: encryptErr.Error()})
 			return
 		}
-		setting.APIKeyEnc = enc
+		encryptedAPIKey = &enc
 	}
-	if setting.Enabled && strings.TrimSpace(setting.APIKeyEnc) == "" {
+
+	providerMutation := req.BaseURL != nil || req.Model != nil || req.APIMode != nil ||
+		req.ReasoningEffort != nil || req.TimeoutSeconds != nil || req.ClearAPIKey || encryptedAPIKey != nil
+	db := config.GetDB()
+	var setting *models.AIAgentSetting
+	var activeProfile *models.AIAgentProfile
+	err := db.Transaction(func(tx *gorm.DB) error {
+		currentSetting, err := getAIAgentSettingForUpdate(tx)
+		if err != nil {
+			return err
+		}
+		setting = currentSetting
+		activeProfile, err = getActiveAIAgentProfileForUpdate(tx, setting)
+		if err != nil {
+			return err
+		}
+		effective := *setting
+		if activeProfile != nil {
+			copyAIAgentProfileToSetting(&effective, activeProfile)
+		}
+
+		if req.BaseURL != nil {
+			effective.BaseURL = *req.BaseURL
+		}
+		if req.Model != nil {
+			effective.Model = *req.Model
+		}
+		if req.APIMode != nil {
+			effective.APIMode = *req.APIMode
+		}
+		if req.ReasoningEffort != nil {
+			effective.ReasoningEffort = *req.ReasoningEffort
+		}
+		if req.TimeoutSeconds != nil {
+			effective.TimeoutSeconds = *req.TimeoutSeconds
+		}
+		if req.ClearAPIKey {
+			effective.APIKeyEnc = ""
+		}
+		if encryptedAPIKey != nil {
+			effective.APIKeyEnc = *encryptedAPIKey
+		}
+		if req.Enabled != nil {
+			effective.Enabled = *req.Enabled
+		}
+		if effective.Enabled && strings.TrimSpace(effective.APIKeyEnc) == "" {
+			return errAIProfileNeedsAPIKey
+		}
+
+		if providerMutation && activeProfile != nil {
+			var activeJobs int64
+			if err := tx.Model(&models.AIAgentSEOJob{}).
+				Where("ai_profile_id = ? AND status IN ?", activeProfile.ID, []string{"queued", "running", "paused"}).
+				Count(&activeJobs).Error; err != nil {
+				return err
+			}
+			if activeJobs > 0 {
+				return errAIProfileInUse
+			}
+			copyAIAgentSettingToProfile(&effective, activeProfile)
+			if err := tx.Model(activeProfile).Updates(map[string]any{
+				"base_url":         activeProfile.BaseURL,
+				"api_key_enc":      activeProfile.APIKeyEnc,
+				"model":            activeProfile.Model,
+				"api_mode":         activeProfile.APIMode,
+				"reasoning_effort": activeProfile.ReasoningEffort,
+				"timeout_seconds":  activeProfile.TimeoutSeconds,
+			}).Error; err != nil {
+				return err
+			}
+		}
+
+		updates := map[string]any{}
+		if req.Enabled != nil {
+			setting.Enabled = effective.Enabled
+			updates["enabled"] = setting.Enabled
+		}
+		if req.SEOJobConcurrency != nil {
+			setting.SEOJobConcurrency = *req.SEOJobConcurrency
+			updates["seo_job_concurrency"] = setting.SEOJobConcurrency
+		}
+		if req.SEOCandidateLimit != nil {
+			setting.SEOCandidateLimit = *req.SEOCandidateLimit
+			updates["seo_candidate_limit"] = setting.SEOCandidateLimit
+		}
+		if req.DefaultProductPrice != nil {
+			setting.DefaultProductPrice = *req.DefaultProductPrice
+			updates["default_product_price"] = setting.DefaultProductPrice
+		}
+		if req.DefaultWarrantyPeriod != nil {
+			setting.DefaultWarrantyPeriod = *req.DefaultWarrantyPeriod
+			updates["default_warranty_period"] = setting.DefaultWarrantyPeriod
+		}
+		if req.DefaultLeadTime != nil {
+			setting.DefaultLeadTime = *req.DefaultLeadTime
+			updates["default_lead_time"] = setting.DefaultLeadTime
+		}
+		if providerMutation {
+			copyAIAgentProfileToSetting(setting, &models.AIAgentProfile{
+				BaseURL: effective.BaseURL, APIKeyEnc: effective.APIKeyEnc, Model: effective.Model,
+				APIMode: effective.APIMode, ReasoningEffort: effective.ReasoningEffort, TimeoutSeconds: effective.TimeoutSeconds,
+			})
+			updates["base_url"] = setting.BaseURL
+			updates["api_key_enc"] = setting.APIKeyEnc
+			updates["model"] = setting.Model
+			updates["api_mode"] = setting.APIMode
+			updates["reasoning_effort"] = setting.ReasoningEffort
+			updates["timeout_seconds"] = setting.TimeoutSeconds
+		}
+		if len(updates) == 0 {
+			return nil
+		}
+		return tx.Model(setting).Updates(updates).Error
+	})
+	if errors.Is(err, errAIProfileNeedsAPIKey) {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Save an API key before enabling the AI assistant"})
 		return
 	}
-	if err := config.GetDB().Save(setting).Error; err != nil {
+	if errors.Is(err, errAIProfileInUse) {
+		c.JSON(http.StatusConflict, models.APIResponse{Success: false, Message: "Finish the queued, running, or paused SEO job before changing this AI provider"})
+		return
+	}
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to save AI settings", Error: err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "AI settings saved", Data: setting.ToResponse()})
+	effectiveResponseSetting := *setting
+	if activeProfile != nil {
+		copyAIAgentProfileToSetting(&effectiveResponseSetting, activeProfile)
+	}
+	response := effectiveResponseSetting.ToResponse()
+	if activeProfile != nil {
+		response.ActiveProfileName = activeProfile.Name
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "AI settings saved", Data: response})
 }
 
 func (ac *AIAgentController) Chat(c *gin.Context) {
@@ -737,7 +908,7 @@ func buildAIPricePreview(rows []aiPriceImportRow, products []models.Product) aiP
 }
 
 func requestAIAgentCompletion(ctx context.Context, setting *models.AIAgentSetting, apiKey string, messages []aiChatMessage, maxTokens int) (string, error) {
-	payload, err := json.Marshal(openAIChatRequest{Model: setting.Model, Messages: messages, Temperature: 0.2, MaxTokens: maxTokens, ReasoningEffort: setting.ReasoningEffort})
+	payload, err := json.Marshal(buildOpenAIChatRequest(setting, messages, maxTokens))
 	if err != nil {
 		return "", err
 	}
@@ -769,6 +940,22 @@ func requestAIAgentCompletion(ctx context.Context, setting *models.AIAgentSettin
 		return "", errors.New("AI provider returned an invalid response")
 	}
 	return providerResponse.Choices[0].Message.Content, nil
+}
+
+func buildOpenAIChatRequest(setting *models.AIAgentSetting, messages []aiChatMessage, maxTokens int) openAIChatRequest {
+	request := openAIChatRequest{
+		Model:           setting.Model,
+		Messages:        messages,
+		ReasoningEffort: setting.ReasoningEffort,
+	}
+	if setting.APIMode == aiAgentAPIModeReasoning {
+		request.MaxCompletionTokens = &maxTokens
+		return request
+	}
+	temperature := 0.2
+	request.Temperature = &temperature
+	request.MaxTokens = &maxTokens
+	return request
 }
 
 // Apply runs only allow-listed catalogue writes. The proposal is revalidated against the

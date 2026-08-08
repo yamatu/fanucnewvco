@@ -156,7 +156,7 @@ export default function ContactPage() {
                     <li>10 professional sales staff</li>
                     <li>100,000+ items regularly stocked</li>
                     <li>50-100 daily parcels shipped worldwide</li>
-                    <li>200 million yearly turnover</li>
+                    <li>Part-number and model verification support</li>
                   </ul>
                 </div>
               </div>

@@ -137,28 +137,10 @@ export const DEFAULT_COMPANY_STATS_DATA: CompanyStatsData = {
       description: '50-100 parcels shipped daily',
       color: 'text-teal-700',
     },
-    {
-      id: 7,
-      icon: 'globe',
-      value: 200,
-      suffix: 'M',
-      label: 'Yearly Turnover',
-      description: 'Annual revenue in millions',
-      color: 'text-teal-700',
-    },
-    {
-      id: 8,
-      icon: 'clock',
-      value: 365,
-      suffix: ' days',
-      label: 'Professional Service',
-      description: 'Sales, testing and maintenance',
-      color: 'text-teal-700',
-    },
   ],
   ctaTitle: 'Ready to Experience Professional Service?',
   ctaDescription:
-    'We have a professional team to provide services including sales, testing and maintenance. Join thousands of satisfied customers worldwide.',
+    'Contact our team for model verification, parts sourcing, inspection requirements, repair evaluation and international delivery options.',
   ctaPrimary: { text: 'Contact Our Experts', href: '/contact' },
   ctaSecondary: { text: 'Browse Products', href: '/products' },
 };
@@ -208,7 +190,7 @@ export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
       image: 'https://s2.loli.net/2025/09/01/ZxuFKAvIM3zUHj4.jpg',
       features: [
         'Automated testing systems',
-        'Quality certification process',
+        'Documented inspection process',
         'Performance validation',
         'Compliance verification',
       ],
@@ -235,7 +217,7 @@ export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
         'Professional repair and refurbishment support for critical CNC and automation components.',
       image: 'https://s2.loli.net/2025/09/01/wMHu93Fv5egJ6pn.jpg',
       features: [
-        'Certified technicians',
+        'Experienced technicians',
         'Multi-brand repair procedures',
         'Advanced diagnostic tools',
         'Quality assurance testing',
@@ -257,18 +239,18 @@ export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
     },
   ],
   capabilities: [
-    { icon: 'cog', title: 'Advanced Manufacturing', description: 'Precision manufacturing with cutting-edge technology' },
-    { icon: 'clipboard', title: 'Quality Assurance', description: 'Rigorous testing and certification processes' },
+    { icon: 'cog', title: 'Parts Handling', description: 'Structured intake, identification, storage and order preparation' },
+    { icon: 'clipboard', title: 'Inspection Process', description: 'Documented visual inspection and supported functional checks' },
     { icon: 'truck', title: 'Global Logistics', description: 'Worldwide shipping and distribution network' },
-    { icon: 'check', title: 'ISO Certified', description: 'International quality management standards' },
+    { icon: 'check', title: 'Export Packing', description: 'Protective packing for industrial electronics and international transit' },
   ],
   statsBlock: {
     items: [
       { value: '3,500', title: 'Square Meters', subtitle: 'Parts inspection and service facility' },
-      { value: '24/7', title: 'Operations', subtitle: 'Continuous production' },
-      { value: 'ISO', title: 'Certified', subtitle: 'Quality standards' },
+      { value: '20+', title: 'Automation Brands', subtitle: 'Multi-brand parts and repair support' },
+      { value: 'Since 2007', title: 'Industry Support', subtitle: 'Serving industrial maintenance requirements' },
     ],
-    ctaTitle: 'Experience Our World-Class Facility',
+    ctaTitle: 'Review Our Parts Service Facility',
     ctaDescription:
       'Schedule a virtual tour or visit our facility to see how we manage inspection, storage and export packing.',
     ctaPrimary: { text: 'Schedule Tour', href: '/contact' },
@@ -313,7 +295,7 @@ export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
       title: 'Automation Parts Supply',
       description:
         'Comprehensive inventory including servo motors, drives, encoders, control systems and electronic modules.',
-      features: ['Tested parts', 'Fast delivery', 'Competitive pricing', 'Quality guarantee'],
+      features: ['Condition identified', 'Model verification', 'Quote-based lead time', 'Protective packing'],
       color: 'bg-teal-600',
       href: '/products',
     },
@@ -323,7 +305,7 @@ export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
       title: 'Repair Services',
       description:
         'Professional repair and refurbishment services for CNC and automation components.',
-      features: ['Expert technicians', 'Original procedures', 'Quality testing', 'Warranty included'],
+      features: ['Initial evaluation', 'Approved repair scope', 'Supported functional checks', 'Warranty terms stated'],
       color: 'bg-green-500',
       href: '/repair-request',
     },
@@ -333,7 +315,7 @@ export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
       title: 'Technical Support',
       description:
         'Technical assistance from automation parts specialists for troubleshooting and sourcing guidance.',
-      features: ['24/7 availability', 'Certified specialists', 'Remote diagnostics', 'Quick response'],
+      features: ['Part-number checks', 'Sourcing guidance', 'Application detail review', 'Contact-based support'],
       color: 'bg-purple-500',
       href: '/contact',
     },
@@ -343,7 +325,7 @@ export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
       title: 'Global Shipping',
       description:
         'Worldwide shipping and logistics services ensuring safe delivery of sensitive electronic components.',
-      features: ['Global coverage', 'Secure packaging', 'Express delivery', 'Tracking included'],
+      features: ['Carrier options', 'Protective export packing', 'Shipment tracking', 'Destination review'],
       color: 'bg-orange-500',
       href: '/contact',
     },
@@ -388,7 +370,7 @@ export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
     'Contact our experts today to discuss your automation parts needs and delivery requirements.',
   ctaPrimary: { text: 'Request a Repair Evaluation', href: '/repair-request' },
   ctaSecondary: { text: 'Browse Products', href: '/products' },
-  ctaBadges: ['24/7 Support Available', 'Worldwide Service', 'Quality Guaranteed'],
+  ctaBadges: ['Model Verification', 'Worldwide Delivery', 'Warranty Terms Stated'],
 };
 
 export type FeaturedProductsSectionData = {

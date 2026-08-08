@@ -19,6 +19,17 @@ export function generateOrganizationSchema(sameAs: string[] = []) {
     "description": "Vibocnc is an industrial automation parts and CNC spares supplier across 20+ brands, with model verification, inspection, repair support and worldwide shipping.",
     "url": baseUrl,
     "foundingDate": "2007",
+    "areaServed": "Worldwide",
+    "knowsAbout": [
+      "Industrial automation parts",
+      "CNC spare parts",
+      "PLC and I/O modules",
+      "HMI panels",
+      "Servo drives and motors",
+      "Industrial electronics inspection",
+      "Obsolete automation parts sourcing",
+      "Industrial electronics repair evaluation"
+    ],
     "logo": {
       "@type": "ImageObject",
       "url": `${baseUrl}/android-chrome-512x512.png`,
