@@ -426,10 +426,8 @@ func (ac *AIAgentController) UpdateSettings(c *gin.Context) {
 		}
 
 		if providerMutation && activeProfile != nil {
-			var activeJobs int64
-			if err := tx.Model(&models.AIAgentSEOJob{}).
-				Where("ai_profile_id = ? AND status IN ?", activeProfile.ID, []string{"queued", "running", "paused"}).
-				Count(&activeJobs).Error; err != nil {
+			activeJobs, err := countActiveAIAgentSEOJobsForProfile(tx, activeProfile.ID)
+			if err != nil {
 				return err
 			}
 			if activeJobs > 0 {

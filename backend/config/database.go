@@ -96,6 +96,13 @@ func ConnectDatabase() {
 
 	// Auto migrate the schema (can be disabled by DB_AUTO_MIGRATE=false)
 	if os.Getenv("DB_AUTO_MIGRATE") != "false" {
+		// Named AI profiles add columns to tables that may already contain years
+		// of settings and SEO job history. Repair those additive fields first so
+		// a benign error in the broader migration cannot leave a partial schema.
+		if err := migrateAIAgentProfileSchema(DB); err != nil {
+			log.Fatalf("Failed to migrate required AI profile schema: %v", err)
+		}
+
 		// Some hosted MySQLs have legacy constraints/index names that cause GORM to try dropping
 		// non-existent foreign keys (e.g., "uni_admin_users_username"). We migrate per-model and
 		// ignore harmless DROP errors to avoid hard-failing startup.
@@ -200,6 +207,12 @@ func ConnectDatabase() {
 		log.Println("Database migration completed (with tolerant drop handling)")
 	} else {
 		log.Println("DB_AUTO_MIGRATE=false, skipping AutoMigrate")
+		if missing := missingAIAgentProfileSchema(DB); len(missing) > 0 {
+			log.Printf(
+				"AI profile schema is incomplete (%s); run backend/migrations/20260808_add_ai_agent_profiles.sql before using AI profiles",
+				strings.Join(missing, ", "),
+			)
+		}
 	}
 
 	// Create default admin user if not exists

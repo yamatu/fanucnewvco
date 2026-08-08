@@ -37,6 +37,8 @@ var errAIProfileLimitReached = errors.New("AI profile limit reached")
 var errAIProfileKeyUnavailable = errors.New("active AI profile key is unavailable")
 var errAIProfileCrossProviderKeyReuse = errors.New("active AI profile key belongs to another provider")
 
+var activeAISEOJobStatuses = []string{"queued", "running", "paused"}
+
 type aiAgentProfileMutationRequest struct {
 	Name              *string `json:"name"`
 	BaseURL           *string `json:"base_url"`
@@ -47,6 +49,29 @@ type aiAgentProfileMutationRequest struct {
 	APIMode           *string `json:"api_mode"`
 	ReasoningEffort   *string `json:"reasoning_effort"`
 	TimeoutSeconds    *int    `json:"timeout_seconds"`
+}
+
+// Legacy SEO jobs created before named profiles have no ai_profile_id column.
+// In that state every active job is conservatively treated as using the
+// profile, which avoids an unknown-column error without weakening the mutation
+// lock. The explicit migration adds profile-scoped locking on the next deploy.
+func scopeActiveAIAgentSEOJobs(query *gorm.DB, profileID uint, hasProfileIDColumn bool) *gorm.DB {
+	query = query.Where("status IN ?", activeAISEOJobStatuses)
+	if hasProfileIDColumn {
+		query = query.Where("ai_profile_id = ?", profileID)
+	}
+	return query
+}
+
+func countActiveAIAgentSEOJobsForProfile(tx *gorm.DB, profileID uint) (int64, error) {
+	hasProfileIDColumn := tx.Migrator().HasColumn(&models.AIAgentSEOJob{}, "AIProfileID")
+	var count int64
+	err := scopeActiveAIAgentSEOJobs(
+		tx.Model(&models.AIAgentSEOJob{}),
+		profileID,
+		hasProfileIDColumn,
+	).Count(&count).Error
+	return count, err
 }
 
 func normalizeAIAgentProfileName(value string) (string, error) {
@@ -449,10 +474,8 @@ func (ac *AIAgentController) UpdateProfile(c *gin.Context) {
 		if exists {
 			return errAIProfileNameConflict
 		}
-		var activeJobs int64
-		if err := tx.Model(&models.AIAgentSEOJob{}).
-			Where("ai_profile_id = ? AND status IN ?", profileID, []string{"queued", "running", "paused"}).
-			Count(&activeJobs).Error; err != nil {
+		activeJobs, err := countActiveAIAgentSEOJobsForProfile(tx, profileID)
+		if err != nil {
 			return err
 		}
 		if activeJobs > 0 {
@@ -516,10 +539,8 @@ func (ac *AIAgentController) DeleteProfile(c *gin.Context) {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&profile, profileID).Error; err != nil {
 			return err
 		}
-		var activeJobs int64
-		if err := tx.Model(&models.AIAgentSEOJob{}).
-			Where("ai_profile_id = ? AND status IN ?", profileID, []string{"queued", "running", "paused"}).
-			Count(&activeJobs).Error; err != nil {
+		activeJobs, err := countActiveAIAgentSEOJobsForProfile(tx, profileID)
+		if err != nil {
 			return err
 		}
 		if activeJobs > 0 {
