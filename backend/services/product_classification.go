@@ -371,6 +371,18 @@ func categoryTypeMatchScore(pathNorm string, pathTokens []string, partType strin
 	}
 
 	switch {
+	case hasAllType("line", "reactor") || hasAllType("input", "choke"):
+		if hasPath("line", "input") && hasPath("reactor", "choke") {
+			return 38
+		}
+	case hasAllType("output", "reactor") || hasAllType("output", "choke"):
+		if hasPath("output") && hasPath("reactor", "choke") {
+			return 38
+		}
+	case hasAllType("output", "lc", "filter") || hasAllType("sine", "wave", "filter"):
+		if hasPath("filter") && ((hasPath("output") && hasPath("lc")) || (hasPath("sine") && hasPath("wave"))) {
+			return 38
+		}
 	case hasAllType("cable") || hasAllType("connector") || hasAllType("harness"):
 		if hasPath("cable", "connector", "harness", "plug", "socket") {
 			return 30
@@ -901,6 +913,12 @@ func inferGenericCategoryInference(brand string, model string) ProductCategoryIn
 	has := func(values ...string) bool { return classificationHasToken(tokens, values...) }
 	hasAll := func(values ...string) bool { return classificationHasAll(tokens, values...) }
 	switch {
+	case has("output") && has("lc", "sine") && has("filter"):
+		return ProductCategoryInference{BrandKey: brandKey, BrandName: brandName, PartType: "Output LC / Sine-wave Filter", CategorySlug: "output-lc-sine-wave-filters", MatchRule: "generic:output-filter-keyword"}
+	case has("output") && has("reactor", "choke"):
+		return ProductCategoryInference{BrandKey: brandKey, BrandName: brandName, PartType: "Output Reactor / Output Choke", CategorySlug: "output-reactors-chokes", MatchRule: "generic:output-reactor-keyword"}
+	case (has("line") && has("reactor")) || (has("input") && has("choke")):
+		return ProductCategoryInference{BrandKey: brandKey, BrandName: brandName, PartType: "Line Reactor / Input Choke", CategorySlug: "line-reactors-input-chokes", MatchRule: "generic:line-reactor-keyword"}
 	case (hasAll("variable", "frequency") && has("drive", "inverter")) || has("vfd"):
 		return ProductCategoryInference{BrandKey: brandKey, BrandName: brandName, PartType: "Variable Frequency Drive", CategorySlug: "variable-frequency-drives", MatchRule: "generic:vfd-keyword"}
 	case hasAll("circuit", "breaker"):
@@ -1046,6 +1064,12 @@ func inferSiemensCategoryInference(model string) ProductCategoryInference {
 	}
 	compact := compactModel(upper)
 	switch {
+	case strings.HasPrefix(compact, "6SE64003CC"):
+		return confirmedInference("siemens", "Line Reactor", "line-reactors", "siemens:model-micromaster-line-reactor", "")
+	case strings.HasPrefix(compact, "6SE64003TC"):
+		return confirmedInference("siemens", "Output Reactor", "output-reactors", "siemens:model-micromaster-output-reactor", "")
+	case strings.HasPrefix(compact, "6SE64003TD"):
+		return confirmedInference("siemens", "Output LC Filter", "output-lc-filters", "siemens:model-micromaster-output-lc-filter", "")
 	case strings.Contains(compact, "S71500") || strings.HasPrefix(upper, "6ES7-15") || strings.HasPrefix(compact, "6ES75"):
 		return confirmedInference("siemens", "Programmable Logic Controller", "s7-1500-plc-spare-parts", "siemens:family-s7-1500", "S7-1500")
 	case strings.Contains(compact, "S7300") || strings.HasPrefix(compact, "6ES73"):

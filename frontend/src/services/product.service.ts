@@ -79,6 +79,52 @@ export interface ProductOptimizationResponse {
   message: string;
 }
 
+export interface ProductCategoryOptimizationRequest {
+  product_ids?: number[];
+  category_id?: number;
+  brand?: string;
+  include_inactive?: boolean;
+  limit?: number;
+  after_id?: number;
+  use_web_search?: boolean;
+  create_missing_categories?: boolean;
+  activate_resolved?: boolean;
+}
+
+export interface ProductCategoryOptimizationItem {
+  product_id: number;
+  sku: string;
+  status: 'completed' | 'unresolved' | 'failed';
+  message: string;
+  brand?: string;
+  model?: string;
+  part_type?: string;
+  match_rule?: string;
+  category_id?: number;
+  category_path?: string;
+  category_created: boolean;
+  evidence?: Array<{ title: string; url: string; snippet: string }>;
+  inference?: {
+    brand_key: string;
+    brand_name: string;
+    part_type: string;
+    category_slug: string;
+    model_family?: string;
+    match_rule: string;
+  };
+}
+
+export interface ProductCategoryOptimizationResult {
+  processed: number;
+  completed: number;
+  unresolved: number;
+  failed: number;
+  categories_created: number;
+  has_more: boolean;
+  next_after_id?: number;
+  results?: ProductCategoryOptimizationItem[];
+}
+
 export interface BulkSelectionIdsResult {
   ids: number[];
   total: number;
@@ -549,6 +595,20 @@ export class ProductService {
     throw new Error(response.data.message || 'Failed to bulk optimize products');
   }
 
+  static async autoOptimizeCategories(
+    payload: ProductCategoryOptimizationRequest
+  ): Promise<ProductCategoryOptimizationResult> {
+    const response = await apiClient.post<APIResponse<ProductCategoryOptimizationResult>>(
+      '/admin/products/auto-optimize-categories',
+      payload,
+      // A batch can perform bounded public web lookups for unfamiliar models.
+      // Do not let the global 60-second API timeout interrupt that work.
+      { timeout: 0 }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || response.data.error || 'Failed to optimize product categories');
+  }
+
   static async getAdminProductSelectionIds(payload: {
     ids?: number[];
     skus?: string[];
@@ -558,6 +618,7 @@ export class ProductService {
     status?: 'active' | 'inactive' | 'all' | '';
     featured?: 'true' | 'false' | '';
     brand?: string;
+    ai_seo_status?: 'optimized' | 'not_optimized' | 'running' | 'failed';
     batch_size?: number;
   }): Promise<BulkSelectionIdsResult> {
     const response = await apiClient.post<APIResponse<BulkSelectionIdsResult>>('/admin/products/selection-ids', payload);

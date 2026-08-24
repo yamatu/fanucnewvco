@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -15,6 +17,45 @@ func TestParseProductWebEvidence(t *testing.T) {
 	results := parseProductWebEvidence(html, "https://html.duckduckgo.com/html/")
 	if len(results) != 1 || results[0].Title != "ABB ACS800-104 Drive" {
 		t.Fatalf("unexpected search evidence: %#v", results)
+	}
+}
+
+func TestProductEvidenceEndpointsPrioritizeSiemensOfficialLookup(t *testing.T) {
+	model := "6SE6400-3CC04-4DD0"
+	endpoints := productEvidenceEndpoints("Siemens", model)
+	if len(endpoints) < 5 {
+		t.Fatalf("expected Siemens official and public-search endpoints, got %#v", endpoints)
+	}
+	if !endpoints[0].SiemensOfficial || !strings.HasSuffix(endpoints[0].URL, "/6SE64003CC044DD0") {
+		t.Fatalf("expected direct Siemens Industry Mall lookup first, got %#v", endpoints[0])
+	}
+	parsed, err := url.Parse(endpoints[1].URL)
+	if err != nil {
+		t.Fatalf("parse Siemens site-query endpoint: %v", err)
+	}
+	query := parsed.Query().Get("q")
+	for _, expected := range []string{model, "6SE64003CC044DD0", "site:mall.industry.siemens.com", "site:support.industry.siemens.com"} {
+		if !strings.Contains(query, expected) {
+			t.Fatalf("official Siemens query %q is missing %q", query, expected)
+		}
+	}
+}
+
+func TestProductEvidenceEndpointsRecognizeSiemens6SEWithoutBrand(t *testing.T) {
+	endpoints := productEvidenceEndpoints("", "6SE6400-3TD01-0CE0")
+	if len(endpoints) == 0 || !endpoints[0].SiemensOfficial {
+		t.Fatalf("expected a 6SE model to use Siemens official lookup: %#v", endpoints)
+	}
+}
+
+func TestParseSiemensOfficialProductEvidenceRequiresExactModel(t *testing.T) {
+	html := `<html><head><title>Product Details - Industry Mall - Siemens WW</title></head><body>6SE6400-3TC03-2CD3 MICROMASTER 4 Output reactor 200-480V 3AC 26A</body></html>`
+	results := parseSiemensOfficialProductEvidence(html, "https://mall.industry.siemens.com/example", "6SE6400-3TC03-2CD3")
+	if len(results) != 1 || !strings.Contains(results[0].Title, "Siemens") || !containsExactProductIdentifier(ProductWebEvidenceText(results), "6SE6400-3TC03-2CD3") {
+		t.Fatalf("unexpected Siemens official evidence: %#v", results)
+	}
+	if wrong := parseSiemensOfficialProductEvidence(html, "https://mall.industry.siemens.com/example", "6SE6400-3TC03-2CD4"); len(wrong) != 0 {
+		t.Fatalf("neighboring Siemens model must not be accepted: %#v", wrong)
 	}
 }
 

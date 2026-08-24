@@ -47,6 +47,11 @@ type productWebSearchCall struct {
 
 type productWebSearchRunner func(context.Context, string, string) ([]ProductWebEvidence, error)
 
+type productEvidenceEndpoint struct {
+	URL             string
+	SiemensOfficial bool
+}
+
 // productWebSearchManager keeps public-search traffic bounded across all
 // imports and background jobs in this process. It also coalesces identical
 // lookups so a batch containing the same part number does not fan out into
@@ -237,20 +242,13 @@ func cloneProductWebEvidence(results []ProductWebEvidence) []ProductWebEvidence 
 }
 
 func searchProductEvidenceUncached(ctx context.Context, brand, model string) ([]ProductWebEvidence, error) {
-	query := fmt.Sprintf("\"%s\" %s industrial automation", model, brand)
-	if brand == "" {
-		query = fmt.Sprintf("\"%s\" industrial automation part", model)
-	}
-	endpoints := []string{
-		"https://html.duckduckgo.com/html/?q=" + url.QueryEscape(query),
-		"https://www.bing.com/search?q=" + url.QueryEscape(query),
-	}
+	endpoints := productEvidenceEndpoints(brand, model)
 
 	searchCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	var lastErr error
 	for _, endpoint := range endpoints {
-		parsed, err := validatePublicHTTPURL(endpoint)
+		parsed, err := validatePublicHTTPURL(endpoint.URL)
 		if err != nil {
 			lastErr = err
 			continue
@@ -277,7 +275,12 @@ func searchProductEvidenceUncached(ctx context.Context, brand, model string) ([]
 			lastErr = fmt.Errorf("search provider returned HTTP %d", resp.StatusCode)
 			continue
 		}
-		results := parseProductWebEvidence(string(body), endpoint)
+		var results []ProductWebEvidence
+		if endpoint.SiemensOfficial {
+			results = parseSiemensOfficialProductEvidence(string(body), endpoint.URL, model)
+		} else {
+			results = parseProductWebEvidence(string(body), endpoint.URL)
+		}
 		if len(results) > 0 {
 			return results, nil
 		}
@@ -287,6 +290,64 @@ func searchProductEvidenceUncached(ctx context.Context, brand, model string) ([]
 		lastErr = fmt.Errorf("no product search results")
 	}
 	return nil, lastErr
+}
+
+func productEvidenceEndpoints(brand, model string) []productEvidenceEndpoint {
+	query := fmt.Sprintf("\"%s\" %s industrial automation", model, brand)
+	if brand == "" {
+		query = fmt.Sprintf("\"%s\" industrial automation part", model)
+	}
+	endpoints := make([]productEvidenceEndpoint, 0, 6)
+	compact := compactProductIdentifier(model)
+	if NormalizeBrandKey(brand) == "siemens" || strings.HasPrefix(compact, "6SE") {
+		// Siemens Industry Mall accepts the market-facing article number without
+		// punctuation in the product URL. Query it before public search engines so
+		// discontinued/spare-part pages remain discoverable even when they rank
+		// poorly in general web search.
+		if compact != "" {
+			endpoints = append(endpoints, productEvidenceEndpoint{
+				URL:             "https://mall.industry.siemens.com/mall/en/ww/Catalog/Product/" + url.PathEscape(compact),
+				SiemensOfficial: true,
+			})
+		}
+		officialQuery := fmt.Sprintf("(\"%s\" OR \"%s\") Siemens (site:mall.industry.siemens.com OR site:support.industry.siemens.com)", model, compact)
+		endpoints = append(endpoints,
+			productEvidenceEndpoint{URL: "https://html.duckduckgo.com/html/?q=" + url.QueryEscape(officialQuery)},
+			productEvidenceEndpoint{URL: "https://www.bing.com/search?q=" + url.QueryEscape(officialQuery)},
+		)
+	}
+	endpoints = append(endpoints,
+		productEvidenceEndpoint{URL: "https://html.duckduckgo.com/html/?q=" + url.QueryEscape(query)},
+		productEvidenceEndpoint{URL: "https://www.bing.com/search?q=" + url.QueryEscape(query)},
+	)
+	return endpoints
+}
+
+func parseSiemensOfficialProductEvidence(html, sourceURL, model string) []ProductWebEvidence {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil
+	}
+	bodyText := strings.Join(strings.Fields(doc.Find("body").Text()), " ")
+	if !containsExactProductIdentifier(bodyText, model) {
+		return nil
+	}
+	title := strings.TrimSpace(doc.Find("title").First().Text())
+	if title == "" {
+		title = "Siemens Industry Mall"
+	} else if !strings.Contains(strings.ToLower(title), "siemens") {
+		title = "Siemens Industry Mall - " + title
+	}
+	description, _ := doc.Find(`meta[name="description"]`).First().Attr("content")
+	description = strings.Join(strings.Fields(description), " ")
+	if !containsExactProductIdentifier(description, model) {
+		description = model + " - " + limitLen(bodyText, 640)
+	}
+	return []ProductWebEvidence{{
+		Title:   limitLen(title, 300),
+		URL:     limitLen(sourceURL, 1000),
+		Snippet: limitLen(description, 700),
+	}}
 }
 
 func parseProductWebEvidence(html, sourceURL string) []ProductWebEvidence {
