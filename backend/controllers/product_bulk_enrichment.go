@@ -23,6 +23,7 @@ type bulkProductScopeReq struct {
 	Status             string   `json:"status"`
 	Featured           string   `json:"featured"`
 	Brand              string   `json:"brand"`
+	AISEOStatus        string   `json:"ai_seo_status"`
 	BatchSize          int      `json:"batch_size"`
 }
 
@@ -57,6 +58,12 @@ func buildBulkProductSelector(db *gorm.DB, req bulkProductScopeReq) *gorm.DB {
 
 	if brand := services.CanonicalBrandName(req.Brand); strings.TrimSpace(req.Brand) != "" {
 		selector = selector.Where("LOWER(brand) = LOWER(?)", brand)
+	}
+	switch strings.ToLower(strings.TrimSpace(req.AISEOStatus)) {
+	case "optimized", "failed", "running":
+		selector = selector.Where("ai_seo_status = ?", strings.ToLower(strings.TrimSpace(req.AISEOStatus)))
+	case "not_optimized":
+		selector = selector.Where("ai_seo_status IS NULL OR ai_seo_status = ''")
 	}
 	return selector
 }

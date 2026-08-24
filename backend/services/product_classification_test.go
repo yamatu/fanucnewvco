@@ -155,6 +155,40 @@ func TestSiemensUnknown6ESFamilyIsNotForcedIntoIO(t *testing.T) {
 	}
 }
 
+func TestSiemensMicromasterAccessoryFamilies(t *testing.T) {
+	tests := []struct {
+		model    string
+		partType string
+		path     string
+	}{
+		{model: "6SE6400-3CC02-6BB3", partType: "Line Reactor", path: "Siemens > Line Reactors"},
+		{model: "6SE6400-3CC04-4DD0", partType: "Line Reactor", path: "Siemens > Line Reactors"},
+		{model: "6SE6400-3CC03-5CD0", partType: "Line Reactor", path: "Siemens > Line Reactors"},
+		{model: "6SE6400-3CC08-3ED0", partType: "Line Reactor", path: "Siemens > Line Reactors"},
+		{model: "6SE6400-3TC03-2CD3", partType: "Output Reactor", path: "Siemens > Output Reactors"},
+		{model: "6SE6400-3TC14-5FD0", partType: "Output Reactor", path: "Siemens > Output Reactors"},
+		{model: "6SE6400-3TD01-0CE0", partType: "Output LC Filter", path: "Siemens > Output LC Filters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.model, func(t *testing.T) {
+			inference := InferProductCategory("", tt.model)
+			if !IsConfirmedProductCategory(inference, tt.model) {
+				t.Fatalf("known Siemens MICROMASTER accessory should be confirmed: %#v", inference)
+			}
+			if inference.BrandKey != "siemens" || inference.PartType != tt.partType {
+				t.Fatalf("unexpected inference: %#v", inference)
+			}
+			if !CategoryPathMatchesInference(tt.path, inference) {
+				t.Fatalf("path %q should match: %#v", tt.path, inference)
+			}
+			if CategoryPathMatchesInference("Siemens > Variable Frequency Drives", inference) {
+				t.Fatalf("MICROMASTER accessory must not be classified as a VFD: %#v", inference)
+			}
+		})
+	}
+}
+
 func TestGenericTopLevelCategoryIsNotAutomaticTarget(t *testing.T) {
 	inference := InferProductCategory("ABB", "ACS800-104")
 	if CategoryPathMatchesInference("Variable Frequency Drives", inference) {

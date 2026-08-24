@@ -25,6 +25,7 @@ import MediaPickerModal from '@/components/admin/MediaPickerModal';
 import { ProductService, CategoryService } from '@/services';
 import { AIAgentService, type AIAgentSEOFocus, type AIAgentSEOJob } from '@/services/ai-agent.service';
 import type {
+  ProductCategoryOptimizationResult,
   ProductImportResult,
   ProductImportTaskSnapshot,
   ProductOptimizationStatus,
@@ -44,6 +45,7 @@ type BulkSelectionPayload = {
   status?: 'active' | 'inactive' | 'all' | '';
   featured?: 'true' | 'false' | '';
   brand?: string;
+  ai_seo_status?: AISEOFilter;
   batch_size?: number;
 };
 
@@ -61,7 +63,23 @@ type BulkProgress = {
 
 type AISEOFilter = 'all' | 'optimized' | 'not_optimized' | 'running' | 'failed';
 
+type CategoryOptimizationProgress = {
+  status: 'idle' | 'preparing' | 'running' | 'completed' | 'failed';
+  processed: number;
+  total: number;
+  completed: number;
+  unresolved: number;
+  failed: number;
+  categoriesCreated: number;
+  currentBatch: number;
+  totalBatches: number;
+  message: string;
+};
+
 const AI_SEO_MAX_PRODUCTS = 30000;
+// Keep each synchronous request bounded even when every product needs a
+// public lookup. The page automatically continues with the next batch.
+const CATEGORY_OPTIMIZATION_BATCH_SIZE = 50;
 
 const AI_SEO_FOCUS_COPY: Record<AIAgentSEOFocus, { zh: string; en: string; instruction: string }> = {
   all: { zh: '全部字段', en: 'All fields', instruction: 'Optimize all supported product fields, including taxonomy, SEO metadata, and product content.' },
@@ -99,6 +117,18 @@ function AdminProductsContent() {
   const [activeAISEOJob, setActiveAISEOJob] = useState<AIAgentSEOJob | null>(null);
   const [isPausingAISEOJob, setIsPausingAISEOJob] = useState(false);
   const [isStartingAISEOJob, setIsStartingAISEOJob] = useState(false);
+  const [categoryOptimizationProgress, setCategoryOptimizationProgress] = useState<CategoryOptimizationProgress>({
+    status: 'idle',
+    processed: 0,
+    total: 0,
+    completed: 0,
+    unresolved: 0,
+    failed: 0,
+    categoriesCreated: 0,
+    currentBatch: 0,
+    totalBatches: 0,
+    message: '',
+  });
 
   // Product/quote import modal
   const [showImportModal, setShowImportModal] = useState(false);
@@ -281,6 +311,9 @@ function AdminProductsContent() {
   const products = productsData?.data || []; // Use empty array if no data
   const totalPages = productsData?.total_pages || 1;
   const totalProducts = productsData?.total || 0;
+  // Products are already filtered and paginated by the admin API.
+  const filteredProducts = products;
+  const selectedCurrentPageIds = selectedIds.filter((id) => filteredProducts.some((product) => product.id === id));
 
   // Restore scroll position after data is loaded and page is rendered
   useEffect(() => {
@@ -414,6 +447,7 @@ function AdminProductsContent() {
     category_id: selectedCategory || undefined,
     include_descendants: Boolean(selectedCategory),
     brand: selectedBrand || undefined,
+    ai_seo_status: aiSEOFilter === 'all' ? undefined : aiSEOFilter,
     status: (statusFilter === 'all' || statusFilter === 'featured') ? 'all' : (statusFilter as 'active' | 'inactive'),
     featured: (statusFilter === 'featured') ? 'true' : undefined,
   });
@@ -425,6 +459,133 @@ function AdminProductsContent() {
       ? { ...buildSelectAllPayload(), brand: effectiveBulkBrand }
       : { ids: selectedIds, brand: effectiveBulkBrand }
   );
+
+  const isCategoryOptimizationRunning = categoryOptimizationProgress.status === 'preparing'
+    || categoryOptimizationProgress.status === 'running';
+
+  const optimizeProductCategories = async () => {
+    if (isCategoryOptimizationRunning) return;
+
+    const explicitIDs = !selectAllResults && selectedCurrentPageIds.length > 0
+      ? selectedCurrentPageIds
+      : null;
+    const scopeCount = explicitIDs?.length || totalProducts;
+    if (scopeCount <= 0) {
+      toast.error(locale === 'zh' ? '当前范围内没有可优化分类的产品' : 'There are no products to classify in the current scope');
+      return;
+    }
+
+    const confirmed = window.confirm(locale === 'zh'
+      ? `将自动优化 ${scopeCount.toLocaleString()} 个产品的分类。系统会按产品名称、完整型号、品牌和类型识别；必要时联网检索，并可在品牌下创建不重复的类型分类。确认开始吗？`
+      : `Automatically classify ${scopeCount.toLocaleString()} products using product name, full model, brand, and type. The system may search the web and create non-duplicate type categories under a brand when needed. Start now?`);
+    if (!confirmed) return;
+
+    setCategoryOptimizationProgress({
+      status: 'preparing',
+      processed: 0,
+      total: scopeCount,
+      completed: 0,
+      unresolved: 0,
+      failed: 0,
+      categoriesCreated: 0,
+      currentBatch: 0,
+      totalBatches: Math.max(1, Math.ceil(scopeCount / CATEGORY_OPTIMIZATION_BATCH_SIZE)),
+      message: locale === 'zh' ? '正在准备当前筛选范围…' : 'Preparing the current filtered scope…',
+    });
+
+    try {
+      const selection = explicitIDs
+        ? { ids: explicitIDs, total: explicitIDs.length }
+        : await ProductService.getAdminProductSelectionIds({
+            ...buildSelectAllPayload(),
+            batch_size: CATEGORY_OPTIMIZATION_BATCH_SIZE,
+          });
+      const ids = selection.ids;
+      if (ids.length === 0) {
+        throw new Error(locale === 'zh' ? '当前筛选范围内没有找到产品' : 'No products matched the current filters');
+      }
+
+      const totalBatches = Math.ceil(ids.length / CATEGORY_OPTIMIZATION_BATCH_SIZE);
+      let aggregate: ProductCategoryOptimizationResult = {
+        processed: 0,
+        completed: 0,
+        unresolved: 0,
+        failed: 0,
+        categories_created: 0,
+        has_more: false,
+      };
+      setCategoryOptimizationProgress((previous) => ({
+        ...previous,
+        status: 'running',
+        total: ids.length,
+        totalBatches,
+        message: locale === 'zh' ? `正在处理第 1/${totalBatches} 批…` : `Processing batch 1 of ${totalBatches}…`,
+      }));
+
+      for (let offset = 0; offset < ids.length; offset += CATEGORY_OPTIMIZATION_BATCH_SIZE) {
+        const productIDs = ids.slice(offset, offset + CATEGORY_OPTIMIZATION_BATCH_SIZE);
+        const batchNumber = Math.floor(offset / CATEGORY_OPTIMIZATION_BATCH_SIZE) + 1;
+        setCategoryOptimizationProgress((previous) => ({
+          ...previous,
+          currentBatch: batchNumber,
+          message: locale === 'zh'
+            ? `正在处理第 ${batchNumber}/${totalBatches} 批，陌生型号会联网核实…`
+            : `Processing batch ${batchNumber} of ${totalBatches}; unfamiliar models will be verified online…`,
+        }));
+
+        const result = await ProductService.autoOptimizeCategories({
+          product_ids: productIDs,
+          include_inactive: true,
+          limit: CATEGORY_OPTIMIZATION_BATCH_SIZE,
+          use_web_search: true,
+          create_missing_categories: true,
+          activate_resolved: true,
+        });
+        aggregate = {
+          processed: aggregate.processed + (result.processed || 0),
+          completed: aggregate.completed + (result.completed || 0),
+          unresolved: aggregate.unresolved + (result.unresolved || 0),
+          failed: aggregate.failed + (result.failed || 0),
+          categories_created: aggregate.categories_created + (result.categories_created || 0),
+          has_more: false,
+        };
+        setCategoryOptimizationProgress({
+          status: 'running',
+          processed: aggregate.processed,
+          total: ids.length,
+          completed: aggregate.completed,
+          unresolved: aggregate.unresolved,
+          failed: aggregate.failed,
+          categoriesCreated: aggregate.categories_created,
+          currentBatch: batchNumber,
+          totalBatches,
+          message: locale === 'zh'
+            ? `已完成第 ${batchNumber}/${totalBatches} 批`
+            : `Completed batch ${batchNumber} of ${totalBatches}`,
+        });
+      }
+
+      setCategoryOptimizationProgress((previous) => ({
+        ...previous,
+        status: 'completed',
+        message: locale === 'zh' ? '自动分类优化已完成' : 'Automatic category optimization completed',
+      }));
+      setSelectedIds([]);
+      setSelectAllResults(false);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() }),
+        queryClient.invalidateQueries({ queryKey: ['admin', 'products', 'optimization-status'] }),
+      ]);
+      toast.success(locale === 'zh'
+        ? `分类优化完成：成功 ${aggregate.completed}，未识别 ${aggregate.unresolved}，失败 ${aggregate.failed}，新建分类 ${aggregate.categories_created}`
+        : `Category optimization completed: ${aggregate.completed} resolved, ${aggregate.unresolved} unresolved, ${aggregate.failed} failed, ${aggregate.categories_created} categories created`);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, locale === 'zh' ? '自动分类优化失败' : 'Automatic category optimization failed');
+      setCategoryOptimizationProgress((previous) => ({ ...previous, status: 'failed', message }));
+      toast.error(message);
+    }
+  };
 
   const bulkApplyDefaultImages = () => {
     if (!selectAllResults && selectedIds.length === 0) { toast.error(t('products.toast.selectOne', locale === 'zh' ? '请至少选择一个产品' : 'Select at least one product')); return; }
@@ -782,10 +943,6 @@ function AdminProductsContent() {
       toast.error(getErrorMessage(error, t('products.toast.bulkFailed', locale === 'zh' ? '批量更新失败' : 'Bulk update failed')));
     }
   };
-
-  // Use products directly from API (already filtered and paginated)
-  const filteredProducts = products;
-  const selectedCurrentPageIds = selectedIds.filter((id) => filteredProducts.some((product) => product.id === id));
 
   const stopAISEOPolling = () => {
     if (aiSEOPollRef.current) {
@@ -1326,6 +1483,23 @@ function AdminProductsContent() {
               </button>
 
               <button
+                type="button"
+                onClick={() => void optimizeProductCategories()}
+                className="inline-flex items-center rounded-lg bg-cyan-700 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isCategoryOptimizationRunning || totalProducts === 0}
+                title={locale === 'zh'
+                  ? '有勾选时处理已选商品；没有勾选时处理当前搜索、分类、品牌和状态筛选范围。无法识别的商品保持停用。'
+                  : 'Processes checked products, or the current search, category, brand, and status filters when none are checked. Unresolved products remain inactive.'}
+              >
+                <SparklesIcon className={`mr-2 h-4 w-4 ${isCategoryOptimizationRunning ? 'animate-spin' : ''}`} />
+                {isCategoryOptimizationRunning
+                  ? (locale === 'zh' ? '正在优化分类…' : 'Optimizing categories…')
+                  : selectedCurrentPageIds.length > 0 && !selectAllResults
+                    ? (locale === 'zh' ? `自动优化分类（已选 ${selectedCurrentPageIds.length}）` : `Auto-classify (${selectedCurrentPageIds.length} selected)`)
+                    : (locale === 'zh' ? `自动优化分类（当前筛选 ${totalProducts}）` : `Auto-classify (${totalProducts} filtered)`)}
+              </button>
+
+              <button
                 onClick={() => {
                   if (selectAllResults && totalProducts > AI_SEO_MAX_PRODUCTS) {
                     toast.error(locale === 'zh' ? `当前筛选结果超过 ${AI_SEO_MAX_PRODUCTS.toLocaleString()} 个，请缩小范围后再启动 AI SEO。` : `The current filter exceeds ${AI_SEO_MAX_PRODUCTS.toLocaleString()} products. Narrow the scope before starting AI SEO.`);
@@ -1422,6 +1596,46 @@ function AdminProductsContent() {
                   ? `已选择全部筛选结果。AI SEO 将按当前搜索、分类、品牌和状态筛选通过候选接口处理，最多 ${AI_SEO_MAX_PRODUCTS.toLocaleString()} 个；已优化商品也会按提示词重新处理。`
                   : `All filtered results are selected. AI SEO will use the candidate endpoint with the current search, category, brand, and status scope, up to ${AI_SEO_MAX_PRODUCTS.toLocaleString()}; optimized products are included for rewrites.`}
               </p>
+            )}
+            {categoryOptimizationProgress.status !== 'idle' && (
+              <div className={`mt-4 rounded-lg border p-4 ${
+                categoryOptimizationProgress.status === 'failed'
+                  ? 'border-rose-200 bg-rose-50'
+                  : categoryOptimizationProgress.status === 'completed'
+                    ? 'border-cyan-200 bg-cyan-50'
+                    : 'border-cyan-200 bg-cyan-50/70'
+              }`}>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">{locale === 'zh' ? '自动分类优化进度' : 'Automatic category optimization'}</div>
+                    <div className="mt-1 text-xs text-gray-600">{categoryOptimizationProgress.message}</div>
+                  </div>
+                  <div className="text-xs font-medium text-cyan-800">
+                    {categoryOptimizationProgress.totalBatches > 0
+                      ? (locale === 'zh'
+                        ? `批次 ${categoryOptimizationProgress.currentBatch}/${categoryOptimizationProgress.totalBatches}`
+                        : `Batch ${categoryOptimizationProgress.currentBatch}/${categoryOptimizationProgress.totalBatches}`)
+                      : null}
+                  </div>
+                </div>
+                <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/90">
+                  <div
+                    className="h-full rounded-full bg-cyan-600 transition-all"
+                    style={{
+                      width: `${categoryOptimizationProgress.total > 0
+                        ? Math.min(100, Math.round((categoryOptimizationProgress.processed / categoryOptimizationProgress.total) * 100))
+                        : 0}%`,
+                    }}
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-3 text-sm text-gray-700">
+                  <span>{locale === 'zh' ? '已处理' : 'Processed'}: {categoryOptimizationProgress.processed}/{categoryOptimizationProgress.total}</span>
+                  <span className="text-emerald-700">{locale === 'zh' ? '已完成' : 'Resolved'}: {categoryOptimizationProgress.completed}</span>
+                  <span className="text-amber-700">{locale === 'zh' ? '未识别' : 'Unresolved'}: {categoryOptimizationProgress.unresolved}</span>
+                  <span className="text-rose-700">{locale === 'zh' ? '失败' : 'Failed'}: {categoryOptimizationProgress.failed}</span>
+                  <span className="text-cyan-800">{locale === 'zh' ? '新建分类' : 'Categories created'}: {categoryOptimizationProgress.categoriesCreated}</span>
+                </div>
+              </div>
             )}
             {activeAISEOJob && (
               <div className={`mt-4 rounded-lg border p-4 ${

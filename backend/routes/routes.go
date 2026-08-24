@@ -209,6 +209,7 @@ func SetupRoutes(r *gin.Engine) {
 				products.GET("/optimization-status", productOptimizationController.GetOptimizationStatus)
 				products.POST("/optimize", productOptimizationController.OptimizeProduct)
 				products.POST("/bulk-optimize", productOptimizationController.BulkOptimizeProducts)
+				products.POST("/auto-optimize-categories", middleware.AdminOnly(), productOptimizationController.AutoOptimizeProductCategories)
 
 				// Bulk: apply/remove default watermark image URL
 				products.PUT("/bulk-default-image/apply", productController.BulkApplyDefaultImage)
