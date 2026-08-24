@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -54,9 +56,18 @@ func optimizeProductAfterSaveWithCategoryMap(db *gorm.DB, productID uint, catByS
 	}
 
 	inference := services.InferProductCategory(brandInput, model)
+	if !services.IsConfirmedProductCategory(inference, model) {
+		searchCtx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+		inference, _, _ = services.ResolveProductCategoryWithWebEvidence(searchCtx, brandInput, model)
+		cancel()
+	}
+	if (services.NormalizeBrandKey(brandInput) == "" || services.NormalizeBrandKey(brandInput) == "unknown") && inference.BrandKey != "" && inference.BrandKey != "unknown" {
+		brandInput = inference.BrandKey
+	}
+	brandName = services.CanonicalBrandName(brandInput)
 	updateData := map[string]any{}
 
-	if brandName != "" && (strings.TrimSpace(product.Brand) == "" || strings.TrimSpace(opts.BrandOverride) != "") {
+	if brandName != "" && (services.NormalizeBrandKey(product.Brand) == "" || strings.TrimSpace(opts.BrandOverride) != "") {
 		updateData["brand"] = brandName
 		product.Brand = brandName
 	}
@@ -69,15 +80,32 @@ func optimizeProductAfterSaveWithCategoryMap(db *gorm.DB, productID uint, catByS
 		product.PartNumber = model
 	}
 
-	if catBySlug == nil {
-		catBySlug = categorySlugMap(db)
-	}
-	if categoryID := catBySlug[inference.CategorySlug]; categoryID != 0 && (product.CategoryID == 0 || (opts.ForceCategory && product.CategoryID != categoryID)) {
-		updateData["category_id"] = categoryID
-		product.CategoryID = categoryID
+	// Automatic optimization shares the same publication gate as imports and
+	// AI SEO jobs. A slug-only lookup could silently route an unknown model into
+	// a generic node, so resolve the active leaf from the complete brand/type
+	// path instead.
+	if !services.IsConfirmedProductCategory(inference, model) {
+		_, categoryChanged := updateData["category_id"]
+		if product.IsActive || categoryChanged {
+			updateData["is_active"] = false
+			product.IsActive = false
+		}
+	} else {
+		categoryID, categoryErr := services.ResolveExistingCategoryForInference(db, inference, product.Category.Name)
+		if categoryErr != nil || categoryID == 0 {
+			// A recognized model is still not publishable unless the active
+			// taxonomy contains a compatible leaf. Keep the record for review.
+			if product.IsActive {
+				updateData["is_active"] = false
+				product.IsActive = false
+			}
+		} else if product.CategoryID == 0 || product.CategoryID != categoryID {
+			updateData["category_id"] = categoryID
+			product.CategoryID = categoryID
+		}
 	}
 
-	if product.CategoryID != 0 && strings.TrimSpace(product.Category.Name) == "" {
+	if product.CategoryID != 0 && (product.Category.ID != product.CategoryID || strings.TrimSpace(product.Category.Name) == "") {
 		var category models.Category
 		if err := db.Select("id", "name", "slug").First(&category, product.CategoryID).Error; err == nil {
 			product.Category = category
@@ -103,7 +131,7 @@ func optimizeProductAfterSaveWithCategoryMap(db *gorm.DB, productID uint, catByS
 		updateData["last_optimized_at"] = &now
 		updateData["updated_at"] = now
 
-		if err := db.Model(&models.Product{}).Where("id = ?", product.ID).Updates(updateData).Error; err != nil {
+		if err := persistAutomaticProductUpdates(db, product, updateData, inference, model); err != nil {
 			return result, err
 		}
 
@@ -121,7 +149,7 @@ func optimizeProductAfterSaveWithCategoryMap(db *gorm.DB, productID uint, catByS
 	updateData["last_optimized_at"] = &now
 	updateData["updated_at"] = now
 
-	if err := db.Model(&models.Product{}).Where("id = ?", product.ID).Updates(updateData).Error; err != nil {
+	if err := persistAutomaticProductUpdates(db, product, updateData, inference, model); err != nil {
 		return result, err
 	}
 
@@ -133,6 +161,23 @@ func optimizeProductAfterSaveWithCategoryMap(db *gorm.DB, productID uint, catByS
 	result.FAQUpdated = true
 	result.SEOScore = seoScore
 	return result, nil
+}
+
+func persistAutomaticProductUpdates(db *gorm.DB, product models.Product, updateData map[string]any, inference services.ProductCategoryInference, model string) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		// Recheck the taxonomy at the final write boundary. If this product is
+		// going to remain public, the selected category must still be an active
+		// matching leaf after any concurrent administrator edits.
+		if product.IsActive {
+			if !services.IsConfirmedProductCategory(inference, model) {
+				return errors.New("product classification is unresolved")
+			}
+			if _, err := services.ValidateExistingCategoryForInference(tx, product.CategoryID, inference); err != nil {
+				return err
+			}
+		}
+		return tx.Model(&models.Product{}).Where("id = ?", product.ID).Updates(updateData).Error
+	})
 }
 
 func applyProductUpdateData(product *models.Product, updateData map[string]any) {

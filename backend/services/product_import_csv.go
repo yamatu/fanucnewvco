@@ -316,6 +316,40 @@ func parseQuoteCSVPrice(raw string) (float64, bool, error) {
 }
 
 func applyProductQuoteCSVBatch(ctx context.Context, db *gorm.DB, rows []ProductQuoteCSVRow, catalogs map[string]*importCategoryCatalog, result *ProductImportResult) error {
+	classificationCache := make(map[string]ProductCategoryInference, len(rows))
+	type preparedClassification struct {
+		brand     string
+		inference ProductCategoryInference
+	}
+	preparedByRow := make(map[int]preparedClassification, len(rows))
+	for _, row := range rows {
+		model := NormalizeProductModel(row.Model)
+		if model == "" {
+			continue
+		}
+		effectiveBrand := strings.TrimSpace(row.Brand)
+		if effectiveBrand == "" {
+			if product, found, err := findProductByModelOrSKU(db.WithContext(ctx), model); err == nil && found {
+				effectiveBrand = strings.TrimSpace(product.Brand)
+			}
+		}
+		effectiveBrand = NormalizeBrandKey(effectiveBrand)
+		cacheKey := effectiveBrand + "\x00" + model
+		inference, ok := classificationCache[cacheKey]
+		if !ok {
+			inference = InferProductCategory(effectiveBrand, model)
+			if !IsConfirmedProductCategory(inference, model) {
+				searchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+				inference, _, _ = ResolveProductCategoryWithWebEvidence(searchCtx, effectiveBrand, model)
+				cancel()
+			}
+			classificationCache[cacheKey] = inference
+		}
+		if (effectiveBrand == "" || effectiveBrand == "unknown") && inference.BrandKey != "" && inference.BrandKey != "unknown" {
+			effectiveBrand = inference.BrandKey
+		}
+		preparedByRow[row.RowNumber] = preparedClassification{brand: effectiveBrand, inference: inference}
+	}
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, row := range rows {
 			product, found, findErr := findProductByModelOrSKU(tx, row.Model)
@@ -323,6 +357,79 @@ func applyProductQuoteCSVBatch(ctx context.Context, db *gorm.DB, rows []ProductQ
 				appendImportItem(result, ProductImportItem{RowNumber: row.RowNumber, Model: row.Model, Action: "failed", Message: findErr.Error()})
 				continue
 			}
+			effectiveBrand := strings.TrimSpace(row.Brand)
+			if effectiveBrand == "" && found {
+				effectiveBrand = strings.TrimSpace(product.Brand)
+			}
+			effectiveBrand = NormalizeBrandKey(effectiveBrand)
+			inference := InferProductCategory(effectiveBrand, row.Model)
+			if prepared, ok := preparedByRow[row.RowNumber]; ok {
+				effectiveBrand = prepared.brand
+				inference = prepared.inference
+			}
+			if (effectiveBrand == "" || effectiveBrand == "unknown") && inference.BrandKey != "" && inference.BrandKey != "unknown" {
+				effectiveBrand = inference.BrandKey
+			}
+			if !IsConfirmedProductCategory(inference, row.Model) {
+				message := ClassificationFailureReason(inference, row.Model)
+				if message == "" {
+					message = "product classification could not be verified"
+				}
+				if found {
+					updates := map[string]any{"is_active": false}
+					if row.HasPrice {
+						updates["price"] = row.Price
+					}
+					if row.LeadTime != "" {
+						updates["lead_time"] = row.LeadTime
+					}
+					if err := tx.Model(&models.Product{}).Where("id = ?", product.ID).Updates(updates).Error; err != nil {
+						return err
+					}
+				}
+				appendImportItem(result, ProductImportItem{RowNumber: row.RowNumber, Model: row.Model, Action: "failed", ProductID: product.ID, SKU: product.SKU, Message: message + "; product left inactive"})
+				continue
+			}
+			catalog, ok := catalogs[effectiveBrand]
+			if !ok {
+				catalog = loadImportCategories(tx, effectiveBrand)
+				catalogs[effectiveBrand] = catalog
+			}
+			categoryID := catalog.ResolveInference(inference, "")
+			if categoryID == 0 {
+				message := fmt.Sprintf("no existing active category matches %s / %s; product left inactive", inference.BrandName, inference.PartType)
+				if found {
+					updates := map[string]any{"is_active": false}
+					if row.HasPrice {
+						updates["price"] = row.Price
+					}
+					if row.LeadTime != "" {
+						updates["lead_time"] = row.LeadTime
+					}
+					if err := tx.Model(&models.Product{}).Where("id = ?", product.ID).Updates(updates).Error; err != nil {
+						return err
+					}
+				}
+				appendImportItem(result, ProductImportItem{RowNumber: row.RowNumber, Model: row.Model, Action: "failed", ProductID: product.ID, SKU: product.SKU, Message: message})
+				continue
+			}
+			if _, validationErr := ValidateExistingCategoryForInference(tx, categoryID, inference); validationErr != nil {
+				if found {
+					updates := map[string]any{"is_active": false}
+					if row.HasPrice {
+						updates["price"] = row.Price
+					}
+					if row.LeadTime != "" {
+						updates["lead_time"] = row.LeadTime
+					}
+					if err := tx.Model(&models.Product{}).Where("id = ?", product.ID).Updates(updates).Error; err != nil {
+						return err
+					}
+				}
+				appendImportItem(result, ProductImportItem{RowNumber: row.RowNumber, Model: row.Model, Action: "failed", ProductID: product.ID, SKU: product.SKU, Message: validationErr.Error() + "; product left inactive"})
+				continue
+			}
+
 			if found {
 				updates := map[string]any{}
 				if row.HasPrice {
@@ -331,14 +438,19 @@ func applyProductQuoteCSVBatch(ctx context.Context, db *gorm.DB, rows []ProductQ
 				if row.LeadTime != "" {
 					updates["lead_time"] = row.LeadTime
 				}
-				if row.Brand != "" && strings.TrimSpace(product.Brand) == "" {
-					updates["brand"] = row.Brand
+				if NormalizeBrandKey(product.Brand) == "" {
+					if canonicalBrand := CanonicalBrandName(effectiveBrand); canonicalBrand != "" {
+						updates["brand"] = canonicalBrand
+					}
 				}
 				if strings.TrimSpace(product.Model) == "" {
 					updates["model"] = row.Model
 				}
 				if strings.TrimSpace(product.PartNumber) == "" {
 					updates["part_number"] = row.Model
+				}
+				if product.CategoryID != categoryID {
+					updates["category_id"] = categoryID
 				}
 				if len(updates) == 0 {
 					appendImportItem(result, ProductImportItem{RowNumber: row.RowNumber, Model: row.Model, Action: "skipped", ProductID: product.ID, SKU: product.SKU, Message: "product already exists; no non-empty values to update"})
@@ -352,23 +464,10 @@ func applyProductQuoteCSVBatch(ctx context.Context, db *gorm.DB, rows []ProductQ
 				continue
 			}
 
-			brandKey := NormalizeBrandKey(row.Brand)
-			catalog, ok := catalogs[brandKey]
-			if !ok {
-				catalog = loadImportCategories(tx, brandKey)
-				catalogs[brandKey] = catalog
-			}
+			brandKey := effectiveBrand
 			enriched, enrichErr := EnrichProductByBrand(brandKey, row.Model)
 			if enrichErr != nil {
 				appendImportItem(result, ProductImportItem{RowNumber: row.RowNumber, Model: row.Model, Action: "failed", Message: enrichErr.Error()})
-				continue
-			}
-			categoryID := catalog.DefaultCategoryID
-			if id := catalog.ActiveBySlug[enriched.CategorySlug]; id > 0 {
-				categoryID = id
-			}
-			if categoryID == 0 {
-				appendImportItem(result, ProductImportItem{RowNumber: row.RowNumber, Model: row.Model, Action: "failed", Message: "no product category is available"})
 				continue
 			}
 
@@ -392,12 +491,12 @@ func applyProductQuoteCSVBatch(ctx context.Context, db *gorm.DB, rows []ProductQ
 				ShortDescription: enriched.ShortDescription,
 				Description:      enriched.Description,
 				Price:            row.Price,
-				Brand:            row.Brand,
+				Brand:            CanonicalBrandName(effectiveBrand),
 				Model:            row.Model,
 				PartNumber:       row.Model,
 				CategoryID:       categoryID,
 				LeadTime:         row.LeadTime,
-				IsActive:         true,
+				IsActive:         categoryID > 0,
 				MetaTitle:        enriched.MetaTitle,
 				MetaDescription:  enriched.MetaDescription,
 				MetaKeywords:     enriched.MetaKeywords,

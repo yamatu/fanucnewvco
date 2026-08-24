@@ -65,7 +65,7 @@ const AI_SEO_MAX_PRODUCTS = 30000;
 
 const AI_SEO_FOCUS_COPY: Record<AIAgentSEOFocus, { zh: string; en: string; instruction: string }> = {
   all: { zh: '全部字段', en: 'All fields', instruction: 'Optimize all supported product fields, including taxonomy, SEO metadata, and product content.' },
-  category: { zh: '只优化分类', en: 'Category only', instruction: 'Focus on product taxonomy: select the best existing category or create a genuinely missing category when necessary. Keep SEO metadata and product content unchanged.' },
+  category: { zh: '只优化分类', en: 'Category only', instruction: 'Focus on product taxonomy: select the best matching existing active leaf category using verified brand, product type, and model evidence. If no category can be verified, leave the product inactive for review. Never create a category. Keep SEO metadata and product content unchanged.' },
   seo: { zh: 'SEO 标题 / 描述 / 关键词', en: 'SEO title / description / keywords', instruction: 'Focus on SEO metadata: meta title, meta description, and meta keywords. Keep taxonomy and product content unchanged.' },
 	content: { zh: '只优化内容', en: 'Content only', instruction: 'Focus on product content: the short description and long description. Keep the product name, taxonomy, and SEO metadata unchanged.' },
 };
@@ -487,8 +487,8 @@ function AdminProductsContent() {
         t(
           'products.import.completed',
           locale === 'zh'
-            ? `导入完成：新增 ${task.created || 0}，更新 ${task.updated || 0}，新建分类 ${task.result?.categories_created || 0}`
-            : `Import completed: ${task.created || 0} created, ${task.updated || 0} updated, ${task.result?.categories_created || 0} categories created`
+            ? `导入完成：新增 ${task.created || 0}，更新 ${task.updated || 0}，失败 ${task.failed || 0}`
+            : `Import completed: ${task.created || 0} created, ${task.updated || 0} updated, ${task.failed || 0} failed`
         )
       );
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
@@ -1033,7 +1033,7 @@ function AdminProductsContent() {
                       <option value="siemens">Siemens</option>
                       <option value="abb">ABB</option>
                     </select>
-					<p className="mt-1 text-xs text-gray-500">{t('products.import.brandHint', locale === 'zh' ? '留空时按通用工业自动化模板处理；选择品牌时会按对应品牌补全。' : 'Leave blank for generic industrial automation handling, or choose a brand-specific template.')}</p>
+					<p className="mt-1 text-xs text-gray-500">{t('products.import.brandHint', locale === 'zh' ? '建议选择品牌；留空时只会接受型号本身能确认品牌和类型的产品，其余产品保持未启用。' : 'Choose a brand when possible. Blank uses model evidence only; products without verified brand and type stay inactive.')}</p>
                   </div>
                   <button
                     onClick={downloadTemplate}
@@ -1059,7 +1059,7 @@ function AdminProductsContent() {
                     }}
                     className="block w-full text-sm"
                   />
-                  <p className="mt-1 text-xs text-gray-500">{importFormat === 'csv' ? (locale === 'zh' ? '支持中文或英文列名，系统会识别 BOM、带逗号的美元价格和重复型号。' : 'Chinese or English headers are supported, including BOM, comma-formatted prices and duplicate models.') : t('products.import.hint', locale === 'zh' ? '系统会按 SKU/型号/料号匹配；更新价格/库存/重量。表格分类列支持“父级 > 子级”，分类不存在时会自动创建。' : 'We will match by SKU/model/part number, then update price/stock/weight. The Category column supports Parent > Child and missing categories are created automatically.')}</p>
+                  <p className="mt-1 text-xs text-gray-500">{importFormat === 'csv' ? (locale === 'zh' ? '支持中文或英文列名，系统会识别 BOM、带逗号的美元价格和重复型号。品牌、型号和类型无法确认时，产品会保持未启用。' : 'Chinese or English headers are supported, including BOM, comma-formatted prices and duplicate models. Products stay inactive when brand, model, type, or category cannot be verified.') : t('products.import.hint', locale === 'zh' ? '系统会按 SKU/型号/料号匹配；按品牌和型号类型匹配现有启用分类。分类不存在或无法确认时不会创建新分类，产品保持未启用。' : 'We match by SKU/model/part number, then assign an existing active category from the verified brand and product type. Unknown categories are never created and the product stays inactive.')}</p>
                 </div>
 
                 {importFormat === 'xlsx' && <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -1127,8 +1127,8 @@ function AdminProductsContent() {
 					<div className="text-sm font-semibold text-gray-900">{t('common.result', locale === 'zh' ? '结果' : 'Result')}</div>
                     <div className="mt-1 text-sm text-gray-700">
 						{t('products.import.summary', locale === 'zh'
-							? `总行数：${importResult.total_rows} | 新增：${importResult.created} | 更新：${importResult.updated} | 新建分类：${importResult.categories_created || 0} | 失败：${importResult.failed}`
-							: `Total rows: ${importResult.total_rows} | Created: ${importResult.created} | Updated: ${importResult.updated} | Categories created: ${importResult.categories_created || 0} | Failed: ${importResult.failed}`)}
+							? `总行数：${importResult.total_rows} | 新增：${importResult.created} | 更新：${importResult.updated} | 失败：${importResult.failed}`
+							: `Total rows: ${importResult.total_rows} | Created: ${importResult.created} | Updated: ${importResult.updated} | Failed: ${importResult.failed}`)}
                     </div>
 
                     {Array.isArray(importResult.items) && importResult.items.length > 0 && (
@@ -1215,8 +1215,8 @@ function AdminProductsContent() {
             </div>
             <div className="mt-1 text-xs text-slate-700">
               {locale === 'zh'
-                ? '后台新建/编辑产品后会自动补分类、SEO 字段与 FAQ'
-                : 'New and edited products now auto-fill category, SEO fields, and FAQs'}
+                ? '后台新建/编辑产品后会按已核实品牌和型号匹配现有分类，并自动补 SEO 字段与 FAQ；无法确认时保持未启用'
+                : 'New and edited products match an existing category from verified brand/model evidence, then auto-fill SEO fields and FAQs; unresolved products stay inactive'}
             </div>
           </div>
         </div>
@@ -1948,7 +1948,7 @@ function AdminProductsContent() {
                   maxLength={2000}
                   rows={6}
                   autoFocus
-                  placeholder={locale === 'zh' ? '例如：面向英文工业自动化采购用户优化 SEO；校正错误产品名称和分类，保持 SKU、型号、料号准确；仅在现有分类不合适时创建新分类，避免夸大宣传。' : 'Example: Optimize SEO for English industrial automation buyers. Correct inaccurate product names and categories; keep SKU, model, and part number exact; create a category only when no existing category fits, and avoid unsupported claims.'}
+                  placeholder={locale === 'zh' ? '例如：面向英文工业自动化采购用户优化 SEO；按已确认品牌、型号和产品类型选择现有分类；无法确认时保持产品未启用并返回人工审核，避免夸大宣传。' : 'Example: Optimize SEO for English industrial automation buyers. Use only an existing category that matches the verified brand, model, and product type. Keep unresolved products inactive for review and avoid unsupported claims.'}
                   className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
                 />
               </label>

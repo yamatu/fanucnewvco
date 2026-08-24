@@ -24,14 +24,14 @@ import { useAdminI18n } from '@/lib/admin-i18n';
 import AIPriceSyncPanel from '@/components/admin/AIPriceSyncPanel';
 
 const SUGGESTED_PROMPTS = [
-  'A06B-XXXX（如果不存在，创建未发布产品草稿并自动补齐品牌父类目和产品类型子类目）',
+  'A06B-XXXX（如果不存在，创建未发布产品草稿；只能使用现有品牌和产品类型分类）',
   '检查 SKU A06B-XXXX 的分类是否正确，并给出 SEO 优化建议',
   '为 FANUC 伺服驱动分类生成中文、德语 SEO 内容',
-  '检查现有分类；没有合适分类时请提出创建建议',
+  '检查现有分类；没有能确认品牌和产品类型的分类时请标记待人工审核',
 ];
 
 const actionLabels: Record<string, { zh: string; en: string }> = {
-  create_category: { zh: '新建分类建议', en: 'New category proposal' },
+  create_category: { zh: '分类待人工审核', en: 'Category needs review' },
   create_product: { zh: '新建产品草稿', en: 'New product draft' },
   update_product: { zh: '商品分类 / SEO 优化', en: 'Product category / SEO update' },
   update_product_price: { zh: '商品售价修改', en: 'Product sale price update' },
@@ -59,8 +59,8 @@ function actionSummary(action: AIAgentAction, zh: boolean) {
   switch (action.type) {
     case 'create_category':
       return zh
-        ? `建议创建分类「${displayValue(d.name)}」`
-        : `Create category “${displayValue(d.name)}”`;
+        ? `无法自动确认现有分类「${displayValue(d.name)}」，请由管理员在分类管理页维护后再审核产品`
+        : `No verified existing category for “${displayValue(d.name)}”; an administrator must maintain the taxonomy before review`;
     case 'create_product':
       return zh
         ? `创建未发布产品「${displayValue(d.name || d.model)}」；售价 ${displayValue(d.default_price)} USD，质保 ${displayValue(d.warranty_period)}，交期 ${displayValue(d.lead_time)}`
@@ -97,6 +97,7 @@ function ProposalCard({ action, onApply, applying, applied, requiresBatch }: {
   const [expanded, setExpanded] = useState(false);
   const zh = locale === 'zh';
   const label = actionLabels[action.type]?.[zh ? 'zh' : 'en'] || action.title;
+  const blockedCategoryProposal = action.type === 'create_category';
   const entries = Object.entries(action.data || {}).filter(([key]) => key !== 'client_key' && key !== 'category_client_key');
 
   return (
@@ -109,6 +110,10 @@ function ProposalCard({ action, onApply, applying, applied, requiresBatch }: {
         {applied ? (
           <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-emerald-700">
             <CheckCircleIcon className="h-4 w-4" /> {zh ? '已应用' : 'Applied'}
+          </span>
+        ) : blockedCategoryProposal ? (
+          <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-800">
+            {zh ? '仅供人工审核' : 'Review only'}
           </span>
         ) : requiresBatch ? (
           <span className="shrink-0 rounded-md border border-violet-200 bg-white px-2 py-1 text-[10px] font-medium text-violet-700">
@@ -221,20 +226,28 @@ export default function AIAgentAssistant() {
   };
 
   const applyGroup = async (actions: AIAgentAction[], messageIndex: number) => {
-    const unapplied = actions.filter((_, actionIndex) => !appliedKeys.includes(`${messageIndex}-${actionIndex}`));
+    const applicable = actions.filter((action) => action.type !== 'create_category');
+    const unapplied = applicable.filter((action) => {
+      const actionIndex = actions.indexOf(action);
+      return !appliedKeys.includes(`${messageIndex}-${actionIndex}`);
+    });
     if (unapplied.length === 0) return;
     const batchKey = `all-${messageIndex}`;
     setApplyingKey(batchKey);
     try {
-      // Send the entire proposal in its original order. This makes a previously
-      // individually applied category available again through client_key when a
-      // following product update refers to that newly created category.
-      await AIAgentService.apply(actions);
+      // Category proposals are review-only. The server rejects them and the
+      // taxonomy is maintained by administrators, so omit them from a batch
+      // apply instead of letting one stale proposal roll back valid actions.
+      await AIAgentService.apply(unapplied);
       setAppliedKeys((previous) => [
         ...previous,
-        ...actions.map((_, actionIndex) => `${messageIndex}-${actionIndex}`).filter((key) => !previous.includes(key)),
+        ...unapplied
+          .map((action) => `${messageIndex}-${actions.indexOf(action)}`)
+          .filter((key) => !previous.includes(key)),
       ]);
-      toast.success(zh ? `已应用 ${unapplied.length} 条建议，网站缓存将自动刷新。` : `${unapplied.length} suggestions applied. Public cache will refresh automatically.`);
+      const reviewCount = actions.length - applicable.length;
+      const suffix = reviewCount > 0 ? (zh ? `，${reviewCount} 条分类建议需人工审核` : `; ${reviewCount} category proposal(s) require review`) : '';
+      toast.success(zh ? `已应用 ${unapplied.length} 条建议${suffix}，网站缓存将自动刷新。` : `${unapplied.length} suggestions applied${suffix}. Public cache will refresh automatically.`);
     } catch (error: unknown) {
       toast.error(errorMessage(error) || (zh ? '应用建议失败' : 'Could not apply suggestions'));
     } finally {
@@ -282,7 +295,7 @@ export default function AIAgentAssistant() {
             {!statusLoading && status?.configured && messages.length === 0 && (
               <div className="space-y-3 py-2">
                 <div className="rounded-xl bg-white p-3 text-sm leading-6 text-gray-700 shadow-sm ring-1 ring-gray-100">
-                  {zh ? '直接输入一个型号即可分析。型号不存在时，我会生成品牌父类目、产品类型子类目和未发布产品草稿建议；售价、质保与交期只采用后台保存的默认值。' : 'Enter a model directly. If it does not exist, I will propose the brand parent, product-type child category, and an unpublished product draft; price, warranty, and lead time use only saved admin defaults.'}
+                  {zh ? '直接输入一个型号即可分析。型号不存在时，只有品牌、型号、产品类型及现有叶子分类都能确认，才会生成未发布产品草稿；售价、质保与交期只采用后台保存的默认值。' : 'Enter a model directly. If it does not exist, an unpublished draft is proposed only when the brand, model, product type, and an existing leaf category are all verified; price, warranty, and lead time use only saved admin defaults.'}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {SUGGESTED_PROMPTS.map((prompt) => <button key={prompt} type="button" onClick={() => send(undefined, prompt)} className="rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-left text-xs leading-4 text-violet-700 hover:bg-violet-50">{prompt}</button>)}
@@ -293,7 +306,7 @@ export default function AIAgentAssistant() {
               <div key={`${message.role}-${messageIndex}`} className={message.role === 'user' ? 'ml-8' : 'mr-3'}>
                 <div className={`rounded-xl px-3 py-2 text-sm leading-6 ${message.role === 'user' ? 'bg-violet-600 text-white' : 'border border-gray-100 bg-white text-gray-800 shadow-sm'}`}>{message.content}</div>
                 {message.suggestions && message.suggestions.length > 0 && <div className="mt-2 space-y-2">
-                  {message.suggestions.length > 1 && !message.suggestions.every((_, actionIndex) => appliedKeys.includes(`${messageIndex}-${actionIndex}`)) && (
+                  {message.suggestions.length > 1 && message.suggestions.some((action, actionIndex) => action.type !== 'create_category' && !appliedKeys.includes(`${messageIndex}-${actionIndex}`)) && (
                     <button
                       type="button"
                       onClick={() => applyGroup(message.suggestions || [], messageIndex)}

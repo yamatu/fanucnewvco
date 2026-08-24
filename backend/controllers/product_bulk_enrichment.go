@@ -61,19 +61,6 @@ func buildBulkProductSelector(db *gorm.DB, req bulkProductScopeReq) *gorm.DB {
 	return selector
 }
 
-// categorySlugMap is shared with the per-product optimizer when it persists a
-// deterministic category match after a product is saved.
-func categorySlugMap(db *gorm.DB) map[string]uint {
-	out := map[string]uint{}
-	var cats []models.Category
-	if err := db.Model(&models.Category{}).Where("is_active = ?", true).Find(&cats).Error; err == nil {
-		for _, c := range cats {
-			out[c.Slug] = c.ID
-		}
-	}
-	return out
-}
-
 func ensureProductFAQ(db *gorm.DB, productID uint, question string, answer string, sortOrder int) error {
 	question = strings.TrimSpace(question)
 	answer = strings.TrimSpace(answer)
