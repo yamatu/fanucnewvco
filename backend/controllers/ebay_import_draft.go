@@ -42,7 +42,7 @@ func (ec *EbayImportDraftController) Upload(c *gin.Context) {
 	errorCount := 0
 
 	for _, item := range req.Items {
-		built := services.BuildEbayImportDraft(db, item)
+		built := services.BuildEbayImportDraftWithContext(c.Request.Context(), db, item)
 		draft := built.Draft
 		if len(built.Errors) > 0 {
 			draft.FailureReason = strings.Join(built.Errors, "; ")
@@ -164,9 +164,10 @@ func (ec *EbayImportDraftController) Update(c *gin.Context) {
 	if req.SuggestedCategoryID != nil {
 		updates["suggested_category_id"] = req.SuggestedCategoryID
 		var category models.Category
-		if err := db.Select("id", "name").First(&category, *req.SuggestedCategoryID).Error; err == nil {
+		if err := db.Select("id", "name", "is_active").First(&category, *req.SuggestedCategoryID).Error; err == nil && category.IsActive {
 			updates["suggested_category_name"] = category.Name
-			updates["taxonomy_status"] = services.EbayDraftTaxonomyMatched
+		} else {
+			updates["taxonomy_status"] = services.EbayDraftTaxonomyNeedsReview
 		}
 	}
 	if req.ImportAction != nil {
@@ -200,7 +201,7 @@ func (ec *EbayImportDraftController) Update(c *gin.Context) {
 		return
 	}
 	_ = db.First(&draft, id).Error
-	_ = services.RecheckEbayImportDraft(db, &draft)
+	_ = services.RecheckEbayImportDraftWithContext(c.Request.Context(), db, &draft)
 	res, err := services.GetEbayImportDraftDetail(db, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Draft updated but failed to reload", Error: err.Error()})
@@ -227,7 +228,7 @@ func (ec *EbayImportDraftController) Recheck(c *gin.Context) {
 		return
 	}
 
-	if err := services.RecheckEbayImportDraft(db, &draft); err != nil {
+	if err := services.RecheckEbayImportDraftWithContext(c.Request.Context(), db, &draft); err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to recheck draft", Error: err.Error()})
 		return
 	}
@@ -296,7 +297,7 @@ func (ec *EbayImportDraftController) BulkRecheck(c *gin.Context) {
 	for _, id := range req.IDs {
 		var draft models.EbayImportDraft
 		if err := db.First(&draft, id).Error; err == nil {
-			if err := services.RecheckEbayImportDraft(db, &draft); err == nil {
+			if err := services.RecheckEbayImportDraftWithContext(c.Request.Context(), db, &draft); err == nil {
 				updated++
 			}
 		}
@@ -341,7 +342,8 @@ func (ec *EbayImportDraftController) confirmDraftImport(ctx context.Context, id 
 		return nil, http.StatusInternalServerError, err
 	}
 
-	if err := services.RecheckEbayImportDraft(db, &draft); err != nil {
+	classification, err := services.RecheckEbayImportDraftAndClassifyWithContext(ctx, db, &draft)
+	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
 	if err := db.Preload("MatchedProduct").Preload("SuggestedCategory").First(&draft, id).Error; err != nil {
@@ -362,26 +364,37 @@ func (ec *EbayImportDraftController) confirmDraftImport(ctx context.Context, id 
 	if draft.SuggestedCategoryID == nil || *draft.SuggestedCategoryID == 0 {
 		return nil, http.StatusBadRequest, errors.New("Draft category must be confirmed before import")
 	}
-
+	_, classificationErr := services.ValidateEbayImportDraftCategoryWithInference(db, draft, classification)
+	if classificationErr != nil {
+		_ = db.Model(&models.EbayImportDraft{}).Where("id = ?", draft.ID).Updates(map[string]any{
+			"status":          services.EbayDraftStatusNeedsReview,
+			"taxonomy_status": services.EbayDraftTaxonomyNeedsReview,
+			"failure_reason":  classificationErr.Error(),
+			"updated_at":      time.Now().UTC(),
+		}).Error
+		return nil, http.StatusBadRequest, classificationErr
+	}
 	productReq := services.BuildProductRequestFromDraft(db, draft)
 	if strings.TrimSpace(productReq.SKU) == "" {
 		return nil, http.StatusBadRequest, errors.New("Draft requires SKU / MPN / Part Number before import")
 	}
-
-	confirmTime := time.Now().UTC()
-	_ = db.Model(&models.EbayImportDraft{}).Where("id = ?", draft.ID).Updates(map[string]any{
-		"confirmed_at":  &confirmTime,
-		"confirmed_by":  userID,
-		"status":        services.EbayDraftStatusConfirmed,
-		"import_action": action,
-		"updated_at":    confirmTime,
-	}).Error
+	// Keep the imported record tied to the verified manufacturer identity. The
+	// request fields remain administrator-editable, but a successful category
+	// check is the only path that can create or update a publishable draft.
+	if services.NormalizeBrandKey(productReq.Brand) == "" && classification.BrandName != "" {
+		productReq.Brand = classification.BrandName
+	}
 
 	var upsertResult *services.ProductUpsertResult
 	var upsertErr *services.ProductUpsertError
 	if action == "update_existing" || (draft.MatchStatus == services.EbayDraftMatchExact && draft.MatchedProductID != nil && action != "create_new") {
 		if draft.MatchedProductID == nil {
 			return nil, http.StatusBadRequest, errors.New("No matched product available for update")
+		}
+		if draft.MatchedProduct != nil && !draft.MatchedProduct.IsActive {
+			// A verified import must not silently override an administrator's
+			// existing inactive/publication decision.
+			productReq.IsActive = false
 		}
 		upsertResult, upsertErr = services.UpdateProductFromRequest(db, *draft.MatchedProductID, productReq)
 	} else {
@@ -395,6 +408,7 @@ func (ec *EbayImportDraftController) confirmDraftImport(ctx context.Context, id 
 		}).Error
 		return nil, productUpsertStatusCode(upsertErr), errors.New(upsertErr.Message)
 	}
+	confirmTime := time.Now().UTC()
 
 	if _, err := optimizeProductAfterSave(db, upsertResult.Product.ID); err != nil {
 		_ = db.Model(&models.EbayImportDraft{}).Where("id = ?", draft.ID).Updates(map[string]any{

@@ -83,8 +83,6 @@ func loadEnv() {
 
 func optimizeProducts(db *gorm.DB, brand string, categoryID uint, search string, status string, batchSize int, limit int, forceUpdate bool, generateFAQs bool) (optimizeStats, error) {
 	stats := optimizeStats{}
-	catBySlug := localCategorySlugMap(db)
-
 	query := db.Model(&models.Product{})
 	if brand != "" {
 		query = query.Where("LOWER(brand) = LOWER(?) OR brand = '' OR brand IS NULL", brand)
@@ -112,7 +110,6 @@ func optimizeProducts(db *gorm.DB, brand string, categoryID uint, search string,
 
 	optimizer := bulkOptimizer{
 		db:           db,
-		catBySlug:    catBySlug,
 		forceUpdate:  forceUpdate,
 		generateFAQs: generateFAQs,
 	}
@@ -120,6 +117,7 @@ func optimizeProducts(db *gorm.DB, brand string, categoryID uint, search string,
 	var batch []models.Product
 	err := query.Select(
 		"id", "sku", "model", "part_number", "brand", "category_id", "name",
+		"is_active",
 		"short_description", "description", "meta_title", "meta_description", "meta_keywords",
 		"compatibility_info", "installation_guide", "maintenance_tips", "warranty_period",
 		"manufacturer", "origin_country", "lead_time", "stock_quantity",
@@ -145,7 +143,6 @@ func optimizeProducts(db *gorm.DB, brand string, categoryID uint, search string,
 
 type bulkOptimizer struct {
 	db           *gorm.DB
-	catBySlug    map[string]uint
 	forceUpdate  bool
 	generateFAQs bool
 }
@@ -165,13 +162,26 @@ func (bo bulkOptimizer) optimizeProduct(p models.Product, fallbackBrand string) 
 	}
 
 	inference := services.InferProductCategory(brand, model)
-	categoryID := bo.catBySlug[inference.CategorySlug]
+	if !services.IsConfirmedProductCategory(inference, model) {
+		inference, _, _ = services.ResolveProductCategoryWithWebEvidence(context.Background(), brand, model)
+	}
+	if (strings.TrimSpace(brand) == "" || strings.EqualFold(strings.TrimSpace(brand), "unknown")) && inference.BrandKey != "" && inference.BrandKey != "unknown" {
+		brand = inference.BrandKey
+	}
 
 	updates := map[string]any{}
-	if categoryID != 0 && p.CategoryID != categoryID {
+	if !services.IsConfirmedProductCategory(inference, model) {
+		if p.IsActive {
+			updates["is_active"] = false
+		}
+	} else if categoryID, categoryErr := services.ResolveExistingCategoryForInference(bo.db, inference, ""); categoryErr != nil || categoryID == 0 {
+		if p.IsActive {
+			updates["is_active"] = false
+		}
+	} else if p.CategoryID != categoryID {
 		updates["category_id"] = categoryID
 	}
-	if strings.TrimSpace(p.Brand) == "" {
+	if services.NormalizeBrandKey(p.Brand) == "" {
 		if canonicalBrand := services.CanonicalBrandName(brand); canonicalBrand != "" {
 			updates["brand"] = canonicalBrand
 		}
@@ -266,17 +276,6 @@ func valueAsString(m map[string]any, key string, fallback string) string {
 		return s
 	}
 	return fallback
-}
-
-func localCategorySlugMap(db *gorm.DB) map[string]uint {
-	out := map[string]uint{}
-	var cats []models.Category
-	if err := db.Model(&models.Category{}).Where("is_active = ?", true).Find(&cats).Error; err == nil {
-		for _, c := range cats {
-			out[c.Slug] = c.ID
-		}
-	}
-	return out
 }
 
 func localEnsureProductFAQ(db *gorm.DB, productID uint, question string, answer string, sortOrder int) error {

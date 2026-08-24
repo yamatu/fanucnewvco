@@ -1,7 +1,9 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -29,8 +31,10 @@ const (
 )
 
 type EbayImportDraftBuildResult struct {
-	Draft  models.EbayImportDraft
-	Errors []string
+	Draft               models.EbayImportDraft
+	Errors              []string
+	Inference           ProductCategoryInference `json:"-"`
+	ClassificationModel string                   `json:"-"`
 }
 
 type EbayImportDraftListItem struct {
@@ -133,6 +137,17 @@ type EbayImportDraftFilters struct {
 }
 
 func BuildEbayImportDraft(db *gorm.DB, raw map[string]any) EbayImportDraftBuildResult {
+	return BuildEbayImportDraftWithContext(context.Background(), db, raw)
+}
+
+// BuildEbayImportDraftWithContext keeps marketplace classification on the same
+// bounded local-first/web-evidence path as spreadsheet imports. The context is
+// supplied by the request so an upload can be cancelled without leaving a
+// search request running in the background.
+func BuildEbayImportDraftWithContext(ctx context.Context, db *gorm.DB, raw map[string]any) EbayImportDraftBuildResult {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	result := EbayImportDraftBuildResult{}
 	if raw == nil {
 		result.Errors = append(result.Errors, "empty item payload")
@@ -166,8 +181,20 @@ func BuildEbayImportDraft(db *gorm.DB, raw map[string]any) EbayImportDraftBuildR
 		mainImage = imageURLs[0]
 	}
 
-	inference := InferProductCategory(brand, firstNonEmptyString(model, mpn, partNumber, title))
-	suggestedCategoryID, suggestedCategoryName, taxonomyStatus := resolveDraftSuggestedCategory(db, inference.CategorySlug, raw)
+	classificationModel := firstNonEmptyString(model, mpn, partNumber)
+	inference := InferProductCategory(brand, classificationModel)
+	if classificationModel != "" && !IsConfirmedProductCategory(inference, classificationModel) {
+		searchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+		inference, _, _ = ResolveProductCategoryWithWebEvidence(searchCtx, brand, classificationModel)
+		cancel()
+	}
+	// Treat placeholder brands from marketplace payloads as missing. When the
+	// model rules or web evidence verify a manufacturer, persist its canonical
+	// name so an inferred category can never be published as brand "Unknown".
+	if NormalizeBrandKey(brand) == "" && inference.BrandKey != "" && inference.BrandKey != "unknown" {
+		brand = CanonicalBrandName(inference.BrandKey)
+	}
+	suggestedCategoryID, suggestedCategoryName, taxonomyStatus := resolveDraftSuggestedCategory(db, inference, raw, classificationModel)
 	matchStatus, matchedProductID, matchScore, matchReason := matchDraftProduct(db, brand, model, partNumber, mpn, normalizedTitle)
 	metaTitle, metaDescription, metaKeywords := buildDraftSEO(normalizedTitle, description, brand, model, partNumber, mpn, inference.PartType)
 
@@ -209,7 +236,51 @@ func BuildEbayImportDraft(db *gorm.DB, raw map[string]any) EbayImportDraftBuildR
 		ImportAction:          defaultImportAction(matchStatus),
 		Status:                deriveDraftStatus(matchStatus, taxonomyStatus),
 	}
+	result.Inference = inference
+	result.ClassificationModel = classificationModel
 	return result
+}
+
+// VerifyEbayImportDraftCategory is the final publication gate for marketplace
+// drafts. Manual category choices are still allowed, but only when the selected
+// category is an enabled leaf that matches the verified brand and product type.
+func VerifyEbayImportDraftCategory(ctx context.Context, db *gorm.DB, draft models.EbayImportDraft) (ProductCategoryInference, string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	model := NormalizeProductModel(firstNonEmptyString(draft.NormalizedModel, draft.NormalizedPartNumber, draft.NormalizedMPN))
+	if model == "" {
+		return ProductCategoryInference{}, "", errors.New("draft requires a verified model or part number")
+	}
+	inference := InferProductCategory(draft.NormalizedBrand, model)
+	if !IsConfirmedProductCategory(inference, model) {
+		searchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+		inference, _, _ = ResolveProductCategoryWithWebEvidence(searchCtx, draft.NormalizedBrand, model)
+		cancel()
+	}
+	path, err := verifyEbayImportDraftCategoryWithInference(db, draft, inference, model)
+	if err != nil {
+		return inference, "", err
+	}
+	return inference, path, nil
+}
+
+// ValidateEbayImportDraftCategoryWithInference validates a draft against an
+// inference already produced by a preceding recheck, avoiding another web
+// search during the confirmation request.
+func ValidateEbayImportDraftCategoryWithInference(db *gorm.DB, draft models.EbayImportDraft, inference ProductCategoryInference) (string, error) {
+	model := NormalizeProductModel(firstNonEmptyString(draft.NormalizedModel, draft.NormalizedPartNumber, draft.NormalizedMPN))
+	return verifyEbayImportDraftCategoryWithInference(db, draft, inference, model)
+}
+
+func verifyEbayImportDraftCategoryWithInference(db *gorm.DB, draft models.EbayImportDraft, inference ProductCategoryInference, model string) (string, error) {
+	if !IsConfirmedProductCategory(inference, model) {
+		return "", fmt.Errorf("draft classification is unresolved for %s", model)
+	}
+	if draft.SuggestedCategoryID == nil || *draft.SuggestedCategoryID == 0 {
+		return "", errors.New("draft category must be confirmed before import")
+	}
+	return ValidateExistingCategoryForInference(db, *draft.SuggestedCategoryID, inference)
 }
 
 func ListEbayImportDrafts(db *gorm.DB, filters EbayImportDraftFilters) (models.EbayImportDraftListResponse, error) {
@@ -315,21 +386,77 @@ func GetEbayImportDraftDetail(db *gorm.DB, id uint) (*EbayImportDraftDetailRespo
 }
 
 func RecheckEbayImportDraft(db *gorm.DB, draft *models.EbayImportDraft) error {
+	return RecheckEbayImportDraftWithContext(context.Background(), db, draft)
+}
+
+func RecheckEbayImportDraftWithContext(ctx context.Context, db *gorm.DB, draft *models.EbayImportDraft) error {
+	_, err := RecheckEbayImportDraftAndClassifyWithContext(ctx, db, draft)
+	return err
+}
+
+// RecheckEbayImportDraftAndClassifyWithContext returns the exact inference used
+// for the recheck so confirmation can revalidate the selected category without
+// repeating the same public search.
+func RecheckEbayImportDraftAndClassifyWithContext(ctx context.Context, db *gorm.DB, draft *models.EbayImportDraft) (ProductCategoryInference, error) {
 	if draft == nil {
-		return nil
+		return ProductCategoryInference{}, nil
 	}
-	result := BuildEbayImportDraft(db, decodeRawPayload(draft.RawPayload))
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	result := BuildEbayImportDraftWithContext(ctx, db, decodeRawPayload(draft.RawPayload))
+	normalizedTitle := fallbackTrimmed(draft.NormalizedTitle, result.Draft.NormalizedTitle)
+	normalizedBrand := fallbackTrimmed(draft.NormalizedBrand, result.Draft.NormalizedBrand)
+	if NormalizeBrandKey(normalizedBrand) == "" && strings.TrimSpace(result.Draft.NormalizedBrand) != "" {
+		normalizedBrand = result.Draft.NormalizedBrand
+	}
+	normalizedModel := fallbackTrimmed(draft.NormalizedModel, result.Draft.NormalizedModel)
+	normalizedPartNumber := fallbackTrimmed(draft.NormalizedPartNumber, result.Draft.NormalizedPartNumber)
+	normalizedMPN := fallbackTrimmed(draft.NormalizedMPN, result.Draft.NormalizedMPN)
+	suggestedCategoryID := chooseUintPtr(draft.SuggestedCategoryID, result.Draft.SuggestedCategoryID)
+	taxonomyStatus := result.Draft.TaxonomyStatus
+	classificationModel := NormalizeProductModel(firstNonEmptyString(normalizedModel, normalizedPartNumber, normalizedMPN))
+	inference := result.Inference
+	if classificationModel != result.ClassificationModel || NormalizeBrandKey(normalizedBrand) != NormalizeBrandKey(result.Draft.NormalizedBrand) {
+		inference = InferProductCategory(normalizedBrand, classificationModel)
+	}
+	if classificationModel != "" && !IsConfirmedProductCategory(inference, classificationModel) {
+		searchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+		inference, _, _ = ResolveProductCategoryWithWebEvidence(searchCtx, normalizedBrand, classificationModel)
+		cancel()
+	}
+	if suggestedCategoryID == nil || *suggestedCategoryID == 0 {
+		if categoryID, err := ResolveExistingCategoryForInference(db, inference, result.Draft.SuggestedCategoryName); err == nil && categoryID > 0 {
+			suggestedCategoryID = &categoryID
+		}
+	}
+	classificationDraft := *draft
+	classificationDraft.NormalizedTitle = normalizedTitle
+	classificationDraft.NormalizedBrand = normalizedBrand
+	classificationDraft.NormalizedModel = normalizedModel
+	classificationDraft.NormalizedPartNumber = normalizedPartNumber
+	classificationDraft.NormalizedMPN = normalizedMPN
+	classificationDraft.SuggestedCategoryID = suggestedCategoryID
+	if suggestedCategoryID != nil && *suggestedCategoryID > 0 {
+		if _, err := verifyEbayImportDraftCategoryWithInference(db, classificationDraft, inference, classificationModel); err != nil {
+			taxonomyStatus = EbayDraftTaxonomyNeedsReview
+		} else {
+			taxonomyStatus = EbayDraftTaxonomyMatched
+		}
+	} else {
+		taxonomyStatus = EbayDraftTaxonomyNeedsReview
+	}
 	updates := map[string]any{
-		"normalized_title":        fallbackTrimmed(draft.NormalizedTitle, result.Draft.NormalizedTitle),
-		"normalized_brand":        fallbackTrimmed(draft.NormalizedBrand, result.Draft.NormalizedBrand),
-		"normalized_model":        fallbackTrimmed(draft.NormalizedModel, result.Draft.NormalizedModel),
-		"normalized_part_number":  fallbackTrimmed(draft.NormalizedPartNumber, result.Draft.NormalizedPartNumber),
-		"normalized_mpn":          fallbackTrimmed(draft.NormalizedMPN, result.Draft.NormalizedMPN),
+		"normalized_title":        normalizedTitle,
+		"normalized_brand":        normalizedBrand,
+		"normalized_model":        normalizedModel,
+		"normalized_part_number":  normalizedPartNumber,
+		"normalized_mpn":          normalizedMPN,
 		"normalized_price":        nonZeroFloat(draft.NormalizedPrice, result.Draft.NormalizedPrice),
-		"suggested_category_id":   chooseUintPtr(draft.SuggestedCategoryID, result.Draft.SuggestedCategoryID),
+		"suggested_category_id":   suggestedCategoryID,
 		"suggested_category_name": fallbackTrimmed(draft.SuggestedCategoryName, result.Draft.SuggestedCategoryName),
 		"suggested_part_type":     fallbackTrimmed(draft.SuggestedPartType, result.Draft.SuggestedPartType),
-		"taxonomy_status":         result.Draft.TaxonomyStatus,
+		"taxonomy_status":         taxonomyStatus,
 		"match_status":            result.Draft.MatchStatus,
 		"matched_product_id":      result.Draft.MatchedProductID,
 		"match_score":             result.Draft.MatchScore,
@@ -348,12 +475,15 @@ func RecheckEbayImportDraft(db *gorm.DB, draft *models.EbayImportDraft) error {
 		updates["import_action"] = result.Draft.ImportAction
 	}
 	if draft.Status == EbayDraftStatusPending || draft.Status == EbayDraftStatusNeedsReview || draft.Status == EbayDraftStatusReviewed {
-		updates["status"] = deriveDraftStatus(result.Draft.MatchStatus, result.Draft.TaxonomyStatus)
+		updates["status"] = deriveDraftStatus(result.Draft.MatchStatus, taxonomyStatus)
 	}
 	if len(result.Errors) > 0 {
 		updates["failure_reason"] = strings.Join(result.Errors, "; ")
 	}
-	return db.Model(&models.EbayImportDraft{}).Where("id = ?", draft.ID).Updates(updates).Error
+	if err := db.Model(&models.EbayImportDraft{}).Where("id = ?", draft.ID).Updates(updates).Error; err != nil {
+		return inference, err
+	}
+	return inference, nil
 }
 
 func BuildProductRequestFromDraft(db *gorm.DB, draft models.EbayImportDraft) models.ProductCreateRequest {
@@ -489,37 +619,19 @@ func importDraftImages(db *gorm.DB, urls []string) ([]uint, []string) {
 	return ids, errs
 }
 
-func resolveDraftSuggestedCategory(db *gorm.DB, slug string, raw map[string]any) (*uint, string, string) {
-	if db == nil {
-		return nil, strings.TrimSpace(slug), EbayDraftTaxonomyNeedsReview
+func resolveDraftSuggestedCategory(db *gorm.DB, inference ProductCategoryInference, raw map[string]any, model string) (*uint, string, string) {
+	hint := firstNonEmptyString(raw["category_leaf"], raw["product_type"], raw["category_breadcrumb"])
+	if !IsConfirmedProductCategory(inference, model) {
+		return nil, firstNonEmptyString(hint, inference.CategorySlug), EbayDraftTaxonomyNeedsReview
 	}
-	var category models.Category
-	if strings.TrimSpace(slug) != "" {
-		if err := db.Where("slug = ?", strings.TrimSpace(slug)).First(&category).Error; err == nil {
+	categoryID, err := ResolveExistingCategoryForInference(db, inference, hint)
+	if err == nil && categoryID > 0 {
+		var category models.Category
+		if queryErr := db.Select("id", "name").First(&category, categoryID).Error; queryErr == nil {
 			return &category.ID, category.Name, EbayDraftTaxonomyMatched
 		}
 	}
-	candidateNames := []string{
-		firstNonEmptyString(raw["category_leaf"]),
-		firstNonEmptyString(raw["product_type"]),
-		firstNonEmptyString(raw["category_breadcrumb"]),
-	}
-	var cats []models.Category
-	if err := db.Where("is_active = ?", true).Find(&cats).Error; err == nil {
-		for _, candidate := range candidateNames {
-			candidate = strings.TrimSpace(candidate)
-			if candidate == "" {
-				continue
-			}
-			lower := strings.ToLower(candidate)
-			for _, cat := range cats {
-				if strings.EqualFold(cat.Name, candidate) || strings.EqualFold(cat.Slug, candidate) || strings.Contains(lower, strings.ToLower(cat.Name)) {
-					return &cat.ID, cat.Name, EbayDraftTaxonomyMatched
-				}
-			}
-		}
-	}
-	return nil, firstNonEmptyString(candidateNames[0], candidateNames[1], candidateNames[2], slug), EbayDraftTaxonomyNeedsReview
+	return nil, firstNonEmptyString(hint, inference.CategorySlug), EbayDraftTaxonomyNeedsReview
 }
 
 func matchDraftProduct(db *gorm.DB, brand string, model string, partNumber string, mpn string, title string) (string, *uint, float64, string) {

@@ -535,20 +535,29 @@ func (pc *ProductController) AutoImportSEO(c *gin.Context) {
 			product.Description = product.Description + "\n\n" + extracted.DescriptionHTML
 		}
 	}
-	// Auto category
-	if autoCategory && strings.TrimSpace(extracted.CategoryGuess) != "" {
-		db := config.GetDB()
-		catName := strings.TrimSpace(extracted.CategoryGuess)
-		slug := utils.GenerateSlug(catName)
-		var cat models.Category
-		if err := db.Where("slug = ?", slug).First(&cat).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				cat = models.Category{Name: catName, Slug: slug, Description: catName, IsActive: true}
-				_ = db.Create(&cat).Error
-			}
+	// Auto category is read-only and database-authoritative. A web source may
+	// suggest a label, but it cannot create a taxonomy node or publish an
+	// unverified product.
+	if autoCategory {
+		model := services.NormalizeProductModel(product.Model)
+		if model == "" {
+			model = services.NormalizeProductModel(product.PartNumber)
 		}
-		if cat.ID != 0 {
-			product.CategoryID = cat.ID
+		if model == "" {
+			model = services.NormalizeProductModel(product.SKU)
+		}
+		classification, _, _ := services.ResolveProductCategoryWithWebEvidence(c.Request.Context(), product.Brand, model)
+		if services.NormalizeBrandKey(product.Brand) == "" && classification.BrandKey != "" {
+			product.Brand = services.CanonicalBrandName(classification.BrandKey)
+		}
+		categoryID, categoryErr := services.ResolveExistingCategoryForInference(db, classification, extracted.CategoryGuess)
+		if categoryErr != nil {
+			product.IsActive = false
+			suggestion["classification_status"] = "unresolved"
+			suggestion["classification_message"] = categoryErr.Error()
+		} else {
+			product.CategoryID = categoryID
+			suggestion["classification_status"] = "verified_existing_category"
 		}
 	}
 	if err := db.Save(&product).Error; err != nil {
@@ -1413,19 +1422,26 @@ func (pc *ProductController) BulkAutoImportSEO(c *gin.Context) {
 					product.Description += "\n\n" + extracted.DescriptionHTML
 				}
 			}
-			if req.AutoCategory && strings.TrimSpace(extracted.CategoryGuess) != "" {
-				catName := strings.TrimSpace(extracted.CategoryGuess)
-				slug := utils.GenerateSlug(catName)
-				var cat models.Category
-				if err := db.Where("slug = ?", slug).First(&cat).Error; err != nil {
-					if err == gorm.ErrRecordNotFound {
-						_ = db.Create(&models.Category{Name: catName, Slug: slug, Description: catName, IsActive: true}).Error
-						_ = db.Where("slug = ?", slug).First(&cat).Error
-					}
+			if req.AutoCategory {
+				model := services.NormalizeProductModel(product.Model)
+				if model == "" {
+					model = services.NormalizeProductModel(product.PartNumber)
 				}
-				if cat.ID != 0 {
-					product.CategoryID = cat.ID
+				if model == "" {
+					model = services.NormalizeProductModel(product.SKU)
 				}
+				classification, _, _ := services.ResolveProductCategoryWithWebEvidence(c.Request.Context(), product.Brand, model)
+				if services.NormalizeBrandKey(product.Brand) == "" && classification.BrandKey != "" {
+					product.Brand = services.CanonicalBrandName(classification.BrandKey)
+				}
+				categoryID, categoryErr := services.ResolveExistingCategoryForInference(db, classification, extracted.CategoryGuess)
+				if categoryErr != nil {
+					product.IsActive = false
+					_ = db.Save(&product).Error
+					results = append(results, map[string]interface{}{"product_id": t.ID, "sku": t.SKU, "status": "unresolved", "classification_message": categoryErr.Error(), "source_url": candidate})
+					continue
+				}
+				product.CategoryID = categoryID
 			}
 			_ = db.Save(&product).Error
 		}

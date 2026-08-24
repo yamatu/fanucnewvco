@@ -125,3 +125,9 @@ func TestAISEOFocusMarkerAndCompletion(t *testing.T) {
 		t.Fatalf("completion did not preserve out-of-scope fields: %#v", output)
 	}
 }
+
+func TestResolveAISEOCategoryRejectsAutomaticCreation(t *testing.T) {
+	if _, err := resolveAISEOCategory(nil, 0, aiSEOCategory{Action: "create", Name: "Automation"}); err == nil {
+		t.Fatal("automatic SEO classification must never create a category")
+	}
+}
