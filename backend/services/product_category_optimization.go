@@ -16,11 +16,16 @@ import (
 
 // ProductCategoryOptimizationOptions controls the explicit administrator-only
 // taxonomy repair flow. Category creation is deliberately opt-in and is not
-// used by imports, AI SEO jobs, or the AI assistant.
+// used by imports, ordinary AI SEO jobs, or the AI assistant. The dedicated
+// administrator category-only background job is the sole queued caller.
 type ProductCategoryOptimizationOptions struct {
 	UseWebSearch            bool
 	CreateMissingCategories bool
 	ActivateResolved        bool
+	// BeforeWrite is used by background jobs to fence writes after a task was
+	// cancelled or superseded. It is called inside the same transaction that
+	// performs each category/product mutation.
+	BeforeWrite func(*gorm.DB) error
 }
 
 type ProductCategoryOptimizationResult struct {
@@ -88,7 +93,7 @@ func OptimizeProductCategory(ctx context.Context, db *gorm.DB, product models.Pr
 		if searchErr != nil {
 			reason = fmt.Sprintf("%s; web verification failed: %v", reason, searchErr)
 		}
-		if err := keepProductInactive(db.WithContext(ctx), product.ID, result.Brand); err != nil {
+		if err := keepProductInactiveWithGuard(db.WithContext(ctx), product.ID, result.Brand, opts.BeforeWrite); err != nil {
 			result.Message = fmt.Sprintf("%s; failed to keep product inactive: %v", reason, err)
 			return result
 		}
@@ -100,14 +105,14 @@ func OptimizeProductCategory(ctx context.Context, db *gorm.DB, product models.Pr
 	categoryID, err := ResolveExistingCategoryForInference(db.WithContext(ctx), inference, product.Category.Name)
 	created := false
 	if (err != nil || categoryID == 0) && opts.CreateMissingCategories {
-		categoryID, created, err = ResolveOrCreateCategoryForInference(db.WithContext(ctx), inference)
+		categoryID, created, err = resolveOrCreateCategoryForInferenceWithGuard(db.WithContext(ctx), inference, opts.BeforeWrite)
 	}
 	if err != nil || categoryID == 0 {
 		reason := fmt.Sprintf("no active category matches verified brand %q and product type %q", inference.BrandName, inference.PartType)
 		if err != nil {
 			reason = err.Error()
 		}
-		if inactiveErr := keepProductInactive(db.WithContext(ctx), product.ID, result.Brand); inactiveErr != nil {
+		if inactiveErr := keepProductInactiveWithGuard(db.WithContext(ctx), product.ID, result.Brand, opts.BeforeWrite); inactiveErr != nil {
 			result.Message = fmt.Sprintf("%s; failed to keep product inactive: %v", reason, inactiveErr)
 			return result
 		}
@@ -118,6 +123,11 @@ func OptimizeProductCategory(ctx context.Context, db *gorm.DB, product models.Pr
 
 	var categoryPath string
 	err = db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if opts.BeforeWrite != nil {
+			if guardErr := opts.BeforeWrite(tx); guardErr != nil {
+				return guardErr
+			}
+		}
 		// The category may have been disabled, moved, or gained children after
 		// resolution. Re-validate under row locks before changing the product.
 		path, validateErr := ValidateExistingCategoryForInference(tx, categoryID, inference)
@@ -138,7 +148,11 @@ func OptimizeProductCategory(ctx context.Context, db *gorm.DB, product models.Pr
 		return tx.Model(&models.Product{}).Where("id = ?", product.ID).Updates(updates).Error
 	})
 	if err != nil {
-		_ = keepProductInactive(db.WithContext(ctx), product.ID, result.Brand)
+		// Do not perform a second product write when a job fence rejected the
+		// transaction: the administrator may already have ended this task.
+		if opts.BeforeWrite == nil {
+			_ = keepProductInactive(db.WithContext(ctx), product.ID, result.Brand)
+		}
 		result.Message = "final category validation failed: " + err.Error()
 		return result
 	}
@@ -156,6 +170,10 @@ func OptimizeProductCategory(ctx context.Context, db *gorm.DB, product models.Pr
 // canonical brand root and one verified type child. Existing inactive exact
 // nodes are reactivated instead of duplicated.
 func ResolveOrCreateCategoryForInference(db *gorm.DB, inference ProductCategoryInference) (uint, bool, error) {
+	return resolveOrCreateCategoryForInferenceWithGuard(db, inference, nil)
+}
+
+func resolveOrCreateCategoryForInferenceWithGuard(db *gorm.DB, inference ProductCategoryInference, beforeWrite func(*gorm.DB) error) (uint, bool, error) {
 	if db == nil {
 		return 0, false, errors.New("database is nil")
 	}
@@ -175,6 +193,11 @@ func ResolveOrCreateCategoryForInference(db *gorm.DB, inference ProductCategoryI
 	created := false
 	err := withCategoryCreationLock(func() error {
 		return db.Transaction(func(tx *gorm.DB) error {
+			if beforeWrite != nil {
+				if err := beforeWrite(tx); err != nil {
+					return err
+				}
+			}
 			if existingID, resolveErr := ResolveExistingCategoryForInference(tx, inference, ""); resolveErr == nil && existingID > 0 {
 				categoryID = existingID
 				return nil
@@ -300,11 +323,22 @@ func withCategoryCreationLock(fn func() error) error {
 }
 
 func keepProductInactive(db *gorm.DB, productID uint, verifiedBrand string) error {
+	return keepProductInactiveWithGuard(db, productID, verifiedBrand, nil)
+}
+
+func keepProductInactiveWithGuard(db *gorm.DB, productID uint, verifiedBrand string, beforeWrite func(*gorm.DB) error) error {
 	updates := map[string]any{"is_active": false, "updated_at": time.Now()}
 	if strings.TrimSpace(verifiedBrand) != "" {
 		updates["brand"] = strings.TrimSpace(verifiedBrand)
 	}
-	return db.Model(&models.Product{}).Where("id = ?", productID).Updates(updates).Error
+	return db.Transaction(func(tx *gorm.DB) error {
+		if beforeWrite != nil {
+			if err := beforeWrite(tx); err != nil {
+				return err
+			}
+		}
+		return tx.Model(&models.Product{}).Where("id = ?", productID).Updates(updates).Error
+	})
 }
 
 func productClassificationModel(product models.Product) string {
