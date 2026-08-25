@@ -179,7 +179,7 @@ export interface AIAgentSEOJob {
   id: string;
   prompt: string;
   focus?: AIAgentSEOFocus[];
-  selection_mode: 'selected' | 'auto_candidates' | 'auto_failed';
+  selection_mode: 'selected' | 'auto_candidates' | 'auto_failed' | 'category_optimization';
   status: AIAgentSEOJobStatus;
   ai_profile_id?: number;
   ai_profile_name?: string;
@@ -220,6 +220,29 @@ export interface AIAgentSEOCandidateOptions {
   include_optimized?: boolean;
   ai_seo_status?: 'all' | 'optimized' | 'not_optimized' | 'running' | 'failed';
   focus?: AIAgentSEOFocus[];
+}
+
+export interface AIAgentCategoryOptimizationOptions {
+  product_ids?: number[];
+  limit: number;
+  category_id?: number;
+  include_descendants?: boolean;
+  brand?: string;
+  search?: string;
+  status?: 'active' | 'inactive' | 'all';
+  featured?: 'true' | 'false' | 'all';
+  include_inactive?: boolean;
+  ai_seo_status?: 'all' | 'optimized' | 'not_optimized' | 'running' | 'failed';
+  use_web_search?: boolean;
+  create_missing_categories?: boolean;
+  activate_resolved?: boolean;
+}
+
+export interface AIAgentSEOJobItemsPage {
+  items: AIAgentSEOJobItem[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export class AIAgentService {
@@ -313,10 +336,24 @@ export class AIAgentService {
     throw new Error(response.data.message || 'Unable to start AI SEO candidate job');
   }
 
+  static async startCategoryOptimizationJob(options: AIAgentCategoryOptimizationOptions): Promise<AIAgentSEOJob> {
+    const response = await apiClient.post<APIResponse<AIAgentSEOJob>>('/admin/ai-agent/seo/category-jobs', options);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Unable to start category optimization job');
+  }
+
   static async getSEOJob(id: string): Promise<AIAgentSEOJob> {
     const response = await apiClient.get<APIResponse<AIAgentSEOJob>>(`/admin/ai-agent/seo/jobs/${encodeURIComponent(id)}`);
     if (response.data.success && response.data.data) return response.data.data;
     throw new Error(response.data.message || 'Unable to load AI SEO job');
+  }
+
+  static async listSEOJobItems(id: string, limit = 200, offset = 0): Promise<AIAgentSEOJobItemsPage> {
+    const response = await apiClient.get<APIResponse<AIAgentSEOJobItemsPage>>(`/admin/ai-agent/seo/jobs/${encodeURIComponent(id)}/items`, {
+      params: { limit, offset },
+    });
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Unable to load AI SEO job items');
   }
 
   static async pauseSEOJob(id: string): Promise<AIAgentSEOJob> {

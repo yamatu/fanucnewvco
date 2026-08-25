@@ -2,12 +2,13 @@ package models
 
 import "time"
 
-// AIAgentSEOJob records either an explicit administrator selection or a bounded
-// automatic candidate batch. Both modes remain auditable item-by-item.
+// AIAgentSEOJob records an explicit selection, a bounded automatic SEO batch,
+// or an administrator-only category optimization task. Every mode remains
+// auditable item-by-item.
 type AIAgentSEOJob struct {
 	ID            string `json:"id" gorm:"primaryKey;size:36"`
 	Prompt        string `json:"prompt" gorm:"type:text"`
-	SelectionMode string `json:"selection_mode" gorm:"size:32;default:'selected'"` // selected, auto_candidates, auto_failed
+	SelectionMode string `json:"selection_mode" gorm:"size:32;default:'selected'"` // selected, auto_candidates, auto_failed, category_optimization
 	Status        string `json:"status" gorm:"size:32;index;not null"`             // queued, running, paused, cancelled, completed, completed_with_errors, failed
 	// AIProfileID pins queued and resumed work to the profile selected when the
 	// job was created. Name/model snapshots keep completed jobs auditable even
