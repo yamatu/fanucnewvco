@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import CategoryHierarchyEditor from '@/components/admin/CategoryHierarchyEditor';
+import CategoryAIToolsPanel from '@/components/admin/CategoryAIToolsPanel';
 import { CategoryService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { useAdminI18n } from '@/lib/admin-i18n';
@@ -343,6 +344,9 @@ export default function AdminCategoriesPage() {
             </button>
           </div>
         </div>
+
+        {/* AI taxonomy tools */}
+        <CategoryAIToolsPanel />
 
         {/* Filters */}
         <div className="bg-white shadow rounded-lg p-6">

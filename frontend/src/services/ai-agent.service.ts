@@ -80,6 +80,25 @@ export interface AIAgentProfileWrite {
   timeout_seconds: number;
 }
 
+export interface AIAgentConnectionTestRequest {
+  profile_id?: number;
+  base_url: string;
+  api_key?: string;
+  model: string;
+  api_mode: 'standard_chat' | 'reasoning_chat';
+  reasoning_effort?: string;
+  timeout_seconds?: number;
+}
+
+export interface AIAgentConnectionTestResult {
+  ok: boolean;
+  latency_ms: number;
+  model: string;
+  provider: string;
+  reply?: string;
+  error?: string;
+}
+
 export const AI_AGENT_CONFIG_CHANGED_EVENT = 'ai-agent-config-changed';
 
 export function notifyAIAgentConfigChanged() {
@@ -291,6 +310,17 @@ export class AIAgentService {
     const response = await apiClient.post<APIResponse<AIAgentSettings>>(`/admin/ai-agent/profiles/${id}/activate`);
     if (response.data.success && response.data.data) return response.data.data;
     throw new Error(response.data.message || 'Unable to activate AI profile');
+  }
+
+  static async testConnection(payload: AIAgentConnectionTestRequest): Promise<AIAgentConnectionTestResult> {
+    const response = await apiClient.post<APIResponse<AIAgentConnectionTestResult>>(
+      '/admin/ai-agent/test-connection',
+      payload,
+      // Slow reasoning models may take close to the provider timeout to answer.
+      { timeout: 90000 }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Unable to test the AI connection');
   }
 
   static async chat(message: string, history: AIAgentMessage[]): Promise<AIAgentReply> {

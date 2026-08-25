@@ -9,12 +9,15 @@ import {
   InformationCircleIcon,
   PlusIcon,
   ServerStackIcon,
+  SignalIcon,
   SparklesIcon,
   TrashIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import AdminLayout from '@/components/admin/AdminLayout';
 import {
+  AIAgentConnectionTestResult,
   AIAgentProfile,
   AIAgentProfileWrite,
   AIAgentService,
@@ -66,6 +69,34 @@ const modelSuggestions = [
   'deepseek-chat',
   'deepseek-reasoner',
 ];
+
+type ProviderPreset = {
+  key: string;
+  label: string;
+  labelZh?: string;
+  baseURL: string;
+  models: string[];
+  reasoningModels?: string[];
+};
+
+// Every preset is an OpenAI-compatible chat endpoint; selecting one only
+// pre-fills the form — administrators can still type any URL or model.
+const providerPresets: ProviderPreset[] = [
+  { key: 'openai', label: 'OpenAI', baseURL: 'https://api.openai.com/v1', models: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5', 'gpt-4.1'], reasoningModels: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5', 'o3'] },
+  { key: 'deepseek', label: 'DeepSeek', baseURL: 'https://api.deepseek.com/v1', models: ['deepseek-chat'], reasoningModels: ['deepseek-reasoner'] },
+  { key: 'moonshot', label: 'Kimi', labelZh: 'Kimi 月之暗面', baseURL: 'https://api.moonshot.cn/v1', models: ['kimi-k2-0905-preview', 'moonshot-v1-32k'] },
+  { key: 'qwen', label: 'Qwen', labelZh: '通义千问', baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1', models: ['qwen-max', 'qwen-plus', 'qwen-turbo'] },
+  { key: 'zhipu', label: 'GLM', labelZh: '智谱 GLM', baseURL: 'https://open.bigmodel.cn/api/paas/v4', models: ['glm-4.6', 'glm-4.5-air'] },
+  { key: 'xai', label: 'Grok (xAI)', baseURL: 'https://api.x.ai/v1', models: ['grok-4', 'grok-3-mini'] },
+  { key: 'gemini', label: 'Gemini', baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai', models: ['gemini-2.5-pro', 'gemini-2.5-flash'] },
+  { key: 'openrouter', label: 'OpenRouter', baseURL: 'https://openrouter.ai/api/v1', models: ['openrouter/auto'] },
+  { key: 'ollama', label: 'Ollama', labelZh: 'Ollama 本地', baseURL: 'http://127.0.0.1:11434/v1', models: ['qwen3:14b', 'llama3.3'] },
+];
+
+function presetForBaseURL(baseURL: string): ProviderPreset | undefined {
+  const host = providerHost(baseURL);
+  return providerPresets.find((preset) => providerHost(preset.baseURL) === host);
+}
 
 const reasoningSuggestions = ['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
@@ -162,11 +193,32 @@ export default function AIAssistantSettingsPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [activatingProfile, setActivatingProfile] = useState(false);
   const [deletingProfileID, setDeletingProfileID] = useState<number | null>(null);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<AIAgentConnectionTestResult | null>(null);
 
   const profileDirty = useMemo(
     () => profileFingerprint(profileForm) !== savedProfileFingerprint,
     [profileForm, savedProfileFingerprint],
   );
+
+  const activePreset = useMemo(
+    () => (profileForm ? presetForBaseURL(profileForm.base_url) : undefined),
+    [profileForm],
+  );
+
+  const currentModelSuggestions = useMemo(() => {
+    if (!activePreset) return modelSuggestions;
+    const presetModels = [...activePreset.models, ...(activePreset.reasoningModels || [])];
+    return Array.from(new Set([...presetModels, ...modelSuggestions]));
+  }, [activePreset]);
+
+  // A stale test verdict must never look like it covers edited settings.
+  const providerFingerprint = profileForm
+    ? `${profileForm.base_url}|${profileForm.model}|${profileForm.api_mode}|${profileForm.reasoning_effort}|${profileForm.api_key}`
+    : '';
+  useEffect(() => {
+    setTestResult(null);
+  }, [providerFingerprint]);
 
   useEffect(() => {
     Promise.all([AIAgentService.getSettings(), AIAgentService.listProfiles()])
@@ -217,6 +269,62 @@ export default function AIAssistantSettingsPage() {
       || loadedProfiles[0];
     if (selected) replaceSelectedProfile(selected);
     return { loadedSettings, loadedProfiles };
+  };
+
+  const applyPreset = (preset: ProviderPreset) => {
+    setProfileForm((current) => {
+      if (!current) return current;
+      const presetModels = [...preset.models, ...(preset.reasoningModels || [])];
+      const otherPresetModels = providerPresets
+        .filter((item) => item.key !== preset.key)
+        .flatMap((item) => [...item.models, ...(item.reasoningModels || [])]);
+      const keepModel = current.model.trim() !== ''
+        && (presetModels.includes(current.model) || !otherPresetModels.includes(current.model));
+      const defaultModel = current.api_mode === 'reasoning_chat' && preset.reasoningModels?.length
+        ? preset.reasoningModels[0]
+        : preset.models[0];
+      return {
+        ...current,
+        base_url: preset.baseURL,
+        model: keepModel ? current.model : defaultModel,
+      };
+    });
+  };
+
+  const testConnection = async () => {
+    if (!profileForm) return;
+    const typedKey = profileForm.api_key.trim();
+    const reuseActiveID = profileForm.id === null && profileForm.reuse_active_api_key
+      ? settings?.active_profile_id
+      : undefined;
+    const profileID = typedKey ? undefined : (profileForm.id ?? reuseActiveID ?? undefined);
+    if (!typedKey && !profileID) {
+      toast.error(zh ? '请先输入 API Key 再测试' : 'Enter an API key before testing');
+      return;
+    }
+    setTestingConnection(true);
+    setTestResult(null);
+    try {
+      const result = await AIAgentService.testConnection({
+        profile_id: profileID,
+        base_url: profileForm.base_url.trim(),
+        api_key: typedKey || undefined,
+        model: profileForm.model.trim(),
+        api_mode: profileForm.api_mode,
+        reasoning_effort: profileForm.reasoning_effort.trim(),
+        timeout_seconds: Number(profileForm.timeout_seconds) || 75,
+      });
+      setTestResult(result);
+      if (result.ok) {
+        toast.success(zh ? `连接成功（${result.latency_ms}ms）` : `Connected in ${result.latency_ms}ms`);
+      } else {
+        toast.error(zh ? '连接失败，请检查配置' : 'Connection failed — check the settings');
+      }
+    } catch (error: unknown) {
+      toast.error(errorMessage(error) || (zh ? '无法测试 AI 连接' : 'Could not test the AI connection'));
+    } finally {
+      setTestingConnection(false);
+    }
   };
 
   const saveProfile = async (event: FormEvent) => {
@@ -400,6 +508,29 @@ export default function AIAssistantSettingsPage() {
                 </div>
 
                 <div className="grid gap-4 p-5 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <span className="text-sm font-medium text-gray-700">{zh ? 'AI 服务商（点击快速填入）' : 'Provider (click to prefill)'}</span>
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {providerPresets.map((preset) => {
+                        const selected = activePreset?.key === preset.key;
+                        return (
+                          <button
+                            key={preset.key}
+                            type="button"
+                            onClick={() => applyPreset(preset)}
+                            aria-pressed={selected}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${selected ? 'border-violet-500 bg-violet-600 text-white shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700'}`}
+                            title={preset.baseURL}
+                          >
+                            {zh && preset.labelZh ? preset.labelZh : preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      {zh ? '任何 OpenAI 兼容接口都可以接入；也可以直接手动填写 Base URL 和模型。' : 'Any OpenAI-compatible endpoint works; you can also type a base URL and model manually.'}
+                    </p>
+                  </div>
                   <label className="block text-sm font-medium text-gray-700">
                     {zh ? '配置名称' : 'Profile name'}
                     <input required maxLength={80} value={profileForm.name} onChange={(event) => setProfileForm((current) => current ? { ...current, name: event.target.value } : current)} placeholder={zh ? '例如：OpenAI 主模型' : 'e.g. OpenAI primary'} className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100" />
@@ -407,7 +538,7 @@ export default function AIAssistantSettingsPage() {
                   <label className="block text-sm font-medium text-gray-700">
                     {zh ? '模型名称（可自由输入）' : 'Model name (free text)'}
                     <input required maxLength={120} list="ai-model-suggestions" spellCheck={false} value={profileForm.model} onChange={(event) => setProfileForm((current) => current ? { ...current, model: event.target.value } : current)} placeholder="provider/model-name" className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 font-mono font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100" />
-                    <datalist id="ai-model-suggestions">{modelSuggestions.map((model) => <option key={model} value={model} />)}</datalist>
+                    <datalist id="ai-model-suggestions">{currentModelSuggestions.map((model) => <option key={model} value={model} />)}</datalist>
                   </label>
                   <label className="block text-sm font-medium text-gray-700 md:col-span-2">
                     API Base URL
@@ -459,17 +590,41 @@ export default function AIAssistantSettingsPage() {
                   )}
                 </div>
 
-                <div className="flex flex-wrap justify-end gap-2 border-t border-gray-200 bg-gray-50 px-5 py-4">
-                  {profileForm.id !== null && !profileForm.is_active && (
-                    <button type="button" onClick={activateProfile} disabled={activatingProfile || profileDirty || !profileForm.has_api_key} className="inline-flex items-center gap-2 rounded-lg border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50">
-                      {activatingProfile ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <BoltIcon className="h-4 w-4" />}
-                      {zh ? '切换使用' : 'Activate'}
-                    </button>
+                <div className="border-t border-gray-200 bg-gray-50 px-5 py-4">
+                  {testResult && (
+                    <div className={`mb-3 flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${testResult.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800'}`}>
+                      {testResult.ok ? <CheckCircleIcon className="mt-0.5 h-4 w-4 shrink-0" /> : <XCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />}
+                      <span className="min-w-0 break-words">
+                        {testResult.ok
+                          ? (zh
+                            ? `连接成功：${testResult.model} · ${testResult.latency_ms}ms · ${testResult.provider}`
+                            : `Connected: ${testResult.model} · ${testResult.latency_ms}ms · ${testResult.provider}`)
+                          : (zh ? `连接失败：${testResult.error}` : `Failed: ${testResult.error}`)}
+                      </span>
+                    </div>
                   )}
-                  <button disabled={savingProfile || !profileDirty} type="submit" className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">
-                    {savingProfile ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ServerStackIcon className="h-4 w-4" />}
-                    {profileForm.id ? (zh ? '保存配置' : 'Save profile') : (zh ? '保存新 AI' : 'Save new AI')}
-                  </button>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={testConnection}
+                      disabled={testingConnection || !profileForm.base_url.trim() || !profileForm.model.trim() || (!profileForm.api_key.trim() && !profileForm.has_api_key && !(profileForm.id === null && profileForm.reuse_active_api_key))}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      title={zh ? '发送一条极小的测试请求验证 Key、模型和网络连通性' : 'Sends one tiny request to verify the key, model, and connectivity'}
+                    >
+                      {testingConnection ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <SignalIcon className="h-4 w-4" />}
+                      {zh ? '测试连接' : 'Test connection'}
+                    </button>
+                    {profileForm.id !== null && !profileForm.is_active && (
+                      <button type="button" onClick={activateProfile} disabled={activatingProfile || profileDirty || !profileForm.has_api_key} className="inline-flex items-center gap-2 rounded-lg border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50">
+                        {activatingProfile ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <BoltIcon className="h-4 w-4" />}
+                        {zh ? '切换使用' : 'Activate'}
+                      </button>
+                    )}
+                    <button disabled={savingProfile || !profileDirty} type="submit" className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">
+                      {savingProfile ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ServerStackIcon className="h-4 w-4" />}
+                      {profileForm.id ? (zh ? '保存配置' : 'Save profile') : (zh ? '保存新 AI' : 'Save new AI')}
+                    </button>
+                  </div>
                 </div>
               </form>
             </section>

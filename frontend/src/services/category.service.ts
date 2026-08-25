@@ -23,6 +23,45 @@ export interface CategoryProductReference {
   is_active: boolean;
 }
 
+export interface CategoryCleanupOptions {
+  merge_duplicates?: boolean;
+  delete_empty?: boolean;
+  delete_empty_active?: boolean;
+}
+
+export interface CategoryCleanupMerge {
+  source_id: number;
+  source_name: string;
+  source_path: string;
+  target_id: number;
+  target_name: string;
+  target_path: string;
+  product_count: number;
+  child_count: number;
+  reason: string;
+}
+
+export interface CategoryCleanupDeletion {
+  id: number;
+  name: string;
+  path: string;
+  is_active: boolean;
+  reason: string;
+}
+
+export interface CategoryCleanupPlan {
+  total_categories: number;
+  merges: CategoryCleanupMerge[];
+  deletions: CategoryCleanupDeletion[];
+}
+
+export interface CategoryCleanupResult {
+  plan: CategoryCleanupPlan;
+  merged_count: number;
+  deleted_count: number;
+  moved_products: number;
+}
+
 export interface CategoryDeletionImpact {
   category: CategoryReference;
   parent?: CategoryReference | null;
@@ -240,6 +279,23 @@ export class CategoryService {
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to delete category');
     }
+  }
+
+  static async previewCleanup(options: CategoryCleanupOptions = {}): Promise<CategoryCleanupPlan> {
+    const response = await apiClient.post<APIResponse<CategoryCleanupPlan>>('/admin/categories/cleanup/preview', options);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to analyze categories');
+  }
+
+  static async applyCleanup(options: CategoryCleanupOptions = {}): Promise<CategoryCleanupResult> {
+    const response = await apiClient.post<APIResponse<CategoryCleanupResult>>(
+      '/admin/categories/cleanup/apply',
+      options,
+      // Merging and deleting a large taxonomy can exceed the default timeout.
+      { timeout: 0 }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Category cleanup failed');
   }
 
   // Get category tree (formatted for dropdowns)

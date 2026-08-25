@@ -170,6 +170,7 @@ func SetupRoutes(r *gin.Engine) {
 				aiAgent.PUT("/profiles/:id", middleware.AdminOnly(), aiAgentController.UpdateProfile)
 				aiAgent.DELETE("/profiles/:id", middleware.AdminOnly(), aiAgentController.DeleteProfile)
 				aiAgent.POST("/profiles/:id/activate", middleware.AdminOnly(), aiAgentController.ActivateProfile)
+				aiAgent.POST("/test-connection", middleware.AdminOnly(), aiAgentController.TestProfileConnection)
 			}
 
 			// Dashboard statistics (admin and editor access)
@@ -193,6 +194,8 @@ func SetupRoutes(r *gin.Engine) {
 				categories.PUT("/reorder", categoryController.ReorderCategories)
 				categories.PUT("/:id", categoryController.UpdateCategory)
 				categories.DELETE("/:id", middleware.AdminOnly(), categoryController.DeleteCategory)
+				categories.POST("/cleanup/preview", middleware.AdminOnly(), categoryController.PreviewCategoryCleanup)
+				categories.POST("/cleanup/apply", middleware.AdminOnly(), categoryController.ApplyCategoryCleanup)
 			}
 
 			// Product management (admin and editor access)
@@ -212,6 +215,7 @@ func SetupRoutes(r *gin.Engine) {
 				products.POST("/optimize", productOptimizationController.OptimizeProduct)
 				products.POST("/bulk-optimize", productOptimizationController.BulkOptimizeProducts)
 				products.POST("/auto-optimize-categories", middleware.AdminOnly(), productOptimizationController.AutoOptimizeProductCategories)
+				products.POST("/standardize-titles", middleware.AdminOnly(), productOptimizationController.StandardizeProductTitles)
 
 				// Bulk: apply/remove default watermark image URL
 				products.PUT("/bulk-default-image/apply", productController.BulkApplyDefaultImage)

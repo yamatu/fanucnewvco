@@ -125,6 +125,40 @@ export interface ProductCategoryOptimizationResult {
   results?: ProductCategoryOptimizationItem[];
 }
 
+export interface ProductTitleStandardizationRequest {
+  product_ids?: number[];
+  category_id?: number;
+  brand?: string;
+  include_inactive?: boolean;
+  limit?: number;
+  after_id?: number;
+  apply?: boolean;
+}
+
+export interface ProductTitleProposal {
+  product_id: number;
+  sku: string;
+  status: 'ready' | 'updated' | 'skipped' | 'unresolved' | 'failed';
+  message?: string;
+  brand?: string;
+  model?: string;
+  part_type?: string;
+  old_name: string;
+  new_name?: string;
+}
+
+export interface ProductTitleStandardizationResult {
+  processed: number;
+  ready: number;
+  updated: number;
+  skipped: number;
+  unresolved: number;
+  has_more: boolean;
+  next_after_id?: number;
+  applied: boolean;
+  results: ProductTitleProposal[];
+}
+
 export interface BulkSelectionIdsResult {
   ids: number[];
   total: number;
@@ -607,6 +641,18 @@ export class ProductService {
     );
     if (response.data.success && response.data.data) return response.data.data;
     throw new Error(response.data.message || response.data.error || 'Failed to optimize product categories');
+  }
+
+  static async standardizeTitles(
+    payload: ProductTitleStandardizationRequest
+  ): Promise<ProductTitleStandardizationResult> {
+    const response = await apiClient.post<APIResponse<ProductTitleStandardizationResult>>(
+      '/admin/products/standardize-titles',
+      payload,
+      { timeout: 0 }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || response.data.error || 'Failed to standardize product titles');
   }
 
   static async getAdminProductSelectionIds(payload: {
