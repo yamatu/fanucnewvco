@@ -57,7 +57,12 @@ func isConfirmedInference(inference ProductCategoryInference) bool {
 }
 
 func isClassificationBrandAllowed(brandKey, rule string) bool {
-	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(rule)), "web:") {
+	rule = strings.ToLower(strings.TrimSpace(rule))
+	// Web evidence and administrator-approved LLM classifications carry their
+	// own verification, so any concrete manufacturer they name is acceptable.
+	// This is what lets newly stocked brands outside the deterministic registry
+	// below still classify cleanly.
+	if strings.HasPrefix(rule, "web:") || strings.HasPrefix(rule, "llm:") {
 		return strings.TrimSpace(brandKey) != "" && !strings.EqualFold(strings.TrimSpace(brandKey), "unknown")
 	}
 	switch NormalizeBrandKey(brandKey) {

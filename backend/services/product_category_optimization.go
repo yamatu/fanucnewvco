@@ -102,6 +102,43 @@ func OptimizeProductCategory(ctx context.Context, db *gorm.DB, product models.Pr
 		return result
 	}
 
+	return applyConfirmedCategoryInference(ctx, db, product, inference, result, opts)
+}
+
+// ApplyProductCategoryInference assigns a category from an inference that was
+// verified outside the deterministic rules — currently the administrator's
+// LLM fallback in category jobs. The same resolve/create/validate/write path
+// is used, so an unconfirmed inference can never publish a product.
+func ApplyProductCategoryInference(ctx context.Context, db *gorm.DB, product models.Product, inference ProductCategoryInference, opts ProductCategoryOptimizationOptions) ProductCategoryOptimizationResult {
+	result := ProductCategoryOptimizationResult{
+		ProductID: product.ID,
+		SKU:       product.SKU,
+		Status:    "failed",
+		Model:     productClassificationModel(product),
+		Inference: inference,
+	}
+	if db == nil {
+		result.Message = "database is nil"
+		return result
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	result.PartType = strings.TrimSpace(inference.PartType)
+	result.MatchRule = strings.TrimSpace(inference.MatchRule)
+	result.Brand = strings.TrimSpace(inference.BrandName)
+	if result.Brand == "" {
+		result.Brand = CanonicalBrandName(inference.BrandKey)
+	}
+	if !isConfirmedInference(inference) {
+		result.Status = "unresolved"
+		result.Message = "classification is not verified"
+		return result
+	}
+	return applyConfirmedCategoryInference(ctx, db, product, inference, result, opts)
+}
+
+func applyConfirmedCategoryInference(ctx context.Context, db *gorm.DB, product models.Product, inference ProductCategoryInference, result ProductCategoryOptimizationResult, opts ProductCategoryOptimizationOptions) ProductCategoryOptimizationResult {
 	categoryID, err := ResolveExistingCategoryForInference(db.WithContext(ctx), inference, product.Category.Name)
 	created := false
 	if (err != nil || categoryID == 0) && opts.CreateMissingCategories {

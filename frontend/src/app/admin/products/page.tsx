@@ -449,7 +449,9 @@ function AdminProductsContent() {
     const nextScope = hasExplicitSelection ? 'selected' : 'filtered';
     const available = nextScope === 'selected' ? selectedCurrentPageIds.length : totalProducts;
     setCategoryOptimizationScope(nextScope);
-    setCategoryOptimizationLimit(String(Math.min(available, 500)));
+    // Default to the full scope (capped by the 30,000 job ceiling) so "all
+    // products" really queues everything instead of a silent 500-item batch.
+    setCategoryOptimizationLimit(String(Math.min(available, AI_SEO_MAX_PRODUCTS)));
     setShowCategoryOptimizationModal(true);
   };
 

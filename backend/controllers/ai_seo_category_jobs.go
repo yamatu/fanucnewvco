@@ -47,12 +47,18 @@ type aiSEOCategoryJobRequest struct {
 	UseWebSearch            *bool  `json:"use_web_search"`
 	CreateMissingCategories *bool  `json:"create_missing_categories"`
 	ActivateResolved        *bool  `json:"activate_resolved"`
+	UseLLMFallback          *bool  `json:"use_llm_fallback"`
+	// ReworkOnly replaces the filter selection with the classification audit:
+	// only products that are misplaced, uncategorized, unresolved-inactive, or
+	// AI-SEO-failed are queued.
+	ReworkOnly bool `json:"rework_only"`
 }
 
 type aiSEOCategoryJobOptions struct {
 	UseWebSearch            bool `json:"use_web_search"`
 	CreateMissingCategories bool `json:"create_missing_categories"`
 	ActivateResolved        bool `json:"activate_resolved"`
+	UseLLMFallback          bool `json:"use_llm_fallback"`
 }
 
 // StartCategoryOptimizationJob creates a category-only background task in the
@@ -92,7 +98,11 @@ func (ac *AIAgentController) StartCategoryOptimizationJob(c *gin.Context) {
 		return
 	}
 	if len(products) == 0 {
-		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "No products matched the requested category optimization scope"})
+		message := "No products matched the requested category optimization scope"
+		if req.ReworkOnly {
+			message = "The classification audit found no products that need rework"
+		}
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: message})
 		return
 	}
 
@@ -100,6 +110,7 @@ func (ac *AIAgentController) StartCategoryOptimizationJob(c *gin.Context) {
 		UseWebSearch:            optionalBool(req.UseWebSearch, true),
 		CreateMissingCategories: optionalBool(req.CreateMissingCategories, true),
 		ActivateResolved:        optionalBool(req.ActivateResolved, true),
+		UseLLMFallback:          optionalBool(req.UseLLMFallback, true),
 	}
 	prompt, err := encodeAISEOCategoryJobOptions(opts)
 	if err != nil {
@@ -127,6 +138,9 @@ func optionalBool(value *bool, fallback bool) bool {
 }
 
 func findCategoryOptimizationCandidates(db *gorm.DB, req aiSEOCategoryJobRequest) ([]models.Product, error) {
+	if req.ReworkOnly {
+		return findCategoryReworkCandidates(db, req.Limit)
+	}
 	uniqueIDs := uniqueProductIDs(req.ProductIDs)
 	if len(uniqueIDs) > maxAISEOCandidateProducts {
 		return nil, errors.New("choose at most 30000 unique products")
@@ -193,6 +207,36 @@ func findCategoryOptimizationCandidates(db *gorm.DB, req aiSEOCategoryJobRequest
 	}
 	if len(ids) > 0 && len(products) != len(ids) {
 		return nil, errors.New("one or more selected products are inactive, missing, or already belong to another running task")
+	}
+	return products, nil
+}
+
+// findCategoryReworkCandidates turns the classification audit into a job
+// selection. The audit already skips products held by queued or running job
+// items, so the returned list can always be enqueued.
+func findCategoryReworkCandidates(db *gorm.DB, limit int) ([]models.Product, error) {
+	audit, err := services.AuditProductClassifications(db, limit)
+	if err != nil {
+		return nil, err
+	}
+	if len(audit.ProductIDs) == 0 {
+		return nil, nil
+	}
+	products := make([]models.Product, 0, len(audit.ProductIDs))
+	for start := 0; start < len(audit.ProductIDs); start += 1000 {
+		end := start + 1000
+		if end > len(audit.ProductIDs) {
+			end = len(audit.ProductIDs)
+		}
+		var batch []models.Product
+		if err := db.Model(&models.Product{}).
+			Select("products.id", "products.sku").
+			Where("products.id IN ?", audit.ProductIDs[start:end]).
+			Order("products.id ASC").
+			Find(&batch).Error; err != nil {
+			return nil, err
+		}
+		products = append(products, batch...)
 	}
 	return products, nil
 }
@@ -264,9 +308,13 @@ func createCategoryOptimizationJob(db *gorm.DB, products []models.Product, promp
 	if err := db.Transaction(func(tx *gorm.DB) error {
 		// Lock the same singleton database row used by ordinary AI SEO job
 		// creation so overlap checks are serialized across server processes.
-		if _, err := getAIAgentSettingForUpdate(tx); err != nil {
+		setting, err := getAIAgentSettingForUpdate(tx)
+		if err != nil {
 			return err
 		}
+		// Pin the profile chosen at creation so the LLM fallback keeps using
+		// the same provider even if the administrator switches later.
+		job.AIProfileID = setting.ActiveProfileID
 		var active []models.AIAgentSEOJob
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Select("id").
@@ -298,6 +346,19 @@ func processCategoryOptimizationJob(jobID, workerToken, prompt string) {
 		finishAIAgentSEOJob(jobID, workerToken, "failed", err.Error())
 		return
 	}
+	// The LLM fallback is optional: category jobs still run rules + web
+	// verification when no AI profile is configured or the assistant is off.
+	var llmSetting *models.AIAgentSetting
+	llmAPIKey := ""
+	if opts.UseLLMFallback {
+		profileID, profileErr := loadAIAgentSEOJobProfileID(db, jobID)
+		if profileErr == nil {
+			if setting, _, apiKey, configErr := loadAIAgentConfigForProfile(profileID); configErr == nil && setting.Enabled && apiKey != "" {
+				llmSetting = setting
+				llmAPIKey = apiKey
+			}
+		}
+	}
 	var items []models.AIAgentSEOJobItem
 	if err := db.Where("job_id = ? AND status = ?", jobID, "queued").Order("id ASC").Find(&items).Error; err != nil {
 		finishAIAgentSEOJob(jobID, workerToken, "failed", err.Error())
@@ -313,7 +374,7 @@ func processCategoryOptimizationJob(jobID, workerToken, prompt string) {
 			go func() {
 				defer wg.Done()
 				for item := range work {
-					if err := processCategoryOptimizationItem(context.Background(), jobID, workerToken, item, opts); err != nil {
+					if err := processCategoryOptimizationItem(context.Background(), jobID, workerToken, item, opts, llmSetting, llmAPIKey); err != nil {
 						select {
 						case workerErrors <- err:
 						default:
@@ -349,7 +410,7 @@ func processCategoryOptimizationJob(jobID, workerToken, prompt string) {
 	}
 }
 
-func processCategoryOptimizationItem(ctx context.Context, jobID, workerToken string, item models.AIAgentSEOJobItem, opts aiSEOCategoryJobOptions) error {
+func processCategoryOptimizationItem(ctx context.Context, jobID, workerToken string, item models.AIAgentSEOJobItem, opts aiSEOCategoryJobOptions, llmSetting *models.AIAgentSetting, llmAPIKey string) error {
 	db := config.GetDB()
 	if !isAISEOJobRunning(db, jobID, workerToken) {
 		return nil
@@ -385,6 +446,25 @@ func processCategoryOptimizationItem(ctx context.Context, jobID, workerToken str
 		},
 	}
 	result := services.OptimizeProductCategory(ctx, db, product, serviceOpts)
+	llmNote := ""
+	if result.Status == "unresolved" && llmSetting != nil && llmAPIKey != "" {
+		// Rules and public web evidence both came up empty. Ask the active AI
+		// profile to identify the part; a validated high-confidence answer runs
+		// through the exact same resolve/create/write safeguards.
+		timeoutSeconds := llmSetting.TimeoutSeconds
+		if timeoutSeconds <= 0 {
+			timeoutSeconds = 75
+		}
+		llmCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+		inference, llmErr := classifyProductCategoryWithLLM(llmCtx, llmSetting, llmAPIKey, product, result.Model)
+		cancel()
+		if llmErr == nil {
+			if llmResult := services.ApplyProductCategoryInference(ctx, db, product, inference, serviceOpts); llmResult.Status == "completed" {
+				result = llmResult
+				llmNote = "AI verified: "
+			}
+		}
+	}
 	if isAISEOJobCancelled(db, jobID) {
 		return nil
 	}
@@ -394,9 +474,9 @@ func processCategoryOptimizationItem(ctx context.Context, jobID, workerToken str
 	}
 	detail := strings.TrimSpace(result.CategoryPath)
 	if result.CategoryCreated {
-		detail = "Created category: " + detail
+		detail = llmNote + "Created category: " + detail
 	} else if detail != "" {
-		detail = "Category: " + detail
+		detail = llmNote + "Category: " + detail
 	}
 	updated := db.Model(&models.AIAgentSEOJobItem{}).
 		Where("id = ? AND status = ?", item.ID, "running").

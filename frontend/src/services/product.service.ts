@@ -159,6 +159,30 @@ export interface ProductTitleStandardizationResult {
   results: ProductTitleProposal[];
 }
 
+export interface ProductClassificationIssue {
+  product_id: number;
+  sku: string;
+  name: string;
+  brand: string;
+  model: string;
+  category_id: number;
+  category_path: string;
+  issue: 'uncategorized' | 'wrong_category' | 'root_category' | 'inactive_unresolved' | 'seo_failed';
+  detail: string;
+}
+
+export interface ProductClassificationAudit {
+  scanned: number;
+  ok: number;
+  uncategorized: number;
+  wrong_category: number;
+  root_category: number;
+  inactive_unresolved: number;
+  seo_failed: number;
+  product_ids: number[];
+  samples: ProductClassificationIssue[];
+}
+
 export interface BulkSelectionIdsResult {
   ids: number[];
   total: number;
@@ -653,6 +677,17 @@ export class ProductService {
     );
     if (response.data.success && response.data.data) return response.data.data;
     throw new Error(response.data.message || response.data.error || 'Failed to standardize product titles');
+  }
+
+  static async auditClassification(): Promise<ProductClassificationAudit> {
+    const response = await apiClient.post<APIResponse<ProductClassificationAudit>>(
+      '/admin/products/classification-audit',
+      {},
+      // The audit walks the whole catalog; do not let the global timeout cut it off.
+      { timeout: 0 }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || response.data.error || 'Classification audit failed');
   }
 
   static async getAdminProductSelectionIds(payload: {

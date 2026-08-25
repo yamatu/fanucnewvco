@@ -12,11 +12,12 @@ import {
   PencilSquareIcon,
   SparklesIcon,
   TrashIcon,
+  WrenchScrewdriverIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { CategoryService, ProductService } from '@/services';
 import type { CategoryCleanupOptions, CategoryCleanupPlan, CategoryCleanupResult } from '@/services/category.service';
-import type { ProductTitleProposal, ProductTitleStandardizationResult } from '@/services/product.service';
+import type { ProductClassificationAudit, ProductClassificationIssue, ProductTitleProposal, ProductTitleStandardizationResult } from '@/services/product.service';
 import { AIAgentService } from '@/services/ai-agent.service';
 import { queryKeys } from '@/lib/react-query';
 import { useAdminI18n } from '@/lib/admin-i18n';
@@ -46,6 +47,11 @@ export default function CategoryAIToolsPanel() {
   const [applyingCleanup, setApplyingCleanup] = useState(false);
 
   const [startingClassifyJob, setStartingClassifyJob] = useState(false);
+
+  const [audit, setAudit] = useState<ProductClassificationAudit | null>(null);
+  const [auditModalOpen, setAuditModalOpen] = useState(false);
+  const [auditing, setAuditing] = useState(false);
+  const [startingRework, setStartingRework] = useState(false);
 
   const [titleModalOpen, setTitleModalOpen] = useState(false);
   const [titlePreview, setTitlePreview] = useState<ProductTitleStandardizationResult | null>(null);
@@ -112,6 +118,7 @@ export default function CategoryAIToolsPanel() {
         use_web_search: true,
         create_missing_categories: true,
         activate_resolved: true,
+        use_llm_fallback: true,
       });
       toast.success(zh
         ? `智能分类任务已启动（${job.total} 个产品），可到 AI SEO 页面查看进度`
@@ -120,6 +127,51 @@ export default function CategoryAIToolsPanel() {
       toast.error(errorText(error, zh ? '无法启动智能分类任务' : 'Could not start the classification job'));
     } finally {
       setStartingClassifyJob(false);
+    }
+  };
+
+  const runAudit = async () => {
+    setAuditing(true);
+    try {
+      const result = await ProductService.auditClassification();
+      setAudit(result);
+      setAuditModalOpen(true);
+      if (result.product_ids.length === 0) {
+        toast.success(zh ? '没有发现需要返工的产品！' : 'No products need rework!');
+      }
+    } catch (error: unknown) {
+      toast.error(errorText(error, zh ? '返工检测失败' : 'Rework audit failed'));
+    } finally {
+      setAuditing(false);
+    }
+  };
+
+  const startReworkJob = async () => {
+    if (!audit || audit.product_ids.length === 0) return;
+    const message = zh
+      ? `启动返工任务？将对 ${audit.product_ids.length} 个有问题的产品重新分类：规则 + 联网核验 + AI 兜底识别，仍无法核验的产品保持下架待人工处理。`
+      : `Start the rework job? ${audit.product_ids.length} flagged products will be reclassified via rules + web verification + AI fallback; still-unverifiable products stay inactive for review.`;
+    if (!window.confirm(message)) return;
+    setStartingRework(true);
+    try {
+      const job = await AIAgentService.startCategoryOptimizationJob({
+        rework_only: true,
+        limit: 30000,
+        status: 'all',
+        include_inactive: true,
+        use_web_search: true,
+        create_missing_categories: true,
+        activate_resolved: true,
+        use_llm_fallback: true,
+      });
+      setAuditModalOpen(false);
+      toast.success(zh
+        ? `返工任务已启动（${job.total} 个产品），可到 AI SEO 页面查看进度`
+        : `Rework job started for ${job.total} products — track it on the AI SEO page`);
+    } catch (error: unknown) {
+      toast.error(errorText(error, zh ? '无法启动返工任务' : 'Could not start the rework job'));
+    } finally {
+      setStartingRework(false);
     }
   };
 
@@ -218,7 +270,7 @@ export default function CategoryAIToolsPanel() {
         </p>
       )}
 
-      <div className="grid gap-4 p-6 lg:grid-cols-3">
+      <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-4">
         {/* Cleanup card */}
         <div className="flex flex-col rounded-lg border border-gray-200 p-4">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
@@ -262,8 +314,8 @@ export default function CategoryAIToolsPanel() {
           </h3>
           <p className="mt-1 flex-1 text-xs leading-5 text-gray-500">
             {zh
-              ? '后台任务按品牌/型号规则分类全部产品，未识别的型号会联网核验官方资料；只在核验通过时创建「品牌 > 类型」分类，绝不重复建类。'
-              : 'A background job classifies every product by brand/model rules with official-source web verification, creating "Brand > Type" nodes only when verified — never duplicates.'}
+              ? '后台任务按品牌/型号规则分类全部产品，未识别的型号先联网核验官方资料，再由配置的 AI 兜底识别（任何品牌都能分类）；只在核验通过时创建「品牌 > 类型」分类，绝不重复建类。'
+              : 'A background job classifies every product by brand/model rules, then official-source web verification, then the configured AI as a fallback (any brand works). "Brand > Type" nodes are created only when verified — never duplicates.'}
           </p>
           <div className="mt-3 flex flex-col gap-2">
             <button
@@ -279,6 +331,27 @@ export default function CategoryAIToolsPanel() {
               <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
             </Link>
           </div>
+        </div>
+
+        {/* Rework audit card */}
+        <div className="flex flex-col rounded-lg border border-gray-200 p-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <WrenchScrewdriverIcon className="h-4 w-4 text-amber-600" />
+            {zh ? 'AI 返工检测' : 'AI rework audit'}
+          </h3>
+          <p className="mt-1 flex-1 text-xs leading-5 text-gray-500">
+            {zh
+              ? '扫描全部产品，找出没有分类、放错分类、型号未识别被下架、或 SEO AI 处理失败的产品，一键重新分类返工。'
+              : 'Scans every product for missing, wrong, or unverified classifications (including AI SEO failures) and reworks them in one click.'}
+          </p>
+          <button
+            onClick={runAudit}
+            disabled={!isAdmin || auditing || startingRework}
+            className="mt-3 inline-flex items-center justify-center gap-2 rounded-md bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {auditing ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <DocumentMagnifyingGlassIcon className="h-4 w-4" />}
+            {zh ? '检测问题产品' : 'Detect issues'}
+          </button>
         </div>
 
         {/* Title standardization card */}
@@ -467,6 +540,99 @@ export default function CategoryAIToolsPanel() {
           </div>
         </div>
       ) : null}
+      {/* Rework audit modal */}
+      {auditModalOpen && audit ? (
+        <div className="fixed inset-0 z-[70] overflow-y-auto" role="dialog" aria-modal="true">
+          <div className="flex min-h-screen items-center justify-center px-4 py-8">
+            <div className="fixed inset-0 bg-gray-900/60" onClick={() => !startingRework && setAuditModalOpen(false)} />
+            <div className="relative flex max-h-[85vh] w-full max-w-3xl flex-col rounded-lg bg-white shadow-xl">
+              <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">{zh ? '返工检测结果' : 'Rework audit result'}</h2>
+                  <p className="mt-0.5 text-sm text-gray-500">
+                    {zh
+                      ? `扫描 ${audit.scanned.toLocaleString()} 个产品：${audit.ok.toLocaleString()} 个正常，${audit.product_ids.length.toLocaleString()} 个需要返工`
+                      : `${audit.scanned.toLocaleString()} products scanned: ${audit.ok.toLocaleString()} OK, ${audit.product_ids.length.toLocaleString()} need rework`}
+                  </p>
+                </div>
+                <button onClick={() => setAuditModalOpen(false)} disabled={startingRework} className="rounded-md p-2 text-gray-500 hover:bg-gray-50">
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                  {[
+                    [zh ? '无分类' : 'Uncategorized', audit.uncategorized],
+                    [zh ? '放错分类' : 'Wrong category', audit.wrong_category],
+                    [zh ? '挂在根分类' : 'On root category', audit.root_category],
+                    [zh ? '未识别已下架' : 'Unresolved inactive', audit.inactive_unresolved],
+                    [zh ? 'SEO 失败' : 'SEO failed', audit.seo_failed],
+                  ].map(([label, value]) => (
+                    <div key={String(label)} className="rounded-md border border-gray-200 p-3">
+                      <div className="text-xs text-gray-500">{label}</div>
+                      <div className="mt-1 text-xl font-semibold text-gray-900">{Number(value).toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {audit.samples.length > 0 ? (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      {zh ? `问题示例（最多显示 ${audit.samples.length} 个）` : `Sample issues (${audit.samples.length} shown)`}
+                    </h3>
+                    <div className="mt-2 max-h-72 divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-200">
+                      {audit.samples.map((sample) => (
+                        <div key={sample.product_id} className="px-3 py-2 text-sm">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="min-w-0 truncate font-mono text-xs text-gray-500">{sample.sku}</span>
+                            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">{auditIssueLabel(sample.issue, zh)}</span>
+                          </div>
+                          <div className="mt-0.5 truncate text-gray-800">{sample.name}</div>
+                          <div className="mt-0.5 text-xs text-gray-500">
+                            {sample.category_path ? `${zh ? '当前分类：' : 'Current: '}${sample.category_path} · ` : ''}{sample.detail}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="rounded-md bg-green-50 p-4 text-sm text-green-700">
+                    {zh ? '所有产品的分类都验证正常，无需返工。' : 'Every product classification checks out — nothing to rework.'}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap justify-end gap-3 border-t border-gray-200 px-6 py-4">
+                <button onClick={() => setAuditModalOpen(false)} disabled={startingRework} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                  {zh ? '关闭' : 'Close'}
+                </button>
+                {audit.product_ids.length > 0 && (
+                  <button
+                    onClick={startReworkJob}
+                    disabled={startingRework}
+                    className="inline-flex items-center gap-2 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    {startingRework ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <WrenchScrewdriverIcon className="h-4 w-4" />}
+                    {zh ? `启动返工任务（${audit.product_ids.length.toLocaleString()} 个产品）` : `Start rework job (${audit.product_ids.length.toLocaleString()} products)`}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+function auditIssueLabel(issue: ProductClassificationIssue['issue'], zh: boolean) {
+  const labels: Record<ProductClassificationIssue['issue'], [string, string]> = {
+    uncategorized: ['无分类', 'Uncategorized'],
+    wrong_category: ['放错分类', 'Wrong category'],
+    root_category: ['挂在根分类', 'On root category'],
+    inactive_unresolved: ['未识别已下架', 'Unresolved inactive'],
+    seo_failed: ['SEO 失败', 'SEO failed'],
+  };
+  return labels[issue][zh ? 0 : 1];
 }

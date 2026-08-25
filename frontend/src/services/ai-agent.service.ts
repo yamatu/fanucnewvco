@@ -255,6 +255,10 @@ export interface AIAgentCategoryOptimizationOptions {
   use_web_search?: boolean;
   create_missing_categories?: boolean;
   activate_resolved?: boolean;
+  /** Ask the active AI profile to identify products the rules cannot verify. */
+  use_llm_fallback?: boolean;
+  /** Queue only products the classification audit flags for rework. */
+  rework_only?: boolean;
 }
 
 export interface AIAgentSEOJobItemsPage {
