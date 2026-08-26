@@ -350,6 +350,9 @@ export interface Category {
   children?: Category[];
   sort_order: number;
   is_active: boolean;
+  // Active products in this category and all descendants. Present on the
+  // public tree endpoint.
+  product_count?: number;
   created_at: string;
   updated_at: string;
   products?: Product[];

@@ -192,6 +192,24 @@ func (cc *CategoryController) GetCategories(c *gin.Context) {
 	}
 
 	tree := services.BuildCategoryTree(cats)
+	// One grouped query supplies active-product counts for the whole tree, so
+	// storefront pages can sort brands by size without per-category requests.
+	type categoryCountRow struct {
+		CategoryID uint
+		Count      int64
+	}
+	var countRows []categoryCountRow
+	if err := db.Model(&models.Product{}).
+		Select("category_id AS category_id, COUNT(*) AS count").
+		Where("is_active = ?", true).
+		Group("category_id").
+		Scan(&countRows).Error; err == nil {
+		directCounts := make(map[uint]int64, len(countRows))
+		for _, row := range countRows {
+			directCounts[row.CategoryID] = row.Count
+		}
+		services.AttachCategoryProductCounts(tree, directCounts)
+	}
 	if flat {
 		c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Categories retrieved successfully", Data: services.FlattenCategoryTree(tree)})
 		return

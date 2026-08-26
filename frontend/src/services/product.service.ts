@@ -128,6 +128,7 @@ export interface ProductCategoryOptimizationResult {
 export interface ProductTitleStandardizationRequest {
   product_ids?: number[];
   category_id?: number;
+  include_descendants?: boolean;
   brand?: string;
   include_inactive?: boolean;
   limit?: number;
@@ -167,7 +168,7 @@ export interface ProductClassificationIssue {
   model: string;
   category_id: number;
   category_path: string;
-  issue: 'uncategorized' | 'wrong_category' | 'root_category' | 'inactive_unresolved' | 'seo_failed';
+  issue: 'uncategorized' | 'wrong_category' | 'root_category' | 'generic_category' | 'inactive_unresolved' | 'seo_failed';
   detail: string;
 }
 
@@ -177,6 +178,7 @@ export interface ProductClassificationAudit {
   uncategorized: number;
   wrong_category: number;
   root_category: number;
+  generic_category: number;
   inactive_unresolved: number;
   seo_failed: number;
   product_ids: number[];

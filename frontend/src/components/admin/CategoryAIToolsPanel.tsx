@@ -561,11 +561,12 @@ export default function CategoryAIToolsPanel() {
               </div>
 
               <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {[
                     [zh ? '无分类' : 'Uncategorized', audit.uncategorized],
                     [zh ? '放错分类' : 'Wrong category', audit.wrong_category],
                     [zh ? '挂在根分类' : 'On root category', audit.root_category],
+                    [zh ? '杂项分类待整理' : 'In catch-all tree', audit.generic_category],
                     [zh ? '未识别已下架' : 'Unresolved inactive', audit.inactive_unresolved],
                     [zh ? 'SEO 失败' : 'SEO failed', audit.seo_failed],
                   ].map(([label, value]) => (
@@ -631,6 +632,7 @@ function auditIssueLabel(issue: ProductClassificationIssue['issue'], zh: boolean
     uncategorized: ['无分类', 'Uncategorized'],
     wrong_category: ['放错分类', 'Wrong category'],
     root_category: ['挂在根分类', 'On root category'],
+    generic_category: ['杂项分类', 'Catch-all tree'],
     inactive_unresolved: ['未识别已下架', 'Unresolved inactive'],
     seo_failed: ['SEO 失败', 'SEO failed'],
   };

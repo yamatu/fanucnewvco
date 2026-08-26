@@ -14,6 +14,7 @@ const (
 	AuditIssueUncategorized      = "uncategorized"
 	AuditIssueWrongCategory      = "wrong_category"
 	AuditIssueRootCategory       = "root_category"
+	AuditIssueGenericCategory    = "generic_category"
 	AuditIssueInactiveUnresolved = "inactive_unresolved"
 	AuditIssueSEOFailed          = "seo_failed"
 )
@@ -36,6 +37,7 @@ type ProductClassificationAuditResult struct {
 	Uncategorized      int    `json:"uncategorized"`
 	WrongCategory      int    `json:"wrong_category"`
 	RootCategory       int    `json:"root_category"`
+	GenericCategory    int    `json:"generic_category"`
 	InactiveUnresolved int    `json:"inactive_unresolved"`
 	SEOFailed          int    `json:"seo_failed"`
 	ProductIDs         []uint `json:"product_ids"`
@@ -47,9 +49,27 @@ type ProductClassificationAuditResult struct {
 const auditSampleLimit = 100
 
 type auditCategoryInfo struct {
-	Path   string
-	IsRoot bool
-	Exists bool
+	Path     string
+	RootName string
+	IsRoot   bool
+	Exists   bool
+}
+
+// genericAuditRootNames flags catch-all trees such as "Industrial Automation
+// Spare Parts" or "Unidentified Spare Parts". Only the ROOT segment is
+// checked, so legitimate family nodes like "Siemens > S7-1500 Spare Parts"
+// are never swept into a rework.
+func isGenericAuditRootName(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return false
+	}
+	for _, marker := range []string{"industrial automation", "unidentified", "uncategorized", "spare part", "new arrival", "misc"} {
+		if strings.Contains(name, marker) {
+			return true
+		}
+	}
+	return name == "other" || name == "others"
 }
 
 func buildAuditCategoryIndex(categories []models.Category) map[uint]auditCategoryInfo {
@@ -73,9 +93,10 @@ func buildAuditCategoryIndex(categories []models.Category) map[uint]auditCategor
 			current = parent
 		}
 		index[category.ID] = auditCategoryInfo{
-			Path:   strings.Join(segments, " > "),
-			IsRoot: category.ParentID == nil,
-			Exists: true,
+			Path:     strings.Join(segments, " > "),
+			RootName: segments[0],
+			IsRoot:   category.ParentID == nil,
+			Exists:   true,
 		}
 	}
 	return index
@@ -114,6 +135,9 @@ func evaluateProductClassification(product models.Product, categoryIndex map[uin
 	}
 	if category.IsRoot {
 		return AuditIssueRootCategory, "unverified product sits directly under root category " + category.Path
+	}
+	if isGenericAuditRootName(category.RootName) {
+		return AuditIssueGenericCategory, "unverified product sits in catch-all tree " + category.Path
 	}
 	return "", ""
 }
@@ -177,6 +201,8 @@ func AuditProductClassifications(db *gorm.DB, maxProducts int) (*ProductClassifi
 				result.WrongCategory++
 			case AuditIssueRootCategory:
 				result.RootCategory++
+			case AuditIssueGenericCategory:
+				result.GenericCategory++
 			case AuditIssueInactiveUnresolved:
 				result.InactiveUnresolved++
 			case AuditIssueSEOFailed:

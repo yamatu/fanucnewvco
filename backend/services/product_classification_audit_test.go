@@ -12,7 +12,26 @@ func auditTestIndex() map[uint]auditCategoryInfo {
 		{ID: 2, Name: "Servo Amplifiers", ParentID: cleanupTestUintPtr(1), IsActive: true},
 		{ID: 3, Name: "Siemens", IsActive: true},
 		{ID: 4, Name: "PLC Modules", ParentID: cleanupTestUintPtr(3), IsActive: true},
+		{ID: 5, Name: "Industrial Automation Spare Parts", IsActive: true},
+		{ID: 6, Name: "Terminal Modules", ParentID: cleanupTestUintPtr(5), IsActive: true},
+		{ID: 7, Name: "S7-1500 Spare Parts", ParentID: cleanupTestUintPtr(3), IsActive: true},
 	})
+}
+
+func TestEvaluateProductClassificationGenericCategoryTree(t *testing.T) {
+	// An active unverified product inside a catch-all tree must be reworked...
+	product := models.Product{ID: 7, SKU: "MYSTERY-4", Model: "ZZZ996", CategoryID: 6, IsActive: true}
+	issue, _ := evaluateProductClassification(product, auditTestIndex())
+	if issue != AuditIssueGenericCategory {
+		t.Fatalf("expected generic_category, got %q", issue)
+	}
+	// ...but the same product under a brand's family node is left alone: only
+	// the ROOT segment decides whether a tree is a catch-all.
+	product.CategoryID = 7
+	issue, _ = evaluateProductClassification(product, auditTestIndex())
+	if issue != "" {
+		t.Fatalf("brand family node must not be treated as catch-all, got %q", issue)
+	}
 }
 
 func TestEvaluateProductClassificationUncategorized(t *testing.T) {

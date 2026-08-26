@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import PublicLayout from '@/components/layout/PublicLayout';
+import CategoriesBrandAccordion from '@/components/categories/CategoriesBrandAccordion';
 import { CategoryService } from '@/services/category.service';
 import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
 import { localizeCategoryContent } from '@/lib/i18n/content';
@@ -44,6 +45,9 @@ export default async function CategoriesPage() {
         parts: '全部自动化零部件',
         repair: '维修评估',
         blog: '技术博客',
+        products: '件产品',
+        otherBrands: '更多品牌与分类',
+        viewAll: '查看全部产品',
       }
     : {
         kicker: 'Multi-brand catalogue',
@@ -55,12 +59,24 @@ export default async function CategoriesPage() {
         parts: 'All automation parts',
         repair: 'Repair evaluation',
         blog: 'Technical blog',
+        products: 'products',
+        otherBrands: 'More brands & categories',
+        viewAll: 'View all products',
       };
   let categories: Category[] = [];
   try {
     categories = (await CategoryService.getCategories()).map((category) => localizeCategoryContent(category, locale));
   } catch (error) {
     console.error('Failed to load categories index:', error);
+  }
+
+  // Pre-localized hrefs for the client accordion (roots and direct children).
+  const categoryHrefs: Record<number, string> = {};
+  for (const category of categories) {
+    categoryHrefs[category.id] = localizePublicPath(categoryPath(category), locale);
+    for (const child of category.children || []) {
+      categoryHrefs[child.id] = localizePublicPath(categoryPath(child), locale);
+    }
   }
 
   const baseUrl = getSiteUrl();
@@ -118,32 +134,11 @@ export default async function CategoriesPage() {
 
         <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
           {categories.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {categories.map((category) => (
-                <article key={category.id} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h2 className="text-xl font-bold text-slate-950">
-                    <Link href={localizePublicPath(categoryPath(category), locale)} className="hover:text-[#0b3e75]">
-                      {category.name}
-                    </Link>
-                  </h2>
-                  {category.description && <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">{category.description}</p>}
-                  {Array.isArray(category.children) && category.children.length > 0 && (
-                    <ul className="mt-5 space-y-2 border-t border-slate-100 pt-4">
-                      {category.children.slice(0, 8).map((child) => (
-                        <li key={child.id}>
-                          <Link href={localizePublicPath(categoryPath(child), locale)} className="text-sm font-medium text-[#0b3e75] hover:text-orange-700">
-                            {child.name} →
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <Link href={localizePublicPath(categoryPath(category), locale)} className="mt-6 inline-flex font-bold text-[#0b3e75] hover:text-orange-700">
-                    {copy.browse} {category.name} →
-                  </Link>
-                </article>
-              ))}
-            </div>
+            <CategoriesBrandAccordion
+              categories={categories}
+              hrefs={categoryHrefs}
+              copy={{ browse: copy.browse, products: copy.products, otherBrands: copy.otherBrands, viewAll: copy.viewAll }}
+            />
           ) : (
             <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-slate-600">
               {copy.empty} <Link href={localizePublicPath('/products', locale)} className="font-bold text-[#0b3e75]">{copy.all}</Link>.

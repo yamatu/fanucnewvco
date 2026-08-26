@@ -19,12 +19,13 @@ const (
 )
 
 type productTitleStandardizationRequest struct {
-	ProductIDs      []uint `json:"product_ids"`
-	CategoryID      *uint  `json:"category_id"`
-	Brand           string `json:"brand"`
-	IncludeInactive bool   `json:"include_inactive"`
-	Limit           int    `json:"limit"`
-	AfterID         uint   `json:"after_id"`
+	ProductIDs         []uint `json:"product_ids"`
+	CategoryID         *uint  `json:"category_id"`
+	IncludeDescendants bool   `json:"include_descendants"`
+	Brand              string `json:"brand"`
+	IncludeInactive    bool   `json:"include_inactive"`
+	Limit              int    `json:"limit"`
+	AfterID            uint   `json:"after_id"`
 	// Apply writes the proposed names; the default is a read-only preview.
 	Apply bool `json:"apply"`
 }
@@ -70,7 +71,13 @@ func (poc *ProductOptimizationController) StandardizeProductTitles(c *gin.Contex
 		query = query.Where("products.id IN ?", request.ProductIDs)
 	}
 	if request.CategoryID != nil && *request.CategoryID > 0 {
-		query = query.Where("products.category_id = ?", *request.CategoryID)
+		categoryIDs := []uint{*request.CategoryID}
+		if request.IncludeDescendants {
+			if descendants, err := getDescendantCategoryIDs(db, *request.CategoryID); err == nil && len(descendants) > 0 {
+				categoryIDs = descendants
+			}
+		}
+		query = query.Where("products.category_id IN ?", categoryIDs)
 	}
 	if request.AfterID > 0 {
 		query = query.Where("products.id > ?", request.AfterID)

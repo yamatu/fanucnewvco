@@ -10,15 +10,18 @@ import (
 // CategoryNode is a JSON-friendly representation of Category with computed path and deep children.
 // It intentionally omits heavy product relations while retaining lightweight translations.
 type CategoryNode struct {
-	ID           uint                         `json:"id"`
-	Name         string                       `json:"name"`
-	Slug         string                       `json:"slug"`
-	Path         string                       `json:"path"`
-	Description  string                       `json:"description"`
-	ImageURL     string                       `json:"image_url"`
-	ParentID     *uint                        `json:"parent_id"`
-	SortOrder    int                          `json:"sort_order"`
-	IsActive     bool                         `json:"is_active"`
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	Path        string `json:"path"`
+	Description string `json:"description"`
+	ImageURL    string `json:"image_url"`
+	ParentID    *uint  `json:"parent_id"`
+	SortOrder   int    `json:"sort_order"`
+	IsActive    bool   `json:"is_active"`
+	// ProductCount is the number of active products in this node and all of
+	// its descendants. Populated by AttachCategoryProductCounts.
+	ProductCount int64                        `json:"product_count"`
 	CreatedAt    time.Time                    `json:"created_at"`
 	UpdatedAt    time.Time                    `json:"updated_at"`
 	Translations []models.CategoryTranslation `json:"translations,omitempty"`
@@ -104,4 +107,22 @@ func FlattenCategoryTree(tree []CategoryNode) []CategoryNode {
 	}
 	walk(tree)
 	return out
+}
+
+// AttachCategoryProductCounts fills each node's ProductCount with its direct
+// count plus all descendants, so storefront listings can sort and label
+// brands without issuing one request per category.
+func AttachCategoryProductCounts(tree []CategoryNode, directCounts map[uint]int64) {
+	var walk func(node *CategoryNode) int64
+	walk = func(node *CategoryNode) int64 {
+		total := directCounts[node.ID]
+		for index := range node.Children {
+			total += walk(&node.Children[index])
+		}
+		node.ProductCount = total
+		return total
+	}
+	for index := range tree {
+		walk(&tree[index])
+	}
 }
