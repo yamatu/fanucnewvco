@@ -137,6 +137,7 @@ func SetupRoutes(r *gin.Engine) {
 				authProtected.GET("/profile", authController.GetProfile)
 				authProtected.PUT("/profile", authController.UpdateProfile)
 				authProtected.POST("/change-password", authController.ChangePassword)
+				authProtected.POST("/refresh", authController.RefreshToken)
 			}
 		}
 

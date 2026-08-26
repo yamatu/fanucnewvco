@@ -15,8 +15,8 @@ export class AuthService {
     );
     
     if (response.data.success && response.data.data) {
-      // Store token in cookies
-      authUtils.setToken(response.data.data.token);
+      // Store token in cookies for exactly the JWT's lifetime
+      authUtils.setToken(response.data.data.token, response.data.data.expires_at);
       return response.data.data;
     }
     

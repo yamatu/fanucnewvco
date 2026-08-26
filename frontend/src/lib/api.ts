@@ -78,8 +78,13 @@ api.interceptors.request.use(
 );
 
 // Response interceptor for error handling
+let sessionExpiredRedirecting = false;
+
 api.interceptors.response.use(
   (response: AxiosResponse) => {
+    // Keep long-lived admin sessions alive: successful traffic near token
+    // expiry transparently rotates the JWT (fire and forget).
+    void maybeRefreshAdminToken();
     return response;
   },
   (error) => {
@@ -144,24 +149,41 @@ api.interceptors.response.use(
         toast.error('Request timed out. Please try again.');
       }
     } else if (error?.response?.status === 401) {
-      // Unauthorized - clear invalid tokens but don't redirect
-      // Let the components handle navigation based on their context
+      // Unauthorized — clear the dead token, tell the user ONCE, and send
+      // admin pages back to the login form. Without the toast id and the
+      // redirect guard, every parallel 401 used to raise its own error.
       if (typeof window !== 'undefined') {
+        const reqUrl = String(error?.config?.url || '');
         try {
-          const reqUrl = String(error?.config?.url || '');
           if (reqUrl.includes('/customer/')) {
             Cookies.remove('customer_token');
           } else if (reqUrl.includes('/admin/') || reqUrl.includes('/auth/')) {
             Cookies.remove('auth_token');
+            Cookies.remove('auth_token_expires');
           }
         } catch (_) {
           // ignore cookie cleanup errors in non-browser contexts
         }
-      }
 
-      // Only show error toast if not on a login page
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('login')) {
-        toast.error('Your session has expired. Please login again.');
+        const onLoginPage = window.location.pathname.includes('login');
+        if (!onLoginPage) {
+          toast.error('Your session has expired. Please login again.', { id: 'session-expired' });
+        }
+        const isAdminRequest = reqUrl.includes('/admin/') || reqUrl.includes('/auth/');
+        const onAdminPage = window.location.pathname.startsWith('/admin');
+        if (isAdminRequest && onAdminPage && !onLoginPage && !sessionExpiredRedirecting) {
+          sessionExpiredRedirecting = true;
+          try {
+            // Drop the persisted auth store so the login page starts clean.
+            window.localStorage.removeItem('auth-storage');
+          } catch (_) {
+            // ignore storage errors
+          }
+          const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+          window.setTimeout(() => {
+            window.location.href = `/admin/login?redirect=${redirect}`;
+          }, 800);
+        }
       }
     } else if (error?.response?.status >= 500) {
       if (typeof window !== 'undefined') {
@@ -202,22 +224,69 @@ export const apiClient = {
 };
 
 // Auth utilities
+const ADMIN_TOKEN_FALLBACK_HOURS = 24;
+
 export const authUtils = {
-  setToken: (token: string) => {
-    Cookies.set('auth_token', token, { expires: 7 }); // 7 days
+  // Store the admin token for exactly as long as the JWT is valid, so a
+  // stale cookie can never outlive the token and trigger 401 storms. The
+  // parallel expiry cookie lets the auto-refresh know when to rotate.
+  setToken: (token: string, expiresAt?: string | Date) => {
+    let expires = expiresAt ? new Date(expiresAt) : null;
+    if (!expires || Number.isNaN(expires.getTime()) || expires.getTime() <= Date.now()) {
+      expires = new Date(Date.now() + ADMIN_TOKEN_FALLBACK_HOURS * 60 * 60 * 1000);
+    }
+    Cookies.set('auth_token', token, { expires });
+    Cookies.set('auth_token_expires', expires.toISOString(), { expires });
   },
-  
+
   getToken: () => {
     return Cookies.get('auth_token');
   },
-  
+
   removeToken: () => {
     Cookies.remove('auth_token');
+    Cookies.remove('auth_token_expires');
   },
-  
+
   isAuthenticated: () => {
     return !!Cookies.get('auth_token');
   },
 };
+
+// Sliding session renewal: while the admin keeps using the panel, the token
+// is silently re-issued before it expires. Each browser/person holds its own
+// token, so several people can share one account without kicking each other.
+const TOKEN_REFRESH_WINDOW_MS = 12 * 60 * 60 * 1000;
+const TOKEN_REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000;
+let refreshingAdminToken = false;
+let lastAdminTokenRefreshAttempt = 0;
+
+async function maybeRefreshAdminToken(): Promise<void> {
+  if (typeof window === 'undefined' || refreshingAdminToken) return;
+  const token = Cookies.get('auth_token');
+  if (!token) return;
+
+  const now = Date.now();
+  if (now - lastAdminTokenRefreshAttempt < TOKEN_REFRESH_MIN_INTERVAL_MS) return;
+  const expiresRaw = Cookies.get('auth_token_expires');
+  const expiresAt = expiresRaw ? Date.parse(expiresRaw) : NaN;
+  // Sessions created before expiry tracking refresh immediately (throttled);
+  // tracked sessions refresh only inside the renewal window.
+  if (!Number.isNaN(expiresAt) && expiresAt - now > TOKEN_REFRESH_WINDOW_MS) return;
+
+  lastAdminTokenRefreshAttempt = now;
+  refreshingAdminToken = true;
+  try {
+    const response = await api.post('/auth/refresh');
+    const data = response.data?.data as { token?: string; expires_at?: string } | undefined;
+    if (data?.token) {
+      authUtils.setToken(data.token, data.expires_at);
+    }
+  } catch (_) {
+    // A dead session is handled by the regular 401 flow.
+  } finally {
+    refreshingAdminToken = false;
+  }
+}
 
 export default api;
