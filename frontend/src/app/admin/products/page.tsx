@@ -95,6 +95,8 @@ function AdminProductsContent() {
   const [pageSize, setPageSize] = useState(20); // Dynamic page size
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectAllResults, setSelectAllResults] = useState<boolean>(false);
+  const [customSelectCount, setCustomSelectCount] = useState('');
+  const [selectingCustomCount, setSelectingCustomCount] = useState(false);
   const [showAISEOModal, setShowAISEOModal] = useState(false);
   const [showCategoryOptimizationModal, setShowCategoryOptimizationModal] = useState(false);
   const [categoryOptimizationScope, setCategoryOptimizationScope] = useState<'selected' | 'filtered'>('filtered');
@@ -439,6 +441,34 @@ function AdminProductsContent() {
       ? { ...buildSelectAllPayload(), brand: effectiveBulkBrand }
       : { ids: selectedIds, brand: effectiveBulkBrand }
   );
+
+  // Select the first N products of the current filter scope (ordered like the
+  // list), so bulk actions can target an exact count instead of page-or-all.
+  const selectFirstNResults = async () => {
+    const count = Number(customSelectCount);
+    if (!Number.isSafeInteger(count) || count < 1) {
+      toast.error(locale === 'zh' ? '请输入要选择的产品数量' : 'Enter how many products to select');
+      return;
+    }
+    setSelectingCustomCount(true);
+    try {
+      const snapshot = await ProductService.getAdminProductSelectionIds(buildSelectAllPayload());
+      const ids = snapshot.ids.slice(0, count);
+      if (ids.length === 0) {
+        toast.error(locale === 'zh' ? '当前筛选范围内没有产品' : 'No products match the current filters');
+        return;
+      }
+      setSelectAllResults(false);
+      setSelectedIds(ids);
+      toast.success(locale === 'zh'
+        ? `已选择前 ${ids.length.toLocaleString()} 个产品（共 ${snapshot.total.toLocaleString()} 个符合筛选）`
+        : `Selected the first ${ids.length.toLocaleString()} products (${snapshot.total.toLocaleString()} match the filters)`);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, locale === 'zh' ? '选择产品失败' : 'Failed to select products'));
+    } finally {
+      setSelectingCustomCount(false);
+    }
+  };
 
   const openCategoryOptimizationModal = () => {
     if (totalProducts <= 0) {
@@ -1324,6 +1354,31 @@ function AdminProductsContent() {
                   <span className="text-gray-600 font-medium">
 					{t('common.selected', locale === 'zh' ? '已选择' : 'Selected')}: <span className="text-blue-600">{selectedIds.length}</span>
                   </span>
+                  {totalProducts > 0 && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="text-gray-500">{locale === 'zh' ? '选择前' : 'Select first'}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={totalProducts}
+                        value={customSelectCount}
+                        onChange={(e) => setCustomSelectCount(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') void selectFirstNResults(); }}
+                        placeholder={String(Math.min(totalProducts, 500))}
+                        className="w-20 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        aria-label={locale === 'zh' ? '自定义选择数量' : 'Custom selection count'}
+                      />
+                      <span className="text-gray-500">{locale === 'zh' ? '条' : ''}</span>
+                      <button
+                        onClick={() => void selectFirstNResults()}
+                        disabled={selectingCustomCount || !customSelectCount}
+                        className="inline-flex items-center px-2.5 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={locale === 'zh' ? '按当前筛选和排序选择前 N 个产品' : 'Select the first N products of the current filter and sort'}
+                      >
+                        {selectingCustomCount ? (locale === 'zh' ? '选择中…' : 'Selecting…') : (locale === 'zh' ? '选择' : 'Select')}
+                      </button>
+                    </span>
+                  )}
                   {filteredProducts.length > 0 && totalProducts > filteredProducts.length && (
                     <button
                       onClick={() => { setSelectAllResults(true); }}

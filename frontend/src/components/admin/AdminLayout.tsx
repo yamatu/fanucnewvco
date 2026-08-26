@@ -268,7 +268,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
   }, [isNotificationOpen, closeNotificationPanel]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen overflow-hidden bg-gray-50 flex">
         {/* Mobile sidebar overlay */}
         {sidebarOpen && (
           <div 
@@ -354,9 +354,9 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
         </div>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col lg:ml-0">
+        <div className="flex-1 min-w-0 flex flex-col lg:ml-0">
           {/* Top navigation */}
-          <header className="bg-white shadow-sm border-b border-gray-200">
+          <header className="shrink-0 bg-white shadow-sm border-b border-gray-200">
             <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
               <div className="flex items-center">
                 <button
