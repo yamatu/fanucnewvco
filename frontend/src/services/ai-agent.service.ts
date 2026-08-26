@@ -268,6 +268,54 @@ export interface AIAgentSEOJobItemsPage {
   offset: number;
 }
 
+export interface ProductSEOIssueSample {
+  product_id: number;
+  sku: string;
+  name: string;
+  brand: string;
+  model: string;
+  meta_title: string;
+  issue: 'seo_failed' | 'missing_meta' | 'never_optimized' | 'generic_meta' | 'model_missing' | 'brand_mismatch';
+  detail: string;
+}
+
+export interface ProductSEOAudit {
+  scanned: number;
+  ok: number;
+  seo_failed: number;
+  missing_meta: number;
+  never_optimized: number;
+  generic_meta: number;
+  model_missing: number;
+  brand_mismatch: number;
+  product_ids: number[];
+  samples: ProductSEOIssueSample[];
+}
+
+export interface AIAgentSEOAutoFixResult {
+  job: AIAgentSEOJob;
+  audit: ProductSEOAudit;
+}
+
+export interface AICategorySEOItem {
+  category_id: number;
+  name: string;
+  path: string;
+  status: 'updated' | 'skipped' | 'failed';
+  message?: string;
+  description?: string;
+}
+
+export interface AICategorySEOBatch {
+  processed: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  has_more: boolean;
+  next_after_id: number;
+  results: AICategorySEOItem[];
+}
+
 export class AIAgentService {
   static async status(): Promise<AIAgentStatus> {
     const response = await apiClient.get<APIResponse<AIAgentStatus>>('/admin/ai-agent/status');
@@ -418,6 +466,38 @@ export class AIAgentService {
     const response = await apiClient.get<APIResponse<AIAgentSEOStats>>('/admin/ai-agent/seo/stats');
     if (response.data.success && response.data.data) return response.data.data;
     throw new Error(response.data.message || 'Unable to load AI SEO statistics');
+  }
+
+  static async auditSEO(): Promise<ProductSEOAudit> {
+    const response = await apiClient.post<APIResponse<ProductSEOAudit>>(
+      '/admin/ai-agent/seo/audit',
+      {},
+      // The audit walks the whole catalog; do not let the global timeout cut it off.
+      { timeout: 0 }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'SEO audit failed');
+  }
+
+  static async startSEOAutoFix(focus: AIAgentSEOFocus[] = ['seo']): Promise<AIAgentSEOAutoFixResult> {
+    const response = await apiClient.post<APIResponse<AIAgentSEOAutoFixResult>>(
+      '/admin/ai-agent/seo/auto-fix',
+      { focus },
+      { timeout: 0 }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Unable to start the one-click SEO fix');
+  }
+
+  static async optimizeCategorySEO(payload: { limit?: number; after_id?: number; force?: boolean }): Promise<AICategorySEOBatch> {
+    const response = await apiClient.post<APIResponse<AICategorySEOBatch>>(
+      '/admin/ai-agent/category-seo',
+      payload,
+      // Each batch performs several LLM calls.
+      { timeout: 0 }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Category SEO batch failed');
   }
 }
 
