@@ -42,6 +42,39 @@ func mergeUniqueOrigins(lists ...[]string) []string {
 	return out
 }
 
+func envBoolWithDefault(name string, fallback bool) bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(name)))
+	if value == "" {
+		return fallback
+	}
+	switch value {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
+}
+
+func isChromeExtensionOrigin(origin string) bool {
+	const prefix = "chrome-extension://"
+	if !strings.HasPrefix(origin, prefix) {
+		return false
+	}
+	extensionID := strings.TrimPrefix(origin, prefix)
+	if len(extensionID) != 32 {
+		return false
+	}
+	for _, char := range extensionID {
+		// Chrome extension IDs are 32 lowercase characters in the a-p range.
+		if char < 'a' || char > 'p' {
+			return false
+		}
+	}
+	return true
+}
+
 // CORSMiddleware configures CORS settings
 func CORSMiddleware() gin.HandlerFunc {
 	// Get CORS settings from environment
@@ -52,6 +85,7 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 
 	extensionOrigins := splitAndTrimCSV(os.Getenv("CORS_EXTENSION_ORIGINS"))
+	allowChromeExtensions := envBoolWithDefault("CORS_ALLOW_CHROME_EXTENSIONS", true)
 
 	methods := os.Getenv("CORS_METHODS")
 	if methods == "" {
@@ -96,7 +130,7 @@ func CORSMiddleware() gin.HandlerFunc {
 		// With credentials, we can't use "*" as a literal allowed origin; instead echo the request origin.
 		config.AllowOrigins = nil
 		config.AllowOriginFunc = func(origin string) bool { return true }
-	} else if isDev || len(extensionOrigins) > 0 {
+	} else if isDev || len(extensionOrigins) > 0 || allowChromeExtensions {
 		allowed := map[string]struct{}{}
 		for _, o := range originList {
 			allowed[o] = struct{}{}
@@ -107,6 +141,9 @@ func CORSMiddleware() gin.HandlerFunc {
 				return true
 			}
 			if _, ok := allowed[origin]; ok {
+				return true
+			}
+			if allowChromeExtensions && isChromeExtensionOrigin(origin) {
 				return true
 			}
 			if isDev {
