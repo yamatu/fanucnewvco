@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -153,6 +154,7 @@ func BuildEbayImportDraftWithContext(ctx context.Context, db *gorm.DB, raw map[s
 		result.Errors = append(result.Errors, "empty item payload")
 		return result
 	}
+	raw = NormalizeEbayImportDraftPayload(raw)
 
 	rawJSON, _ := json.Marshal(raw)
 	title := firstNonEmptyString(raw["product_title"], raw["title"])
@@ -694,12 +696,18 @@ func buildDraftSEO(title string, description string, brand string, model string,
 func buildDraftAttributes(draft models.EbayImportDraft) []models.ProductAttributeReq {
 	raw := decodeRawPayload(draft.RawPayload)
 	attrs := []models.ProductAttributeReq{}
+	seen := map[string]bool{}
 	add := func(name string, value string) {
 		name = strings.TrimSpace(name)
 		value = strings.TrimSpace(value)
 		if name == "" || value == "" {
 			return
 		}
+		key := strings.ToLower(name) + "\x00" + strings.ToLower(value)
+		if seen[key] {
+			return
+		}
+		seen[key] = true
 		attrs = append(attrs, models.ProductAttributeReq{AttributeName: name, AttributeValue: value, SortOrder: len(attrs) + 1})
 	}
 	add("Brand", draft.NormalizedBrand)
@@ -710,6 +718,9 @@ func buildDraftAttributes(draft models.EbayImportDraft) []models.ProductAttribut
 	add("Country of Origin", firstNonEmptyString(raw["country_of_origin"]))
 	add("UPC", firstNonEmptyString(raw["upc"]))
 	add("EAN", firstNonEmptyString(raw["ean"]))
+	for _, pair := range collectLegacyAttributePairs(raw["item_specifics"], 0) {
+		add(pair[0], pair[1])
+	}
 	add("Source", draft.SourceURL)
 	return attrs
 }
@@ -770,6 +781,401 @@ func decodeUintSlice(raw string) []uint {
 		}
 	}
 	return out
+}
+
+// NormalizeEbayImportDraftPayload accepts both the website's canonical upload
+// contract and the nested record format stored by the GYCharm eBay v3 plugin.
+// The returned map keeps every original field while filling canonical aliases.
+func NormalizeEbayImportDraftPayload(raw map[string]any) map[string]any {
+	normalized := make(map[string]any, len(raw)+20)
+	for key, value := range raw {
+		normalized[key] = value
+	}
+
+	productData := legacyMap(raw["_product_data"])
+	additionData := legacyMap(raw["_addition_data"])
+	itemSpecifics := firstLegacyValue(productData["_shangjia_goodsProperty"], productData["item_specifics"], raw["item_specifics"])
+
+	setCanonicalString(normalized, "source_type", "gycharm_ebay_extension")
+	setCanonicalString(normalized, "source_site", firstLegacyString(raw["site"], raw["source_site"], "ebay"))
+	setCanonicalString(normalized, "plugin_schema", firstLegacyString(raw["plugin_schema"], "gycharm-ebay-v3"))
+	setCanonicalString(normalized, "product_url", firstLegacyString(
+		raw["product_url"], raw["source_url"], productData["_product_url"], raw["_product_url"], additionData["_product_url"],
+	))
+	setCanonicalString(normalized, "product_title", firstLegacyString(
+		raw["product_title"], raw["title"], productData["_shangjia_goodsName"], additionData["_name"],
+	))
+	setCanonicalString(normalized, "description_full", firstLegacyText(
+		raw["description_full"], raw["description_html"], raw["description"],
+		productData["_shangjia_desc"], productData["_shangjia_desc_text"], productData["_product_about_this_item"],
+	))
+	setCanonicalString(normalized, "current_price", firstLegacyString(
+		raw["current_price"], raw["price"], productData["_shangjia_minOnSalePriceStr"], productData["_shangjia_price"], additionData["_price"],
+	))
+	setCanonicalString(normalized, "brand", firstLegacyString(
+		raw["brand"], productData["_product_brand"], findLegacySpecificValue(itemSpecifics, []string{"brand", "brand name", "manufacturer"}, 0),
+	))
+	setCanonicalString(normalized, "model", firstLegacyString(
+		raw["model"], findLegacySpecificValue(itemSpecifics, []string{"model", "model number", "model no"}, 0),
+	))
+	setCanonicalString(normalized, "mpn", firstLegacyString(
+		raw["mpn"], findLegacySpecificValue(itemSpecifics, []string{"mpn", "manufacturer part number"}, 0),
+	))
+	setCanonicalString(normalized, "part_number", firstLegacyString(
+		raw["part_number"], raw["sku"], findLegacySpecificValue(itemSpecifics, []string{"part number", "part no", "manufacturer part number"}, 0),
+	))
+	setCanonicalString(normalized, "category_breadcrumb", firstLegacyText(
+		raw["category_breadcrumb"], raw["category_leaf"], productData["_shangjia_category"],
+	))
+	setCanonicalString(normalized, "condition", firstLegacyString(
+		raw["condition"], raw["condition_full"], productData["_shangjia_condition"],
+	))
+
+	productURL := firstLegacyString(normalized["product_url"])
+	setCanonicalString(normalized, "product_id", firstLegacyString(
+		raw["product_id"], raw["ebay_item_id"], productData["_shangjia_goodsId"], extractLegacyEbayItemID(productURL),
+	))
+	setCanonicalString(normalized, "listing_id", firstLegacyString(raw["listing_id"], normalized["product_id"]))
+	setCanonicalString(normalized, "currency", firstLegacyString(
+		raw["currency"], raw["currency_raw"], detectLegacyCurrency(firstLegacyString(normalized["current_price"]), productURL),
+	))
+
+	images := make([]string, 0)
+	seenImages := map[string]bool{}
+	for _, value := range []any{
+		raw["main_image"], raw["image"], raw["image_urls"],
+		productData["_shangjia_hdThumbUrl"], productData["_shangjia_gallery"], productData["_shangjia_desc_imgs"],
+		productData["_shangjia_productDetailFlatList"], productData["_shangjia_variants_skus"], additionData["_url"],
+	} {
+		appendLegacyURLs(&images, seenImages, value, 0)
+	}
+	if firstLegacyString(normalized["main_image"]) == "" && len(images) > 0 {
+		normalized["main_image"] = images[0]
+	}
+	if _, exists := normalized["image_urls"]; !exists || len(collectLegacyURLValues(normalized["image_urls"])) == 0 {
+		normalized["image_urls"] = images
+	}
+	if itemSpecifics != nil {
+		normalized["item_specifics"] = itemSpecifics
+	}
+	if variants := productData["_shangjia_variants_skus"]; variants != nil {
+		if _, exists := normalized["variants"]; !exists {
+			normalized["variants"] = variants
+		}
+	}
+
+	return normalized
+}
+
+func legacyMap(value any) map[string]any {
+	if typed, ok := value.(map[string]any); ok {
+		return typed
+	}
+	return map[string]any{}
+}
+
+func firstLegacyValue(values ...any) any {
+	for _, value := range values {
+		switch typed := value.(type) {
+		case nil:
+			continue
+		case string:
+			if strings.TrimSpace(typed) == "" {
+				continue
+			}
+		case []any:
+			if len(typed) == 0 {
+				continue
+			}
+		case []string:
+			if len(typed) == 0 {
+				continue
+			}
+		case map[string]any:
+			if len(typed) == 0 {
+				continue
+			}
+		}
+		return value
+	}
+	return nil
+}
+
+func firstLegacyString(values ...any) string {
+	for _, value := range values {
+		switch typed := value.(type) {
+		case string:
+			if trimmed := strings.TrimSpace(typed); trimmed != "" {
+				return trimmed
+			}
+		case float64:
+			if typed != 0 {
+				return strconv.FormatFloat(typed, 'f', -1, 64)
+			}
+		case float32:
+			if typed != 0 {
+				return strconv.FormatFloat(float64(typed), 'f', -1, 32)
+			}
+		case int:
+			if typed != 0 {
+				return strconv.Itoa(typed)
+			}
+		case int64:
+			if typed != 0 {
+				return strconv.FormatInt(typed, 10)
+			}
+		case uint:
+			if typed != 0 {
+				return strconv.FormatUint(uint64(typed), 10)
+			}
+		case json.Number:
+			if trimmed := strings.TrimSpace(typed.String()); trimmed != "" && trimmed != "0" {
+				return trimmed
+			}
+		}
+	}
+	return ""
+}
+
+func firstLegacyText(values ...any) string {
+	for _, value := range values {
+		if text := legacyText(value); text != "" {
+			return text
+		}
+	}
+	return ""
+}
+
+func legacyText(value any) string {
+	if text := firstLegacyString(value); text != "" {
+		return text
+	}
+	switch typed := value.(type) {
+	case []string:
+		parts := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if trimmed := strings.TrimSpace(item); trimmed != "" {
+				parts = append(parts, trimmed)
+			}
+		}
+		return strings.Join(parts, "\n")
+	case []any:
+		parts := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if text := legacyText(item); text != "" {
+				parts = append(parts, text)
+			}
+		}
+		return strings.Join(parts, "\n")
+	case map[string]any:
+		if text := firstLegacyString(typed["name"], typed["title"], typed["label"], typed["value"], typed["text"], typed["path"]); text != "" {
+			return text
+		}
+		encoded, _ := json.Marshal(typed)
+		return strings.TrimSpace(string(encoded))
+	default:
+		return ""
+	}
+}
+
+func setCanonicalString(target map[string]any, key string, value string) {
+	if firstLegacyString(target[key]) != "" || strings.TrimSpace(value) == "" {
+		return
+	}
+	target[key] = strings.TrimSpace(value)
+}
+
+func normalizeLegacyKey(value string) string {
+	var builder strings.Builder
+	for _, char := range strings.ToLower(strings.TrimSpace(value)) {
+		if (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') {
+			builder.WriteRune(char)
+		}
+	}
+	return builder.String()
+}
+
+func findLegacySpecificValue(value any, aliases []string, depth int) string {
+	if value == nil || depth > 6 {
+		return ""
+	}
+	aliasSet := map[string]bool{}
+	for _, alias := range aliases {
+		aliasSet[normalizeLegacyKey(alias)] = true
+	}
+	switch typed := value.(type) {
+	case []any:
+		for _, item := range typed {
+			if found := findLegacySpecificValue(item, aliases, depth+1); found != "" {
+				return found
+			}
+		}
+	case map[string]any:
+		name := firstLegacyString(typed["name"], typed["label"], typed["key"], typed["attribute_name"], typed["specs_name"])
+		itemValue := firstLegacyString(typed["value"], typed["text"], typed["attribute_value"], typed["specs_value"])
+		if aliasSet[normalizeLegacyKey(name)] && itemValue != "" {
+			return itemValue
+		}
+		for key, item := range typed {
+			if aliasSet[normalizeLegacyKey(key)] {
+				if direct := firstLegacyString(item); direct != "" {
+					return direct
+				}
+			}
+		}
+		for _, item := range typed {
+			if found := findLegacySpecificValue(item, aliases, depth+1); found != "" {
+				return found
+			}
+		}
+	}
+	return ""
+}
+
+func appendLegacyURLs(out *[]string, seen map[string]bool, value any, depth int) {
+	if value == nil || depth > 6 {
+		return
+	}
+	add := func(candidate string) {
+		candidate = normalizeURLString(candidate)
+		if candidate == "" || seen[candidate] || !(strings.HasPrefix(candidate, "http://") || strings.HasPrefix(candidate, "https://")) {
+			return
+		}
+		seen[candidate] = true
+		*out = append(*out, candidate)
+	}
+	switch typed := value.(type) {
+	case string:
+		trimmed := strings.TrimSpace(typed)
+		if strings.HasPrefix(trimmed, "[") {
+			var decoded []any
+			if json.Unmarshal([]byte(trimmed), &decoded) == nil {
+				appendLegacyURLs(out, seen, decoded, depth+1)
+				return
+			}
+		}
+		for _, item := range strings.Split(trimmed, ",") {
+			add(strings.TrimSpace(item))
+		}
+	case []string:
+		for _, item := range typed {
+			add(item)
+		}
+	case []any:
+		for _, item := range typed {
+			appendLegacyURLs(out, seen, item, depth+1)
+		}
+	case map[string]any:
+		for key, item := range typed {
+			lower := strings.ToLower(key)
+			if strings.Contains(lower, "image") || strings.Contains(lower, "img") || strings.Contains(lower, "gallery") || strings.Contains(lower, "photo") || strings.Contains(lower, "picture") || strings.Contains(lower, "url") {
+				appendLegacyURLs(out, seen, item, depth+1)
+			}
+		}
+	default:
+		add(firstLegacyString(typed))
+	}
+}
+
+func collectLegacyURLValues(value any) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	appendLegacyURLs(&out, seen, value, 0)
+	return out
+}
+
+func extractLegacyEbayItemID(rawURL string) string {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return ""
+	}
+	for _, key := range []string{"item", "itemid"} {
+		if candidate := strings.TrimSpace(parsed.Query().Get(key)); isLegacyNumericID(candidate) {
+			return candidate
+		}
+	}
+	parts := strings.FieldsFunc(parsed.Path, func(r rune) bool { return r == '/' || r == '-' || r == '_' })
+	for index := len(parts) - 1; index >= 0; index-- {
+		if isLegacyNumericID(parts[index]) {
+			return parts[index]
+		}
+	}
+	return ""
+}
+
+func isLegacyNumericID(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) < 9 || len(value) > 15 {
+		return false
+	}
+	for _, char := range value {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func detectLegacyCurrency(priceRaw string, productURL string) string {
+	upper := strings.ToUpper(strings.TrimSpace(priceRaw))
+	switch {
+	case strings.Contains(upper, "GBP") || strings.Contains(upper, "£"):
+		return "GBP"
+	case strings.Contains(upper, "EUR") || strings.Contains(upper, "€"):
+		return "EUR"
+	case strings.Contains(upper, "AUD") || strings.Contains(upper, "AU$"):
+		return "AUD"
+	case strings.Contains(upper, "CAD") || strings.Contains(upper, "CA$") || strings.Contains(upper, "C$"):
+		return "CAD"
+	case strings.Contains(upper, "USD") || strings.Contains(upper, "US$") || strings.Contains(upper, "$"):
+		return "USD"
+	}
+	host := ""
+	if parsed, err := url.Parse(strings.TrimSpace(productURL)); err == nil {
+		host = strings.ToLower(parsed.Hostname())
+	}
+	switch {
+	case strings.HasSuffix(host, "ebay.co.uk"):
+		return "GBP"
+	case strings.HasSuffix(host, "ebay.com.au"):
+		return "AUD"
+	case strings.HasSuffix(host, "ebay.ca"):
+		return "CAD"
+	case strings.HasSuffix(host, "ebay.de"), strings.HasSuffix(host, "ebay.fr"), strings.HasSuffix(host, "ebay.it"), strings.HasSuffix(host, "ebay.es"), strings.HasSuffix(host, "ebay.at"), strings.HasSuffix(host, "ebay.be"), strings.HasSuffix(host, "ebay.nl"), strings.HasSuffix(host, "ebay.ie"):
+		return "EUR"
+	default:
+		return "USD"
+	}
+}
+
+func collectLegacyAttributePairs(value any, depth int) [][2]string {
+	if value == nil || depth > 5 {
+		return nil
+	}
+	pairs := make([][2]string, 0)
+	switch typed := value.(type) {
+	case []any:
+		for _, item := range typed {
+			pairs = append(pairs, collectLegacyAttributePairs(item, depth+1)...)
+		}
+	case map[string]any:
+		name := firstLegacyString(typed["name"], typed["label"], typed["key"], typed["attribute_name"], typed["specs_name"])
+		itemValue := firstLegacyString(typed["value"], typed["text"], typed["attribute_value"], typed["specs_value"])
+		if name != "" && itemValue != "" {
+			return append(pairs, [2]string{name, itemValue})
+		}
+		for key, item := range typed {
+			if direct := firstLegacyString(item); direct != "" {
+				pairs = append(pairs, [2]string{key, direct})
+				continue
+			}
+			pairs = append(pairs, collectLegacyAttributePairs(item, depth+1)...)
+		}
+	}
+	if len(pairs) > 50 {
+		return pairs[:50]
+	}
+	return pairs
 }
 
 func collectImageURLs(raw map[string]any) []string {
