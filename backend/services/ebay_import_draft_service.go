@@ -175,9 +175,16 @@ func BuildEbayImportDraftWithContext(ctx context.Context, db *gorm.DB, raw map[s
 	priceValue := parsePriceFloat(priceRaw)
 	mainImage := normalizeURLString(firstNonEmptyString(raw["main_image"], raw["image"]))
 	imageURLs := collectImageURLs(raw)
-	mediaAssetIDs, mediaErrors := importDraftImages(db, imageURLs)
-	if len(mediaErrors) > 0 {
-		result.Errors = append(result.Errors, mediaErrors...)
+	mediaAssetIDs := []uint{}
+	if !isShopifyImportPayload(raw) {
+		// eBay imports keep the historical local-media behavior. Shopify
+		// collection imports can contain tens of thousands of images, so retain
+		// their source URLs and let product confirmation use those URLs directly.
+		var mediaErrors []string
+		mediaAssetIDs, mediaErrors = importDraftImages(db, imageURLs)
+		if len(mediaErrors) > 0 {
+			result.Errors = append(result.Errors, mediaErrors...)
+		}
 	}
 	if mainImage == "" && len(imageURLs) > 0 {
 		mainImage = imageURLs[0]
@@ -185,7 +192,10 @@ func BuildEbayImportDraftWithContext(ctx context.Context, db *gorm.DB, raw map[s
 
 	classificationModel := firstNonEmptyString(model, mpn, partNumber)
 	inference := InferProductCategory(brand, classificationModel)
-	if classificationModel != "" && !IsConfirmedProductCategory(inference, classificationModel) {
+	// Shopify collection uploads can contain thousands of items. Keep the
+	// initial ingest local and leave optional web verification for an explicit
+	// draft recheck/confirmation action.
+	if classificationModel != "" && !IsConfirmedProductCategory(inference, classificationModel) && !isShopifyImportPayload(raw) {
 		searchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
 		inference, _, _ = ResolveProductCategoryWithWebEvidence(searchCtx, brand, classificationModel)
 		cancel()
@@ -406,7 +416,8 @@ func RecheckEbayImportDraftAndClassifyWithContext(ctx context.Context, db *gorm.
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	result := BuildEbayImportDraftWithContext(ctx, db, decodeRawPayload(draft.RawPayload))
+	raw := decodeRawPayload(draft.RawPayload)
+	result := BuildEbayImportDraftWithContext(ctx, db, raw)
 	normalizedTitle := fallbackTrimmed(draft.NormalizedTitle, result.Draft.NormalizedTitle)
 	normalizedBrand := fallbackTrimmed(draft.NormalizedBrand, result.Draft.NormalizedBrand)
 	if NormalizeBrandKey(normalizedBrand) == "" && strings.TrimSpace(result.Draft.NormalizedBrand) != "" {
@@ -422,6 +433,8 @@ func RecheckEbayImportDraftAndClassifyWithContext(ctx context.Context, db *gorm.
 	if classificationModel != result.ClassificationModel || NormalizeBrandKey(normalizedBrand) != NormalizeBrandKey(result.Draft.NormalizedBrand) {
 		inference = InferProductCategory(normalizedBrand, classificationModel)
 	}
+	// Recheck is an explicit admin action, so it may perform web verification
+	// even for a Shopify draft that was ingested with local-only classification.
 	if classificationModel != "" && !IsConfirmedProductCategory(inference, classificationModel) {
 		searchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
 		inference, _, _ = ResolveProductCategoryWithWebEvidence(searchCtx, normalizedBrand, classificationModel)
@@ -495,14 +508,32 @@ func BuildProductRequestFromDraft(db *gorm.DB, draft models.EbayImportDraft) mod
 	for index, asset := range mediaAssets {
 		images = append(images, models.ImageReq{URL: asset.URL, IsPrimary: index == 0, SortOrder: index})
 	}
+	if len(images) == 0 {
+		for index, imageURL := range decodeStringSlice(draft.ImageSourceURLs) {
+			if strings.TrimSpace(imageURL) == "" {
+				continue
+			}
+			images = append(images, models.ImageReq{URL: imageURL, IsPrimary: index == 0, SortOrder: index})
+		}
+	}
 	attributes := buildDraftAttributes(draft)
+	raw := decodeRawPayload(draft.RawPayload)
+	stockQuantity := int(parsePriceFloat(firstNonEmptyString(raw["stock_quantity"], raw["inventory_quantity"])))
+	if stockQuantity <= 0 {
+		stockQuantity = 1
+	}
+	var comparePrice *float64
+	if parsedComparePrice := parsePriceFloat(firstNonEmptyString(raw["compare_price"], raw["compare_at_price"])); parsedComparePrice > 0 {
+		comparePrice = &parsedComparePrice
+	}
 	return models.ProductCreateRequest{
 		SKU:              firstNonEmptyString(draft.NormalizedPartNumber, draft.NormalizedMPN, draft.NormalizedModel, draft.EbayItemID),
 		Name:             defaultTrimmed(draft.NormalizedTitle, draft.TitleRaw),
 		ShortDescription: truncateText(cleanDraftDescription(draft.DescriptionRaw), 320),
 		Description:      cleanDraftDescription(draft.DescriptionRaw),
 		Price:            draft.NormalizedPrice,
-		StockQuantity:    1,
+		ComparePrice:     comparePrice,
+		StockQuantity:    stockQuantity,
 		Brand:            draft.NormalizedBrand,
 		Model:            draft.NormalizedModel,
 		PartNumber:       firstNonEmptyString(draft.NormalizedPartNumber, draft.NormalizedMPN),
@@ -711,18 +742,44 @@ func buildDraftAttributes(draft models.EbayImportDraft) []models.ProductAttribut
 		attrs = append(attrs, models.ProductAttributeReq{AttributeName: name, AttributeValue: value, SortOrder: len(attrs) + 1})
 	}
 	add("Brand", draft.NormalizedBrand)
+	add("Vendor", firstNonEmptyString(raw["vendor"]))
 	add("Model", draft.NormalizedModel)
 	add("Part Number", draft.NormalizedPartNumber)
 	add("MPN", draft.NormalizedMPN)
+	add("SKU", firstNonEmptyString(raw["sku"]))
+	add("Product Type", firstNonEmptyString(raw["product_type"]))
 	add("Condition", firstNonEmptyString(raw["condition"], raw["condition_full"]))
 	add("Country of Origin", firstNonEmptyString(raw["country_of_origin"]))
 	add("UPC", firstNonEmptyString(raw["upc"]))
 	add("EAN", firstNonEmptyString(raw["ean"]))
+	add("Tags", firstLegacyText(raw["tags"]))
+	add("Collection", firstNonEmptyString(raw["collection_name"], raw["collection_handle"]))
+	add("Product ID", firstNonEmptyString(raw["product_id"], raw["shopify_product_id"]))
+	if variants := compactDraftJSON(raw["variants"]); variants != "" {
+		add("Variants", variants)
+	}
+	if options := compactDraftJSON(raw["options"]); options != "" {
+		add("Options", options)
+	}
 	for _, pair := range collectLegacyAttributePairs(raw["item_specifics"], 0) {
+		if strings.EqualFold(strings.TrimSpace(pair[0]), "tags") && firstLegacyText(raw["tags"]) != "" {
+			continue
+		}
 		add(pair[0], pair[1])
 	}
 	add("Source", draft.SourceURL)
 	return attrs
+}
+
+func compactDraftJSON(value any) string {
+	if value == nil {
+		return ""
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil || string(encoded) == "null" || string(encoded) == "[]" || string(encoded) == "{}" {
+		return ""
+	}
+	return string(encoded)
 }
 
 func applyEbayImportDraftFilters(query **gorm.DB, filters EbayImportDraftFilters) {
@@ -790,6 +847,9 @@ func NormalizeEbayImportDraftPayload(raw map[string]any) map[string]any {
 	normalized := make(map[string]any, len(raw)+20)
 	for key, value := range raw {
 		normalized[key] = value
+	}
+	if isShopifyImportPayload(raw) {
+		normalizeShopifyImportPayload(normalized, raw)
 	}
 
 	productData := legacyMap(raw["_product_data"])

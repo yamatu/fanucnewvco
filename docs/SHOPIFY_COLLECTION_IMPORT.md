@@ -1,0 +1,34 @@
+# B-Automation Collection Import
+
+The eBay extension can collect products from the public Shopify collection API and send them to the existing admin draft workflow.
+
+## Source API
+
+```text
+https://www.b-automationservice.com/collections/{handle}/products.json?limit=250&page={page}
+```
+
+The extension keeps the original product object, including `id`, `title`, `handle`, `body_html`, `vendor`, `product_type`, `tags`, `variants`, `images`, `options`, and timestamps.
+
+## Extension workflow
+
+1. Load extension version 3.2.1 or newer.
+2. Open the extension control page from the eBay extension action.
+3. Enter one brand handle per line. The recommended starter set is `fanuc`, `omron`, `lenze`, `honeywell`, and `beckhoff`.
+4. Start the crawl. Pages use a maximum of 250 products, default 1200 ms page delay, and default 2000 ms brand delay.
+5. Pause, stop, or resume from the saved page checkpoint. Products are deduplicated by Shopify product ID across collections.
+6. Use the optional brand filter to export JSON or upload only one brand.
+
+## Website contract
+
+The extension sends normalized items to:
+
+```text
+POST /api/v1/admin/ebay-import-drafts/upload
+Authorization: Bearer <admin-jwt>
+{ "items": [ ... ] }
+```
+
+`source_type` is `shopify_collection`, `source_site` is `b-automationservice`, and the complete source product is preserved under `shopify_product` in `raw_payload`. The backend also normalizes direct Shopify `products.json` objects, so an API client can send the raw shape without using the extension mapper.
+
+Products appear in the existing admin draft page. Review the suggested category and duplicate match before confirming import. Variant and option JSON is retained as draft attributes and in the raw payload because the current product model has no separate variant table.

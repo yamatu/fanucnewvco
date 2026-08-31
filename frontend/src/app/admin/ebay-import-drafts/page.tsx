@@ -356,6 +356,9 @@ function EbayImportDraftsContent() {
                         />
                       </td>
                       <td className="px-4 py-4 text-sm">
+                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                          {draft.source_site || 'ebay'}
+                        </div>
                         <div className="font-medium text-gray-900">{draft.normalized_title || draft.title_raw || '-'}</div>
                         <div className="mt-1 max-w-[320px] truncate text-gray-500">{draft.source_url || '-'}</div>
                       </td>

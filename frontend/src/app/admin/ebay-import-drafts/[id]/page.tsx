@@ -193,7 +193,7 @@ export default function EbayImportDraftDetailPage() {
             </Link>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{draft.normalized_title || draft.title_raw}</h1>
-              <p className="mt-1 text-sm text-gray-500">#{draft.id} · {draft.status}</p>
+              <p className="mt-1 text-sm text-gray-500">#{draft.id} · {draft.status} · {draft.source_site || 'ebay'}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
