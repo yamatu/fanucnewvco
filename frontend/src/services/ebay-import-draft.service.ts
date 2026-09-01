@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api';
+import type { AxiosProgressEvent } from 'axios';
 import {
   APIResponse,
   EbayImportDraftDetail,
@@ -56,6 +57,24 @@ export interface EbayImportDraftUploadResponse {
   results: EbayImportDraftUploadResult[];
 }
 
+export interface EbayImportDraftJSONTaskSnapshot {
+  id: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  filename: string;
+  file_size: number;
+  progress_pct: number;
+  processed: number;
+  created: number;
+  skipped: number;
+  failed: number;
+  message?: string;
+  errors?: string[];
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+  updated_at: string;
+}
+
 export class EbayImportDraftService {
   static async list(filters: EbayImportDraftFilters = {}): Promise<EbayImportDraftListResponse> {
     const params = new URLSearchParams();
@@ -98,6 +117,41 @@ export class EbayImportDraftService {
     );
     if (response.data.success && response.data.data) return response.data.data;
     throw new Error(response.data.message || 'Failed to import eBay draft JSON');
+  }
+
+  static async startJSONImport(file: File, onUploadProgress?: (progressPct: number) => void): Promise<EbayImportDraftJSONTaskSnapshot> {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await apiClient.post<APIResponse<EbayImportDraftJSONTaskSnapshot>>(
+      '/admin/ebay-import-drafts/json-import',
+      form,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 0,
+        onUploadProgress: (event: AxiosProgressEvent) => {
+          if (!onUploadProgress || !event.total) return;
+          onUploadProgress(Math.min(100, Math.max(0, Math.round((event.loaded * 100) / event.total))));
+        },
+      }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to start JSON import task');
+  }
+
+  static async getJSONImportTask(taskId: string): Promise<EbayImportDraftJSONTaskSnapshot> {
+    const response = await apiClient.get<APIResponse<EbayImportDraftJSONTaskSnapshot>>(
+      `/admin/ebay-import-drafts/json-import/tasks/${encodeURIComponent(taskId)}`
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to fetch JSON import task');
+  }
+
+  static async getLatestJSONImportTask(): Promise<EbayImportDraftJSONTaskSnapshot | null> {
+    const response = await apiClient.get<APIResponse<EbayImportDraftJSONTaskSnapshot | null>>(
+      '/admin/ebay-import-drafts/json-import/tasks/latest'
+    );
+    if (response.data.success) return response.data.data || null;
+    throw new Error(response.data.message || 'Failed to fetch latest JSON import task');
   }
 
   static async get(id: number): Promise<EbayImportDraftDetail> {

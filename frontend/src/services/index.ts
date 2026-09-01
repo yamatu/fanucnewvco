@@ -87,6 +87,7 @@ export type {
   EbayImportDraftFilters,
   EbayImportDraftConfirmResponse,
   EbayImportDraftBulkConfirmResponse,
+  EbayImportDraftJSONTaskSnapshot,
 } from './ebay-import-draft.service';
 
 // API Service class that combines all services

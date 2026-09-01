@@ -17,6 +17,7 @@ import {
 import AdminLayout from '@/components/admin/AdminLayout';
 import Pagination from '@/components/common/Pagination';
 import { EbayImportDraftService } from '@/services';
+import type { EbayImportDraftJSONTaskSnapshot } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { useAdminI18n } from '@/lib/admin-i18n';
 import type { EbayImportDraftListItem } from '@/types';
@@ -26,142 +27,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
-type JsonImportProgress = {
-  status: 'idle' | 'uploading' | 'completed' | 'failed';
-  fileName: string;
-  total: number;
-  processed: number;
-  successCount: number;
-  errorCount: number;
-  errorMessage?: string;
-};
-
 const MAX_JSON_IMPORT_BYTES = 1024 * 1024 * 1024;
-
-const isRecord = (value: unknown): value is Record<string, unknown> => (
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-);
-
-const extractJsonItems = (payload: unknown): Record<string, unknown>[] => {
-  let rawItems: unknown;
-  if (Array.isArray(payload)) rawItems = payload;
-  else if (isRecord(payload) && Array.isArray(payload.products)) rawItems = payload.products;
-  else if (isRecord(payload) && Array.isArray(payload.items)) rawItems = payload.items;
-  else throw new Error('JSON 必须是数组，或包含 products/items 数组');
-
-  if (!Array.isArray(rawItems) || rawItems.length === 0) throw new Error('JSON 中没有可导入的商品');
-  if (rawItems.some((item) => !isRecord(item))) throw new Error('JSON 商品数据必须全部是对象');
-  return rawItems as Record<string, unknown>[];
-};
-
-const streamJsonItems = async (
-  file: File,
-  onBatch: (items: Record<string, unknown>[]) => Promise<void>,
-  onProgress: (processed: number) => void
-): Promise<number> => {
-  if (!file.stream) {
-    const payload: unknown = JSON.parse(await file.text());
-    const items = extractJsonItems(payload);
-    await onBatch(items);
-    onProgress(items.length);
-    return items.length;
-  }
-
-  const reader = file.stream().getReader();
-  const decoder = new TextDecoder();
-  let text = '';
-  let arrayStarted = false;
-  let prefixInString = false;
-  let prefixEscape = false;
-  let current = '';
-  let depth = 0;
-  let inString = false;
-  let escape = false;
-  let processed = 0;
-  let finished = false;
-  const batch: Record<string, unknown>[] = [];
-
-  const consume = async (chunk: string) => {
-    text += chunk;
-    let index = 0;
-    while (index < text.length) {
-      const char = text[index];
-      if (!arrayStarted) {
-        if (prefixInString) {
-          if (prefixEscape) prefixEscape = false;
-          else if (char === '\\') prefixEscape = true;
-          else if (char === '"') prefixInString = false;
-        } else if (char === '"') {
-          prefixInString = true;
-        } else if (char === '[') {
-          arrayStarted = true;
-        }
-        index += 1;
-        continue;
-      }
-
-      if (current === '') {
-        if (/\s|,/.test(char)) {
-          index += 1;
-          continue;
-        }
-        if (char === ']') {
-          finished = true;
-          index += 1;
-          break;
-        }
-        current = char;
-        depth = char === '{' || char === '[' ? 1 : 0;
-        inString = char === '"';
-        escape = false;
-        index += 1;
-        continue;
-      }
-
-      current += char;
-      if (inString) {
-        if (escape) escape = false;
-        else if (char === '\\') escape = true;
-        else if (char === '"') inString = false;
-      } else if (char === '"') {
-        inString = true;
-      } else if (char === '{' || char === '[') {
-        depth += 1;
-      } else if (char === '}' || char === ']') {
-        depth -= 1;
-        if (depth === 0) {
-          const item: unknown = JSON.parse(current);
-          if (!isRecord(item)) throw new Error('JSON 商品数据必须全部是对象');
-          batch.push(item);
-          processed += 1;
-          onProgress(processed);
-          current = '';
-          if (batch.length >= 50) {
-            await onBatch(batch.splice(0, batch.length));
-          }
-        }
-      }
-      index += 1;
-    }
-    // Keep only the unfinished value between chunks; completed prefixes can
-    // be discarded to keep memory bounded for very large export files.
-    text = current || (finished ? '' : text.slice(index));
-  };
-
-  while (true) {
-    const result = await reader.read();
-    const decoded = decoder.decode(result.value || new Uint8Array(), { stream: !result.done });
-    if (decoded) await consume(decoded);
-    if (result.done) break;
-    onProgress(processed);
-  }
-  const tail = decoder.decode();
-  if (tail) await consume(tail);
-  if (current.trim()) throw new Error('JSON 商品数组未完整结束');
-  if (!arrayStarted || !finished) throw new Error('JSON 必须包含完整的商品数组');
-  if (batch.length > 0) await onBatch(batch.splice(0, batch.length));
-  return processed;
-};
 
 function EbayImportDraftsContent() {
   const { locale } = useAdminI18n();
@@ -170,14 +36,9 @@ function EbayImportDraftsContent() {
   const queryClient = useQueryClient();
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [jsonImportProgress, setJsonImportProgress] = useState<JsonImportProgress>({
-    status: 'idle',
-    fileName: '',
-    total: 0,
-    processed: 0,
-    successCount: 0,
-    errorCount: 0,
-  });
+  const [jsonImportTask, setJsonImportTask] = useState<EbayImportDraftJSONTaskSnapshot | null>(null);
+  const [jsonUploadPending, setJsonUploadPending] = useState(false);
+  const [jsonUploadPct, setJsonUploadPct] = useState(0);
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -214,6 +75,41 @@ function EbayImportDraftsContent() {
   useEffect(() => {
     setSelectedIds([]);
   }, [search, status, matchStatus, brand]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void EbayImportDraftService.getLatestJSONImportTask()
+      .then((task) => {
+        if (!cancelled && task) setJsonImportTask(task);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const taskId = jsonImportTask?.id;
+    const taskStatus = jsonImportTask?.status;
+    if (!taskId || (taskStatus !== 'queued' && taskStatus !== 'processing')) return;
+    let polling = false;
+    const timer = window.setInterval(() => {
+      if (polling) return;
+      polling = true;
+      void EbayImportDraftService.getJSONImportTask(taskId)
+        .then(async (task) => {
+          setJsonImportTask(task);
+          if (task.status === 'completed' || task.status === 'failed') {
+            await queryClient.invalidateQueries({ queryKey: queryKeys.ebayImportDrafts.lists() });
+            toast(task.status === 'completed'
+              ? (locale === 'zh' ? `后台导入完成：新增 ${task.created}，跳过重复 ${task.skipped}，失败 ${task.failed}` : `Background import completed: ${task.created} created, ${task.skipped} duplicates skipped, ${task.failed} failed`)
+              : (locale === 'zh' ? `后台导入失败：${task.message || '未知错误'}` : `Background import failed: ${task.message || 'Unknown error'}`),
+            { id: `ebay-json-task-${task.id}`, icon: task.status === 'completed' ? '✅' : '❌' });
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => { polling = false; });
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [jsonImportTask?.id, jsonImportTask?.status, locale, queryClient]);
 
   const invalidateAll = async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.ebayImportDrafts.lists() });
@@ -322,57 +218,20 @@ function EbayImportDraftsContent() {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-
-    const baseProgress: JsonImportProgress = {
-      status: 'uploading',
-      fileName: file.name,
-      total: 0,
-      processed: 0,
-      successCount: 0,
-      errorCount: 0,
-    };
-    setJsonImportProgress(baseProgress);
-
+    setJsonUploadPending(true);
+    setJsonUploadPct(0);
     try {
       if (file.size > MAX_JSON_IMPORT_BYTES) throw new Error('JSON 文件不能超过 1 GB');
-      let processed = 0;
-      let successCount = 0;
-      let errorCount = 0;
-      const uploadBatch = async (batch: Record<string, unknown>[]) => {
-        const result = await EbayImportDraftService.upload(batch);
-        processed += batch.length;
-        successCount += result.success_count;
-        errorCount += result.error_count;
-        setJsonImportProgress({
-          ...baseProgress,
-          total: 0,
-          processed,
-          successCount,
-          errorCount,
-        });
-      };
-
-      const total = await streamJsonItems(file, uploadBatch, (count) => {
-        setJsonImportProgress((current) => ({ ...current, total: 0, processed: count }));
-      });
-
-      await invalidateAll();
-      setJsonImportProgress({
-        ...baseProgress,
-        status: 'completed',
-        total,
-        processed,
-        successCount,
-        errorCount,
-      });
+      const task = await EbayImportDraftService.startJSONImport(file, setJsonUploadPct);
+      setJsonImportTask(task);
       toast.success(locale === 'zh'
-        ? `JSON 导入完成：成功 ${successCount} 条，失败 ${errorCount} 条`
-        : `JSON import completed: ${successCount} succeeded, ${errorCount} failed`);
+        ? '文件上传完成，后台任务已开始；现在可以关闭或刷新网页'
+        : 'File uploaded and background import started; you may close or refresh this page');
     } catch (error: unknown) {
       const message = getErrorMessage(error, locale === 'zh' ? 'JSON 导入失败' : 'JSON import failed');
-      await invalidateAll();
-      setJsonImportProgress((current) => ({ ...current, status: 'failed', errorMessage: message }));
       toast.error(message);
+    } finally {
+      setJsonUploadPending(false);
     }
   };
 
@@ -461,11 +320,11 @@ function EbayImportDraftsContent() {
             <button
               type="button"
               onClick={() => jsonFileInputRef.current?.click()}
-              disabled={jsonImportProgress.status === 'uploading'}
+              disabled={jsonUploadPending || jsonImportTask?.status === 'queued' || jsonImportTask?.status === 'processing'}
               className="inline-flex items-center rounded-md border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ArrowUpTrayIcon className="mr-2 h-4 w-4" />
-              {jsonImportProgress.status === 'uploading' ? 'JSON 导入中...' : '导入 JSON'}
+              {jsonUploadPending ? '文件上传中...' : '创建后台 JSON 导入任务'}
             </button>
             <button
               onClick={handleBulkRecheck}
@@ -556,26 +415,41 @@ function EbayImportDraftsContent() {
           </div>
         </div>
 
-        {jsonImportProgress.status !== 'idle' && (
+        {jsonUploadPending && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4" role="status" aria-live="polite">
+            <div className="flex items-center justify-between gap-3 text-sm text-amber-900">
+              <span>正在把 JSON 文件上传到服务器，请在上传完成前保持此页面打开。</span>
+              <span>{jsonUploadPct}%</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-amber-100">
+              <div className="h-full bg-amber-500 transition-[width] duration-200" style={{ width: `${jsonUploadPct}%` }} />
+            </div>
+          </div>
+        )}
+
+        {jsonImportTask && (
           <div className="rounded-lg border border-blue-100 bg-blue-50 p-4" role="status" aria-live="polite">
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-blue-900">
-              <span className="font-medium">JSON：{jsonImportProgress.fileName}</span>
+              <span className="font-medium">后台 JSON 任务：{jsonImportTask.filename}</span>
               <span>
-                {jsonImportProgress.status === 'uploading'
-                  ? `已导入 ${jsonImportProgress.processed} 条商品（流式读取中）`
-                  : jsonImportProgress.status === 'completed'
-                    ? `已完成：成功 ${jsonImportProgress.successCount}，失败 ${jsonImportProgress.errorCount}`
-                    : `导入失败：${jsonImportProgress.errorMessage || '未知错误'}`}
+                {jsonImportTask.status === 'queued'
+                  ? '等待后台处理'
+                  : jsonImportTask.status === 'processing'
+                    ? `处理中：新增 ${jsonImportTask.created}，跳过重复 ${jsonImportTask.skipped}，失败 ${jsonImportTask.failed}`
+                    : jsonImportTask.status === 'completed'
+                      ? `已完成：新增 ${jsonImportTask.created}，跳过重复 ${jsonImportTask.skipped}，失败 ${jsonImportTask.failed}`
+                      : `任务失败：${jsonImportTask.message || '未知错误'}`}
               </span>
             </div>
-            {jsonImportProgress.status === 'uploading' && (
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-blue-100">
-                <div
-                  className="h-full bg-blue-600 transition-[width] duration-200"
-                  style={{ width: `${jsonImportProgress.total > 0 ? Math.round((jsonImportProgress.processed / jsonImportProgress.total) * 100) : 35}%` }}
-                />
-              </div>
-            )}
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-blue-100">
+              <div
+                className="h-full bg-blue-600 transition-[width] duration-300"
+                style={{ width: `${Math.max(jsonImportTask.status === 'completed' ? 100 : 2, Math.min(100, jsonImportTask.progress_pct || 0))}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-blue-800">
+              已处理 {jsonImportTask.processed} 条。任务由服务器后台执行，关闭或刷新当前网页不会终止。
+            </p>
           </div>
         )}
 

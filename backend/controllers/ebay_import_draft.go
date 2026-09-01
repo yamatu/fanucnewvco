@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +20,8 @@ import (
 )
 
 type EbayImportDraftController struct{}
+
+const maxEbayDraftJSONImportSize = int64(1024 << 20)
 
 func (ec *EbayImportDraftController) Upload(c *gin.Context) {
 	var req models.EbayImportDraftUploadRequest
@@ -80,6 +83,53 @@ func (ec *EbayImportDraftController) Upload(c *gin.Context) {
 			"results":       results,
 		},
 	})
+}
+
+func (ec *EbayImportDraftController) StartJSONImport(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxEbayDraftJSONImportSize+(10<<20))
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Missing JSON file", Error: err.Error()})
+		return
+	}
+	if file.Size <= 0 || file.Size > maxEbayDraftJSONImportSize {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "JSON file must be between 1 byte and 1 GB", Error: "invalid_file_size"})
+		return
+	}
+	if !strings.EqualFold(filepath.Ext(file.Filename), ".json") {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Only .json files are supported", Error: "invalid_file_type"})
+		return
+	}
+	source, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to read JSON file", Error: err.Error()})
+		return
+	}
+	defer source.Close()
+	task, err := services.StartEbayDraftJSONImportTask(config.GetDB(), source, file.Filename, file.Size)
+	if err != nil {
+		c.JSON(http.StatusConflict, models.APIResponse{Success: false, Message: "Failed to start JSON import", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusAccepted, models.APIResponse{Success: true, Message: "JSON import task started", Data: task})
+}
+
+func (ec *EbayImportDraftController) GetJSONImportTask(c *gin.Context) {
+	task, ok := services.GetEbayDraftJSONImportTask(c.Param("taskId"))
+	if !ok {
+		c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "JSON import task not found", Error: "task_not_found"})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "JSON import task status", Data: task})
+}
+
+func (ec *EbayImportDraftController) GetLatestJSONImportTask(c *gin.Context) {
+	task, ok := services.GetLatestEbayDraftJSONImportTask()
+	if !ok {
+		c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "No JSON import task", Data: nil})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Latest JSON import task", Data: task})
 }
 
 func (ec *EbayImportDraftController) List(c *gin.Context) {
