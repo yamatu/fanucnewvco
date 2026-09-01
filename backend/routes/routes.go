@@ -249,6 +249,8 @@ func SetupRoutes(r *gin.Engine) {
 				ebayImportDrafts.POST("/json-import", ebayImportDraftController.StartJSONImport)
 				ebayImportDrafts.GET("/json-import/tasks/latest", ebayImportDraftController.GetLatestJSONImportTask)
 				ebayImportDrafts.GET("/json-import/tasks/:taskId", ebayImportDraftController.GetJSONImportTask)
+				ebayImportDrafts.POST("/json-import/tasks/:taskId/pause", ebayImportDraftController.PauseJSONImportTask)
+				ebayImportDrafts.POST("/json-import/tasks/:taskId/resume", ebayImportDraftController.ResumeJSONImportTask)
 				ebayImportDrafts.GET("", ebayImportDraftController.List)
 				ebayImportDrafts.POST("/selection-ids", ebayImportDraftController.SelectionIDs)
 				ebayImportDrafts.POST("/bulk-confirm", ebayImportDraftController.BulkConfirm)

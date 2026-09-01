@@ -132,6 +132,24 @@ func (ec *EbayImportDraftController) GetLatestJSONImportTask(c *gin.Context) {
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Latest JSON import task", Data: task})
 }
 
+func (ec *EbayImportDraftController) PauseJSONImportTask(c *gin.Context) {
+	task, err := services.PauseEbayDraftJSONImportTask(c.Param("taskId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to pause JSON import task", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "JSON import task pause requested", Data: task})
+}
+
+func (ec *EbayImportDraftController) ResumeJSONImportTask(c *gin.Context) {
+	task, err := services.ResumeEbayDraftJSONImportTask(c.Param("taskId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to resume JSON import task", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "JSON import task resumed", Data: task})
+}
+
 func (ec *EbayImportDraftController) List(c *gin.Context) {
 	db := config.GetDB()
 	page, pageSize := utils.ParsePaginationWithMax(c.Query("page"), c.Query("page_size"), 100)

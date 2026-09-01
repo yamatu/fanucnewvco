@@ -21,6 +21,7 @@ import (
 const (
 	EbayDraftJSONTaskQueued     = "queued"
 	EbayDraftJSONTaskProcessing = "processing"
+	EbayDraftJSONTaskPaused     = "paused"
 	EbayDraftJSONTaskCompleted  = "completed"
 	EbayDraftJSONTaskFailed     = "failed"
 
@@ -47,7 +48,9 @@ type EbayDraftJSONImportTaskSnapshot struct {
 }
 
 type ebayDraftJSONImportTask struct {
-	mu sync.RWMutex
+	mu             sync.RWMutex
+	cond           *sync.Cond
+	pauseRequested bool
 
 	ID          string
 	Status      string
@@ -127,6 +130,7 @@ func StartEbayDraftJSONImportTask(db *gorm.DB, src io.Reader, filename string, f
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
+	task.cond = sync.NewCond(&task.mu)
 	ebayDraftJSONImports.add(task)
 	cleanup = false
 	go runEbayDraftJSONImportTask(context.Background(), db, task)
@@ -141,11 +145,32 @@ func GetLatestEbayDraftJSONImportTask() (EbayDraftJSONImportTaskSnapshot, bool) 
 	return ebayDraftJSONImports.latestSnapshot()
 }
 
+func PauseEbayDraftJSONImportTask(taskID string) (EbayDraftJSONImportTaskSnapshot, error) {
+	task, ok := ebayDraftJSONImports.get(strings.TrimSpace(taskID))
+	if !ok {
+		return EbayDraftJSONImportTaskSnapshot{}, errors.New("JSON import task not found")
+	}
+	return task.pause()
+}
+
+func ResumeEbayDraftJSONImportTask(taskID string) (EbayDraftJSONImportTaskSnapshot, error) {
+	task, ok := ebayDraftJSONImports.get(strings.TrimSpace(taskID))
+	if !ok {
+		return EbayDraftJSONImportTaskSnapshot{}, errors.New("JSON import task not found")
+	}
+	return task.resume()
+}
+
 func runEbayDraftJSONImportTask(ctx context.Context, db *gorm.DB, task *ebayDraftJSONImportTask) {
 	startedAt := time.Now()
 	task.update(func(value *ebayDraftJSONImportTask) {
-		value.Status = EbayDraftJSONTaskProcessing
-		value.Message = "processing JSON file"
+		if value.pauseRequested {
+			value.Status = EbayDraftJSONTaskPaused
+			value.Message = "paused"
+		} else {
+			value.Status = EbayDraftJSONTaskProcessing
+			value.Message = "loading duplicate index"
+		}
 		value.StartedAt = &startedAt
 		value.UpdatedAt = startedAt
 	})
@@ -175,16 +200,22 @@ func processEbayDraftJSONImportFile(ctx context.Context, db *gorm.DB, task *ebay
 	}
 	defer file.Close()
 
+	updateEbayDraftJSONTaskHeartbeat(task, 0, "loading duplicate index")
 	listingKeys, sourceURLs, err := loadExistingEbayDraftImportKeys(db)
 	if err != nil {
 		return err
 	}
 	decoder := json.NewDecoder(file)
 	decoder.UseNumber()
+	updateEbayDraftJSONTaskHeartbeat(task, 0, "parsing JSON file")
 	processItem := func(raw map[string]any) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+		if err := task.waitIfPaused(ctx); err != nil {
+			return err
+		}
+		updateEbayDraftJSONTaskHeartbeat(task, decoder.InputOffset(), "processing product")
 		normalized := NormalizeEbayImportDraftPayload(raw)
 		listingKey, sourceURL := ebayDraftImportKeys(normalized)
 		if (listingKey != "" && listingKeys[listingKey]) || (sourceURL != "" && sourceURLs[sourceURL]) {
@@ -336,6 +367,20 @@ func updateEbayDraftJSONTaskProgress(task *ebayDraftJSONImportTask, offset int64
 	})
 }
 
+func updateEbayDraftJSONTaskHeartbeat(task *ebayDraftJSONImportTask, offset int64, message string) {
+	now := time.Now()
+	task.update(func(value *ebayDraftJSONImportTask) {
+		if value.FileSize > 0 {
+			value.ProgressPct = minFloat64(99.9, float64(offset)*100/float64(value.FileSize))
+		}
+		if !value.pauseRequested {
+			value.Status = EbayDraftJSONTaskProcessing
+			value.Message = message
+		}
+		value.UpdatedAt = now
+	})
+}
+
 func appendEbayDraftJSONTaskError(task *ebayDraftJSONImportTask, message string) {
 	message = strings.TrimSpace(message)
 	if message == "" {
@@ -352,7 +397,7 @@ func (manager *ebayDraftJSONImportManager) hasActive() bool {
 	defer manager.mu.RUnlock()
 	for _, task := range manager.tasks {
 		task.mu.RLock()
-		active := task.Status == EbayDraftJSONTaskQueued || task.Status == EbayDraftJSONTaskProcessing
+		active := task.Status == EbayDraftJSONTaskQueued || task.Status == EbayDraftJSONTaskProcessing || task.Status == EbayDraftJSONTaskPaused
 		task.mu.RUnlock()
 		if active {
 			return true
@@ -383,6 +428,13 @@ func (manager *ebayDraftJSONImportManager) getSnapshot(taskID string) (EbayDraft
 	return task.snapshot(), true
 }
 
+func (manager *ebayDraftJSONImportManager) get(taskID string) (*ebayDraftJSONImportTask, bool) {
+	manager.mu.RLock()
+	defer manager.mu.RUnlock()
+	task, ok := manager.tasks[taskID]
+	return task, ok
+}
+
 func (manager *ebayDraftJSONImportManager) latestSnapshot() (EbayDraftJSONImportTaskSnapshot, bool) {
 	manager.mu.RLock()
 	if len(manager.order) == 0 {
@@ -401,6 +453,55 @@ func (task *ebayDraftJSONImportTask) update(fn func(*ebayDraftJSONImportTask)) {
 	task.mu.Lock()
 	defer task.mu.Unlock()
 	fn(task)
+}
+
+func (task *ebayDraftJSONImportTask) waitIfPaused(ctx context.Context) error {
+	task.mu.Lock()
+	defer task.mu.Unlock()
+	for task.pauseRequested {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		task.Status = EbayDraftJSONTaskPaused
+		task.Message = "paused"
+		task.UpdatedAt = time.Now()
+		task.cond.Wait()
+	}
+	if task.Status == EbayDraftJSONTaskPaused {
+		task.Status = EbayDraftJSONTaskProcessing
+		task.Message = "resumed"
+		task.UpdatedAt = time.Now()
+	}
+	return nil
+}
+
+func (task *ebayDraftJSONImportTask) pause() (EbayDraftJSONImportTaskSnapshot, error) {
+	task.mu.Lock()
+	if task.Status != EbayDraftJSONTaskQueued && task.Status != EbayDraftJSONTaskProcessing && task.Status != EbayDraftJSONTaskPaused {
+		task.mu.Unlock()
+		return EbayDraftJSONImportTaskSnapshot{}, errors.New("only queued or processing tasks can be paused")
+	}
+	task.pauseRequested = true
+	task.Status = EbayDraftJSONTaskPaused
+	task.Message = "pause requested; waiting for current product"
+	task.UpdatedAt = time.Now()
+	task.mu.Unlock()
+	return task.snapshot(), nil
+}
+
+func (task *ebayDraftJSONImportTask) resume() (EbayDraftJSONImportTaskSnapshot, error) {
+	task.mu.Lock()
+	if task.Status != EbayDraftJSONTaskPaused || !task.pauseRequested {
+		task.mu.Unlock()
+		return EbayDraftJSONImportTaskSnapshot{}, errors.New("task is not paused")
+	}
+	task.pauseRequested = false
+	task.Status = EbayDraftJSONTaskProcessing
+	task.Message = "resuming"
+	task.UpdatedAt = time.Now()
+	task.cond.Broadcast()
+	task.mu.Unlock()
+	return task.snapshot(), nil
 }
 
 func (task *ebayDraftJSONImportTask) snapshot() EbayDraftJSONImportTaskSnapshot {

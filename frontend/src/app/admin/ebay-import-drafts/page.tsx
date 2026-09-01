@@ -13,6 +13,8 @@ import {
   TrashIcon,
   EyeIcon,
   ArrowUpTrayIcon,
+  PauseIcon,
+  PlayIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import Pagination from '@/components/common/Pagination';
@@ -39,6 +41,7 @@ function EbayImportDraftsContent() {
   const [jsonImportTask, setJsonImportTask] = useState<EbayImportDraftJSONTaskSnapshot | null>(null);
   const [jsonUploadPending, setJsonUploadPending] = useState(false);
   const [jsonUploadPct, setJsonUploadPct] = useState(0);
+  const [jsonTaskControlPending, setJsonTaskControlPending] = useState(false);
   const jsonFileInputRef = useRef<HTMLInputElement>(null);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -89,7 +92,7 @@ function EbayImportDraftsContent() {
   useEffect(() => {
     const taskId = jsonImportTask?.id;
     const taskStatus = jsonImportTask?.status;
-    if (!taskId || (taskStatus !== 'queued' && taskStatus !== 'processing')) return;
+    if (!taskId || (taskStatus !== 'queued' && taskStatus !== 'processing' && taskStatus !== 'paused')) return;
     let polling = false;
     const timer = window.setInterval(() => {
       if (polling) return;
@@ -235,6 +238,49 @@ function EbayImportDraftsContent() {
     }
   };
 
+  const refreshJSONImportTask = async () => {
+    setJsonTaskControlPending(true);
+    try {
+      const task = jsonImportTask?.id
+        ? await EbayImportDraftService.getJSONImportTask(jsonImportTask.id)
+        : await EbayImportDraftService.getLatestJSONImportTask();
+      setJsonImportTask(task);
+      if (!task) toast(locale === 'zh' ? '暂无后台导入任务' : 'No background import task found');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, locale === 'zh' ? '刷新任务失败' : 'Failed to refresh task'));
+    } finally {
+      setJsonTaskControlPending(false);
+    }
+  };
+
+  const pauseJSONImportTask = async () => {
+    if (!jsonImportTask) return;
+    setJsonTaskControlPending(true);
+    try {
+      const task = await EbayImportDraftService.pauseJSONImportTask(jsonImportTask.id);
+      setJsonImportTask(task);
+      toast.success(locale === 'zh' ? '已请求暂停，当前商品处理完成后暂停' : 'Pause requested; the task will pause after the current product');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, locale === 'zh' ? '暂停任务失败' : 'Failed to pause task'));
+    } finally {
+      setJsonTaskControlPending(false);
+    }
+  };
+
+  const resumeJSONImportTask = async () => {
+    if (!jsonImportTask) return;
+    setJsonTaskControlPending(true);
+    try {
+      const task = await EbayImportDraftService.resumeJSONImportTask(jsonImportTask.id);
+      setJsonImportTask(task);
+      toast.success(locale === 'zh' ? '后台导入任务已继续' : 'Background import resumed');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, locale === 'zh' ? '继续任务失败' : 'Failed to resume task'));
+    } finally {
+      setJsonTaskControlPending(false);
+    }
+  };
+
   const renderStatus = (draft: EbayImportDraftListItem) => {
     const labelMap: Record<string, string> = locale === 'zh'
       ? {
@@ -320,7 +366,7 @@ function EbayImportDraftsContent() {
             <button
               type="button"
               onClick={() => jsonFileInputRef.current?.click()}
-              disabled={jsonUploadPending || jsonImportTask?.status === 'queued' || jsonImportTask?.status === 'processing'}
+              disabled={jsonUploadPending || jsonImportTask?.status === 'queued' || jsonImportTask?.status === 'processing' || jsonImportTask?.status === 'paused'}
               className="inline-flex items-center rounded-md border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ArrowUpTrayIcon className="mr-2 h-4 w-4" />
@@ -427,31 +473,79 @@ function EbayImportDraftsContent() {
           </div>
         )}
 
-        {jsonImportTask && (
-          <div className="rounded-lg border border-blue-100 bg-blue-50 p-4" role="status" aria-live="polite">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-blue-900">
-              <span className="font-medium">后台 JSON 任务：{jsonImportTask.filename}</span>
-              <span>
-                {jsonImportTask.status === 'queued'
-                  ? '等待后台处理'
-                  : jsonImportTask.status === 'processing'
-                    ? `处理中：新增 ${jsonImportTask.created}，跳过重复 ${jsonImportTask.skipped}，失败 ${jsonImportTask.failed}`
-                    : jsonImportTask.status === 'completed'
-                      ? `已完成：新增 ${jsonImportTask.created}，跳过重复 ${jsonImportTask.skipped}，失败 ${jsonImportTask.failed}`
-                      : `任务失败：${jsonImportTask.message || '未知错误'}`}
-              </span>
+        <div className="rounded-lg border border-blue-100 bg-blue-50 p-4" role="status" aria-live="polite">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 text-sm text-blue-900">
+              <p className="font-semibold">后台 JSON 导入任务</p>
+              {jsonImportTask ? (
+                <>
+                  <p className="mt-1 break-all">{jsonImportTask.filename} · 任务 ID：{jsonImportTask.id}</p>
+                  <p className="mt-1">
+                    {jsonImportTask.status === 'queued'
+                      ? '等待后台处理'
+                      : jsonImportTask.status === 'processing'
+                        ? `处理中：新增 ${jsonImportTask.created}，跳过重复 ${jsonImportTask.skipped}，失败 ${jsonImportTask.failed}`
+                        : jsonImportTask.status === 'paused'
+                          ? `已暂停：新增 ${jsonImportTask.created}，跳过重复 ${jsonImportTask.skipped}，失败 ${jsonImportTask.failed}`
+                          : jsonImportTask.status === 'completed'
+                            ? `已完成：新增 ${jsonImportTask.created}，跳过重复 ${jsonImportTask.skipped}，失败 ${jsonImportTask.failed}`
+                            : `任务失败：${jsonImportTask.message || '未知错误'}`}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-blue-700">暂无任务。上传 JSON 后，进度会固定显示在这里。</p>
+              )}
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-blue-100">
-              <div
-                className="h-full bg-blue-600 transition-[width] duration-300"
-                style={{ width: `${Math.max(jsonImportTask.status === 'completed' ? 100 : 2, Math.min(100, jsonImportTask.progress_pct || 0))}%` }}
-              />
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void refreshJSONImportTask()}
+                disabled={jsonTaskControlPending}
+                className="inline-flex items-center rounded-md border border-blue-300 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+              >
+                <ArrowPathIcon className={`mr-1.5 h-4 w-4 ${jsonTaskControlPending ? 'animate-spin' : ''}`} />
+                刷新任务
+              </button>
+              {(jsonImportTask?.status === 'queued' || jsonImportTask?.status === 'processing') && (
+                <button
+                  type="button"
+                  onClick={() => void pauseJSONImportTask()}
+                  disabled={jsonTaskControlPending}
+                  className="inline-flex items-center rounded-md border border-amber-400 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  <PauseIcon className="mr-1.5 h-4 w-4" />暂停任务
+                </button>
+              )}
+              {jsonImportTask?.status === 'paused' && (
+                <button
+                  type="button"
+                  onClick={() => void resumeJSONImportTask()}
+                  disabled={jsonTaskControlPending}
+                  className="inline-flex items-center rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  <PlayIcon className="mr-1.5 h-4 w-4" />继续任务
+                </button>
+              )}
             </div>
-            <p className="mt-2 text-xs text-blue-800">
-              已处理 {jsonImportTask.processed} 条。任务由服务器后台执行，关闭或刷新当前网页不会终止。
-            </p>
           </div>
-        )}
+          {jsonImportTask && (
+            <>
+              <div className="mt-3 flex items-center justify-between text-xs text-blue-800">
+                <span>{jsonImportTask.message || jsonImportTask.status}</span>
+                <span>{Math.min(100, Math.max(0, jsonImportTask.progress_pct || 0)).toFixed(1)}%</span>
+              </div>
+              <div className="mt-1 h-2 overflow-hidden rounded-full bg-blue-100">
+                <div
+                  className={`h-full transition-[width] duration-300 ${jsonImportTask.status === 'paused' ? 'bg-amber-500' : jsonImportTask.status === 'failed' ? 'bg-red-500' : 'bg-blue-600'}`}
+                  style={{ width: `${Math.max(jsonImportTask.status === 'completed' ? 100 : 2, Math.min(100, jsonImportTask.progress_pct || 0))}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-blue-800">
+                已处理 {jsonImportTask.processed} 条 · 最后更新 {new Date(jsonImportTask.updated_at).toLocaleString()}。关闭或刷新网页不会终止任务。
+              </p>
+            </>
+          )}
+        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
           <p className="text-sm text-blue-900" role="status" aria-live="polite">

@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -36,5 +37,24 @@ func TestEbayDraftImportKeysNormalizeDuplicates(t *testing.T) {
 	}
 	if sourceURL != "https://example.com/products/test" {
 		t.Fatalf("unexpected source URL: %q", sourceURL)
+	}
+}
+
+func TestEbayDraftJSONTaskPauseAndResume(t *testing.T) {
+	task := &ebayDraftJSONImportTask{Status: EbayDraftJSONTaskProcessing}
+	task.cond = sync.NewCond(&task.mu)
+	paused, err := task.pause()
+	if err != nil {
+		t.Fatalf("pause returned error: %v", err)
+	}
+	if paused.Status != EbayDraftJSONTaskPaused {
+		t.Fatalf("pause status = %q", paused.Status)
+	}
+	resumed, err := task.resume()
+	if err != nil {
+		t.Fatalf("resume returned error: %v", err)
+	}
+	if resumed.Status != EbayDraftJSONTaskProcessing {
+		t.Fatalf("resume status = %q", resumed.Status)
 	}
 }

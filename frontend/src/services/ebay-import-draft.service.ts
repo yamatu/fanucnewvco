@@ -59,7 +59,7 @@ export interface EbayImportDraftUploadResponse {
 
 export interface EbayImportDraftJSONTaskSnapshot {
   id: string;
-  status: 'queued' | 'processing' | 'completed' | 'failed';
+  status: 'queued' | 'processing' | 'paused' | 'completed' | 'failed';
   filename: string;
   file_size: number;
   progress_pct: number;
@@ -152,6 +152,22 @@ export class EbayImportDraftService {
     );
     if (response.data.success) return response.data.data || null;
     throw new Error(response.data.message || 'Failed to fetch latest JSON import task');
+  }
+
+  static async pauseJSONImportTask(taskId: string): Promise<EbayImportDraftJSONTaskSnapshot> {
+    const response = await apiClient.post<APIResponse<EbayImportDraftJSONTaskSnapshot>>(
+      `/admin/ebay-import-drafts/json-import/tasks/${encodeURIComponent(taskId)}/pause`
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to pause JSON import task');
+  }
+
+  static async resumeJSONImportTask(taskId: string): Promise<EbayImportDraftJSONTaskSnapshot> {
+    const response = await apiClient.post<APIResponse<EbayImportDraftJSONTaskSnapshot>>(
+      `/admin/ebay-import-drafts/json-import/tasks/${encodeURIComponent(taskId)}/resume`
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to resume JSON import task');
   }
 
   static async get(id: number): Promise<EbayImportDraftDetail> {
