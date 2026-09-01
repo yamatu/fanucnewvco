@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +12,7 @@ import {
   MagnifyingGlassIcon,
   TrashIcon,
   EyeIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import Pagination from '@/components/common/Pagination';
@@ -25,6 +26,32 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+type JsonImportProgress = {
+  status: 'idle' | 'uploading' | 'completed' | 'failed';
+  fileName: string;
+  total: number;
+  processed: number;
+  successCount: number;
+  errorCount: number;
+  errorMessage?: string;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+);
+
+const extractJsonItems = (payload: unknown): Record<string, unknown>[] => {
+  let rawItems: unknown;
+  if (Array.isArray(payload)) rawItems = payload;
+  else if (isRecord(payload) && Array.isArray(payload.products)) rawItems = payload.products;
+  else if (isRecord(payload) && Array.isArray(payload.items)) rawItems = payload.items;
+  else throw new Error('JSON 必须是数组，或包含 products/items 数组');
+
+  if (!Array.isArray(rawItems) || rawItems.length === 0) throw new Error('JSON 中没有可导入的商品');
+  if (rawItems.some((item) => !isRecord(item))) throw new Error('JSON 商品数据必须全部是对象');
+  return rawItems as Record<string, unknown>[];
+};
+
 function EbayImportDraftsContent() {
   const { locale } = useAdminI18n();
   const router = useRouter();
@@ -32,6 +59,15 @@ function EbayImportDraftsContent() {
   const queryClient = useQueryClient();
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [jsonImportProgress, setJsonImportProgress] = useState<JsonImportProgress>({
+    status: 'idle',
+    fileName: '',
+    total: 0,
+    processed: 0,
+    successCount: 0,
+    errorCount: 0,
+  });
+  const jsonFileInputRef = useRef<HTMLInputElement>(null);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
   const pageSize = 20;
@@ -171,6 +207,66 @@ function EbayImportDraftsContent() {
     selectAllMutation.mutate();
   };
 
+  const handleJsonFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    const baseProgress: JsonImportProgress = {
+      status: 'uploading',
+      fileName: file.name,
+      total: 0,
+      processed: 0,
+      successCount: 0,
+      errorCount: 0,
+    };
+    setJsonImportProgress(baseProgress);
+
+    try {
+      if (file.size > 50 * 1024 * 1024) throw new Error('JSON 文件不能超过 50 MB');
+      const payload: unknown = JSON.parse(await file.text());
+      const items = extractJsonItems(payload);
+      const batchSize = 50;
+      let processed = 0;
+      let successCount = 0;
+      let errorCount = 0;
+      setJsonImportProgress({ ...baseProgress, total: items.length });
+
+      for (let offset = 0; offset < items.length; offset += batchSize) {
+        const batch = items.slice(offset, offset + batchSize);
+        const result = await EbayImportDraftService.upload(batch);
+        processed += batch.length;
+        successCount += result.success_count;
+        errorCount += result.error_count;
+        setJsonImportProgress({
+          ...baseProgress,
+          total: items.length,
+          processed,
+          successCount,
+          errorCount,
+        });
+      }
+
+      await invalidateAll();
+      setJsonImportProgress({
+        ...baseProgress,
+        status: 'completed',
+        total: items.length,
+        processed,
+        successCount,
+        errorCount,
+      });
+      toast.success(locale === 'zh'
+        ? `JSON 导入完成：成功 ${successCount} 条，失败 ${errorCount} 条`
+        : `JSON import completed: ${successCount} succeeded, ${errorCount} failed`);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, locale === 'zh' ? 'JSON 导入失败' : 'JSON import failed');
+      await invalidateAll();
+      setJsonImportProgress((current) => ({ ...current, status: 'failed', errorMessage: message }));
+      toast.error(message);
+    }
+  };
+
   const renderStatus = (draft: EbayImportDraftListItem) => {
     const labelMap: Record<string, string> = locale === 'zh'
       ? {
@@ -246,6 +342,22 @@ function EbayImportDraftsContent() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={jsonFileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={handleJsonFileChange}
+            />
+            <button
+              type="button"
+              onClick={() => jsonFileInputRef.current?.click()}
+              disabled={jsonImportProgress.status === 'uploading'}
+              className="inline-flex items-center rounded-md border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ArrowUpTrayIcon className="mr-2 h-4 w-4" />
+              {jsonImportProgress.status === 'uploading' ? 'JSON 导入中...' : '导入 JSON'}
+            </button>
             <button
               onClick={handleBulkRecheck}
               disabled={bulkRecheckMutation.isPending || selectedIds.length === 0}
@@ -334,6 +446,29 @@ function EbayImportDraftsContent() {
             </div>
           </div>
         </div>
+
+        {jsonImportProgress.status !== 'idle' && (
+          <div className="rounded-lg border border-blue-100 bg-blue-50 p-4" role="status" aria-live="polite">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-blue-900">
+              <span className="font-medium">JSON：{jsonImportProgress.fileName}</span>
+              <span>
+                {jsonImportProgress.status === 'uploading'
+                  ? `导入进度 ${jsonImportProgress.processed}/${jsonImportProgress.total}`
+                  : jsonImportProgress.status === 'completed'
+                    ? `已完成：成功 ${jsonImportProgress.successCount}，失败 ${jsonImportProgress.errorCount}`
+                    : `导入失败：${jsonImportProgress.errorMessage || '未知错误'}`}
+              </span>
+            </div>
+            {jsonImportProgress.status === 'uploading' && (
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-blue-100">
+                <div
+                  className="h-full bg-blue-600 transition-[width] duration-200"
+                  style={{ width: `${jsonImportProgress.total > 0 ? Math.round((jsonImportProgress.processed / jsonImportProgress.total) * 100) : 0}%` }}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
           <p className="text-sm text-blue-900" role="status" aria-live="polite">
