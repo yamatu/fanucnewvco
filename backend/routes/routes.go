@@ -249,6 +249,9 @@ func SetupRoutes(r *gin.Engine) {
 				ebayImportDrafts.GET("", ebayImportDraftController.List)
 				ebayImportDrafts.POST("/bulk-confirm", ebayImportDraftController.BulkConfirm)
 				ebayImportDrafts.POST("/bulk-recheck", ebayImportDraftController.BulkRecheck)
+				// POST alias keeps bulk deletion compatible with proxies that reject
+				// request bodies on DELETE while retaining the legacy DELETE route.
+				ebayImportDrafts.POST("/bulk-delete", ebayImportDraftController.BulkDelete)
 				ebayImportDrafts.DELETE("/bulk", ebayImportDraftController.BulkDelete)
 				ebayImportDrafts.GET("/:id", ebayImportDraftController.Get)
 				ebayImportDrafts.PUT("/:id", ebayImportDraftController.Update)

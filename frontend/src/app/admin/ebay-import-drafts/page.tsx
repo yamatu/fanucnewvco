@@ -60,6 +60,8 @@ function EbayImportDraftsContent() {
   const list = data?.items || [];
   const total = data?.total || 0;
   const totalPages = data?.total_pages || 1;
+  const visibleIds = list.map((item) => item.id);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
 
   const invalidateAll = async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.ebayImportDrafts.lists() });
@@ -114,7 +116,11 @@ function EbayImportDraftsContent() {
   };
 
   const toggleSelectAll = (checked: boolean) => {
-    setSelectedIds(checked ? list.map((item) => item.id) : []);
+    setSelectedIds((prev) => {
+      if (checked) return Array.from(new Set([...prev, ...visibleIds]));
+      const visible = new Set(visibleIds);
+      return prev.filter((id) => !visible.has(id));
+    });
   };
 
   const toggleSelectOne = (id: number, checked: boolean) => {
@@ -310,6 +316,33 @@ function EbayImportDraftsContent() {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
+          <p className="text-sm text-blue-900" role="status" aria-live="polite">
+            {locale === 'zh' ? `已选择 ${selectedIds.length} 条草稿` : `${selectedIds.length} draft(s) selected`}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              disabled={selectedIds.length === 0 || bulkDeleteMutation.isPending || bulkConfirmMutation.isPending || bulkRecheckMutation.isPending}
+              className="rounded-md border border-blue-200 bg-white px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {locale === 'zh' ? '清除选择' : 'Clear selection'}
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={selectedIds.length === 0 || bulkDeleteMutation.isPending}
+              className="inline-flex items-center rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <TrashIcon className="mr-2 h-4 w-4" />
+              {bulkDeleteMutation.isPending
+                ? (locale === 'zh' ? '删除中...' : 'Deleting...')
+                : (locale === 'zh' ? '删除选中草稿' : 'Delete selected')}
+            </button>
+          </div>
+        </div>
+
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
           {isLoading ? (
             <div className="flex justify-center p-12">
@@ -331,7 +364,8 @@ function EbayImportDraftsContent() {
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300"
-                        checked={list.length > 0 && selectedIds.length === list.length}
+                        checked={allVisibleSelected}
+                        aria-label={locale === 'zh' ? '选择当前页草稿' : 'Select drafts on this page'}
                         onChange={(e) => toggleSelectAll(e.target.checked)}
                       />
                     </th>
@@ -352,6 +386,7 @@ function EbayImportDraftsContent() {
                           type="checkbox"
                           className="h-4 w-4 rounded border-gray-300"
                           checked={selectedIds.includes(draft.id)}
+                          aria-label={locale === 'zh' ? `选择草稿 ${draft.id}` : `Select draft ${draft.id}`}
                           onChange={(e) => toggleSelectOne(draft.id, e.target.checked)}
                         />
                       </td>

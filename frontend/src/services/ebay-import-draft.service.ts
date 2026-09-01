@@ -122,9 +122,10 @@ export class EbayImportDraftService {
   }
 
   static async bulkDelete(ids: number[]): Promise<{ deleted: number }> {
-    const response = await apiClient.delete<APIResponse<{ deleted: number }>>('/admin/ebay-import-drafts/bulk', {
-      data: { ids },
-    });
+    // Use the POST compatibility endpoint because some reverse proxies strip
+    // or reject JSON request bodies on DELETE. The legacy DELETE endpoint
+    // remains available for older clients.
+    const response = await apiClient.post<APIResponse<{ deleted: number }>>('/admin/ebay-import-drafts/bulk-delete', { ids });
     if (response.data.success && response.data.data) {
       return response.data.data;
     }

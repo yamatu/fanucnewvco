@@ -324,11 +324,36 @@ func (ec *EbayImportDraftController) BulkDelete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request data", Error: err.Error()})
 		return
 	}
-	if err := config.GetDB().Where("id IN ?", req.IDs).Delete(&models.EbayImportDraft{}).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to delete drafts", Error: err.Error()})
+	ids := normalizeBulkDraftIDs(req.IDs)
+	if len(ids) == 0 {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "At least one valid draft ID is required", Error: "ids_required"})
 		return
 	}
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Drafts deleted successfully", Data: gin.H{"deleted": len(req.IDs)}})
+	result := config.GetDB().Where("id IN ?", ids).Delete(&models.EbayImportDraft{})
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to delete drafts", Error: result.Error.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Drafts deleted successfully", Data: gin.H{"deleted": result.RowsAffected, "requested": len(ids)}})
+}
+
+// normalizeBulkDraftIDs removes duplicate IDs and ignores zero values before
+// issuing a destructive bulk operation. This keeps the response count tied to
+// the actual records selected by the administrator.
+func normalizeBulkDraftIDs(ids []uint) []uint {
+	seen := make(map[uint]struct{}, len(ids))
+	result := make([]uint, 0, len(ids))
+	for _, id := range ids {
+		if id == 0 {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		result = append(result, id)
+	}
+	return result
 }
 
 func (ec *EbayImportDraftController) confirmDraftImport(ctx context.Context, id uint, requestedAction string, userID *uint) (gin.H, int, error) {
