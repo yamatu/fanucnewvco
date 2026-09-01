@@ -36,6 +36,8 @@ type JsonImportProgress = {
   errorMessage?: string;
 };
 
+const MAX_JSON_IMPORT_BYTES = 1024 * 1024 * 1024;
+
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
 );
@@ -50,6 +52,115 @@ const extractJsonItems = (payload: unknown): Record<string, unknown>[] => {
   if (!Array.isArray(rawItems) || rawItems.length === 0) throw new Error('JSON 中没有可导入的商品');
   if (rawItems.some((item) => !isRecord(item))) throw new Error('JSON 商品数据必须全部是对象');
   return rawItems as Record<string, unknown>[];
+};
+
+const streamJsonItems = async (
+  file: File,
+  onBatch: (items: Record<string, unknown>[]) => Promise<void>,
+  onProgress: (processed: number) => void
+): Promise<number> => {
+  if (!file.stream) {
+    const payload: unknown = JSON.parse(await file.text());
+    const items = extractJsonItems(payload);
+    await onBatch(items);
+    onProgress(items.length);
+    return items.length;
+  }
+
+  const reader = file.stream().getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  let arrayStarted = false;
+  let prefixInString = false;
+  let prefixEscape = false;
+  let current = '';
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let processed = 0;
+  let finished = false;
+  const batch: Record<string, unknown>[] = [];
+
+  const consume = async (chunk: string) => {
+    text += chunk;
+    let index = 0;
+    while (index < text.length) {
+      const char = text[index];
+      if (!arrayStarted) {
+        if (prefixInString) {
+          if (prefixEscape) prefixEscape = false;
+          else if (char === '\\') prefixEscape = true;
+          else if (char === '"') prefixInString = false;
+        } else if (char === '"') {
+          prefixInString = true;
+        } else if (char === '[') {
+          arrayStarted = true;
+        }
+        index += 1;
+        continue;
+      }
+
+      if (current === '') {
+        if (/\s|,/.test(char)) {
+          index += 1;
+          continue;
+        }
+        if (char === ']') {
+          finished = true;
+          index += 1;
+          break;
+        }
+        current = char;
+        depth = char === '{' || char === '[' ? 1 : 0;
+        inString = char === '"';
+        escape = false;
+        index += 1;
+        continue;
+      }
+
+      current += char;
+      if (inString) {
+        if (escape) escape = false;
+        else if (char === '\\') escape = true;
+        else if (char === '"') inString = false;
+      } else if (char === '"') {
+        inString = true;
+      } else if (char === '{' || char === '[') {
+        depth += 1;
+      } else if (char === '}' || char === ']') {
+        depth -= 1;
+        if (depth === 0) {
+          const item: unknown = JSON.parse(current);
+          if (!isRecord(item)) throw new Error('JSON 商品数据必须全部是对象');
+          batch.push(item);
+          processed += 1;
+          onProgress(processed);
+          current = '';
+          if (batch.length >= 50) {
+            await onBatch(batch.splice(0, batch.length));
+          }
+        }
+      }
+      index += 1;
+    }
+    // Keep only the unfinished value between chunks; completed prefixes can
+    // be discarded to keep memory bounded for very large export files.
+    text = current || (finished ? '' : text.slice(index));
+  };
+
+  while (true) {
+    const result = await reader.read();
+    const decoded = decoder.decode(result.value || new Uint8Array(), { stream: !result.done });
+    if (decoded) await consume(decoded);
+    if (result.done) break;
+    onProgress(processed);
+  }
+  const tail = decoder.decode();
+  if (tail) await consume(tail);
+  if (current.trim()) throw new Error('JSON 商品数组未完整结束');
+  if (!arrayStarted || !finished) throw new Error('JSON 必须包含完整的商品数组');
+  if (batch.length > 0) await onBatch(batch.splice(0, batch.length));
+  return processed;
 };
 
 function EbayImportDraftsContent() {
@@ -223,35 +334,33 @@ function EbayImportDraftsContent() {
     setJsonImportProgress(baseProgress);
 
     try {
-      if (file.size > 50 * 1024 * 1024) throw new Error('JSON 文件不能超过 50 MB');
-      const payload: unknown = JSON.parse(await file.text());
-      const items = extractJsonItems(payload);
-      const batchSize = 50;
+      if (file.size > MAX_JSON_IMPORT_BYTES) throw new Error('JSON 文件不能超过 1 GB');
       let processed = 0;
       let successCount = 0;
       let errorCount = 0;
-      setJsonImportProgress({ ...baseProgress, total: items.length });
-
-      for (let offset = 0; offset < items.length; offset += batchSize) {
-        const batch = items.slice(offset, offset + batchSize);
+      const uploadBatch = async (batch: Record<string, unknown>[]) => {
         const result = await EbayImportDraftService.upload(batch);
         processed += batch.length;
         successCount += result.success_count;
         errorCount += result.error_count;
         setJsonImportProgress({
           ...baseProgress,
-          total: items.length,
+          total: 0,
           processed,
           successCount,
           errorCount,
         });
-      }
+      };
+
+      const total = await streamJsonItems(file, uploadBatch, (count) => {
+        setJsonImportProgress((current) => ({ ...current, total: 0, processed: count }));
+      });
 
       await invalidateAll();
       setJsonImportProgress({
         ...baseProgress,
         status: 'completed',
-        total: items.length,
+        total,
         processed,
         successCount,
         errorCount,
@@ -453,7 +562,7 @@ function EbayImportDraftsContent() {
               <span className="font-medium">JSON：{jsonImportProgress.fileName}</span>
               <span>
                 {jsonImportProgress.status === 'uploading'
-                  ? `导入进度 ${jsonImportProgress.processed}/${jsonImportProgress.total}`
+                  ? `已导入 ${jsonImportProgress.processed} 条商品（流式读取中）`
                   : jsonImportProgress.status === 'completed'
                     ? `已完成：成功 ${jsonImportProgress.successCount}，失败 ${jsonImportProgress.errorCount}`
                     : `导入失败：${jsonImportProgress.errorMessage || '未知错误'}`}
@@ -463,7 +572,7 @@ function EbayImportDraftsContent() {
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-blue-100">
                 <div
                   className="h-full bg-blue-600 transition-[width] duration-200"
-                  style={{ width: `${jsonImportProgress.total > 0 ? Math.round((jsonImportProgress.processed / jsonImportProgress.total) * 100) : 0}%` }}
+                  style={{ width: `${jsonImportProgress.total > 0 ? Math.round((jsonImportProgress.processed / jsonImportProgress.total) * 100) : 35}%` }}
                 />
               </div>
             )}
