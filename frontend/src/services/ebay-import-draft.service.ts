@@ -36,6 +36,11 @@ export interface EbayImportDraftBulkConfirmResponse {
   results: EbayImportDraftBulkConfirmResultItem[];
 }
 
+export interface EbayImportDraftSelectionResponse {
+  ids: number[];
+  total: number;
+}
+
 export class EbayImportDraftService {
   static async list(filters: EbayImportDraftFilters = {}): Promise<EbayImportDraftListResponse> {
     const params = new URLSearchParams();
@@ -55,6 +60,20 @@ export class EbayImportDraftService {
     }
 
     throw new Error(response.data.message || 'Failed to fetch eBay import drafts');
+  }
+
+  static async selectionIds(filters: EbayImportDraftFilters = {}): Promise<EbayImportDraftSelectionResponse> {
+    const response = await apiClient.post<APIResponse<EbayImportDraftSelectionResponse>>(
+      '/admin/ebay-import-drafts/selection-ids',
+      {
+        search: filters.search || '',
+        status: filters.status || '',
+        match_status: filters.match_status || '',
+        brand: filters.brand || '',
+      }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to fetch draft selection');
   }
 
   static async get(id: number): Promise<EbayImportDraftDetail> {

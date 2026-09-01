@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -62,6 +62,11 @@ function EbayImportDraftsContent() {
   const totalPages = data?.total_pages || 1;
   const visibleIds = list.map((item) => item.id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+  const allDraftsSelected = total > 0 && selectedIds.length >= total;
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [search, status, matchStatus, brand]);
 
   const invalidateAll = async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.ebayImportDrafts.lists() });
@@ -103,6 +108,15 @@ function EbayImportDraftsContent() {
       toast.success(locale === 'zh' ? `已删除 ${result.deleted} 条草稿` : `Deleted ${result.deleted} drafts`);
     },
     onError: (err: unknown) => toast.error(getErrorMessage(err, locale === 'zh' ? '批量删除失败' : 'Bulk delete failed')),
+  });
+
+  const selectAllMutation = useMutation({
+    mutationFn: () => EbayImportDraftService.selectionIds(filters),
+    onSuccess: (result) => {
+      setSelectedIds(result.ids);
+      toast.success(locale === 'zh' ? `已选择全部 ${result.total} 条草稿` : `Selected all ${result.total} drafts`);
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, locale === 'zh' ? '全选草稿失败' : 'Failed to select all drafts')),
   });
 
   const updateParams = (updates: Record<string, string | number | undefined>) => {
@@ -150,6 +164,11 @@ function EbayImportDraftsContent() {
     }
     if (!window.confirm(locale === 'zh' ? '确定删除选中的草稿吗？' : 'Delete selected drafts?')) return;
     bulkDeleteMutation.mutate(selectedIds);
+  };
+
+  const handleSelectAll = () => {
+    if (total === 0 || allDraftsSelected || selectAllMutation.isPending) return;
+    selectAllMutation.mutate();
   };
 
   const renderStatus = (draft: EbayImportDraftListItem) => {
@@ -321,6 +340,16 @@ function EbayImportDraftsContent() {
             {locale === 'zh' ? `已选择 ${selectedIds.length} 条草稿` : `${selectedIds.length} draft(s) selected`}
           </p>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              disabled={total === 0 || allDraftsSelected || selectAllMutation.isPending || bulkDeleteMutation.isPending}
+              className="rounded-md border border-blue-300 bg-white px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {selectAllMutation.isPending
+                ? (locale === 'zh' ? '全选中...' : 'Selecting...')
+                : (locale === 'zh' ? `全选所有草稿（${total}）` : `Select all drafts (${total})`)}
+            </button>
             <button
               type="button"
               onClick={() => setSelectedIds([])}

@@ -100,6 +100,29 @@ func (ec *EbayImportDraftController) List(c *gin.Context) {
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "eBay import drafts retrieved successfully", Data: res})
 }
 
+func (ec *EbayImportDraftController) SelectionIDs(c *gin.Context) {
+	var req models.EbayImportDraftSelectionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request data", Error: err.Error()})
+		return
+	}
+	ids, err := services.ListEbayImportDraftIDs(config.GetDB(), services.EbayImportDraftFilters{
+		Search:      req.Search,
+		Status:      req.Status,
+		MatchStatus: req.MatchStatus,
+		Brand:       req.Brand,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to fetch draft selection", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{
+		Success: true,
+		Message: "Draft selection retrieved successfully",
+		Data:    models.EbayImportDraftSelectionResponse{IDs: ids, Total: int64(len(ids))},
+	})
+}
+
 func (ec *EbayImportDraftController) Get(c *gin.Context) {
 	id, err := parseUintParam(c.Param("id"))
 	if err != nil {
