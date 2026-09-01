@@ -18,6 +18,7 @@ The extension keeps the original product object, including `id`, `title`, `handl
 4. Start the crawl. Pages use a maximum of 250 products, default 1200 ms page delay, and default 2000 ms brand delay.
 5. Pause, stop, or resume from the saved page checkpoint. Products are deduplicated by Shopify product ID across collections.
 6. Use the optional brand filter to export JSON or upload only one brand.
+7. Upload settings (batch size, brand filter, and duplicate-upload option) are saved locally. The upload panel polls the saved task progress and shows the actual batch number, processed count, success count, and failure count.
 
 ## Website contract
 
