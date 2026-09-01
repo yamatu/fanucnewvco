@@ -120,13 +120,11 @@ export class EbayImportDraftService {
   }
 
   static async startJSONImport(file: File, onUploadProgress?: (progressPct: number) => void): Promise<EbayImportDraftJSONTaskSnapshot> {
-    const form = new FormData();
-    form.append('file', file);
     const response = await apiClient.post<APIResponse<EbayImportDraftJSONTaskSnapshot>>(
-      '/admin/ebay-import-drafts/json-import',
-      form,
+      `/admin/ebay-import-drafts/json-import?filename=${encodeURIComponent(file.name)}`,
+      file,
       {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': file.type || 'application/json' },
         timeout: 0,
         onUploadProgress: (event: AxiosProgressEvent) => {
           if (!onUploadProgress || !event.total) return;

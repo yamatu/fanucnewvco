@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -87,26 +88,46 @@ func (ec *EbayImportDraftController) Upload(c *gin.Context) {
 
 func (ec *EbayImportDraftController) StartJSONImport(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxEbayDraftJSONImportSize+(10<<20))
-	file, err := c.FormFile("file")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Missing JSON file", Error: err.Error()})
+	contentType := strings.ToLower(strings.TrimSpace(c.GetHeader("Content-Type")))
+	filename := strings.TrimSpace(c.Query("filename"))
+	fileSize := c.Request.ContentLength
+	var source io.Reader = c.Request.Body
+	var closeSource func() error
+
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		file, err := c.FormFile("file")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Missing JSON file", Error: err.Error()})
+			return
+		}
+		filename = file.Filename
+		fileSize = file.Size
+		opened, err := file.Open()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to read JSON file", Error: err.Error()})
+			return
+		}
+		source = opened
+		closeSource = opened.Close
+	} else if !strings.Contains(contentType, "application/json") && !strings.Contains(contentType, "application/octet-stream") {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "JSON file content type is required", Error: "invalid_content_type"})
 		return
 	}
-	if file.Size <= 0 || file.Size > maxEbayDraftJSONImportSize {
-		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "JSON file must be between 1 byte and 1 GB", Error: "invalid_file_size"})
-		return
+	if closeSource != nil {
+		defer closeSource()
 	}
-	if !strings.EqualFold(filepath.Ext(file.Filename), ".json") {
+	if filename == "" {
+		filename = "ebay-import-drafts.json"
+	}
+	if !strings.EqualFold(filepath.Ext(filename), ".json") {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Only .json files are supported", Error: "invalid_file_type"})
 		return
 	}
-	source, err := file.Open()
-	if err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to read JSON file", Error: err.Error()})
+	if fileSize == 0 || fileSize > maxEbayDraftJSONImportSize {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "JSON file must be between 1 byte and 1 GB", Error: "invalid_file_size"})
 		return
 	}
-	defer source.Close()
-	task, err := services.StartEbayDraftJSONImportTask(config.GetDB(), source, file.Filename, file.Size)
+	task, err := services.StartEbayDraftJSONImportTask(config.GetDB(), source, filepath.Base(filename), fileSize)
 	if err != nil {
 		c.JSON(http.StatusConflict, models.APIResponse{Success: false, Message: "Failed to start JSON import", Error: err.Error()})
 		return
