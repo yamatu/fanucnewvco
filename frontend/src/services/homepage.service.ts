@@ -9,7 +9,7 @@ export interface HomepageContentRequest {
   image_url: string;
   button_text: string;
   button_url: string;
-  data?: any;
+  data?: unknown;
   sort_order: number;
   is_active: boolean;
 }
@@ -79,6 +79,11 @@ export class HomepageService {
     return response.data;
   }
 
+  // Admin: Delete a custom homepage content section
+  static async deleteHomepageContent(id: number): Promise<void> {
+    await apiClient.delete(`/admin/homepage-content/${id}`);
+  }
+
   // Admin: Upsert by section key (preferred for the visual editor)
   static async upsertAdminBySectionKey(sectionKey: string, contentData: Partial<HomepageContentRequest>): Promise<HomepageContent> {
     const response = await apiClient.put<HomepageContent>(
@@ -90,7 +95,7 @@ export class HomepageService {
 
   // Convenience: Get aggregated content for Admin form
   // Returns { data: { hero_title, hero_subtitle, ... , about_title, ... } }
-  static async getContent(): Promise<{ data: any }> {
+  static async getContent(): Promise<{ data: Record<string, unknown> }> {
     const contents = await this.getAdminHomepageContents();
     const byKey = Object.fromEntries(contents.map(c => [c.section_key, c]));
 
@@ -116,21 +121,21 @@ export class HomepageService {
   }
 
   // Convenience: Update aggregated content from Admin form
-  static async updateContent(form: any): Promise<void> {
+  static async updateContent(form: Record<string, unknown>): Promise<void> {
     const existing = await this.getAdminHomepageContents();
     const byKey: Record<string, HomepageContent | undefined> = Object.fromEntries(existing.map(c => [c.section_key, c]));
 
-    const upserts: Array<HomepageContentRequest | { id: number; data: Partial<HomepageContentRequest> }> = [];
+    const textValue = (value: unknown) => value == null ? '' : String(value);
 
     // Map hero_section
     const heroPayload: HomepageContentRequest = {
       section_key: 'hero_section',
-      title: form.hero_title || '',
-      subtitle: form.hero_subtitle || '',
-      description: form.hero_description || '',
-      image_url: form.hero_image_url || '',
-      button_text: form.hero_button_text || '',
-      button_url: form.hero_button_url || '',
+      title: textValue(form.hero_title),
+      subtitle: textValue(form.hero_subtitle),
+      description: textValue(form.hero_description),
+      image_url: textValue(form.hero_image_url),
+      button_text: textValue(form.hero_button_text),
+      button_url: textValue(form.hero_button_url),
       sort_order: 1,
       is_active: true,
     };
@@ -138,17 +143,16 @@ export class HomepageService {
     // Map about_section
     const aboutPayload: HomepageContentRequest = {
       section_key: 'about_section',
-      title: form.about_title || '',
+      title: textValue(form.about_title),
       subtitle: '',
-      description: form.about_description || '',
-      image_url: form.about_image_url || '',
+      description: textValue(form.about_description),
+      image_url: textValue(form.about_image_url),
       button_text: '',
       button_url: '',
       sort_order: 2,
       is_active: true,
     };
 
-    // Prepare upserts
     if (byKey['hero_section']) {
       await this.updateHomepageContent(byKey['hero_section']!.id, heroPayload);
     } else {
@@ -166,7 +170,10 @@ export class HomepageService {
   static getPredefinedSections(): HomepageSection[] {
     return [
       { key: 'hero_section', name: 'Hero Section', description: 'Main banner section at the top of the homepage' },
-      { key: 'workshop_facility', name: 'Workshop Facility', description: '5,000sqm Workshop Facility section' },
+      { key: 'brands_section', name: 'Brands We Supply', description: 'Multi-brand automation parts supply grid' },
+      { key: 'repair_capabilities', name: 'Repair Capabilities', description: 'Repairable equipment types and typical faults' },
+      { key: 'home_blog', name: 'Featured Blog Articles', description: 'Published Blog articles marked as Featured' },
+      { key: 'workshop_facility', name: 'Workshop Facility', description: '3,500 sqm inspection and service facility section' },
       { key: 'workshop_overview', name: 'Workshop Overview', description: 'Modern Facility overview' },
       { key: 'inventory_management', name: 'Inventory Management', description: 'Organized storage information' },
       { key: 'quality_control', name: 'Quality Control', description: 'Quality assurance information' },

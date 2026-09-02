@@ -1,6 +1,7 @@
+'use client';
+
 import Link from 'next/link';
 import type { HomepageContent } from '@/types';
-import type { ComponentType, SVGProps } from 'react';
 import { 
   CogIcon, 
   WrenchScrewdriverIcon, 
@@ -12,12 +13,11 @@ import {
   GlobeAltIcon
 } from '@heroicons/react/24/outline';
 import { DEFAULT_SERVICES_SECTION_DATA, type ServicesSectionData } from '@/lib/homepage-defaults';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 type Props = { content?: HomepageContent | null };
 
-type OutlineIcon = ComponentType<SVGProps<SVGSVGElement>>;
-
-const ICONS: Record<string, OutlineIcon> = {
+const ICONS: Record<string, any> = {
   cog: CogIcon,
   wrench: WrenchScrewdriverIcon,
   phone: PhoneIcon,
@@ -26,32 +26,36 @@ const ICONS: Record<string, OutlineIcon> = {
   cap: AcademicCapIcon,
 };
 
-function normalizeServicesData(input: unknown): ServicesSectionData {
+function normalizeServicesData(input: any): ServicesSectionData {
   if (!input) return DEFAULT_SERVICES_SECTION_DATA;
-  const data = typeof input === 'string'
-    ? (() => { try { return JSON.parse(input) as Partial<ServicesSectionData>; } catch { return null; } })()
-    : typeof input === 'object'
-      ? input as Partial<ServicesSectionData>
-      : null;
-  const services = Array.isArray(data?.services) && data.services.length > 0 ? data.services : DEFAULT_SERVICES_SECTION_DATA.services;
-  const processSteps = Array.isArray(data?.processSteps) && data.processSteps.length > 0 ? data.processSteps : DEFAULT_SERVICES_SECTION_DATA.processSteps;
+  const data = typeof input === 'string' ? (() => { try { return JSON.parse(input); } catch { return null; } })() : input;
+  const hasLegacyServiceDefaults = data?.headerTitle === 'Comprehensive CNC Parts Services'
+    && Array.isArray(data?.services)
+    && (data.services.some((service: any) => service?.title === 'Training & Education') || data.services.length === 6);
+  const services = !hasLegacyServiceDefaults && Array.isArray(data?.services) && data.services.length > 0
+    ? data.services
+    : DEFAULT_SERVICES_SECTION_DATA.services;
+  const processSteps = !hasLegacyServiceDefaults && Array.isArray(data?.processSteps) && data.processSteps.length > 0
+    ? data.processSteps
+    : DEFAULT_SERVICES_SECTION_DATA.processSteps;
   return {
-    headerTitle: data?.headerTitle || DEFAULT_SERVICES_SECTION_DATA.headerTitle,
-    headerDescription: data?.headerDescription || DEFAULT_SERVICES_SECTION_DATA.headerDescription,
+    headerTitle: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.headerTitle : data?.headerTitle || DEFAULT_SERVICES_SECTION_DATA.headerTitle,
+    headerDescription: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.headerDescription : data?.headerDescription || DEFAULT_SERVICES_SECTION_DATA.headerDescription,
     services,
-    processTitle: data?.processTitle || DEFAULT_SERVICES_SECTION_DATA.processTitle,
-    processDescription: data?.processDescription || DEFAULT_SERVICES_SECTION_DATA.processDescription,
+    processTitle: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.processTitle : data?.processTitle || DEFAULT_SERVICES_SECTION_DATA.processTitle,
+    processDescription: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.processDescription : data?.processDescription || DEFAULT_SERVICES_SECTION_DATA.processDescription,
     processSteps,
-    ctaTitle: data?.ctaTitle || DEFAULT_SERVICES_SECTION_DATA.ctaTitle,
-    ctaDescription: data?.ctaDescription || DEFAULT_SERVICES_SECTION_DATA.ctaDescription,
-    ctaPrimary: data?.ctaPrimary || DEFAULT_SERVICES_SECTION_DATA.ctaPrimary,
-    ctaSecondary: data?.ctaSecondary || DEFAULT_SERVICES_SECTION_DATA.ctaSecondary,
-    ctaBadges: Array.isArray(data?.ctaBadges) ? data.ctaBadges : DEFAULT_SERVICES_SECTION_DATA.ctaBadges,
+    ctaTitle: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.ctaTitle : data?.ctaTitle || DEFAULT_SERVICES_SECTION_DATA.ctaTitle,
+    ctaDescription: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.ctaDescription : data?.ctaDescription || DEFAULT_SERVICES_SECTION_DATA.ctaDescription,
+    ctaPrimary: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.ctaPrimary : data?.ctaPrimary || DEFAULT_SERVICES_SECTION_DATA.ctaPrimary,
+    ctaSecondary: hasLegacyServiceDefaults ? DEFAULT_SERVICES_SECTION_DATA.ctaSecondary : data?.ctaSecondary || DEFAULT_SERVICES_SECTION_DATA.ctaSecondary,
+    ctaBadges: !hasLegacyServiceDefaults && Array.isArray(data?.ctaBadges) ? data.ctaBadges : DEFAULT_SERVICES_SECTION_DATA.ctaBadges,
   };
 }
 
 export function ServicesSection({ content }: Props) {
-  const base = normalizeServicesData(content?.data);
+  const { locale, t, href } = usePublicI18n();
+  const base = normalizeServicesData((content as any)?.data);
   const data: ServicesSectionData = {
     ...base,
     headerTitle: content?.title || base.headerTitle,
@@ -61,21 +65,21 @@ export function ServicesSection({ content }: Props) {
       : base.ctaPrimary,
   };
   return (
-    <section className="py-20 bg-slate-50">
+    <section className="home-deferred-section py-20 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-slate-950 mb-4">
-            {data.headerTitle}
+            {locale === 'en' ? data.headerTitle : t('home.services.title')}
           </h2>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-            {data.headerDescription}
+            {locale === 'en' ? data.headerDescription : t('home.services.description')}
           </p>
         </div>
 
         {/* Services Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20">
-          {data.services.map((service) => {
+          {data.services.map((service: any) => {
             const Icon = ICONS[String(service.icon)] || CogIcon;
             return (
               <div
@@ -109,10 +113,10 @@ export function ServicesSection({ content }: Props) {
                   </ul>
 
                   <Link
-                    href={service.href || '/contact'}
+                    href={href(service.href || '/contact')}
                     className="text-[#003a78] hover:text-[#003a78] font-semibold text-sm flex items-center group-hover:translate-x-2 transition-transform duration-300"
                   >
-                    Explore {service.title}
+                    {locale === 'en' ? `View ${service.title}` : `${service.title} · ${t('common.learnMore')}`}
                     <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
@@ -134,8 +138,8 @@ export function ServicesSection({ content }: Props) {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {data.processSteps.map((step, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
+            {data.processSteps.map((step: any, index: number) => (
               <div key={index} className="text-center relative">
                 {/* Step Number */}
                 <div className="bg-slate-950 text-white w-16 h-16 rounded-lg flex items-center justify-center text-xl font-bold mx-auto mb-4">
@@ -172,19 +176,19 @@ export function ServicesSection({ content }: Props) {
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
-                  href={data.ctaPrimary?.href || '/contact'}
-                  className="bg-orange-500 text-white hover:bg-[#003a78] px-8 py-4 rounded-md font-semibold transition-colors duration-300 flex items-center justify-center"
+                  href={href(data.ctaPrimary?.href || '/contact')}
+                  className="bg-orange-700 text-white hover:bg-[#003a78] px-8 py-4 rounded-md font-semibold transition-colors duration-300 flex items-center justify-center"
                 >
                   <PhoneIcon className="h-5 w-5 mr-2" />
-                  {data.ctaPrimary?.text || 'Contact Us Today'}
+                  {locale === 'en' ? data.ctaPrimary?.text || t('common.contactUs') : t('common.contactUs')}
                 </Link>
 
                 <Link
-                  href={data.ctaSecondary?.href || '/products'}
+                  href={href(data.ctaSecondary?.href || '/products')}
                   className="border border-white/60 text-white hover:bg-white hover:text-slate-950 px-8 py-4 rounded-md font-semibold transition-colors duration-300 flex items-center justify-center"
                 >
                   <CogIcon className="h-5 w-5 mr-2" />
-                  {data.ctaSecondary?.text || 'Browse Products'}
+                  {locale === 'en' ? data.ctaSecondary?.text || t('home.stats.browse') : t('home.stats.browse')}
                 </Link>
               </div>
 

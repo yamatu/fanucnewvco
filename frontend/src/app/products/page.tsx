@@ -4,9 +4,14 @@ import { Suspense } from 'react';
 import { ProductService, CategoryService } from '@/services';
 import type { Category, Product } from '@/types';
 import { getSiteUrl } from '@/lib/url';
+import { withSiteName } from '@/lib/seo';
 import { toProductPathId } from '@/lib/utils';
 import ProductsPageClient from './ProductsPageClient';
 import ScrollRestorer from '@/components/common/ScrollRestorer';
+import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
+import { translatePublicMessage } from '@/lib/i18n/messages';
+import { localizeCategoryContent, localizeProductContent } from '@/lib/i18n/content';
+import { localizePublicPath, type PublicLocale } from '@/lib/i18n/config';
 
 type SearchParamValue = string | string[] | undefined;
 type PageSearchParams = { [key: string]: SearchParamValue };
@@ -19,6 +24,7 @@ type ProductsPageServerData = {
   currentPage: number;
   selectedCategory: string;
   searchQuery: string;
+  selectedBrand: string;
 };
 
 function getFirstParamValue(value: SearchParamValue): string | undefined {
@@ -59,12 +65,24 @@ function getCategoryPath(category: CategoryNode | null): string | null {
   return `/categories/${path}`;
 }
 
+function findBrandCategory(nodes: CategoryNode[], rawBrand: string): CategoryNode | null {
+  const normalized = rawBrand.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+  if (!normalized) return null;
+  for (const node of nodes) {
+    const candidates = [node.name, node.slug, node.path]
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.toLowerCase().replace(/[^a-z0-9]+/g, ''));
+    if (candidates.some((value) => value === normalized)) return node;
+  }
+  return null;
+}
+
 function buildCategoryRedirectPath(category: CategoryNode | null, params: PageSearchParams): string | null {
   const categoryPath = getCategoryPath(category);
   if (!categoryPath) return null;
 
   const redirectParams = new URLSearchParams();
-  const passthroughKeys = ['page', 'page_size', 'sort_by', 'sort_order', 'min_price', 'max_price'];
+  const passthroughKeys = ['page', 'page_size', 'sort_by', 'sort_dir', 'min_price', 'max_price'];
 
   for (const key of passthroughKeys) {
     const value = getFirstParamValue(params[key]);
@@ -89,6 +107,16 @@ async function resolveCategory(rawValue?: string): Promise<CategoryNode | null> 
   }
 }
 
+async function resolveBrandCategory(rawBrand?: string): Promise<CategoryNode | null> {
+  if (!rawBrand) return null;
+  try {
+    const categories = await CategoryService.getCategories();
+    return findBrandCategory(categories as CategoryNode[], rawBrand);
+  } catch {
+    return null;
+  }
+}
+
 // Generate dynamic metadata for products page
 export async function generateMetadata({ searchParams }: {
   searchParams: Promise<PageSearchParams>
@@ -96,23 +124,33 @@ export async function generateMetadata({ searchParams }: {
   const params = await searchParams;
   const categoryParam = getFirstParamValue(params.category_id) || getFirstParamValue(params.category);
   const searchQuery = getFirstParamValue(params.search);
+  const brand = getFirstParamValue(params.brand);
   const hasSearch = !!searchQuery;
 
-  let title = 'FANUC & Industrial Automation Parts | VIBO CNC';
-  let description = 'Professional CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.';
-  const baseUrl = getSiteUrl();
+  let title = 'Industrial Automation Parts & Components';
+  let description = 'Industrial automation and CNC parts supplier since 2007. Browse current, legacy and obsolete components across 20+ brands with worldwide shipping.';
+  const requestLocale = await getRequestPublicLocale();
+  const defaultMetadataPaths = await getLocalizedMetadataPaths('/products');
+
+  if (requestLocale !== 'en') {
+    title = translatePublicMessage(requestLocale, 'products.title');
+    description = translatePublicMessage(requestLocale, 'products.description');
+  }
 
   if (categoryParam && !hasSearch) {
     const category = await resolveCategory(categoryParam);
     const categoryPath = getCategoryPath(category);
 
     if (category && categoryPath) {
-      title = `${category.name} - Parts | VIBO CNC`;
+      title = `${category.name} - Parts`;
       description = `Professional ${category.name} for CNC systems. High-quality industrial automation components with worldwide shipping.`;
-      const catUrl = `${baseUrl}${categoryPath}`;
+      const localizedCategory = localizeCategoryContent(category, requestLocale);
+      title = `${localizedCategory.name} - ${translatePublicMessage(requestLocale, 'nav.products')}`;
+      const categoryMetadataPaths = await getLocalizedMetadataPaths(categoryPath);
+      const catUrl = categoryMetadataPaths.canonical;
 
       return {
-        title: { absolute: title },
+        title,
         description,
         robots: { index: true, follow: true },
         keywords: [
@@ -120,47 +158,68 @@ export async function generateMetadata({ searchParams }: {
           'I/O modules', 'control units', category.name,
         ].filter(Boolean).join(', '),
         openGraph: {
-          title,
+          title: withSiteName(title),
           description,
           type: 'website',
           url: catUrl,
         },
         alternates: {
           canonical: catUrl,
+          languages: categoryMetadataPaths.languages,
         },
       };
     }
   }
 
+  if (brand && !hasSearch) {
+    const brandCategory = await resolveBrandCategory(brand);
+    const brandPath = getCategoryPath(brandCategory);
+    if (brandCategory && brandPath) {
+      const brandMetadataPaths = await getLocalizedMetadataPaths(brandPath);
+      title = `${brandCategory.name} Industrial Automation Parts`;
+      description = `Browse ${brandCategory.name} industrial automation parts, current and obsolete models, compatibility support, repair evaluation, and worldwide shipping from Vibocnc.`;
+      return {
+        title,
+        description,
+        robots: { index: true, follow: true },
+        keywords: `${brandCategory.name} parts, ${brandCategory.name} automation, industrial automation parts, CNC parts, Vibocnc`,
+        openGraph: { title: withSiteName(title), description, type: 'website', url: brandMetadataPaths.canonical },
+        alternates: { canonical: brandMetadataPaths.canonical, languages: brandMetadataPaths.languages },
+      };
+    }
+  }
+
   if (hasSearch) {
-    title = `Search: ${searchQuery} - Parts | VIBO CNC`;
-    description = `Search results for "${searchQuery}" in industrial automation parts and components. Professional supplier since 2005.`;
+    title = `Search: ${searchQuery} - Parts`;
+    description = `Search results for "${searchQuery}" in CNC and industrial automation parts from a multi-brand supplier established in 2007.`;
   }
 
   return {
-    title: { absolute: title },
+    title,
     description,
-    robots: hasSearch ? { index: false, follow: true } : { index: true, follow: true },
+    robots: hasSearch || !!brand ? { index: false, follow: true } : { index: true, follow: true },
     keywords: [
       'CNC parts', 'industrial automation', 'servo motors', 'PCB boards',
       'I/O modules', 'control units', searchQuery,
     ].filter(Boolean).join(', '),
     openGraph: {
-      title,
+      title: withSiteName(title),
       description,
       type: 'website',
-      url: `${baseUrl}/products`,
+      url: defaultMetadataPaths.canonical,
     },
     alternates: {
-      canonical: `${baseUrl}/products`,
+      canonical: defaultMetadataPaths.canonical,
+      languages: defaultMetadataPaths.languages,
     },
   };
 }
 
 // Server-side data fetching for SEO
-async function getServerSideData(searchParams: PageSearchParams): Promise<ProductsPageServerData> {
+async function getServerSideData(searchParams: PageSearchParams, locale: PublicLocale): Promise<ProductsPageServerData> {
   const categoryId = getFirstParamValue(searchParams.category_id) || getFirstParamValue(searchParams.category);
   const search = getFirstParamValue(searchParams.search);
+  const brand = getFirstParamValue(searchParams.brand);
   const page = parseInt(getFirstParamValue(searchParams.page) || '1', 10);
 
   try {
@@ -168,6 +227,7 @@ async function getServerSideData(searchParams: PageSearchParams): Promise<Produc
     const [productsData, categories] = await Promise.all([
       ProductService.getProducts({
         search,
+        brand,
         category_id: categoryId,
         include_descendants: categoryId ? 'true' : undefined,
         is_active: 'true',
@@ -178,13 +238,17 @@ async function getServerSideData(searchParams: PageSearchParams): Promise<Produc
     ]);
 
     return {
-      products: productsData.data || [],
+      // The catalogue must keep every active product visible in every
+      // language. Translated fields override the English record when they
+      // exist; missing translations fall back to the canonical product data.
+      products: (productsData.data || []).map((product) => localizeProductContent(product, locale)),
       totalPages: Math.ceil((productsData.total || 0) / 12),
       total: productsData.total || 0,
-      categories: categories || [],
+      categories: (categories || []).map((category) => localizeCategoryContent(category, locale)),
       currentPage: page,
       selectedCategory: categoryId || '',
       searchQuery: search || '',
+      selectedBrand: brand || '',
     };
   } catch (error) {
     console.error('Failed to fetch server-side data:', error);
@@ -197,13 +261,14 @@ async function getServerSideData(searchParams: PageSearchParams): Promise<Produc
       currentPage: 1,
       selectedCategory: '',
       searchQuery: '',
+      selectedBrand: '',
     };
   }
 }
 
-// Force no cache for this page to ensure fresh data for crawlers
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Keep catalogue HTML fresh while allowing crawlers and the CDN to reuse the
+// same server-rendered response instead of rebuilding it on every request.
+export const revalidate = 300;
 
 // Main server component
 export default async function ProductsPage({
@@ -212,7 +277,9 @@ export default async function ProductsPage({
   searchParams: Promise<PageSearchParams>
 }) {
   const params = await searchParams;
+  const locale = await getRequestPublicLocale();
   const categoryParam = getFirstParamValue(params.category_id) || getFirstParamValue(params.category);
+  const brandParam = getFirstParamValue(params.brand);
   const hasSearch = !!getFirstParamValue(params.search);
 
   if (categoryParam && !hasSearch) {
@@ -220,11 +287,20 @@ export default async function ProductsPage({
     const redirectPath = buildCategoryRedirectPath(category, params);
 
     if (redirectPath) {
-      permanentRedirect(redirectPath);
+      permanentRedirect(localizePublicPath(redirectPath, locale));
     }
   }
 
-  const serverData = await getServerSideData(params);
+
+  if (brandParam && !hasSearch) {
+    const brandCategory = await resolveBrandCategory(brandParam);
+    const redirectPath = buildCategoryRedirectPath(brandCategory, params);
+    if (redirectPath) {
+      permanentRedirect(localizePublicPath(redirectPath, locale));
+    }
+  }
+
+  const serverData = await getServerSideData(params, locale);
 
   // Generate structured data for product listing page
   const generateListingStructuredData = (data: ProductsPageServerData) => {
@@ -233,40 +309,24 @@ export default async function ProductsPage({
     return {
       '@context': 'https://schema.org',
       '@type': 'CollectionPage',
-      'name': 'Industrial Automation Parts & Components',
-      'description': 'Professional CNC parts supplier since 2005. Browse our extensive catalog of servo motors, PCB boards, I/O modules, and control units.',
-      'url': `${baseUrl}/products`,
+      'name': translatePublicMessage(locale, 'products.title'),
+      'description': translatePublicMessage(locale, 'products.description'),
+      'url': `${baseUrl}${localizePublicPath('/products', locale)}`,
       'mainEntity': {
         '@type': 'ItemList',
         'numberOfItems': data.total,
         'itemListElement': data.products.slice(0, 10).map((product, index: number) => ({
           '@type': 'ListItem',
           'position': index + 1,
+          // Product rich results belong on individual product pages. The
+          // catalogue contains quote-only items without a public price, so
+          // represent each visible entry as a crawlable WebPage instead of
+          // emitting incomplete Product entities.
           'item': {
-            '@type': 'Product',
+            '@type': 'WebPage',
             'name': product.name,
             'description': product.description || `${product.name} - Professional industrial part`,
-            'sku': product.sku,
-            'brand': {
-              '@type': 'Brand',
-              'name': product.brand || 'VIBO CNC',
-            },
-            'image': product.image_urls && product.image_urls.length > 0
-              ? product.image_urls[0]
-              : `${baseUrl}/images/default-product.svg`,
-            'url': `${baseUrl}/products/${toProductPathId(product.sku)}`,
-            'offers': {
-              '@type': 'Offer',
-              'price': product.price || 0,
-              'priceCurrency': 'USD',
-              'availability': product.stock_quantity > 0
-                ? 'https://schema.org/InStock'
-                : 'https://schema.org/PreOrder',
-              'seller': {
-                '@type': 'Organization',
-                'name': 'VIBO CNC',
-              },
-            },
+            'url': `${baseUrl}${localizePublicPath(`/products/${toProductPathId(product.sku)}`, locale)}`,
           },
         })),
       },
@@ -276,14 +336,14 @@ export default async function ProductsPage({
           {
             '@type': 'ListItem',
             'position': 1,
-            'name': 'Home',
-            'item': baseUrl,
+            'name': translatePublicMessage(locale, 'common.home'),
+            'item': `${baseUrl}${localizePublicPath('/', locale)}`,
           },
           {
             '@type': 'ListItem',
             'position': 2,
-            'name': 'Products',
-            'item': `${baseUrl}/products`,
+            'name': translatePublicMessage(locale, 'nav.products'),
+            'item': `${baseUrl}${localizePublicPath('/products', locale)}`,
           },
         ],
       },

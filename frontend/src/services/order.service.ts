@@ -38,6 +38,26 @@ export interface PaymentRequest {
   payment_data?: any;
 }
 
+export interface Refund {
+  id: number;
+  order_id: number;
+  provider_refund_id?: string;
+  capture_id: string;
+  amount: number;
+  currency: string;
+  reason?: string;
+  status: 'pending' | 'completed' | 'failed' | string;
+  requested_by?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RefundOrderResponse {
+  order: Order;
+  refund: Refund;
+  refundable_amount: number;
+}
+
 export class OrderService {
   // Create order (public)
   static async createOrder(orderData: OrderCreateRequest): Promise<Order> {
@@ -152,6 +172,25 @@ export class OrderService {
     }
   }
 
+  // Admin: refund a PayPal capture. Amount is optional and defaults to the remaining balance.
+  static async refundOrder(id: number, payload: { amount?: number; reason?: string } = {}): Promise<RefundOrderResponse> {
+    const response = await apiClient.post<APIResponse<RefundOrderResponse>>(
+      `/admin/orders/${id}/refund`,
+      payload
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || response.data.error || 'Refund failed');
+  }
+
+  static async syncRefund(id: number, refundId: number): Promise<RefundOrderResponse> {
+    const response = await apiClient.post<APIResponse<RefundOrderResponse>>(
+      `/admin/orders/${id}/refund/${refundId}/sync`,
+      {}
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || response.data.error || 'Failed to sync refund');
+  }
+
   // Get order by order number (public - for order tracking)
   static async getOrderByNumber(orderNumber: string): Promise<Order> {
     const response = await apiClient.get<APIResponse<Order>>(
@@ -188,6 +227,8 @@ export class OrderService {
       { value: 'pending', label: 'Pending', color: 'yellow' },
       { value: 'paid', label: 'Paid', color: 'green' },
       { value: 'failed', label: 'Failed', color: 'red' },
+      { value: 'refund_pending', label: 'Refund pending', color: 'yellow' },
+      { value: 'partially_refunded', label: 'Partially refunded', color: 'orange' },
       { value: 'refunded', label: 'Refunded', color: 'gray' },
     ];
   }
@@ -217,8 +258,13 @@ export class OrderService {
 
   // Check if order can be refunded
   static canRefundOrder(order: Order): boolean {
-    return order.payment_status === 'paid' &&
-           !['delivered', 'cancelled'].includes(order.status);
+    const refundedAmount = Number(order.refunded_amount || 0);
+    return ['paid', 'partially_refunded'].includes(order.payment_status) &&
+           Number(order.total_amount || 0) - refundedAmount > 0;
+  }
+
+  static refundableAmount(order: Order): number {
+    return Math.max(0, Number((Number(order.total_amount || 0) - Number(order.refunded_amount || 0)).toFixed(2)));
   }
 
   // Check if order can be deleted

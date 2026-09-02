@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -44,12 +43,9 @@ func ImportRemoteMedia(db *gorm.DB, sourceURL string, folder string, tags string
 		return nil, errors.New("database is required")
 	}
 
-	parsed, err := url.Parse(strings.TrimSpace(sourceURL))
-	if err != nil || parsed == nil || parsed.Scheme == "" || parsed.Host == "" {
-		return nil, fmt.Errorf("invalid remote media url")
-	}
-	if parsed.Scheme != "https" && parsed.Scheme != "http" {
-		return nil, fmt.Errorf("unsupported remote media scheme")
+	parsed, err := validatePublicHTTPURL(sourceURL)
+	if err != nil {
+		return nil, err
 	}
 
 	filename := path.Base(parsed.Path)
@@ -67,7 +63,7 @@ func ImportRemoteMedia(db *gorm.DB, sourceURL string, folder string, tags string
 	}
 	req.Header.Set("User-Agent", "fanuc-backend/remote-media-import")
 
-	client := &http.Client{Timeout: remoteMediaImportTimeout}
+	client := newPublicHTTPClient(remoteMediaImportTimeout)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

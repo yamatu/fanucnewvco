@@ -1,9 +1,12 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"fanuc-backend/config"
 	"fanuc-backend/models"
@@ -15,6 +18,28 @@ import (
 
 // HomepageContentController handles homepage content operations
 type HomepageContentController struct{}
+
+func invalidateHomepageCaches(ctx context.Context, reason string) {
+	services.InvalidatePublicCaches(ctx, reason, []string{"/"})
+	services.TriggerNextRevalidate(nil, []string{"/"}, false)
+	services.TriggerNextRevalidateTags([]string{"homepage-content"})
+}
+
+var homepageSectionKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{2,63}$`)
+
+func normalizeHomepageSectionKey(value string) (string, bool) {
+	sectionKey := strings.TrimSpace(value)
+	return sectionKey, homepageSectionKeyPattern.MatchString(sectionKey)
+}
+
+func isPredefinedHomepageSectionKey(value string) bool {
+	for _, section := range models.GetPredefinedSections() {
+		if section.Key == value {
+			return true
+		}
+	}
+	return false
+}
 
 // GetHomepageContents retrieves all homepage content sections
 func (hc *HomepageContentController) GetHomepageContents(c *gin.Context) {
@@ -84,15 +109,21 @@ func (hc *HomepageContentController) CreateHomepageContent(c *gin.Context) {
 		return
 	}
 
+	sectionKey, valid := normalizeHomepageSectionKey(req.SectionKey)
+	if !valid {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Section key must start with a letter and contain only lowercase letters, numbers, and underscores (3-64 characters)"})
+		return
+	}
+
 	// Check if section_key already exists
 	var existingContent models.HomepageContent
-	if err := config.DB.Where("section_key = ?", req.SectionKey).First(&existingContent).Error; err == nil {
+	if err := config.DB.Where("section_key = ?", sectionKey).First(&existingContent).Error; err == nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "Section key already exists"})
 		return
 	}
 
 	content := models.HomepageContent{
-		SectionKey:  req.SectionKey,
+		SectionKey:  sectionKey,
 		Title:       req.Title,
 		Subtitle:    req.Subtitle,
 		Description: req.Description,
@@ -109,8 +140,7 @@ func (hc *HomepageContentController) CreateHomepageContent(c *gin.Context) {
 		return
 	}
 
-	services.InvalidatePublicCaches(c.Request.Context(), "homepage:create", nil)
-	services.TriggerNextRevalidate(nil, []string{"/"}, false)
+	invalidateHomepageCaches(c.Request.Context(), "homepage:create")
 	c.JSON(http.StatusCreated, content)
 }
 
@@ -168,8 +198,7 @@ func (hc *HomepageContentController) UpdateHomepageContent(c *gin.Context) {
 		return
 	}
 
-	services.InvalidatePublicCaches(c.Request.Context(), "homepage:update", nil)
-	services.TriggerNextRevalidate(nil, []string{"/"}, false)
+	invalidateHomepageCaches(c.Request.Context(), "homepage:update")
 	c.JSON(http.StatusOK, content)
 }
 
@@ -192,7 +221,7 @@ func (hc *HomepageContentController) GetHomepageContentBySectionAdmin(c *gin.Con
 
 // UpsertHomepageContentBySection creates or updates a homepage content section by section_key.
 func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Context) {
-	sectionKey := c.Param("section_key")
+	sectionKey := strings.TrimSpace(c.Param("section_key"))
 	if sectionKey == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Section key is required"})
 		return
@@ -209,6 +238,11 @@ func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Conte
 	err := config.DB.Where("section_key = ?", sectionKey).First(&content).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if _, valid := normalizeHomepageSectionKey(sectionKey); !valid {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid section key"})
+				return
+			}
+
 			content = models.HomepageContent{
 				SectionKey: sectionKey,
 				IsActive:   true,
@@ -245,8 +279,7 @@ func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Conte
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create homepage content"})
 				return
 			}
-			services.InvalidatePublicCaches(c.Request.Context(), "homepage:create", nil)
-			services.TriggerNextRevalidate(nil, []string{"/"}, false)
+			invalidateHomepageCaches(c.Request.Context(), "homepage:create")
 			c.JSON(http.StatusCreated, content)
 
 			return
@@ -290,8 +323,7 @@ func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Conte
 		return
 	}
 
-	services.InvalidatePublicCaches(c.Request.Context(), "homepage:update", nil)
-	services.TriggerNextRevalidate(nil, []string{"/"}, false)
+	invalidateHomepageCaches(c.Request.Context(), "homepage:update")
 	c.JSON(http.StatusOK, content)
 }
 
@@ -303,13 +335,31 @@ func (hc *HomepageContentController) DeleteHomepageContent(c *gin.Context) {
 		return
 	}
 
-	if err := config.DB.Delete(&models.HomepageContent{}, uint(id)).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete homepage content"})
+	var content models.HomepageContent
+	if err := config.DB.First(&content, uint(id)).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Homepage content not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch homepage content"})
+		return
+	}
+	if isPredefinedHomepageSectionKey(content.SectionKey) {
+		c.JSON(http.StatusConflict, gin.H{"error": "Predefined homepage sections cannot be deleted; disable the section instead"})
 		return
 	}
 
-	services.InvalidatePublicCaches(c.Request.Context(), "homepage:delete", nil)
-	services.TriggerNextRevalidate(nil, []string{"/"}, false)
+	result := config.DB.Delete(&content)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete homepage content"})
+		return
+	}
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Homepage content not found"})
+		return
+	}
+
+	invalidateHomepageCaches(c.Request.Context(), "homepage:delete")
 	c.JSON(http.StatusOK, gin.H{"message": "Homepage content deleted successfully"})
 }
 

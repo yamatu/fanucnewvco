@@ -1,27 +1,29 @@
-import type { ReactNode } from 'react';
+import { ReactNode } from 'react';
 import Header from './Header';
 import Footer from './Footer';
-import WhatsAppButton from '../ui/WhatsAppButton';
+import DeferredPublicWidgets from './DeferredPublicWidgets';
+import type { SocialMediaSettings } from '@/types';
 
 interface PublicLayoutProps {
   children: ReactNode;
+  socialMediaSettings?: SocialMediaSettings | null;
 }
 
-export function PublicLayout({ children }: PublicLayoutProps) {
+export function PublicLayout({ children, socialMediaSettings }: PublicLayoutProps) {
   return (
     <div className="site-public min-h-screen flex flex-col bg-slate-50 text-slate-900">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-yellow-400 focus:px-4 focus:py-3 focus:font-semibold focus:text-black focus:shadow-lg"
+        className="fixed left-4 top-3 z-[100] -translate-y-20 rounded-md bg-white px-4 py-2 font-semibold text-slate-950 shadow-lg ring-2 ring-[#003a78] transition-transform focus:translate-y-0"
       >
         Skip to main content
       </a>
       <Header />
-      <main id="main-content" tabIndex={-1} className="flex-1">
+      <main id="main-content" className="flex-1" tabIndex={-1}>
         {children}
       </main>
-      <Footer />
-      <WhatsAppButton />
+      <Footer initialSocialSettings={socialMediaSettings} />
+      <DeferredPublicWidgets />
     </div>
   );
 }

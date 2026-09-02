@@ -1,26 +1,23 @@
 import type { Metadata } from 'next';
-import { getSiteUrl } from '@/lib/url';
+import { getLocalizedMetadataPaths } from '@/lib/i18n/server';
+import { translatePublicMessage } from '@/lib/i18n/messages';
+import { withSiteName } from '@/lib/seo';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const baseUrl = getSiteUrl();
+  const { locale, canonical, languages } = await getLocalizedMetadataPaths('/contact');
+  const title = translatePublicMessage(locale, 'contact.title');
+  const description = locale === 'en'
+    ? 'Contact Vibocnc for industrial automation parts, repair evaluation, technical support and quotations across major brands.'
+    : translatePublicMessage(locale, 'contact.description');
   return {
-    title: { absolute: 'Contact VIBO CNC | FANUC Parts Quotes & Support' },
-    description: 'Contact VIBO CNC for FANUC CNC parts inquiries, technical support, and quotes. Located in Kunshan, China. Phone: +86-13348028050, Email: sales@vibocnc.com. Fast response within 24 hours.',
-    keywords: 'contact VIBO CNC, FANUC parts quote, CNC parts inquiry, technical support, FANUC supplier contact',
-    alternates: { canonical: `${baseUrl}/contact` },
-    openGraph: {
-      title: 'Contact VIBO CNC | FANUC Parts Quotes & Support',
-      description: 'Contact us for FANUC CNC parts, quotes, and technical support. Fast response within 24 hours. Phone: +86-13348028050.',
-      url: `${baseUrl}/contact`,
-      type: 'website',
-    },
+    title,
+    description,
+    keywords: 'contact Vibocnc, automation parts quote, CNC parts inquiry, repair evaluation, industrial technical support',
+    alternates: { canonical, languages },
+    openGraph: { title: withSiteName(title), description, type: 'website', url: canonical },
   };
 }
 
-export default function ContactLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ContactLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

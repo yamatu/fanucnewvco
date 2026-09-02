@@ -1,9 +1,12 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -29,8 +32,10 @@ const (
 )
 
 type EbayImportDraftBuildResult struct {
-	Draft  models.EbayImportDraft
-	Errors []string
+	Draft               models.EbayImportDraft
+	Errors              []string
+	Inference           ProductCategoryInference `json:"-"`
+	ClassificationModel string                   `json:"-"`
 }
 
 type EbayImportDraftListItem struct {
@@ -133,11 +138,23 @@ type EbayImportDraftFilters struct {
 }
 
 func BuildEbayImportDraft(db *gorm.DB, raw map[string]any) EbayImportDraftBuildResult {
+	return BuildEbayImportDraftWithContext(context.Background(), db, raw)
+}
+
+// BuildEbayImportDraftWithContext keeps marketplace classification on the same
+// bounded local-first/web-evidence path as spreadsheet imports. The context is
+// supplied by the request so an upload can be cancelled without leaving a
+// search request running in the background.
+func BuildEbayImportDraftWithContext(ctx context.Context, db *gorm.DB, raw map[string]any) EbayImportDraftBuildResult {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	result := EbayImportDraftBuildResult{}
 	if raw == nil {
 		result.Errors = append(result.Errors, "empty item payload")
 		return result
 	}
+	raw = NormalizeEbayImportDraftPayload(raw)
 
 	rawJSON, _ := json.Marshal(raw)
 	title := firstNonEmptyString(raw["product_title"], raw["title"])
@@ -158,16 +175,38 @@ func BuildEbayImportDraft(db *gorm.DB, raw map[string]any) EbayImportDraftBuildR
 	priceValue := parsePriceFloat(priceRaw)
 	mainImage := normalizeURLString(firstNonEmptyString(raw["main_image"], raw["image"]))
 	imageURLs := collectImageURLs(raw)
-	mediaAssetIDs, mediaErrors := importDraftImages(db, imageURLs)
-	if len(mediaErrors) > 0 {
-		result.Errors = append(result.Errors, mediaErrors...)
+	mediaAssetIDs := []uint{}
+	if !isShopifyImportPayload(raw) {
+		// eBay imports keep the historical local-media behavior. Shopify
+		// collection imports can contain tens of thousands of images, so retain
+		// their source URLs and let product confirmation use those URLs directly.
+		var mediaErrors []string
+		mediaAssetIDs, mediaErrors = importDraftImages(db, imageURLs)
+		if len(mediaErrors) > 0 {
+			result.Errors = append(result.Errors, mediaErrors...)
+		}
 	}
 	if mainImage == "" && len(imageURLs) > 0 {
 		mainImage = imageURLs[0]
 	}
 
-	inference := InferProductCategory(brand, firstNonEmptyString(model, mpn, partNumber, title))
-	suggestedCategoryID, suggestedCategoryName, taxonomyStatus := resolveDraftSuggestedCategory(db, inference.CategorySlug, raw)
+	classificationModel := firstNonEmptyString(model, mpn, partNumber)
+	inference := InferProductCategory(brand, classificationModel)
+	// Shopify collection uploads can contain thousands of items. Keep the
+	// initial ingest local and leave optional web verification for an explicit
+	// draft recheck/confirmation action.
+	if classificationModel != "" && !IsConfirmedProductCategory(inference, classificationModel) && !isShopifyImportPayload(raw) {
+		searchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+		inference, _, _ = ResolveProductCategoryWithWebEvidence(searchCtx, brand, classificationModel)
+		cancel()
+	}
+	// Treat placeholder brands from marketplace payloads as missing. When the
+	// model rules or web evidence verify a manufacturer, persist its canonical
+	// name so an inferred category can never be published as brand "Unknown".
+	if NormalizeBrandKey(brand) == "" && inference.BrandKey != "" && inference.BrandKey != "unknown" {
+		brand = CanonicalBrandName(inference.BrandKey)
+	}
+	suggestedCategoryID, suggestedCategoryName, taxonomyStatus := resolveDraftSuggestedCategory(db, inference, raw, classificationModel)
 	matchStatus, matchedProductID, matchScore, matchReason := matchDraftProduct(db, brand, model, partNumber, mpn, normalizedTitle)
 	metaTitle, metaDescription, metaKeywords := buildDraftSEO(normalizedTitle, description, brand, model, partNumber, mpn, inference.PartType)
 
@@ -209,7 +248,51 @@ func BuildEbayImportDraft(db *gorm.DB, raw map[string]any) EbayImportDraftBuildR
 		ImportAction:          defaultImportAction(matchStatus),
 		Status:                deriveDraftStatus(matchStatus, taxonomyStatus),
 	}
+	result.Inference = inference
+	result.ClassificationModel = classificationModel
 	return result
+}
+
+// VerifyEbayImportDraftCategory is the final publication gate for marketplace
+// drafts. Manual category choices are still allowed, but only when the selected
+// category is an enabled leaf that matches the verified brand and product type.
+func VerifyEbayImportDraftCategory(ctx context.Context, db *gorm.DB, draft models.EbayImportDraft) (ProductCategoryInference, string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	model := NormalizeProductModel(firstNonEmptyString(draft.NormalizedModel, draft.NormalizedPartNumber, draft.NormalizedMPN))
+	if model == "" {
+		return ProductCategoryInference{}, "", errors.New("draft requires a verified model or part number")
+	}
+	inference := InferProductCategory(draft.NormalizedBrand, model)
+	if !IsConfirmedProductCategory(inference, model) {
+		searchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+		inference, _, _ = ResolveProductCategoryWithWebEvidence(searchCtx, draft.NormalizedBrand, model)
+		cancel()
+	}
+	path, err := verifyEbayImportDraftCategoryWithInference(db, draft, inference, model)
+	if err != nil {
+		return inference, "", err
+	}
+	return inference, path, nil
+}
+
+// ValidateEbayImportDraftCategoryWithInference validates a draft against an
+// inference already produced by a preceding recheck, avoiding another web
+// search during the confirmation request.
+func ValidateEbayImportDraftCategoryWithInference(db *gorm.DB, draft models.EbayImportDraft, inference ProductCategoryInference) (string, error) {
+	model := NormalizeProductModel(firstNonEmptyString(draft.NormalizedModel, draft.NormalizedPartNumber, draft.NormalizedMPN))
+	return verifyEbayImportDraftCategoryWithInference(db, draft, inference, model)
+}
+
+func verifyEbayImportDraftCategoryWithInference(db *gorm.DB, draft models.EbayImportDraft, inference ProductCategoryInference, model string) (string, error) {
+	if !IsConfirmedProductCategory(inference, model) {
+		return "", fmt.Errorf("draft classification is unresolved for %s", model)
+	}
+	if draft.SuggestedCategoryID == nil || *draft.SuggestedCategoryID == 0 {
+		return "", errors.New("draft category must be confirmed before import")
+	}
+	return ValidateExistingCategoryForInference(db, *draft.SuggestedCategoryID, inference)
 }
 
 func ListEbayImportDrafts(db *gorm.DB, filters EbayImportDraftFilters) (models.EbayImportDraftListResponse, error) {
@@ -253,6 +336,19 @@ func ListEbayImportDrafts(db *gorm.DB, filters EbayImportDraftFilters) (models.E
 		Total:      total,
 		TotalPages: int(math.Ceil(float64(total) / float64(filters.PageSize))),
 	}, nil
+}
+
+// ListEbayImportDraftIDs returns every draft ID matching the supplied filters.
+// It is used by the admin "select all" action so selection is not limited to
+// the currently visible page.
+func ListEbayImportDraftIDs(db *gorm.DB, filters EbayImportDraftFilters) ([]uint, error) {
+	query := db.Model(&models.EbayImportDraft{})
+	applyEbayImportDraftFilters(&query, filters)
+	var ids []uint
+	if err := query.Order("id ASC").Pluck("id", &ids).Error; err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 func GetEbayImportDraftDetail(db *gorm.DB, id uint) (*EbayImportDraftDetailResponse, error) {
@@ -315,21 +411,80 @@ func GetEbayImportDraftDetail(db *gorm.DB, id uint) (*EbayImportDraftDetailRespo
 }
 
 func RecheckEbayImportDraft(db *gorm.DB, draft *models.EbayImportDraft) error {
+	return RecheckEbayImportDraftWithContext(context.Background(), db, draft)
+}
+
+func RecheckEbayImportDraftWithContext(ctx context.Context, db *gorm.DB, draft *models.EbayImportDraft) error {
+	_, err := RecheckEbayImportDraftAndClassifyWithContext(ctx, db, draft)
+	return err
+}
+
+// RecheckEbayImportDraftAndClassifyWithContext returns the exact inference used
+// for the recheck so confirmation can revalidate the selected category without
+// repeating the same public search.
+func RecheckEbayImportDraftAndClassifyWithContext(ctx context.Context, db *gorm.DB, draft *models.EbayImportDraft) (ProductCategoryInference, error) {
 	if draft == nil {
-		return nil
+		return ProductCategoryInference{}, nil
 	}
-	result := BuildEbayImportDraft(db, decodeRawPayload(draft.RawPayload))
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	raw := decodeRawPayload(draft.RawPayload)
+	result := BuildEbayImportDraftWithContext(ctx, db, raw)
+	normalizedTitle := fallbackTrimmed(draft.NormalizedTitle, result.Draft.NormalizedTitle)
+	normalizedBrand := fallbackTrimmed(draft.NormalizedBrand, result.Draft.NormalizedBrand)
+	if NormalizeBrandKey(normalizedBrand) == "" && strings.TrimSpace(result.Draft.NormalizedBrand) != "" {
+		normalizedBrand = result.Draft.NormalizedBrand
+	}
+	normalizedModel := fallbackTrimmed(draft.NormalizedModel, result.Draft.NormalizedModel)
+	normalizedPartNumber := fallbackTrimmed(draft.NormalizedPartNumber, result.Draft.NormalizedPartNumber)
+	normalizedMPN := fallbackTrimmed(draft.NormalizedMPN, result.Draft.NormalizedMPN)
+	suggestedCategoryID := chooseUintPtr(draft.SuggestedCategoryID, result.Draft.SuggestedCategoryID)
+	taxonomyStatus := result.Draft.TaxonomyStatus
+	classificationModel := NormalizeProductModel(firstNonEmptyString(normalizedModel, normalizedPartNumber, normalizedMPN))
+	inference := result.Inference
+	if classificationModel != result.ClassificationModel || NormalizeBrandKey(normalizedBrand) != NormalizeBrandKey(result.Draft.NormalizedBrand) {
+		inference = InferProductCategory(normalizedBrand, classificationModel)
+	}
+	// Recheck is an explicit admin action, so it may perform web verification
+	// even for a Shopify draft that was ingested with local-only classification.
+	if classificationModel != "" && !IsConfirmedProductCategory(inference, classificationModel) {
+		searchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+		inference, _, _ = ResolveProductCategoryWithWebEvidence(searchCtx, normalizedBrand, classificationModel)
+		cancel()
+	}
+	if suggestedCategoryID == nil || *suggestedCategoryID == 0 {
+		if categoryID, err := ResolveExistingCategoryForInference(db, inference, result.Draft.SuggestedCategoryName); err == nil && categoryID > 0 {
+			suggestedCategoryID = &categoryID
+		}
+	}
+	classificationDraft := *draft
+	classificationDraft.NormalizedTitle = normalizedTitle
+	classificationDraft.NormalizedBrand = normalizedBrand
+	classificationDraft.NormalizedModel = normalizedModel
+	classificationDraft.NormalizedPartNumber = normalizedPartNumber
+	classificationDraft.NormalizedMPN = normalizedMPN
+	classificationDraft.SuggestedCategoryID = suggestedCategoryID
+	if suggestedCategoryID != nil && *suggestedCategoryID > 0 {
+		if _, err := verifyEbayImportDraftCategoryWithInference(db, classificationDraft, inference, classificationModel); err != nil {
+			taxonomyStatus = EbayDraftTaxonomyNeedsReview
+		} else {
+			taxonomyStatus = EbayDraftTaxonomyMatched
+		}
+	} else {
+		taxonomyStatus = EbayDraftTaxonomyNeedsReview
+	}
 	updates := map[string]any{
-		"normalized_title":        fallbackTrimmed(draft.NormalizedTitle, result.Draft.NormalizedTitle),
-		"normalized_brand":        fallbackTrimmed(draft.NormalizedBrand, result.Draft.NormalizedBrand),
-		"normalized_model":        fallbackTrimmed(draft.NormalizedModel, result.Draft.NormalizedModel),
-		"normalized_part_number":  fallbackTrimmed(draft.NormalizedPartNumber, result.Draft.NormalizedPartNumber),
-		"normalized_mpn":          fallbackTrimmed(draft.NormalizedMPN, result.Draft.NormalizedMPN),
+		"normalized_title":        normalizedTitle,
+		"normalized_brand":        normalizedBrand,
+		"normalized_model":        normalizedModel,
+		"normalized_part_number":  normalizedPartNumber,
+		"normalized_mpn":          normalizedMPN,
 		"normalized_price":        nonZeroFloat(draft.NormalizedPrice, result.Draft.NormalizedPrice),
-		"suggested_category_id":   chooseUintPtr(draft.SuggestedCategoryID, result.Draft.SuggestedCategoryID),
+		"suggested_category_id":   suggestedCategoryID,
 		"suggested_category_name": fallbackTrimmed(draft.SuggestedCategoryName, result.Draft.SuggestedCategoryName),
 		"suggested_part_type":     fallbackTrimmed(draft.SuggestedPartType, result.Draft.SuggestedPartType),
-		"taxonomy_status":         result.Draft.TaxonomyStatus,
+		"taxonomy_status":         taxonomyStatus,
 		"match_status":            result.Draft.MatchStatus,
 		"matched_product_id":      result.Draft.MatchedProductID,
 		"match_score":             result.Draft.MatchScore,
@@ -348,12 +503,15 @@ func RecheckEbayImportDraft(db *gorm.DB, draft *models.EbayImportDraft) error {
 		updates["import_action"] = result.Draft.ImportAction
 	}
 	if draft.Status == EbayDraftStatusPending || draft.Status == EbayDraftStatusNeedsReview || draft.Status == EbayDraftStatusReviewed {
-		updates["status"] = deriveDraftStatus(result.Draft.MatchStatus, result.Draft.TaxonomyStatus)
+		updates["status"] = deriveDraftStatus(result.Draft.MatchStatus, taxonomyStatus)
 	}
 	if len(result.Errors) > 0 {
 		updates["failure_reason"] = strings.Join(result.Errors, "; ")
 	}
-	return db.Model(&models.EbayImportDraft{}).Where("id = ?", draft.ID).Updates(updates).Error
+	if err := db.Model(&models.EbayImportDraft{}).Where("id = ?", draft.ID).Updates(updates).Error; err != nil {
+		return inference, err
+	}
+	return inference, nil
 }
 
 func BuildProductRequestFromDraft(db *gorm.DB, draft models.EbayImportDraft) models.ProductCreateRequest {
@@ -363,14 +521,32 @@ func BuildProductRequestFromDraft(db *gorm.DB, draft models.EbayImportDraft) mod
 	for index, asset := range mediaAssets {
 		images = append(images, models.ImageReq{URL: asset.URL, IsPrimary: index == 0, SortOrder: index})
 	}
+	if len(images) == 0 {
+		for index, imageURL := range decodeStringSlice(draft.ImageSourceURLs) {
+			if strings.TrimSpace(imageURL) == "" {
+				continue
+			}
+			images = append(images, models.ImageReq{URL: imageURL, IsPrimary: index == 0, SortOrder: index})
+		}
+	}
 	attributes := buildDraftAttributes(draft)
+	raw := decodeRawPayload(draft.RawPayload)
+	stockQuantity := int(parsePriceFloat(firstNonEmptyString(raw["stock_quantity"], raw["inventory_quantity"])))
+	if stockQuantity <= 0 {
+		stockQuantity = 1
+	}
+	var comparePrice *float64
+	if parsedComparePrice := parsePriceFloat(firstNonEmptyString(raw["compare_price"], raw["compare_at_price"])); parsedComparePrice > 0 {
+		comparePrice = &parsedComparePrice
+	}
 	return models.ProductCreateRequest{
 		SKU:              firstNonEmptyString(draft.NormalizedPartNumber, draft.NormalizedMPN, draft.NormalizedModel, draft.EbayItemID),
 		Name:             defaultTrimmed(draft.NormalizedTitle, draft.TitleRaw),
 		ShortDescription: truncateText(cleanDraftDescription(draft.DescriptionRaw), 320),
 		Description:      cleanDraftDescription(draft.DescriptionRaw),
 		Price:            draft.NormalizedPrice,
-		StockQuantity:    1,
+		ComparePrice:     comparePrice,
+		StockQuantity:    stockQuantity,
 		Brand:            draft.NormalizedBrand,
 		Model:            draft.NormalizedModel,
 		PartNumber:       firstNonEmptyString(draft.NormalizedPartNumber, draft.NormalizedMPN),
@@ -489,37 +665,19 @@ func importDraftImages(db *gorm.DB, urls []string) ([]uint, []string) {
 	return ids, errs
 }
 
-func resolveDraftSuggestedCategory(db *gorm.DB, slug string, raw map[string]any) (*uint, string, string) {
-	if db == nil {
-		return nil, strings.TrimSpace(slug), EbayDraftTaxonomyNeedsReview
+func resolveDraftSuggestedCategory(db *gorm.DB, inference ProductCategoryInference, raw map[string]any, model string) (*uint, string, string) {
+	hint := firstNonEmptyString(raw["category_leaf"], raw["product_type"], raw["category_breadcrumb"])
+	if !IsConfirmedProductCategory(inference, model) {
+		return nil, firstNonEmptyString(hint, inference.CategorySlug), EbayDraftTaxonomyNeedsReview
 	}
-	var category models.Category
-	if strings.TrimSpace(slug) != "" {
-		if err := db.Where("slug = ?", strings.TrimSpace(slug)).First(&category).Error; err == nil {
+	categoryID, err := ResolveExistingCategoryForInference(db, inference, hint)
+	if err == nil && categoryID > 0 {
+		var category models.Category
+		if queryErr := db.Select("id", "name").First(&category, categoryID).Error; queryErr == nil {
 			return &category.ID, category.Name, EbayDraftTaxonomyMatched
 		}
 	}
-	candidateNames := []string{
-		firstNonEmptyString(raw["category_leaf"]),
-		firstNonEmptyString(raw["product_type"]),
-		firstNonEmptyString(raw["category_breadcrumb"]),
-	}
-	var cats []models.Category
-	if err := db.Where("is_active = ?", true).Find(&cats).Error; err == nil {
-		for _, candidate := range candidateNames {
-			candidate = strings.TrimSpace(candidate)
-			if candidate == "" {
-				continue
-			}
-			lower := strings.ToLower(candidate)
-			for _, cat := range cats {
-				if strings.EqualFold(cat.Name, candidate) || strings.EqualFold(cat.Slug, candidate) || strings.Contains(lower, strings.ToLower(cat.Name)) {
-					return &cat.ID, cat.Name, EbayDraftTaxonomyMatched
-				}
-			}
-		}
-	}
-	return nil, firstNonEmptyString(candidateNames[0], candidateNames[1], candidateNames[2], slug), EbayDraftTaxonomyNeedsReview
+	return nil, firstNonEmptyString(hint, inference.CategorySlug), EbayDraftTaxonomyNeedsReview
 }
 
 func matchDraftProduct(db *gorm.DB, brand string, model string, partNumber string, mpn string, title string) (string, *uint, float64, string) {
@@ -582,24 +740,59 @@ func buildDraftSEO(title string, description string, brand string, model string,
 func buildDraftAttributes(draft models.EbayImportDraft) []models.ProductAttributeReq {
 	raw := decodeRawPayload(draft.RawPayload)
 	attrs := []models.ProductAttributeReq{}
+	seen := map[string]bool{}
 	add := func(name string, value string) {
 		name = strings.TrimSpace(name)
 		value = strings.TrimSpace(value)
 		if name == "" || value == "" {
 			return
 		}
+		key := strings.ToLower(name) + "\x00" + strings.ToLower(value)
+		if seen[key] {
+			return
+		}
+		seen[key] = true
 		attrs = append(attrs, models.ProductAttributeReq{AttributeName: name, AttributeValue: value, SortOrder: len(attrs) + 1})
 	}
 	add("Brand", draft.NormalizedBrand)
+	add("Vendor", firstNonEmptyString(raw["vendor"]))
 	add("Model", draft.NormalizedModel)
 	add("Part Number", draft.NormalizedPartNumber)
 	add("MPN", draft.NormalizedMPN)
+	add("SKU", firstNonEmptyString(raw["sku"]))
+	add("Product Type", firstNonEmptyString(raw["product_type"]))
 	add("Condition", firstNonEmptyString(raw["condition"], raw["condition_full"]))
 	add("Country of Origin", firstNonEmptyString(raw["country_of_origin"]))
 	add("UPC", firstNonEmptyString(raw["upc"]))
 	add("EAN", firstNonEmptyString(raw["ean"]))
+	add("Tags", firstLegacyText(raw["tags"]))
+	add("Collection", firstNonEmptyString(raw["collection_name"], raw["collection_handle"]))
+	add("Product ID", firstNonEmptyString(raw["product_id"], raw["shopify_product_id"]))
+	if variants := compactDraftJSON(raw["variants"]); variants != "" {
+		add("Variants", variants)
+	}
+	if options := compactDraftJSON(raw["options"]); options != "" {
+		add("Options", options)
+	}
+	for _, pair := range collectLegacyAttributePairs(raw["item_specifics"], 0) {
+		if strings.EqualFold(strings.TrimSpace(pair[0]), "tags") && firstLegacyText(raw["tags"]) != "" {
+			continue
+		}
+		add(pair[0], pair[1])
+	}
 	add("Source", draft.SourceURL)
 	return attrs
+}
+
+func compactDraftJSON(value any) string {
+	if value == nil {
+		return ""
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil || string(encoded) == "null" || string(encoded) == "[]" || string(encoded) == "{}" {
+		return ""
+	}
+	return string(encoded)
 }
 
 func applyEbayImportDraftFilters(query **gorm.DB, filters EbayImportDraftFilters) {
@@ -658,6 +851,404 @@ func decodeUintSlice(raw string) []uint {
 		}
 	}
 	return out
+}
+
+// NormalizeEbayImportDraftPayload accepts both the website's canonical upload
+// contract and the nested record format stored by the GYCharm eBay v3 plugin.
+// The returned map keeps every original field while filling canonical aliases.
+func NormalizeEbayImportDraftPayload(raw map[string]any) map[string]any {
+	normalized := make(map[string]any, len(raw)+20)
+	for key, value := range raw {
+		normalized[key] = value
+	}
+	if isShopifyImportPayload(raw) {
+		normalizeShopifyImportPayload(normalized, raw)
+	}
+
+	productData := legacyMap(raw["_product_data"])
+	additionData := legacyMap(raw["_addition_data"])
+	itemSpecifics := firstLegacyValue(productData["_shangjia_goodsProperty"], productData["item_specifics"], raw["item_specifics"])
+
+	setCanonicalString(normalized, "source_type", "gycharm_ebay_extension")
+	setCanonicalString(normalized, "source_site", firstLegacyString(raw["site"], raw["source_site"], "ebay"))
+	setCanonicalString(normalized, "plugin_schema", firstLegacyString(raw["plugin_schema"], "gycharm-ebay-v3"))
+	setCanonicalString(normalized, "product_url", firstLegacyString(
+		raw["product_url"], raw["source_url"], productData["_product_url"], raw["_product_url"], additionData["_product_url"],
+	))
+	setCanonicalString(normalized, "product_title", firstLegacyString(
+		raw["product_title"], raw["title"], productData["_shangjia_goodsName"], additionData["_name"],
+	))
+	setCanonicalString(normalized, "description_full", firstLegacyText(
+		raw["description_full"], raw["description_html"], raw["description"],
+		productData["_shangjia_desc"], productData["_shangjia_desc_text"], productData["_product_about_this_item"],
+	))
+	setCanonicalString(normalized, "current_price", firstLegacyString(
+		raw["current_price"], raw["price"], productData["_shangjia_minOnSalePriceStr"], productData["_shangjia_price"], additionData["_price"],
+	))
+	setCanonicalString(normalized, "brand", firstLegacyString(
+		raw["brand"], productData["_product_brand"], findLegacySpecificValue(itemSpecifics, []string{"brand", "brand name", "manufacturer"}, 0),
+	))
+	setCanonicalString(normalized, "model", firstLegacyString(
+		raw["model"], findLegacySpecificValue(itemSpecifics, []string{"model", "model number", "model no"}, 0),
+	))
+	setCanonicalString(normalized, "mpn", firstLegacyString(
+		raw["mpn"], findLegacySpecificValue(itemSpecifics, []string{"mpn", "manufacturer part number"}, 0),
+	))
+	setCanonicalString(normalized, "part_number", firstLegacyString(
+		raw["part_number"], raw["sku"], findLegacySpecificValue(itemSpecifics, []string{"part number", "part no", "manufacturer part number"}, 0),
+	))
+	setCanonicalString(normalized, "category_breadcrumb", firstLegacyText(
+		raw["category_breadcrumb"], raw["category_leaf"], productData["_shangjia_category"],
+	))
+	setCanonicalString(normalized, "condition", firstLegacyString(
+		raw["condition"], raw["condition_full"], productData["_shangjia_condition"],
+	))
+
+	productURL := firstLegacyString(normalized["product_url"])
+	setCanonicalString(normalized, "product_id", firstLegacyString(
+		raw["product_id"], raw["ebay_item_id"], productData["_shangjia_goodsId"], extractLegacyEbayItemID(productURL),
+	))
+	setCanonicalString(normalized, "listing_id", firstLegacyString(raw["listing_id"], normalized["product_id"]))
+	setCanonicalString(normalized, "currency", firstLegacyString(
+		raw["currency"], raw["currency_raw"], detectLegacyCurrency(firstLegacyString(normalized["current_price"]), productURL),
+	))
+
+	images := make([]string, 0)
+	seenImages := map[string]bool{}
+	for _, value := range []any{
+		raw["main_image"], raw["image"], raw["image_urls"],
+		productData["_shangjia_hdThumbUrl"], productData["_shangjia_gallery"], productData["_shangjia_desc_imgs"],
+		productData["_shangjia_productDetailFlatList"], productData["_shangjia_variants_skus"], additionData["_url"],
+	} {
+		appendLegacyURLs(&images, seenImages, value, 0)
+	}
+	if firstLegacyString(normalized["main_image"]) == "" && len(images) > 0 {
+		normalized["main_image"] = images[0]
+	}
+	if _, exists := normalized["image_urls"]; !exists || len(collectLegacyURLValues(normalized["image_urls"])) == 0 {
+		normalized["image_urls"] = images
+	}
+	if itemSpecifics != nil {
+		normalized["item_specifics"] = itemSpecifics
+	}
+	if variants := productData["_shangjia_variants_skus"]; variants != nil {
+		if _, exists := normalized["variants"]; !exists {
+			normalized["variants"] = variants
+		}
+	}
+
+	return normalized
+}
+
+func legacyMap(value any) map[string]any {
+	if typed, ok := value.(map[string]any); ok {
+		return typed
+	}
+	return map[string]any{}
+}
+
+func firstLegacyValue(values ...any) any {
+	for _, value := range values {
+		switch typed := value.(type) {
+		case nil:
+			continue
+		case string:
+			if strings.TrimSpace(typed) == "" {
+				continue
+			}
+		case []any:
+			if len(typed) == 0 {
+				continue
+			}
+		case []string:
+			if len(typed) == 0 {
+				continue
+			}
+		case map[string]any:
+			if len(typed) == 0 {
+				continue
+			}
+		}
+		return value
+	}
+	return nil
+}
+
+func firstLegacyString(values ...any) string {
+	for _, value := range values {
+		switch typed := value.(type) {
+		case string:
+			if trimmed := strings.TrimSpace(typed); trimmed != "" {
+				return trimmed
+			}
+		case float64:
+			if typed != 0 {
+				return strconv.FormatFloat(typed, 'f', -1, 64)
+			}
+		case float32:
+			if typed != 0 {
+				return strconv.FormatFloat(float64(typed), 'f', -1, 32)
+			}
+		case int:
+			if typed != 0 {
+				return strconv.Itoa(typed)
+			}
+		case int64:
+			if typed != 0 {
+				return strconv.FormatInt(typed, 10)
+			}
+		case uint:
+			if typed != 0 {
+				return strconv.FormatUint(uint64(typed), 10)
+			}
+		case json.Number:
+			if trimmed := strings.TrimSpace(typed.String()); trimmed != "" && trimmed != "0" {
+				return trimmed
+			}
+		}
+	}
+	return ""
+}
+
+func firstLegacyText(values ...any) string {
+	for _, value := range values {
+		if text := legacyText(value); text != "" {
+			return text
+		}
+	}
+	return ""
+}
+
+func legacyText(value any) string {
+	if text := firstLegacyString(value); text != "" {
+		return text
+	}
+	switch typed := value.(type) {
+	case []string:
+		parts := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if trimmed := strings.TrimSpace(item); trimmed != "" {
+				parts = append(parts, trimmed)
+			}
+		}
+		return strings.Join(parts, "\n")
+	case []any:
+		parts := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if text := legacyText(item); text != "" {
+				parts = append(parts, text)
+			}
+		}
+		return strings.Join(parts, "\n")
+	case map[string]any:
+		if text := firstLegacyString(typed["name"], typed["title"], typed["label"], typed["value"], typed["text"], typed["path"]); text != "" {
+			return text
+		}
+		encoded, _ := json.Marshal(typed)
+		return strings.TrimSpace(string(encoded))
+	default:
+		return ""
+	}
+}
+
+func setCanonicalString(target map[string]any, key string, value string) {
+	if firstLegacyString(target[key]) != "" || strings.TrimSpace(value) == "" {
+		return
+	}
+	target[key] = strings.TrimSpace(value)
+}
+
+func normalizeLegacyKey(value string) string {
+	var builder strings.Builder
+	for _, char := range strings.ToLower(strings.TrimSpace(value)) {
+		if (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') {
+			builder.WriteRune(char)
+		}
+	}
+	return builder.String()
+}
+
+func findLegacySpecificValue(value any, aliases []string, depth int) string {
+	if value == nil || depth > 6 {
+		return ""
+	}
+	aliasSet := map[string]bool{}
+	for _, alias := range aliases {
+		aliasSet[normalizeLegacyKey(alias)] = true
+	}
+	switch typed := value.(type) {
+	case []any:
+		for _, item := range typed {
+			if found := findLegacySpecificValue(item, aliases, depth+1); found != "" {
+				return found
+			}
+		}
+	case map[string]any:
+		name := firstLegacyString(typed["name"], typed["label"], typed["key"], typed["attribute_name"], typed["specs_name"])
+		itemValue := firstLegacyString(typed["value"], typed["text"], typed["attribute_value"], typed["specs_value"])
+		if aliasSet[normalizeLegacyKey(name)] && itemValue != "" {
+			return itemValue
+		}
+		for key, item := range typed {
+			if aliasSet[normalizeLegacyKey(key)] {
+				if direct := firstLegacyString(item); direct != "" {
+					return direct
+				}
+			}
+		}
+		for _, item := range typed {
+			if found := findLegacySpecificValue(item, aliases, depth+1); found != "" {
+				return found
+			}
+		}
+	}
+	return ""
+}
+
+func appendLegacyURLs(out *[]string, seen map[string]bool, value any, depth int) {
+	if value == nil || depth > 6 {
+		return
+	}
+	add := func(candidate string) {
+		candidate = normalizeURLString(candidate)
+		if candidate == "" || seen[candidate] || !(strings.HasPrefix(candidate, "http://") || strings.HasPrefix(candidate, "https://")) {
+			return
+		}
+		seen[candidate] = true
+		*out = append(*out, candidate)
+	}
+	switch typed := value.(type) {
+	case string:
+		trimmed := strings.TrimSpace(typed)
+		if strings.HasPrefix(trimmed, "[") {
+			var decoded []any
+			if json.Unmarshal([]byte(trimmed), &decoded) == nil {
+				appendLegacyURLs(out, seen, decoded, depth+1)
+				return
+			}
+		}
+		for _, item := range strings.Split(trimmed, ",") {
+			add(strings.TrimSpace(item))
+		}
+	case []string:
+		for _, item := range typed {
+			add(item)
+		}
+	case []any:
+		for _, item := range typed {
+			appendLegacyURLs(out, seen, item, depth+1)
+		}
+	case map[string]any:
+		for key, item := range typed {
+			lower := strings.ToLower(key)
+			if strings.Contains(lower, "image") || strings.Contains(lower, "img") || strings.Contains(lower, "gallery") || strings.Contains(lower, "photo") || strings.Contains(lower, "picture") || strings.Contains(lower, "url") {
+				appendLegacyURLs(out, seen, item, depth+1)
+			}
+		}
+	default:
+		add(firstLegacyString(typed))
+	}
+}
+
+func collectLegacyURLValues(value any) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	appendLegacyURLs(&out, seen, value, 0)
+	return out
+}
+
+func extractLegacyEbayItemID(rawURL string) string {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return ""
+	}
+	for _, key := range []string{"item", "itemid"} {
+		if candidate := strings.TrimSpace(parsed.Query().Get(key)); isLegacyNumericID(candidate) {
+			return candidate
+		}
+	}
+	parts := strings.FieldsFunc(parsed.Path, func(r rune) bool { return r == '/' || r == '-' || r == '_' })
+	for index := len(parts) - 1; index >= 0; index-- {
+		if isLegacyNumericID(parts[index]) {
+			return parts[index]
+		}
+	}
+	return ""
+}
+
+func isLegacyNumericID(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) < 9 || len(value) > 15 {
+		return false
+	}
+	for _, char := range value {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func detectLegacyCurrency(priceRaw string, productURL string) string {
+	upper := strings.ToUpper(strings.TrimSpace(priceRaw))
+	switch {
+	case strings.Contains(upper, "GBP") || strings.Contains(upper, "£"):
+		return "GBP"
+	case strings.Contains(upper, "EUR") || strings.Contains(upper, "€"):
+		return "EUR"
+	case strings.Contains(upper, "AUD") || strings.Contains(upper, "AU$"):
+		return "AUD"
+	case strings.Contains(upper, "CAD") || strings.Contains(upper, "CA$") || strings.Contains(upper, "C$"):
+		return "CAD"
+	case strings.Contains(upper, "USD") || strings.Contains(upper, "US$") || strings.Contains(upper, "$"):
+		return "USD"
+	}
+	host := ""
+	if parsed, err := url.Parse(strings.TrimSpace(productURL)); err == nil {
+		host = strings.ToLower(parsed.Hostname())
+	}
+	switch {
+	case strings.HasSuffix(host, "ebay.co.uk"):
+		return "GBP"
+	case strings.HasSuffix(host, "ebay.com.au"):
+		return "AUD"
+	case strings.HasSuffix(host, "ebay.ca"):
+		return "CAD"
+	case strings.HasSuffix(host, "ebay.de"), strings.HasSuffix(host, "ebay.fr"), strings.HasSuffix(host, "ebay.it"), strings.HasSuffix(host, "ebay.es"), strings.HasSuffix(host, "ebay.at"), strings.HasSuffix(host, "ebay.be"), strings.HasSuffix(host, "ebay.nl"), strings.HasSuffix(host, "ebay.ie"):
+		return "EUR"
+	default:
+		return "USD"
+	}
+}
+
+func collectLegacyAttributePairs(value any, depth int) [][2]string {
+	if value == nil || depth > 5 {
+		return nil
+	}
+	pairs := make([][2]string, 0)
+	switch typed := value.(type) {
+	case []any:
+		for _, item := range typed {
+			pairs = append(pairs, collectLegacyAttributePairs(item, depth+1)...)
+		}
+	case map[string]any:
+		name := firstLegacyString(typed["name"], typed["label"], typed["key"], typed["attribute_name"], typed["specs_name"])
+		itemValue := firstLegacyString(typed["value"], typed["text"], typed["attribute_value"], typed["specs_value"])
+		if name != "" && itemValue != "" {
+			return append(pairs, [2]string{name, itemValue})
+		}
+		for key, item := range typed {
+			if direct := firstLegacyString(item); direct != "" {
+				pairs = append(pairs, [2]string{key, direct})
+				continue
+			}
+			pairs = append(pairs, collectLegacyAttributePairs(item, depth+1)...)
+		}
+	}
+	if len(pairs) > 50 {
+		return pairs[:50]
+	}
+	return pairs
 }
 
 func collectImageURLs(raw map[string]any) []string {

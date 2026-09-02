@@ -16,6 +16,7 @@ export interface ProductFilters {
   search?: string;
   is_active?: string;
   is_featured?: string;
+  ai_seo_status?: 'optimized' | 'not_optimized' | 'running' | 'failed';
   sort_by?: 'created_at' | 'updated_at' | 'price' | 'name';
   sort_dir?: 'asc' | 'desc';
 }
@@ -40,6 +41,7 @@ export interface ProductImportResult {
   template: string;
   overwrite: boolean;
   create_missing: boolean;
+  categories_created?: number;
 }
 
 export interface ProductImportTaskSnapshot {
@@ -63,54 +65,6 @@ export interface ProductImportTaskSnapshot {
   updated_at: string;
 }
 
-export interface BulkAutoCategorizeResultItem {
-  product_id: number;
-  sku: string;
-  model: string;
-  brand: string;
-  category_slug: string;
-  category_id: number;
-  previous_category_id: number;
-  part_type: string;
-  match_rule: string;
-  action: string;
-}
-
-export interface BulkAutoCategorizeResult {
-  updated: number;
-  skipped: number;
-  failed: number;
-  items: BulkAutoCategorizeResultItem[];
-}
-
-export interface BulkCategorizeOptimizeResultItem extends BulkAutoCategorizeResultItem {
-  seo_updated: boolean;
-}
-
-export interface BulkCategorizeOptimizeResult {
-  updated: number;
-  skipped: number;
-  failed: number;
-  items: BulkCategorizeOptimizeResultItem[];
-}
-
-export interface BulkDisableAutoSEOResultItem {
-  product_id: number;
-  sku: string;
-  brand: string;
-  action: string;
-  seo_updated: boolean;
-  faq_updated: boolean;
-  disable_auto_seo: boolean;
-}
-
-export interface BulkDisableAutoSEOResult {
-  updated: number;
-  skipped: number;
-  failed: number;
-  items: BulkDisableAutoSEOResultItem[];
-}
-
 export interface ProductOptimizationStatus {
   total_products: number;
   optimized_products: number;
@@ -126,6 +80,112 @@ export interface ProductOptimizationResponse {
   seo_score_before: number;
   seo_score_after: number;
   message: string;
+}
+
+export interface ProductCategoryOptimizationRequest {
+  product_ids?: number[];
+  category_id?: number;
+  brand?: string;
+  include_inactive?: boolean;
+  limit?: number;
+  after_id?: number;
+  use_web_search?: boolean;
+  create_missing_categories?: boolean;
+  activate_resolved?: boolean;
+}
+
+export interface ProductCategoryOptimizationItem {
+  product_id: number;
+  sku: string;
+  status: 'completed' | 'unresolved' | 'failed';
+  message: string;
+  brand?: string;
+  model?: string;
+  part_type?: string;
+  match_rule?: string;
+  category_id?: number;
+  category_path?: string;
+  category_created: boolean;
+  evidence?: Array<{ title: string; url: string; snippet: string }>;
+  inference?: {
+    brand_key: string;
+    brand_name: string;
+    part_type: string;
+    category_slug: string;
+    model_family?: string;
+    match_rule: string;
+  };
+}
+
+export interface ProductCategoryOptimizationResult {
+  processed: number;
+  completed: number;
+  unresolved: number;
+  failed: number;
+  categories_created: number;
+  has_more: boolean;
+  next_after_id?: number;
+  results?: ProductCategoryOptimizationItem[];
+}
+
+export interface ProductTitleStandardizationRequest {
+  product_ids?: number[];
+  category_id?: number;
+  include_descendants?: boolean;
+  brand?: string;
+  include_inactive?: boolean;
+  limit?: number;
+  after_id?: number;
+  apply?: boolean;
+}
+
+export interface ProductTitleProposal {
+  product_id: number;
+  sku: string;
+  status: 'ready' | 'updated' | 'skipped' | 'unresolved' | 'failed';
+  message?: string;
+  brand?: string;
+  model?: string;
+  part_type?: string;
+  old_name: string;
+  new_name?: string;
+}
+
+export interface ProductTitleStandardizationResult {
+  processed: number;
+  ready: number;
+  updated: number;
+  skipped: number;
+  unresolved: number;
+  has_more: boolean;
+  next_after_id?: number;
+  applied: boolean;
+  results: ProductTitleProposal[];
+}
+
+export interface ProductClassificationIssue {
+  product_id: number;
+  sku: string;
+  name: string;
+  brand: string;
+  model: string;
+  category_id: number;
+  category_path: string;
+  issue: 'uncategorized' | 'wrong_category' | 'root_category' | 'generic_category' | 'inactive_unresolved' | 'seo_failed';
+  detail: string;
+}
+
+export interface ProductClassificationAudit {
+  scanned: number;
+  ok: number;
+  uncategorized: number;
+  wrong_category: number;
+  root_category: number;
+  generic_category: number;
+  inactive_unresolved: number;
+  seo_failed: number;
+  product_ids: number[];
+  samples: ProductClassificationIssue[];
 }
 
 export interface BulkSelectionIdsResult {
@@ -208,8 +268,18 @@ export class ProductService {
           (error.code === '23' && error.constructor?.name === 'TimeoutError') ||
           error.response?.status === 404 ||
           (error.response?.status && error.response.status >= 500))) {
-        console.warn('🔧 Backend server appears to be down or timed out, returning mock data');
-        return this.getMockProductsData(filters);
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('🔧 Backend server appears to be down or timed out, returning development-only mock data');
+          return this.getMockProductsData(filters);
+        }
+        // Never expose invented catalog values in a production HTML response.
+        return {
+          data: [],
+          page: Number(filters.page || 1),
+          page_size: Number(filters.page_size || 12),
+          total: 0,
+          total_pages: 0,
+        };
       }
 
       throw error;
@@ -238,8 +308,9 @@ export class ProductService {
         category_id: 1,
         category: {
           id: 1,
-          name: 'Servo Drives',
-          slug: 'servo-drives',
+          name: 'FANUC Servo Amplifier / Drive',
+          slug: 'fanuc-servo-amplifier-drive',
+          path: 'fanuc/fanuc-servo-amplifier-drive',
           description: 'FANUC servo drives and amplifiers',
           image_url: '',
           sort_order: 1,
@@ -274,8 +345,9 @@ export class ProductService {
         category_id: 2,
         category: {
           id: 2,
-          name: 'Servo Motors',
-          slug: 'servo-motors',
+          name: 'FANUC Servo Motor',
+          slug: 'fanuc-servo-motor',
+          path: 'fanuc/fanuc-servo-motor',
           description: 'FANUC servo motors and spindle motors',
           image_url: '',
           sort_order: 2,
@@ -558,22 +630,6 @@ export class ProductService {
     throw new Error(response.data.message || 'Failed to clear product images');
   }
 
-  static async bulkAutoCategorize(payload: {
-    ids?: number[];
-    skus?: string[];
-    search?: string;
-    category_id?: string;
-    include_descendants?: boolean;
-    status?: 'active' | 'inactive' | 'all' | '';
-    featured?: 'true' | 'false' | '';
-    brand?: string;
-    batch_size?: number;
-  }): Promise<BulkAutoCategorizeResult> {
-    const response = await apiClient.put<APIResponse<BulkAutoCategorizeResult>>('/admin/products/bulk-auto-categorize', payload);
-    if (response.data.success && response.data.data) return response.data.data;
-    throw new Error(response.data.message || 'Failed to auto categorize products');
-  }
-
   static async getOptimizationStatus(): Promise<ProductOptimizationStatus> {
     const response = await apiClient.get<APIResponse<ProductOptimizationStatus>>('/admin/products/optimization-status');
     if (response.data.success && response.data.data) return response.data.data;
@@ -602,37 +658,41 @@ export class ProductService {
     throw new Error(response.data.message || 'Failed to bulk optimize products');
   }
 
-  static async bulkCategorizeOptimizeProducts(payload: {
-    ids?: number[];
-    skus?: string[];
-    search?: string;
-    category_id?: string;
-    include_descendants?: boolean;
-    status?: 'active' | 'inactive' | 'all' | '';
-    featured?: 'true' | 'false' | '';
-    brand?: string;
-    batch_size?: number;
-    force_update?: boolean;
-  }): Promise<BulkCategorizeOptimizeResult> {
-    const response = await apiClient.put<APIResponse<BulkCategorizeOptimizeResult>>('/admin/products/bulk-categorize-optimize', payload);
+  static async autoOptimizeCategories(
+    payload: ProductCategoryOptimizationRequest
+  ): Promise<ProductCategoryOptimizationResult> {
+    const response = await apiClient.post<APIResponse<ProductCategoryOptimizationResult>>(
+      '/admin/products/auto-optimize-categories',
+      payload,
+      // A batch can perform bounded public web lookups for unfamiliar models.
+      // Do not let the global 60-second API timeout interrupt that work.
+      { timeout: 0 }
+    );
     if (response.data.success && response.data.data) return response.data.data;
-    throw new Error(response.data.message || 'Failed to categorize and optimize products');
+    throw new Error(response.data.message || response.data.error || 'Failed to optimize product categories');
   }
 
-  static async bulkDisableAutoSEO(payload: {
-    ids?: number[];
-    skus?: string[];
-    search?: string;
-    category_id?: string;
-    include_descendants?: boolean;
-    status?: 'active' | 'inactive' | 'all' | '';
-    featured?: 'true' | 'false' | '';
-    brand?: string;
-    batch_size?: number;
-  }): Promise<BulkDisableAutoSEOResult> {
-    const response = await apiClient.put<APIResponse<BulkDisableAutoSEOResult>>('/admin/products/bulk-disable-auto-seo', payload);
+  static async standardizeTitles(
+    payload: ProductTitleStandardizationRequest
+  ): Promise<ProductTitleStandardizationResult> {
+    const response = await apiClient.post<APIResponse<ProductTitleStandardizationResult>>(
+      '/admin/products/standardize-titles',
+      payload,
+      { timeout: 0 }
+    );
     if (response.data.success && response.data.data) return response.data.data;
-    throw new Error(response.data.message || 'Failed to disable automatic SEO');
+    throw new Error(response.data.message || response.data.error || 'Failed to standardize product titles');
+  }
+
+  static async auditClassification(): Promise<ProductClassificationAudit> {
+    const response = await apiClient.post<APIResponse<ProductClassificationAudit>>(
+      '/admin/products/classification-audit',
+      {},
+      // The audit walks the whole catalog; do not let the global timeout cut it off.
+      { timeout: 0 }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || response.data.error || 'Classification audit failed');
   }
 
   static async getAdminProductSelectionIds(payload: {
@@ -644,6 +704,7 @@ export class ProductService {
     status?: 'active' | 'inactive' | 'all' | '';
     featured?: 'true' | 'false' | '';
     brand?: string;
+    ai_seo_status?: 'optimized' | 'not_optimized' | 'running' | 'failed';
     batch_size?: number;
   }): Promise<BulkSelectionIdsResult> {
     const response = await apiClient.post<APIResponse<BulkSelectionIdsResult>>('/admin/products/selection-ids', payload);
@@ -704,6 +765,25 @@ export class ProductService {
     throw new Error(response.data.message || response.data.error || 'Failed to import products');
   }
 
+  // Admin: import quote exports (品牌/型号/价格/交期) from CSV.
+  static async importProductQuotesCsv(
+    file: File,
+    onUploadProgress?: (progressPct: number) => void
+  ): Promise<ProductImportTaskSnapshot> {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await apiClient.post<APIResponse<ProductImportTaskSnapshot>>('/admin/products/import/csv', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 0,
+      onUploadProgress: (event: AxiosProgressEvent) => {
+        if (!onUploadProgress || !event?.total) return;
+        onUploadProgress(Math.min(100, Math.max(0, Math.round((event.loaded * 100) / event.total))));
+      },
+    });
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || response.data.error || 'Failed to import quote CSV');
+  }
+
   static async getImportProductsTask(taskId: string): Promise<ProductImportTaskSnapshot> {
     const response = await apiClient.get<APIResponse<ProductImportTaskSnapshot>>(`/admin/products/import/xlsx/tasks/${encodeURIComponent(taskId)}`);
     if (response.data.success && response.data.data) return response.data.data;
@@ -713,13 +793,12 @@ export class ProductService {
   // Get featured products (public)
   static async getFeaturedProducts(limit: number = 8): Promise<Product[]> {
     try {
-      // Reuse getProducts so we inherit its fallbacks and mocking
+      // Reuse getProducts so filtering and response handling stay consistent.
       const res = await this.getProducts({ is_featured: 'true', page_size: limit });
       return res.data || [];
     } catch {
-      console.warn('🔧 Falling back to mock featured products');
-      const mock = this.getMockProductsData({ is_featured: 'true', page_size: limit });
-      return mock.data || [];
+      // A missing backend must not turn into fabricated prices or stock claims.
+      return [];
     }
   }
 

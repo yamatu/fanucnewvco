@@ -2,8 +2,16 @@
 
 import { Product, Category } from '@/types';
 import { toProductPathId } from '@/lib/utils';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
+import {
+  buildProductSeoDescription,
+  buildSemanticProductName,
+  inferProductTypeLabel,
+} from '@/lib/product-seo';
 
-const DEFAULT_SITE_NAME = 'VIBO CNC';
+const PUBLIC_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://vibocnc.com').replace(/\/+$/, '');
+
+const DEFAULT_SITE_NAME = 'Vibocnc';
 const GENERIC_BRAND_LABEL = 'industrial automation';
 const GENERIC_MANUFACTURER_LABEL = 'industrial automation parts manufacturer';
 
@@ -21,6 +29,7 @@ interface ProductSEOProps {
   category?: Category;
   categoryBreadcrumb?: Category[];
   baseUrl?: string;
+  contentLocale?: string;
 }
 
 function mapConditionType(condition?: string): string {
@@ -45,13 +54,6 @@ function parseSpecs(raw?: string): Record<string, string> | null {
   return null;
 }
 
-function stripHtml(text?: string): string {
-  return String(text || '')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 function toAbsoluteUrl(url: string | undefined, baseUrl: string): string {
   const value = String(url || '').trim();
   if (!value) return `${baseUrl}/images/default-product.svg`;
@@ -61,6 +63,19 @@ function toAbsoluteUrl(url: string | undefined, baseUrl: string): string {
 
 function normalizeText(value?: string): string {
   return String(value || '').trim();
+}
+
+function stripHtml(value?: string): string {
+  return normalizeText(value)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function getBrandName(product: Product): string {
@@ -77,7 +92,7 @@ function getManufacturerName(product: Product): string {
 
 function buildAnswerFirstSummary(product: Product, category?: Category): string {
   const brandLabel = getBrandLabel(product);
-  const categoryName = category?.name || product.category?.name || 'industrial automation part';
+  const categoryName = inferProductTypeLabel(category ? { ...product, category } : product);
   const stockText = product.stock_quantity > 0
     ? 'The item is in stock and ready for shipment.'
     : `The item is available to order with ${product.lead_time || '3-7 days'} lead time.`;
@@ -88,14 +103,22 @@ function buildAnswerFirstSummary(product: Product, category?: Category): string 
   return `${brandLabel} ${product.sku} is a ${categoryName.toLowerCase()} used for CNC repair, replacement, and industrial automation maintenance. ${stockText} ${warrantyText}`;
 }
 
-export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'https://www.vibocnc.com' }: ProductSEOProps) {
-  const productUrl = `${baseUrl}/products/${toProductPathId(product.sku)}`;
+export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PUBLIC_SITE_URL, contentLocale }: ProductSEOProps) {
+  const { locale, t, href } = usePublicI18n();
+  const productPath = `/products/${toProductPathId(product.sku)}`;
+  const productUrl = `${baseUrl}${contentLocale === 'en' && locale !== 'en' ? productPath : href(productPath)}`;
   const productId = `${productUrl}#product`;
   const brandLabel = getBrandLabel(product);
   const manufacturerName = getManufacturerName(product);
-  const description = stripHtml(product.meta_description || product.short_description || product.description)
-    || `${product.name} industrial automation spare part from ${brandLabel}.`;
+  const semanticProduct = category ? { ...product, category } : product;
+  const semanticName = buildSemanticProductName(semanticProduct);
+  const semanticCategory = inferProductTypeLabel(semanticProduct);
   const answerFirstSummary = buildAnswerFirstSummary(product, category);
+  const description = buildProductSeoDescription(semanticProduct);
+  const schemaLocale = contentLocale || locale;
+  const localeConfig = typeof Intl !== 'undefined'
+    ? new Intl.Locale(schemaLocale === 'zh' ? 'zh-CN' : schemaLocale).toString()
+    : schemaLocale;
 
   // Build image array
   const imageUrls = (product.images?.map(img => typeof img === 'string' ? img : img.url) ||
@@ -125,16 +148,22 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
   })) || [];
   const additionalProperties = [...specProperties, ...attributeProperties];
 
-  // Generate rich structured data for the product
+  // Google requires Product markup to contain a real offer, review, or rating.
+  // Quote-only records without approved reviews remain valid WebPage content,
+  // but are not eligible for a Product rich result.
+  const hasProductRichResultData = product.price > 0 || hasReviews;
+
+  // Generate rich structured data for the product when the record supports it.
   const structuredData: { [key: string]: JsonLdValue } = {
     "@context": "https://schema.org",
     "@type": "Product",
     "@id": productId,
-    "name": product.name,
+    "name": semanticName,
     "sku": product.sku,
     "mpn": product.part_number || product.sku,
     "productID": product.sku,
     "description": description,
+    "inLanguage": localeConfig,
     "disambiguatingDescription": answerFirstSummary,
     "brand": {
       "@type": "Brand",
@@ -144,7 +173,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
       "@type": "Organization",
       "name": manufacturerName
     },
-    "category": category?.name || "Industrial Automation",
+    "category": semanticCategory,
     "image": imageUrls,
     "url": productUrl,
     "mainEntityOfPage": {
@@ -153,61 +182,25 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     },
     "itemCondition": mapConditionType(product.condition_type),
     "countryOfOrigin": product.origin_country || undefined,
-    "keywords": [product.sku, product.part_number, product.brand, category?.name].filter(Boolean).join(', '),
+    "keywords": [product.sku, product.part_number, product.brand, semanticCategory].filter(Boolean).join(', '),
     "audience": {
       "@type": "Audience",
       "audienceType": "CNC maintenance buyers and industrial automation service teams"
     },
-    "offers": {
+    "offers": product.price > 0 ? {
       "@type": "Offer",
       "url": productUrl,
       "price": product.price,
       "priceCurrency": "USD",
       "availability": product.stock_quantity > 0
         ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
+        : "https://schema.org/BackOrder",
       "seller": {
         "@type": "Organization",
-        "name": "VIBO CNC",
+        "name": "Vibocnc",
         "url": baseUrl
-      },
-      "eligibleQuantity": product.minimum_order_quantity ? {
-        "@type": "QuantitativeValue",
-        "minValue": product.minimum_order_quantity
-      } : undefined,
-      "priceValidUntil": new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      "itemCondition": mapConditionType(product.condition_type),
-      "hasMerchantReturnPolicy": {
-        "@type": "MerchantReturnPolicy",
-        "applicableCountry": "US",
-        "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
-        "merchantReturnDays": 30,
-        "returnMethod": "https://schema.org/ReturnByMail",
-        "returnFees": "https://schema.org/FreeReturn"
-      },
-      "shippingDetails": {
-        "@type": "OfferShippingDetails",
-        "shippingDestination": {
-          "@type": "DefinedRegion",
-          "name": "Worldwide"
-        },
-        "deliveryTime": {
-          "@type": "ShippingDeliveryTime",
-          "handlingTime": {
-            "@type": "QuantitativeValue",
-            "minValue": 1,
-            "maxValue": 3,
-            "unitCode": "d"
-          },
-          "transitTime": {
-            "@type": "QuantitativeValue",
-            "minValue": 3,
-            "maxValue": 10,
-            "unitCode": "d"
-          }
-        }
       }
-    }
+    } : undefined
   };
 
   // Add aggregate rating if reviews exist
@@ -273,25 +266,25 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
       {
         "@type": "ListItem",
         "position": 1,
-        "name": "Home",
-        "item": baseUrl
+        "name": t('common.home'),
+        "item": `${baseUrl}${href('/')}`
       },
       {
         "@type": "ListItem",
         "position": 2,
-        "name": "Products",
-        "item": `${baseUrl}/products`
+        "name": t('nav.products'),
+        "item": `${baseUrl}${href('/products')}`
       },
       ...(categoryBreadcrumb?.map((cat, index) => ({
         "@type": "ListItem",
         "position": index + 3,
         "name": cat.name,
-         "item": `${baseUrl}/categories/${cat.path || cat.slug}`
+         "item": `${baseUrl}${href(`/categories/${cat.path || cat.slug}`)}`
       })) || []),
       {
         "@type": "ListItem",
         "position": (categoryBreadcrumb?.length || 0) + 3,
-        "name": product.name,
+        "name": semanticName,
         "item": productUrl
       }
     ]
@@ -308,39 +301,64 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
           "text": f.answer
         }
       }))
-    : [
+    : schemaLocale === 'zh'
+      ? [
         {
           "@type": "Question",
-          "name": `What is the ${product.sku} used for?`,
+          "name": `${product.sku} 主要用于什么场景？`,
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": `The ${product.name} (${product.sku}) is a ${brandLabel} industrial automation component used in CNC machines, control cabinets, and related automation systems.`
+            "text": `${semanticName} 用于数控机床和工业自动化系统，可满足稳定控制、备件更换或设备维护需求。`
           }
         },
         {
           "@type": "Question",
-          "name": `Is the ${product.sku} compatible with my CNC system?`,
+          "name": `${product.sku} 目前有库存吗？`,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": product.stock_quantity > 0
+              ? `${product.sku} 目前有库存，可安排发货。`
+              : `${product.sku} 可订购，预计交货期为 ${product.lead_time || '3–7 天'}。`
+          }
+        },
+        {
+          "@type": "Question",
+          "name": `如何确认 ${product.sku} 是否兼容？`,
           "acceptedAnswer": {
             "@type": "Answer",
             "text": product.compatibility_info
-              ? `${product.compatibility_info} Contact our technical team at sales@vibocnc.com for further compatibility verification.`
-              : `The ${product.name} should be matched against the original machine, controller, and option configuration before ordering. Contact our technical team at sales@vibocnc.com for compatibility verification.`
+              ? `${stripHtml(product.compatibility_info)} 下单前请联系 sales@vibocnc.com 进行最终兼容性确认。`
+              : `请将设备型号或原零件号发送至 sales@vibocnc.com，我们会在发货前协助确认兼容性。`
+          }
+        }
+      ]
+      : [
+        {
+          "@type": "Question",
+          "name": `What is ${product.sku} used for?`,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": `${semanticName} is used in CNC and industrial automation systems for stable control, replacement, or maintenance needs.`
           }
         },
         {
           "@type": "Question",
-          "name": `What is the warranty for ${product.sku}?`,
+          "name": `Is ${product.sku} in stock?`,
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": `We provide a ${product.warranty_period || '12-month'} warranty for the ${product.name}. All products are quality tested before shipment.`
+            "text": product.stock_quantity > 0
+              ? `${product.sku} is currently in stock and ready for shipment.`
+              : `${product.sku} is available to order with ${product.lead_time || '3-7 days'} lead time.`
           }
         },
         {
           "@type": "Question",
-          "name": `How long does shipping take for ${product.sku}?`,
+          "name": `How can I confirm compatibility for ${product.sku}?`,
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": `We offer worldwide shipping for the ${product.name} via DHL, FedEx, and UPS. Delivery typically takes 3-7 business days for express shipping. ${product.stock_quantity > 0 ? 'This item is currently in stock and ready to ship.' : 'Contact us for availability and estimated delivery time.'}`
+            "text": product.compatibility_info
+              ? `${stripHtml(product.compatibility_info)} Contact sales@vibocnc.com for final compatibility confirmation before ordering.`
+              : `Share your machine model or original part number with sales@vibocnc.com and we will verify compatibility before shipment.`
           }
         }
       ];
@@ -356,18 +374,22 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     "@type": "WebPage",
     "@id": `${productUrl}#webpage`,
     "url": productUrl,
-    "name": product.name,
+    "name": semanticName,
     "description": description,
     "dateModified": product.updated_at,
-    "inLanguage": "en",
+    "inLanguage": localeConfig,
     "isPartOf": {
       "@type": "WebSite",
       "name": DEFAULT_SITE_NAME,
       "url": baseUrl,
     },
-    "about": {
-      "@id": productId,
-    },
+    "about": hasProductRichResultData
+      ? { "@id": productId }
+      : {
+          "@type": "Thing",
+          "name": semanticName,
+          "identifier": product.sku,
+        },
     "speakable": {
       "@type": "SpeakableSpecification",
       "cssSelector": ["h1", ".product-summary", ".product-description", ".product-specs"]
@@ -376,13 +398,16 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
 
   return (
     <>
-      {/* Product Structured Data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData)
-        }}
-      />
+      {/* Product Structured Data is only emitted when Google has a real
+          offer, review, or aggregate rating to validate. */}
+      {hasProductRichResultData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData)
+          }}
+        />
+      )}
 
       {/* Breadcrumb Structured Data */}
       <script

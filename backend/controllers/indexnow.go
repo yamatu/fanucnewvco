@@ -167,7 +167,7 @@ func (ic *IndexNowController) Submit(c *gin.Context) {
 		}
 		productIDs := make([]uint, 0, len(products))
 		for _, product := range products {
-			urls = append(urls, services.BuildProductCanonicalURL(setting.SiteURL, product.SKU))
+			urls = append(urls, services.LoadProductIndexNowURLs(db, setting.SiteURL, product)...)
 			productIDs = append(productIDs, product.ID)
 		}
 
@@ -300,10 +300,10 @@ func (ic *IndexNowController) SubmitProducts(c *gin.Context) {
 		}
 
 		productIDs := make([]uint, 0, len(products))
-		urls := make([]string, 0, len(products))
+		urls := make([]string, 0, len(products)*3)
 		for _, product := range products {
 			productIDs = append(productIDs, product.ID)
-			urls = append(urls, services.BuildProductCanonicalURL(setting.SiteURL, product.SKU))
+			urls = append(urls, services.LoadProductIndexNowURLs(db, setting.SiteURL, product)...)
 		}
 		lastID = products[len(products)-1].ID
 
@@ -441,11 +441,11 @@ func (ic *IndexNowController) SubmitWithSingleProduct(c *gin.Context, productID 
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to load IndexNow settings", Error: err.Error()})
 		return
 	}
-	url := services.BuildProductCanonicalURL(setting.SiteURL, product.SKU)
+	urls := services.LoadProductIndexNowURLs(db, setting.SiteURL, product)
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 25*time.Second)
 	defer cancel()
-	result, err := service.SubmitURLs(ctx, []string{url})
+	result, err := service.SubmitURLs(ctx, urls)
 	if err != nil {
 		message := "IndexNow submission failed"
 		if services.IsIndexNowOwnershipError(result) {

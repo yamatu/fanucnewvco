@@ -1,115 +1,134 @@
 import { getRequestBaseUrl } from '@/lib/request-url'
 import { NextResponse } from 'next/server'
+import { renderLocalizedSitemap } from '@/lib/i18n/sitemap'
+import { PUBLIC_LOCALES } from '@/lib/i18n/config'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 86400 // 24 hours
 
+// Use a stable deployment/content baseline for pages without a database-backed
+// modification timestamp. A request timestamp falsely tells crawlers that every
+// static page changed each time they fetch the sitemap.
+const STATIC_CONTENT_LAST_MODIFIED = process.env.SITEMAP_STATIC_LAST_MODIFIED || '2026-07-30T00:00:00.000Z'
+const HOME_CONTENT_LAST_MODIFIED = process.env.SITEMAP_HOME_LAST_MODIFIED || '2026-08-08T00:00:00.000Z'
+const ALL_PUBLIC_LOCALES = PUBLIC_LOCALES.map((locale) => locale.code)
+const EN_ZH_LOCALES = ['en', 'zh'] as const
+const ENGLISH_HOME_LOCALE = ['en'] as const
+
 export async function GET() {
   const baseUrl = await getRequestBaseUrl()
-  const lastModified = new Date().toISOString()
+  const lastModified = new Date(STATIC_CONTENT_LAST_MODIFIED).toISOString()
+  const homeLastModified = new Date(HOME_CONTENT_LAST_MODIFIED).toISOString()
 
   const staticPages = [
     {
-      url: baseUrl,
-      lastModified,
+      pathname: '/',
+      lastModified: homeLastModified,
       changeFrequency: 'daily',
       priority: '1.0',
+      availableLocales: ENGLISH_HOME_LOCALE,
     },
     {
-      url: `${baseUrl}/products`,
+      pathname: '/products',
       lastModified,
       changeFrequency: 'hourly',
       priority: '0.9',
+      availableLocales: ALL_PUBLIC_LOCALES,
     },
     {
-      url: `${baseUrl}/categories`,
+      pathname: '/categories',
       lastModified,
       changeFrequency: 'daily',
       priority: '0.85',
+      availableLocales: EN_ZH_LOCALES,
     },
     {
-      url: `${baseUrl}/news`,
-      lastModified,
-      changeFrequency: 'daily',
-      priority: '0.8',
-    },
-    {
-      url: `${baseUrl}/about`,
+      pathname: '/about',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.8',
+      availableLocales: ALL_PUBLIC_LOCALES,
     },
     {
-      url: `${baseUrl}/contact`,
+      pathname: '/contact',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.8',
+      availableLocales: ALL_PUBLIC_LOCALES,
     },
     {
-      url: `${baseUrl}/faq`,
+      pathname: '/repair-request',
+      lastModified,
+      changeFrequency: 'monthly',
+      priority: '0.85',
+      availableLocales: EN_ZH_LOCALES,
+    },
+    {
+      pathname: '/faq',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.6',
+      availableLocales: EN_ZH_LOCALES,
     },
     {
-      url: `${baseUrl}/privacy`,
+      pathname: '/privacy',
       lastModified,
       changeFrequency: 'yearly',
       priority: '0.4',
+      availableLocales: EN_ZH_LOCALES,
     },
     {
-      url: `${baseUrl}/terms`,
+      pathname: '/terms',
       lastModified,
       changeFrequency: 'yearly',
       priority: '0.4',
+      availableLocales: EN_ZH_LOCALES,
     },
     {
-      url: `${baseUrl}/warranty`,
+      pathname: '/warranty',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.5',
+      availableLocales: EN_ZH_LOCALES,
     },
     {
-      url: `${baseUrl}/warranty-policy`,
+      pathname: '/warranty-policy',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.5',
+      availableLocales: EN_ZH_LOCALES,
     },
     {
-      url: `${baseUrl}/shipping-policy`,
+      pathname: '/shipping-policy',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.5',
+      availableLocales: EN_ZH_LOCALES,
     },
     {
-      url: `${baseUrl}/technical-support`,
+      pathname: '/technical-support',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.5',
+      availableLocales: EN_ZH_LOCALES,
     },
     {
-      url: `${baseUrl}/returns`,
+      pathname: '/returns',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.5',
+      availableLocales: EN_ZH_LOCALES,
     },
     {
-      url: `${baseUrl}/docs`,
+      pathname: '/docs',
       lastModified,
       changeFrequency: 'monthly',
       priority: '0.4',
+      availableLocales: EN_ZH_LOCALES,
     },
   ]
 
-  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${staticPages.map(page => `  <url>
-    <loc>${page.url}</loc>
-    <lastmod>${page.lastModified}</lastmod>
-    <changefreq>${page.changeFrequency}</changefreq>
-    <priority>${page.priority}</priority>
-  </url>`).join('\n')}
-</urlset>`
+  const sitemap = renderLocalizedSitemap(baseUrl, staticPages)
 
   return new NextResponse(sitemap, {
     headers: {

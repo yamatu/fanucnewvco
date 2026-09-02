@@ -138,21 +138,20 @@ func (s *CompanyProfileService) InitializeDefaultProfile() error {
 
 	// Create default profile
 	defaultProfile := &models.CompanyProfile{
-		CompanyName:       "VIBO CNC",
+		CompanyName:       "Vibocnc",
 		CompanySubtitle:   "Industrial Automation Specialists",
-		EstablishmentYear: "2005",
+		EstablishmentYear: "2007",
 		Location:          "Kunshan, China",
-		WorkshopSize:      "5,000sqm",
-		Description1:      "VIBO CNC established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.",
-		Description2:      "Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.",
-		Achievement:       "Top 3 FANUC Supplier in China",
+		WorkshopSize:      "3,500sqm",
+		Description1:      "Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.",
+		Description2:      "We support multiple automation brands with 27 workers, 10 sales professionals and more than 100,000 items regularly stocked. Daily parcel volume is around 50-100 pieces, with testing, repair and worldwide delivery support.",
+		Achievement:       "Multi-Brand Automation Parts Supplier",
 		Stats: models.CompanyStatsArray{
-			{Icon: "CalendarIcon", Value: "2005", Label: "Established", Description: "Years of experience"},
+			{Icon: "CalendarIcon", Value: "2007", Label: "Established", Description: "Founded in Kunshan, China"},
 			{Icon: "UserGroupIcon", Value: "27", Label: "Workers", Description: "Professional team"},
 			{Icon: "UserGroupIcon", Value: "10", Label: "Sales Staff", Description: "Dedicated sales team"},
 			{Icon: "ArchiveBoxIcon", Value: "100,000", Label: "Items Stocked", Description: "Regular inventory"},
 			{Icon: "TruckIcon", Value: "50-100", Label: "Daily Parcels", Description: "Shipments per day"},
-			{Icon: "CurrencyDollarIcon", Value: "200M", Label: "Yearly Turnover", Description: "Annual revenue"},
 		},
 		Expertise: models.StringArray{
 			"AB & ABB Components",

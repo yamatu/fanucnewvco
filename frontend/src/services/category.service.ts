@@ -1,9 +1,77 @@
 import { apiClient } from '@/lib/api';
-import { 
+import {
   APIResponse, 
   Category, 
   CategoryCreateRequest 
 } from '@/types';
+
+export interface CategoryReference {
+  id: number;
+  name: string;
+  slug: string;
+  parent_id?: number | null;
+  product_count?: number;
+}
+
+export interface CategoryProductReference {
+  id: number;
+  sku: string;
+  name: string;
+  slug: string;
+  brand: string;
+  model: string;
+  is_active: boolean;
+}
+
+export interface CategoryCleanupOptions {
+  merge_duplicates?: boolean;
+  delete_empty?: boolean;
+  delete_empty_active?: boolean;
+}
+
+export interface CategoryCleanupMerge {
+  source_id: number;
+  source_name: string;
+  source_path: string;
+  target_id: number;
+  target_name: string;
+  target_path: string;
+  product_count: number;
+  child_count: number;
+  reason: string;
+}
+
+export interface CategoryCleanupDeletion {
+  id: number;
+  name: string;
+  path: string;
+  is_active: boolean;
+  reason: string;
+}
+
+export interface CategoryCleanupPlan {
+  total_categories: number;
+  merges: CategoryCleanupMerge[];
+  deletions: CategoryCleanupDeletion[];
+}
+
+export interface CategoryCleanupResult {
+  plan: CategoryCleanupPlan;
+  merged_count: number;
+  deleted_count: number;
+  moved_products: number;
+}
+
+export interface CategoryDeletionImpact {
+  category: CategoryReference;
+  parent?: CategoryReference | null;
+  direct_children: CategoryReference[];
+  descendant_count: number;
+  direct_products: CategoryProductReference[];
+  product_count: number;
+  replacement_categories: CategoryReference[];
+  can_delete: boolean;
+}
 
 export class CategoryService {
   // Get categories (public) - hierarchical structure
@@ -44,8 +112,9 @@ export class CategoryService {
     return [
       {
         id: 1,
-        name: 'Servo Drives',
-        slug: 'servo-drives',
+        name: 'FANUC Servo Amplifier / Drive',
+        slug: 'fanuc-servo-amplifier-drive',
+        path: 'fanuc/fanuc-servo-amplifier-drive',
         description: 'FANUC servo drives and amplifiers',
         image_url: '',
         sort_order: 1,
@@ -55,8 +124,9 @@ export class CategoryService {
       },
       {
         id: 2,
-        name: 'Servo Motors',
-        slug: 'servo-motors',
+        name: 'FANUC Servo Motor',
+        slug: 'fanuc-servo-motor',
+        path: 'fanuc/fanuc-servo-motor',
         description: 'FANUC servo motors and spindle motors',
         image_url: '',
         sort_order: 2,
@@ -66,8 +136,9 @@ export class CategoryService {
       },
       {
         id: 3,
-        name: 'PCB Boards',
-        slug: 'pcb-boards',
+        name: 'FANUC PCB / Control Board',
+        slug: 'fanuc-pcb-control-board',
+        path: 'fanuc/fanuc-pcb-control-board',
         description: 'FANUC circuit boards and control modules',
         image_url: '',
         sort_order: 3,
@@ -192,6 +263,39 @@ export class CategoryService {
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to delete category');
     }
+  }
+
+  static async getDeletionImpact(id: number): Promise<CategoryDeletionImpact> {
+    const response = await apiClient.get<APIResponse<CategoryDeletionImpact>>(
+      `/admin/categories/${id}/deletion-impact`
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to inspect category dependencies');
+  }
+
+  static async reassignAndDeleteCategory(id: number, replacementCategoryId?: number | null): Promise<void> {
+    const query = replacementCategoryId ? `?reassign_to=${encodeURIComponent(String(replacementCategoryId))}` : '';
+    const response = await apiClient.delete<APIResponse<void>>(`/admin/categories/${id}${query}`);
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to delete category');
+    }
+  }
+
+  static async previewCleanup(options: CategoryCleanupOptions = {}): Promise<CategoryCleanupPlan> {
+    const response = await apiClient.post<APIResponse<CategoryCleanupPlan>>('/admin/categories/cleanup/preview', options);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to analyze categories');
+  }
+
+  static async applyCleanup(options: CategoryCleanupOptions = {}): Promise<CategoryCleanupResult> {
+    const response = await apiClient.post<APIResponse<CategoryCleanupResult>>(
+      '/admin/categories/cleanup/apply',
+      options,
+      // Merging and deleting a large taxonomy can exceed the default timeout.
+      { timeout: 0 }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Category cleanup failed');
   }
 
   // Get category tree (formatted for dropdowns)

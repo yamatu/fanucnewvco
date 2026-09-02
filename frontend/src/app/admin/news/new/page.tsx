@@ -18,37 +18,12 @@ import { NewsService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { useAdminI18n } from '@/lib/admin-i18n';
 import type { ArticleCreateRequest } from '@/types';
-
-// Simple markdown to HTML converter for preview
-function markdownToHtml(md: string): string {
-  let html = md;
-  // Headers
-  html = html.replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-6 mb-3">$1</h1>');
-  // Bold / Italic
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  // Images
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full rounded-lg my-4" />');
-  // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 underline" target="_blank" rel="noopener">$1</a>');
-  // Lists
-  html = html.replace(/^\- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>');
-  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>');
-  // Code blocks
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-100 p-4 rounded-lg overflow-x-auto my-4"><code>$2</code></pre>');
-  html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm">$1</code>');
-  // Paragraphs
-  html = html.replace(/\n\n/g, '</p><p class="mb-4">');
-  html = '<p class="mb-4">' + html + '</p>';
-  // Line breaks
-  html = html.replace(/\n/g, '<br/>');
-  return html;
-}
+import MarkdownContent from '@/components/content/MarkdownContent';
+import TranslationEditor from '@/components/admin/TranslationEditor';
+import AIArticleWriter from '@/components/admin/AIArticleWriter';
 
 export default function NewArticlePage() {
-  const { t } = useAdminI18n();
+  const { locale, t } = useAdminI18n();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [showMediaPicker, setShowMediaPicker] = useState(false);
@@ -67,7 +42,9 @@ export default function NewArticlePage() {
       is_featured: false,
       sort_order: 0,
       content: '',
+      content_type: 'news',
       image_urls: [],
+      translations: [],
     },
   });
 
@@ -78,7 +55,7 @@ export default function NewArticlePage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.news.lists() });
       router.push('/admin/news');
     },
-    onError: (err: any) => toast.error(err.message || 'Failed to create article'),
+    onError: (err: Error) => toast.error(err.message || t('news.toast.createFailed')),
   });
 
   const onSubmit = (data: ArticleCreateRequest) => {
@@ -91,6 +68,7 @@ export default function NewArticlePage() {
   const watchMetaTitle = watch('meta_title') || '';
   const watchMetaDesc = watch('meta_description') || '';
   const watchFeaturedImage = watch('featured_image') || '';
+  const watchContentType = watch('content_type') || 'news';
 
   const openMediaPicker = (target: 'featured' | 'content') => {
     setMediaPickerTarget(target);
@@ -100,6 +78,24 @@ export default function NewArticlePage() {
   const insertImageToContent = (url: string) => {
     const current = watch('content') || '';
     setValue('content', current + `\n\n![](${url})\n\n`);
+  };
+
+  const applyAIDraft = (draft: {
+    title: string;
+    slug: string;
+    summary: string;
+    content: string;
+    meta_title: string;
+    meta_description: string;
+    meta_keywords: string;
+  }) => {
+    setValue('title', draft.title, { shouldDirty: true, shouldValidate: true });
+    setValue('slug', draft.slug, { shouldDirty: true });
+    setValue('summary', draft.summary, { shouldDirty: true });
+    setValue('content', draft.content, { shouldDirty: true, shouldValidate: true });
+    setValue('meta_title', draft.meta_title, { shouldDirty: true });
+    setValue('meta_description', draft.meta_description, { shouldDirty: true });
+    setValue('meta_keywords', draft.meta_keywords, { shouldDirty: true });
   };
 
   return (
@@ -117,15 +113,22 @@ export default function NewArticlePage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content - 2 cols */}
             <div className="lg:col-span-2 space-y-6">
+              <AIArticleWriter contentType={watchContentType} onApply={applyAIDraft} />
+
               {/* Title */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('news.type.label')}</label>
+                <select {...register('content_type')} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white mb-4">
+                  <option value="news">{t('news.type.news')}</option>
+                  <option value="blog">{t('news.type.blog')}</option>
+                </select>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('news.field.title', 'Title')} *
                 </label>
                 <input
-                  {...register('title', { required: 'Title is required' })}
+                  {...register('title', { required: t('news.field.titleRequired') })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                  placeholder="Article title..."
+                  placeholder={t('news.field.titlePlaceholder')}
                 />
                 {errors.title && (
                   <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>
@@ -135,7 +138,7 @@ export default function NewArticlePage() {
                   {t('news.field.slug', 'Custom URL Slug')}
                 </label>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-400">/news/</span>
+                  <span className="text-sm text-gray-400">/{watchContentType}/</span>
                   <input
                     {...register('slug')}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
@@ -154,7 +157,7 @@ export default function NewArticlePage() {
                   {...register('summary')}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                  placeholder="Brief summary shown in article list..."
+                  placeholder={t('news.field.summaryPlaceholder')}
                 />
               </div>
 
@@ -181,7 +184,7 @@ export default function NewArticlePage() {
                       }`}
                     >
                       {previewMode ? (
-                        <><PencilIcon className="h-4 w-4 mr-1" />{t('news.edit', 'Edit')}</>
+                        <><PencilIcon className="h-4 w-4 mr-1" />{t('news.editMode', 'Edit')}</>
                       ) : (
                         <><EyeIcon className="h-4 w-4 mr-1" />{t('news.preview', 'Preview')}</>
                       )}
@@ -189,18 +192,16 @@ export default function NewArticlePage() {
                   </div>
                 </div>
                 {previewMode ? (
-                  <div
-                    className="prose prose-sm max-w-none min-h-[400px] p-4 border border-gray-200 rounded-md bg-gray-50"
-                    dangerouslySetInnerHTML={{ __html: markdownToHtml(watchContent) }}
-                  />
+                  <MarkdownContent content={watchContent} className="min-h-[400px] p-4 border border-gray-200 rounded-md bg-gray-50" />
                 ) : (
                   <textarea
-                    {...register('content', { required: 'Content is required' })}
+                    {...register('content', { required: t('news.field.contentRequired') })}
                     rows={20}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-2 focus:ring-blue-500"
-                    placeholder="Write your article in Markdown format..."
+                    placeholder={t('news.field.contentPlaceholder')}
                   />
                 )}
+                <p className="mt-2 text-xs text-gray-500">{t('news.field.contentHint')}</p>
                 {errors.content && (
                   <p className="text-red-500 text-xs mt-1">{errors.content.message}</p>
                 )}
@@ -213,52 +214,52 @@ export default function NewArticlePage() {
                 </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('news.seo.metaTitle')}</label>
                     <input
                       {...register('meta_title')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                      placeholder="SEO title (recommended 50-60 chars)"
+                      placeholder={t('news.seo.titlePlaceholder')}
                     />
                     <p className="text-xs text-gray-400 mt-1">
-                      {(watchMetaTitle || watchTitle).length} / 60 characters
+                      {t('news.seo.characters', undefined, { count: (watchMetaTitle || watchTitle).length })} / 60
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('news.seo.metaDescription')}</label>
                     <textarea
                       {...register('meta_description')}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                      placeholder="SEO description (recommended 150-160 chars)"
+                      placeholder={t('news.seo.descriptionPlaceholder')}
                     />
-                    <p className="text-xs text-gray-400 mt-1">{watchMetaDesc.length} / 160 characters</p>
+                    <p className="text-xs text-gray-400 mt-1">{t('news.seo.characters', undefined, { count: watchMetaDesc.length })} / 160</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Meta Keywords</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('news.seo.metaKeywords')}</label>
                     <input
                       {...register('meta_keywords')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                      placeholder="keyword1, keyword2, keyword3"
+                      placeholder={t('news.seo.keywordsPlaceholder')}
                     />
                   </div>
 
                   {/* Google Preview */}
                   <div className="mt-4">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Google Preview</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">{t('news.seo.googlePreview')}</h4>
                     <div className="rounded-lg border border-gray-200 bg-white p-4">
                       <div className="text-[#1a0dab] text-[18px] leading-6 truncate">
-                        {watchMetaTitle || watchTitle || 'Article Title'}
+                        {watchMetaTitle || watchTitle || t('news.seo.articleTitle')}
                       </div>
                       <div className="text-[#202124] text-sm mt-0.5 truncate">
-                        vibocnc.com <span className="text-gray-400">{'>'}</span> news <span className="text-gray-400">{'>'}</span> {watchSlug || 'article-slug'}
+                        vibocnc.com <span className="text-gray-400">{'>'}</span> {watchContentType} <span className="text-gray-400">{'>'}</span> {watchSlug || 'article-slug'}
                       </div>
                       <div className="text-[#4d5156] text-sm mt-1 line-clamp-2">
-                        {watchMetaDesc || watch('summary') || 'Article description will appear here...'}
+                        {watchMetaDesc || watch('summary') || t('news.seo.articleDescription')}
                       </div>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                       <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5">
-                        <span className="text-gray-600">Title length (50-60 rec.)</span>
+                        <span className="text-gray-600">{t('news.seo.titleLength')}</span>
                         <span className={`font-medium ${
                           (watchMetaTitle || watchTitle).length >= 50 && (watchMetaTitle || watchTitle).length <= 60
                             ? 'text-green-600'
@@ -266,11 +267,11 @@ export default function NewArticlePage() {
                             ? 'text-red-600'
                             : 'text-amber-600'
                         }`}>
-                          {(watchMetaTitle || watchTitle).length} chars
+                          {t('news.seo.characters', undefined, { count: (watchMetaTitle || watchTitle).length })}
                         </span>
                       </div>
                       <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5">
-                        <span className="text-gray-600">Desc length (150-160 rec.)</span>
+                        <span className="text-gray-600">{t('news.seo.descriptionLength')}</span>
                         <span className={`font-medium ${
                           watchMetaDesc.length >= 150 && watchMetaDesc.length <= 160
                             ? 'text-green-600'
@@ -278,13 +279,20 @@ export default function NewArticlePage() {
                             ? 'text-red-600'
                             : 'text-amber-600'
                         }`}>
-                          {watchMetaDesc.length} chars
+                          {t('news.seo.characters', undefined, { count: watchMetaDesc.length })}
                         </span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+
+              <TranslationEditor
+                kind="article"
+                locale={locale}
+                value={watch('translations') || []}
+                onChange={(translations) => setValue('translations', translations, { shouldDirty: true })}
+              />
             </div>
 
             {/* Sidebar - 1 col */}
@@ -359,7 +367,7 @@ export default function NewArticlePage() {
                   <input
                     {...register('featured_image')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs"
-                    placeholder="Or paste image URL..."
+                    placeholder={t('news.field.imageUrlPlaceholder')}
                   />
                 </div>
               </div>
@@ -381,7 +389,7 @@ export default function NewArticlePage() {
           setShowMediaPicker(false);
         }}
         multiple={mediaPickerTarget === 'content'}
-        title={mediaPickerTarget === 'featured' ? 'Select Featured Image' : 'Insert Image(s)'}
+        title={mediaPickerTarget === 'featured' ? t('news.selectFeaturedImage') : t('news.insertImages')}
       />
     </AdminLayout>
   );

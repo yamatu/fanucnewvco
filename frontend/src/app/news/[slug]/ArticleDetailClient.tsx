@@ -1,53 +1,38 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { CalendarDaysIcon, EyeIcon, ArrowLeftIcon, UserIcon } from '@heroicons/react/24/outline';
 import Layout from '@/components/layout/Layout';
 import type { Article } from '@/types';
-
-function markdownToHtml(md: string): string {
-  let html = md;
-  // Code blocks (must be before inline code)
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-6 text-sm"><code>$2</code></pre>');
-  // Headers
-  html = html.replace(/^#### (.+)$/gm, '<h4 class="text-base font-semibold text-gray-900 mt-6 mb-2">$1</h4>');
-  html = html.replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold text-gray-900 mt-8 mb-3">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold text-gray-900 mt-10 mb-4">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold text-gray-900 mt-10 mb-4">$1</h1>');
-  // Horizontal rule
-  html = html.replace(/^---$/gm, '<hr class="my-8 border-gray-200" />');
-  // Bold / Italic
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  // Images
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<figure class="my-6"><img src="$2" alt="$1" class="w-full rounded-lg shadow-sm" /><figcaption class="text-center text-sm text-gray-500 mt-2">$1</figcaption></figure>');
-  // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">$1</a>');
-  // Blockquotes
-  html = html.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-blue-500 pl-4 py-1 my-4 text-gray-700 italic">$1</blockquote>');
-  // Unordered lists
-  html = html.replace(/^\- (.+)$/gm, '<li class="ml-6 list-disc text-gray-700">$1</li>');
-  // Ordered lists
-  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-6 list-decimal text-gray-700">$1</li>');
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm text-gray-800 font-mono">$1</code>');
-  // Paragraphs (double newline)
-  html = html.replace(/\n\n/g, '</p><p class="text-gray-700 leading-relaxed mb-4">');
-  html = '<p class="text-gray-700 leading-relaxed mb-4">' + html + '</p>';
-  // Single newline -> br
-  html = html.replace(/\n/g, '<br/>');
-  // Clean up empty figcaptions
-  html = html.replace(/<figcaption class="text-center text-sm text-gray-500 mt-2"><\/figcaption>/g, '');
-  return html;
-}
+import MarkdownContent from '@/components/content/MarkdownContent';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 function estimateReadTime(content: string): number {
   const words = content.split(/\s+/).length;
   return Math.max(1, Math.ceil(words / 200));
 }
 
-export default function ArticleDetailClient({ article }: { article: Article }) {
+export default function ArticleDetailClient({
+  article,
+  relatedArticles = [],
+  contentLocale,
+}: {
+  article: Article;
+  relatedArticles?: Article[];
+  contentLocale?: string;
+}) {
+  const { locale, t, href } = usePublicI18n();
   const readTime = estimateReadTime(article.content);
+  const basePath = article.content_type === 'blog' ? '/blog' : '/news';
+  const sectionName = t(article.content_type === 'blog' ? 'nav.blog' : 'nav.news');
+  const localeTag = (contentLocale || locale) === 'zh' ? 'zh-CN' : (contentLocale || locale);
+  const relatedHref = (related: Article) => {
+    const path = related.public_path || `/${related.content_type}/${related.slug}`;
+    return locale === 'en' || related.translations?.some((translation) => translation.language_code.split(/[-_]/)[0] === locale)
+      ? href(path)
+      : path;
+  };
 
   return (
     <Layout>
@@ -55,9 +40,13 @@ export default function ArticleDetailClient({ article }: { article: Article }) {
         {/* Hero */}
         {article.featured_image && (
           <div className="relative h-[300px] sm:h-[400px] lg:h-[500px] bg-gray-900">
-            <img
+            <Image
               src={article.featured_image}
               alt={article.title}
+              fill
+              sizes="100vw"
+              priority
+              unoptimized={article.featured_image.startsWith('/uploads/')}
               className="w-full h-full object-cover opacity-80"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -69,11 +58,11 @@ export default function ArticleDetailClient({ article }: { article: Article }) {
           <nav className="py-4 text-sm">
             <ol className="flex items-center gap-2 text-gray-500">
               <li>
-                <Link href="/" className="hover:text-blue-600">Home</Link>
+                <Link href={href('/')} className="hover:text-blue-600">{t('common.home')}</Link>
               </li>
               <li>/</li>
               <li>
-                <Link href="/news" className="hover:text-blue-600">News</Link>
+                <Link href={href(basePath)} className="hover:text-blue-600">{sectionName}</Link>
               </li>
               <li>/</li>
               <li className="text-gray-900 truncate max-w-[200px]">{article.title}</li>
@@ -98,7 +87,7 @@ export default function ArticleDetailClient({ article }: { article: Article }) {
                 )}
                 <span className="flex items-center gap-1.5">
                   <CalendarDaysIcon className="h-4 w-4" />
-                  {new Date(article.published_at || article.created_at).toLocaleDateString('en-US', {
+                  {new Date(article.published_at || article.created_at).toLocaleDateString(localeTag, {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
@@ -106,29 +95,56 @@ export default function ArticleDetailClient({ article }: { article: Article }) {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <EyeIcon className="h-4 w-4" />
-                  {article.view_count} views
+                  {t('common.views', { count: article.view_count })}
                 </span>
-                <span>{readTime} min read</span>
+                <span>{t('common.readTime', { count: readTime })}</span>
               </div>
             </div>
           </header>
 
           {/* Article Content */}
-          <article className="py-8 sm:py-10">
-            <div
-              className="prose prose-lg max-w-none"
-              dangerouslySetInnerHTML={{ __html: markdownToHtml(article.content) }}
-            />
+          <article className="py-8 sm:py-10" lang={contentLocale || locale}>
+            <MarkdownContent content={article.content} className="max-w-none text-lg" />
           </article>
+
+          {relatedArticles.length > 0 && (
+            <aside className="border-t border-gray-200 py-8" aria-labelledby="related-articles-title">
+              <h2 id="related-articles-title" className="mb-4 text-xl font-bold text-gray-900">
+                {article.content_type === 'blog' ? t('news.blogTitle') : t('news.title')}
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-3">
+                {relatedArticles.map((related) => (
+                  <Link
+                    key={related.id}
+                    href={relatedHref(related)}
+                    className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-blue-300 hover:shadow-sm"
+                  >
+                    <h3 className="text-sm font-semibold leading-6 text-gray-900">{related.title}</h3>
+                    {related.summary && <p className="mt-2 line-clamp-3 text-xs leading-5 text-gray-600">{related.summary}</p>}
+                  </Link>
+                ))}
+              </div>
+            </aside>
+          )}
+
+          <aside className="border-t border-gray-200 py-8" aria-label="Related Vibocnc resources">
+            <h2 className="mb-4 text-xl font-bold text-gray-900">Explore related resources</h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Link href={href('/products')} className="rounded-lg border border-gray-200 p-4 text-sm font-semibold text-[#0b3e75] hover:border-blue-300">Automation parts →</Link>
+              <Link href={href('/categories')} className="rounded-lg border border-gray-200 p-4 text-sm font-semibold text-[#0b3e75] hover:border-blue-300">Product categories →</Link>
+              <Link href={href('/repair-request')} className="rounded-lg border border-gray-200 p-4 text-sm font-semibold text-[#0b3e75] hover:border-blue-300">Repair evaluation →</Link>
+              <Link href={href('/contact')} className="rounded-lg border border-gray-200 p-4 text-sm font-semibold text-[#0b3e75] hover:border-blue-300">Ask our team →</Link>
+            </div>
+          </aside>
 
           {/* Back to News */}
           <div className="border-t border-gray-200 py-8">
             <Link
-              href="/news"
+              href={href(basePath)}
               className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium"
             >
               <ArrowLeftIcon className="h-4 w-4" />
-              Back to News
+              {t('common.backTo', { section: sectionName })}
             </Link>
           </div>
         </div>

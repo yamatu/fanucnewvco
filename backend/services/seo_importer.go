@@ -109,17 +109,31 @@ func FindCandidateURL(sourceBase, sku string) (string, []string, error) {
 }
 
 func httpGet(u string) (*http.Response, error) {
-	req, _ := http.NewRequest("GET", u, nil)
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; VIBOCNCBot/1.0; +https://www.vibocnc.com)")
+	parsed, err := validatePublicHTTPURL(u)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest(http.MethodGet, parsed.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; VIBOCNCBot/1.0; +https://vibocnc.com)")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := newPublicHTTPClient(15 * time.Second)
 	return client.Do(req)
 }
 
 func httpHead(u string) (*http.Response, error) {
-	req, _ := http.NewRequest("HEAD", u, nil)
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; VIBOCNCBot/1.0; +https://www.vibocnc.com)")
-	client := &http.Client{Timeout: 10 * time.Second}
+	parsed, err := validatePublicHTTPURL(u)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest(http.MethodHead, parsed.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; VIBOCNCBot/1.0; +https://vibocnc.com)")
+	client := newPublicHTTPClient(10 * time.Second)
 	return client.Do(req)
 }
 

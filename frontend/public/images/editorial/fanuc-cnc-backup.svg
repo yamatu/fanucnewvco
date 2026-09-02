@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title description">
+  <title id="title">CNC Backup &amp; Battery Planning</title>
+  <desc id="description">Vibocnc technical editorial cover for CNC Backup &amp; Battery Planning.</desc>
+  <rect width="1600" height="900" fill="#f4f7fa"/>
+  <rect x="0" y="0" width="860" height="900" fill="#07182b"/>
+  <path d="M860 0h740v900H760c92-148 138-300 138-456C898 280 885 132 860 0z" fill="#0e3153"/>
+  <path d="M0 90h860" stroke="#f5c400" stroke-width="12"/>
+  <text x="105" y="228" fill="#f5c400" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700">MAINTENANCE GUIDE</text>
+  <text x="105" y="390" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700">CNC Backup &amp;</text>
+  <text x="105" y="492" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700">Battery Planning</text>
+  <text x="108" y="675" fill="#b9c9d7" font-family="Arial, Helvetica, sans-serif" font-size="29">Industrial automation insight | Vibocnc</text>
+  <g fill="none" stroke="#f5c400" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"><rect x="1050" y="246" width="310" height="360" rx="18"/><path d="M1120 246v110h170V246M1125 495h160"/><circle cx="1205" cy="497" r="88"/><path d="M1205 440v58l44 26"/></g>
+  <circle cx="1510" cy="90" r="28" fill="#f5c400"/>
+</svg>

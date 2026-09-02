@@ -16,6 +16,8 @@ export interface PayPalSetting {
   mode: PayPalMode;
   client_id_sandbox: string;
   client_id_live: string;
+  has_client_secret_sandbox?: boolean;
+  has_client_secret_live?: boolean;
   currency: string;
   created_at?: string;
   updated_at?: string;
@@ -26,6 +28,8 @@ export interface UpdatePayPalSettingRequest {
   mode?: PayPalMode;
   client_id_sandbox?: string;
   client_id_live?: string;
+  client_secret_sandbox?: string;
+  client_secret_live?: string;
   currency?: string;
 }
 

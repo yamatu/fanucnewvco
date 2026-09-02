@@ -1,83 +1,24 @@
 import path from 'node:path';
 import type { NextConfig } from "next";
 
-const configuredBuildWorkerCount = Number.parseInt(process.env.NEXT_BUILD_WORKER_COUNT || '', 10);
-const buildWorkerCount =
-  Number.isFinite(configuredBuildWorkerCount) && configuredBuildWorkerCount > 0
-    ? configuredBuildWorkerCount
-    : undefined;
-
-type PolyfillAsset = {
-  name: string;
-  info: Record<PropertyKey, unknown>;
-};
-
-type PolyfillCompilation = {
-  hooks: {
-    processAssets: {
-      tap(options: { name: string; stage: number }, callback: () => void): void;
-    };
-  };
-  getAssets(): PolyfillAsset[];
-};
-
-type PolyfillCompiler = {
-  webpack: { Compilation: { PROCESS_ASSETS_STAGE_ADDITIONS: number } };
-  hooks: {
-    thisCompilation: {
-      tap(name: string, callback: (compilation: PolyfillCompilation) => void): void;
-    };
-  };
-};
-
-const excludeLegacyPolyfillFromManifestPlugin = {
-  apply(compiler: PolyfillCompiler) {
-    compiler.hooks.thisCompilation.tap('ExcludeLegacyPolyfillFromManifest', (compilation) => {
-      compilation.hooks.processAssets.tap(
-        {
-          name: 'ExcludeLegacyPolyfillFromManifest',
-          stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
-        },
-        () => {
-          for (const asset of compilation.getAssets()) {
-            if (!/^static\/chunks\/polyfills(?:-|\.)/.test(asset.name)) continue;
-            for (const marker of Object.getOwnPropertySymbols(asset.info)) {
-              delete asset.info[marker];
-            }
-          }
-        },
-      );
-    });
-  },
-};
-
 const nextConfig: NextConfig = {
   output: 'standalone',
   compress: true,
   generateEtags: true,
+  poweredByHeader: false,
 
-  ...(buildWorkerCount
-    ? {
-        experimental: {
-          cpus: buildWorkerCount,
-        },
-      }
-    : {}),
+  experimental: {
+    optimizePackageImports: ['@heroicons/react', 'lucide-react', 'react-icons'],
+  },
 
   // Silence workspace root inference warning when monorepo-like structure exists
+  // @ts-expect-error - supported by Next runtime, may not be in TS types
   outputFileTracingRoot: path.join(__dirname, '..'),
 
   // 确保环境变量正确注入
   env: {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-  },
-
-  webpack(config, { isServer }) {
-    if (!isServer) {
-      config.plugins?.push(excludeLegacyPolyfillFromManifestPlugin);
-    }
-    return config;
   },
 
   // API 重写配置，开发环境代理到后端
@@ -122,22 +63,6 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: '/_next/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
-        ],
-      },
-      {
-        source: '/api/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
-        ],
-      },
-      {
         source: '/:indexnowKey([A-Za-z0-9_-]{8,128}).txt',
         headers: [
           { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, proxy-revalidate' },
@@ -152,76 +77,16 @@ const nextConfig: NextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // No cache for product pages to ensure fresh data for crawlers
-      {
-        source: '/products/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, proxy-revalidate' },
-          { key: 'Pragma', value: 'no-cache' },
-          { key: 'Expires', value: '0' },
-        ],
-      },
-      // No cache for sitemaps to ensure fresh data
-      {
-        source: '/sitemap.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, proxy-revalidate' },
-          { key: 'Pragma', value: 'no-cache' },
-          { key: 'Expires', value: '0' },
-        ],
-      },
-      {
-        source: '/sitemap-static.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, proxy-revalidate' },
-          { key: 'Pragma', value: 'no-cache' },
-          { key: 'Expires', value: '0' },
-        ],
-      },
-      {
-        source: '/sitemap-categories.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, proxy-revalidate' },
-          { key: 'Pragma', value: 'no-cache' },
-          { key: 'Expires', value: '0' },
-        ],
-      },
-      {
-        source: '/sitemap-products-index.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, proxy-revalidate' },
-          { key: 'Pragma', value: 'no-cache' },
-          { key: 'Expires', value: '0' },
-        ],
-      },
-      {
-        source: '/sitemap-products/:page.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, proxy-revalidate' },
-          { key: 'Pragma', value: 'no-cache' },
-          { key: 'Expires', value: '0' },
-        ],
-      },
-      {
-        source: '/sitemap-news.xml',
-        headers: [
-          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, proxy-revalidate' },
-          { key: 'Pragma', value: 'no-cache' },
-          { key: 'Expires', value: '0' },
-        ],
-      },
-      // Short cache for main pages
-      {
-        source: '/((?!api|_next|products|sitemap).*)',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=300, stale-while-revalidate=86400' },
-        ],
-      },
+      // Public pages and sitemap handlers declare their own revalidation and
+      // Cache-Control policy. Defining them again here creates duplicate cache
+      // headers, which makes CDN behaviour inconsistent.
     ];
   },
 
   images: {
-    minimumCacheTTL: 604800,
+    // Cache generated responsive variants so the Hero LCP is not reprocessed
+    // on every deployment request or repeat crawl.
+    minimumCacheTTL: 86400,
     remotePatterns: [
       { protocol: 'https', hostname: 's2.loli.net' },
       { protocol: 'https', hostname: 'i.imgur.com' },

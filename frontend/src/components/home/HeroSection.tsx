@@ -1,17 +1,30 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getImageProps } from 'next/image';
+import Image from 'next/image';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { HomepageContent } from '@/types';
 import { DEFAULT_HERO_DATA, type HeroSectionData } from '@/lib/homepage-defaults';
-import HeroCarouselControls from './HeroCarouselControls';
+import { normalizeLegacyCompanyText } from '@/lib/company-facts';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 type Props = { content?: HomepageContent | null };
 
-function getDescriptiveCtaText(text: string, href: string, slideTitle: string): string {
-  if (!/^(learn|read|view) more$/i.test(text.trim())) return text;
-  if (href === '/about') return 'About Vcocnc';
-  if (href === '/contact') return 'Contact Vcocnc';
-  if (href === '/categories') return 'Browse Product Categories';
-  return `Explore ${slideTitle}`;
+function normalizeBrandName(text: string): string {
+  return text.replace(/\bvibo\s*cnc\b/gi, 'Vibocnc');
+}
+
+function ensureHomepageBrandTitle(text: string, index: number): string {
+  const normalized = normalizeBrandName(text).trim();
+  if (index !== 0 || /\bvibocnc\b/i.test(normalized)) return normalized;
+  return `Vibocnc ${normalized}`;
+}
+
+function isLegacyFanucHero(text?: string): boolean {
+  const value = String(text || '');
+  return /FANUC Spare Parts Supply/i.test(value)
+    || /Source FANUC CNC and robot spare parts/i.test(value);
 }
 
 function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
@@ -27,92 +40,202 @@ function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
   const slides = [...baseSlides];
   if (slides.length > 0) {
     const s0 = { ...slides[0] };
-    if (content?.title) s0.title = content.title;
-    if (content?.subtitle) s0.subtitle = content.subtitle;
-    if (content?.description) s0.description = content.description;
+    if (content?.title && !isLegacyFanucHero(content.title)) s0.title = normalizeLegacyCompanyText(content.title);
+    if (content?.subtitle) s0.subtitle = normalizeLegacyCompanyText(content.subtitle);
+    if (content?.description && !isLegacyFanucHero(content.description)) s0.description = normalizeLegacyCompanyText(content.description);
     if (content?.image_url) s0.image = content.image_url;
-    if (content?.button_text) s0.cta = { ...(s0.cta || {}), primary: { ...(s0.cta?.primary || {}), text: content.button_text, href: content.button_url || s0.cta?.primary?.href || '/products' }, secondary: s0.cta?.secondary || { text: 'Learn More', href: '/about' } };
+    if (content?.button_text) s0.cta = { ...(s0.cta || {}), primary: { ...(s0.cta?.primary || {}), text: content.button_text, href: content.button_url || s0.cta?.primary?.href || '/products' }, secondary: s0.cta?.secondary || { text: 'Get a Quote', href: '/contact?inquiry_type=quote' } };
     slides[0] = s0;
   }
 
-  return { slides, autoPlayMs };
+  return {
+    slides: slides.map((slide, index) => ({
+      ...slide,
+      title: ensureHomepageBrandTitle(normalizeLegacyCompanyText(slide.title), index),
+      subtitle: normalizeLegacyCompanyText(slide.subtitle),
+      description: normalizeLegacyCompanyText(slide.description),
+    })),
+    autoPlayMs,
+  };
 }
 
 export function HeroSection({ content }: Props) {
+  const { locale, t, href } = usePublicI18n();
   const heroData = normalizeHeroData(content);
   const slides = heroData.slides;
   const autoPlayMs = heroData.autoPlayMs || 6000;
-  const initialSlide = slides[0];
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+  const activeSlide = slides[currentSlide] || slides[0] || DEFAULT_HERO_DATA.slides[0];
+  const fallbackImage =
+    DEFAULT_HERO_DATA.slides[currentSlide % DEFAULT_HERO_DATA.slides.length]?.image ||
+    DEFAULT_HERO_DATA.slides[0].image;
+  const imageSrc = failedImages.has(activeSlide.image) ? fallbackImage : activeSlide.image;
+  const localizedSlide = locale === 'en'
+    ? {
+        ...activeSlide,
+        cta: {
+          ...activeSlide.cta,
+          secondary: {
+            ...activeSlide.cta.secondary,
+            text: t('home.hero.secondary'),
+            href: '/contact?inquiry_type=quote',
+          },
+        },
+      }
+    : {
+        ...activeSlide,
+        title: ensureHomepageBrandTitle(t('home.hero.title'), 0),
+        subtitle: t('home.hero.subtitle'),
+        description: t('home.hero.description'),
+        cta: {
+          primary: { ...activeSlide.cta.primary, text: t('home.hero.primary'), href: '/products' },
+          secondary: {
+            ...activeSlide.cta.secondary,
+            text: t('home.hero.secondary'),
+            href: '/contact?inquiry_type=quote',
+          },
+        },
+      };
 
-  if (!initialSlide) return null;
+  // LCP collection remains open until the first interaction. Starting the
+  // full-viewport carousel earlier can replace the LCP candidate at 6s.
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const enableAutoPlay = () => setIsAutoPlaying(true);
+    window.addEventListener('pointerdown', enableAutoPlay, { once: true, passive: true });
+    window.addEventListener('keydown', enableAutoPlay, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', enableAutoPlay);
+      window.removeEventListener('keydown', enableAutoPlay);
+    };
+  }, [slides.length]);
 
-  const { props: initialImageProps } = getImageProps({
-    src: initialSlide.image,
-    alt: initialSlide.title,
-    width: 1920,
-    height: 1080,
-    quality: 70,
-    sizes: '100vw',
-    priority: true,
-    fetchPriority: 'high',
-    decoding: 'sync',
-  });
+  useEffect(() => {
+    if (!isAutoPlaying || slides.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, autoPlayMs);
+
+    return () => clearInterval(interval);
+  }, [isAutoPlaying, slides.length, autoPlayMs]);
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+    setIsAutoPlaying(false);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+    setIsAutoPlaying(false);
+  };
+
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index);
+    setIsAutoPlaying(false);
+  };
 
   return (
-    <section className="relative w-full h-screen min-h-screen flex items-center justify-center overflow-hidden bg-gray-900">
-      {/* Keep the LCP image outside the carousel's client hydration boundary. */}
+    <section className="relative w-full h-[72vh] min-h-[560px] max-h-[780px] flex items-center overflow-hidden bg-slate-950">
       <div className="absolute inset-0 h-full w-full">
-        {/* getImageProps keeps Next.js optimization without hydrating the LCP element. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          {...initialImageProps}
-          alt={initialSlide.title}
-          className="absolute inset-0 h-full w-full object-cover"
+        <Image
+          key={imageSrc}
+          src={imageSrc}
+          alt={localizedSlide.title}
+          width={1920}
+          height={1080}
+          className="h-full w-full object-cover"
+          sizes="100vw"
+          priority={currentSlide === 0}
+          loading={currentSlide === 0 ? 'eager' : 'lazy'}
+          fetchPriority={currentSlide === 0 ? 'high' : 'auto'}
+          quality={70}
+          unoptimized={imageSrc.startsWith('/uploads/')}
+          onError={() => {
+            if (imageSrc === fallbackImage) return;
+            setFailedImages((current) => new Set(current).add(activeSlide.image));
+          }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/40" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(15,23,42,0.92)_0%,rgba(15,23,42,0.74)_42%,rgba(15,23,42,0.28)_100%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-slate-950/75 to-transparent" />
       </div>
 
-      {/* The initial slide is server-rendered so its LCP paint is not gated by hydration. */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div className="max-w-4xl mx-auto bg-white bg-opacity-90 rounded-2xl p-8 md:p-12 shadow-2xl">
-          <div>
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-gray-900">
-              {initialSlide.title}
+      {/* Content */}
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div key={activeSlide.id ?? currentSlide} className="max-w-3xl">
+            <div className="mb-6 inline-flex items-center border border-orange-300/40 bg-slate-950/45 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-orange-100 backdrop-blur">
+              {t('home.hero.kicker')}
+            </div>
+
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black mb-6 leading-[0.98] text-white">
+              {localizedSlide.title}
             </h1>
 
-            <p className="text-xl md:text-2xl lg:text-3xl font-light mb-8 text-yellow-600">
-              {initialSlide.subtitle}
+            <p className="text-xl md:text-2xl font-semibold mb-6 text-orange-200">
+              {localizedSlide.subtitle}
             </p>
 
-            <p className="text-lg md:text-xl mb-12 max-w-3xl mx-auto leading-relaxed text-gray-700">
-              {initialSlide.description}
+            <p className="text-base md:text-lg mb-10 max-w-2xl leading-8 text-slate-200">
+              {localizedSlide.description}
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Link
-                href={initialSlide.cta.primary.href}
-                className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                href={href(localizedSlide.cta.primary.href)}
+                className="inline-flex justify-center bg-orange-700 hover:bg-[#003a78] text-white px-7 py-3 rounded-md text-base font-semibold transition-colors shadow-lg shadow-teal-950/30"
               >
-                {getDescriptiveCtaText(initialSlide.cta.primary.text, initialSlide.cta.primary.href, initialSlide.title)}
+                {localizedSlide.cta.primary.text}
               </Link>
 
               <Link
-                href={initialSlide.cta.secondary.href}
-                className="border-2 border-yellow-500 text-yellow-600 hover:bg-yellow-500 hover:text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105"
+                href={href(localizedSlide.cta.secondary.href)}
+                className="inline-flex justify-center border border-white/60 text-white hover:bg-white hover:text-slate-950 px-7 py-3 rounded-md text-base font-semibold transition-colors"
               >
-                {getDescriptiveCtaText(initialSlide.cta.secondary.text, initialSlide.cta.secondary.href, initialSlide.title)}
+                {localizedSlide.cta.secondary.text}
               </Link>
             </div>
           </div>
-        </div>
       </div>
 
-      <HeroCarouselControls slides={slides} autoPlayMs={autoPlayMs} />
+      {/* Navigation Arrows */}
+      <button
+        onClick={prevSlide}
+        className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-slate-950/50 hover:bg-slate-950/80 text-white p-3 rounded-full transition-all duration-300"
+        aria-label={t('home.hero.previous')}
+      >
+        <ChevronLeftIcon className="h-6 w-6" />
+      </button>
+
+      <button
+        onClick={nextSlide}
+        className="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-slate-950/50 hover:bg-slate-950/80 text-white p-3 rounded-full transition-all duration-300"
+        aria-label={t('home.hero.next')}
+      >
+        <ChevronRightIcon className="h-6 w-6" />
+      </button>
+
+      {/* Slide Indicators */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex space-x-3">
+        {slides.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => goToSlide(index)}
+            className={`w-3 h-3 rounded-full transition-all duration-300 ${
+              index === currentSlide
+                ? 'bg-orange-500 scale-125'
+                : 'bg-white/50 hover:bg-white/80'
+            }`}
+            aria-label={t('home.hero.goTo', { number: index + 1 })}
+          />
+        ))}
+      </div>
 
       {/* Scroll Indicator */}
-      <div className="absolute bottom-8 right-8 z-20 text-white animate-bounce">
+      <div className="hidden md:block absolute bottom-8 right-8 z-20 text-white animate-bounce">
         <div className="flex flex-col items-center">
-          <span className="text-sm mb-2">Scroll Down</span>
+          <span className="text-sm mb-2">{t('home.hero.scroll')}</span>
           <svg
             className="w-6 h-6"
             fill="none"

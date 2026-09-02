@@ -158,6 +158,9 @@ func CreateProductFromRequest(db *gorm.DB, req models.ProductCreateRequest) (*Pr
 	}
 
 	for _, trans := range req.Translations {
+		if !isCompleteProductTranslationRequest(trans) {
+			continue
+		}
 		translation := models.ProductTranslation{
 			ProductID:        product.ID,
 			LanguageCode:     trans.LanguageCode,
@@ -290,6 +293,9 @@ func UpdateProductFromRequest(db *gorm.DB, productID uint, req models.ProductCre
 		return nil, &ProductUpsertError{Code: "db_error", Message: "Failed to clear product translations", Err: err}
 	}
 	for _, trans := range req.Translations {
+		if !isCompleteProductTranslationRequest(trans) {
+			continue
+		}
 		translation := models.ProductTranslation{
 			ProductID:        product.ID,
 			LanguageCode:     trans.LanguageCode,
@@ -321,4 +327,10 @@ func UpdateProductFromRequest(db *gorm.DB, productID uint, req models.ProductCre
 		OldPath: oldPath,
 		NewPath: BuildProductPublicPath(product.SKU),
 	}, nil
+}
+
+func isCompleteProductTranslationRequest(trans models.ProductTranslationReq) bool {
+	return normalizePublicLocaleCode(trans.LanguageCode) != "" &&
+		strings.TrimSpace(trans.Name) != "" &&
+		(strings.TrimSpace(trans.Description) != "" || strings.TrimSpace(trans.ShortDescription) != "")
 }

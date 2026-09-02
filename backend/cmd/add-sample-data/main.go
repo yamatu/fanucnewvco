@@ -193,14 +193,14 @@ func main() {
 			{
 				ProductID: product.ID,
 				Platform:  "Official Store",
-				URL:       "https://www.fanuc.com/products",
+				URL:       "https://vibocnc.com/contact?inquiry_type=quote",
 				Price:     float64Ptr(product.Price),
 				IsActive:  true,
 			},
 			{
 				ProductID: product.ID,
 				Platform:  "Authorized Dealer",
-				URL:       "https://dealer.fanuc.com/products",
+				URL:       "https://vibocnc.com/contact?inquiry_type=quote",
 				Price:     float64Ptr(product.Price * 1.05), // Slightly higher price
 				IsActive:  true,
 			},

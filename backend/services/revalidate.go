@@ -61,16 +61,25 @@ func TriggerNextRevalidate(skus []string, paths []string, alsoAllProducts bool) 
 	}
 }
 
-// TriggerNextRevalidateTag invalidates a named Next.js data-cache tag.
-func TriggerNextRevalidateTag(tag string) {
+// TriggerNextRevalidateTags invalidates arbitrary Next.js fetch-cache tags.
+// It is used for shared content such as the editable homepage sections.
+func TriggerNextRevalidateTags(tags []string) {
 	frontendURL := strings.TrimRight(strings.TrimSpace(os.Getenv("FRONTEND_URL")), "/")
 	secret := strings.TrimSpace(os.Getenv("REVALIDATE_SECRET"))
-	tag = strings.TrimSpace(tag)
-	if frontendURL == "" || secret == "" || tag == "" {
+	if frontendURL == "" || secret == "" {
 		return
 	}
 
-	go doRevalidateRequest(frontendURL+"/api/revalidate", secret, "", tag)
+	endpoint := frontendURL + "/api/revalidate"
+	seen := map[string]bool{}
+	for _, tag := range tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" || seen[tag] {
+			continue
+		}
+		seen[tag] = true
+		go doRevalidateRequest(endpoint, secret, "", tag)
+	}
 }
 
 func doRevalidateRequest(endpoint, secret, path, tag string) {
@@ -87,6 +96,7 @@ func doRevalidateRequest(endpoint, secret, path, tag string) {
 		return
 	}
 
+	// #nosec G704 -- endpoint is built only from the server-controlled FRONTEND_URL setting.
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		log.Printf("revalidate: failed to create request: %v", err)
@@ -95,6 +105,7 @@ func doRevalidateRequest(endpoint, secret, path, tag string) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Revalidate-Secret", secret)
 
+	// #nosec G704 -- the request target is trusted deployment configuration, not request input.
 	resp, err := httpClientRevalidate.Do(req)
 	if err != nil {
 		log.Printf("revalidate: request failed (tag=%s, path=%s): %v", tag, path, err)

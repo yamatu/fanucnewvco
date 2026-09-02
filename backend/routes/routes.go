@@ -7,6 +7,7 @@ import (
 	"fanuc-backend/middleware"
 	"fanuc-backend/services"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,6 +16,7 @@ func SetupRoutes(r *gin.Engine) {
 	// Initialize services
 	db := config.GetDB()
 	companyProfileService := services.NewCompanyProfileService(db)
+	socialMediaSettingService := services.NewSocialMediaSettingService(db)
 
 	// Initialize controllers
 	authController := &controllers.AuthController{}
@@ -26,6 +28,7 @@ func SetupRoutes(r *gin.Engine) {
 	purchaseLinkController := &controllers.PurchaseLinkController{}
 	homepageContentController := &controllers.HomepageContentController{}
 	companyProfileController := controllers.NewCompanyProfileController(companyProfileService)
+	socialMediaSettingController := controllers.NewSocialMediaSettingController(socialMediaSettingService)
 	dashboardController := controllers.NewDashboardController()
 	contactHandler := handlers.NewContactHandler(db)
 	couponController := &controllers.CouponController{}
@@ -43,9 +46,11 @@ func SetupRoutes(r *gin.Engine) {
 	socialLinksController := &controllers.SocialLinksController{}
 	analyticsController := &controllers.AnalyticsController{}
 	newsController := &controllers.NewsController{}
+	sitePageController := &controllers.SitePageController{}
 	productOptimizationController := &controllers.ProductOptimizationController{}
 	indexNowController := &controllers.IndexNowController{}
 	ebayImportDraftController := &controllers.EbayImportDraftController{}
+	aiAgentController := &controllers.AIAgentController{}
 	services.StartEbayAutoImportDaemon(ebayImportDraftController.ConfirmDraftFn())
 
 	// Health check endpoint
@@ -95,6 +100,9 @@ func SetupRoutes(r *gin.Engine) {
 			// Company Profile (public read access) - cached
 			public.GET("/company-profile", middleware.CachePublicGET(middleware.CacheTTLHomepage(), "cache:public:company_profile:"), companyProfileController.GetCompanyProfile)
 
+			// Social media links (public read access) - cached with homepage content.
+			public.GET("/social-media", middleware.CachePublicGET(middleware.CacheTTLHomepage(), "cache:public:homepage:social_media:"), socialMediaSettingController.GetPublic)
+
 			// Contact form submission (public access)
 			public.POST("/contact", contactHandler.SubmitContact)
 
@@ -115,6 +123,7 @@ func SetupRoutes(r *gin.Engine) {
 			public.GET("/news/path/*path", newsController.GetPublicArticleByPath)
 			public.GET("/news/:id", newsController.GetPublicArticle)
 			public.GET("/news/slug/:slug", newsController.GetPublicArticleBySlug)
+			public.GET("/site-pages/:pageKey", sitePageController.GetPublicPage)
 		}
 
 		// Authentication routes
@@ -131,6 +140,7 @@ func SetupRoutes(r *gin.Engine) {
 				authProtected.GET("/profile", authController.GetProfile)
 				authProtected.PUT("/profile", authController.UpdateProfile)
 				authProtected.POST("/change-password", authController.ChangePassword)
+				authProtected.POST("/refresh", authController.RefreshToken)
 			}
 		}
 
@@ -138,6 +148,38 @@ func SetupRoutes(r *gin.Engine) {
 		admin := v1.Group("/admin")
 		admin.Use(middleware.AuthMiddleware())
 		{
+			// AI catalog assistant: it returns reviewable proposals; writes require a second explicit apply call.
+			aiAgent := admin.Group("/ai-agent")
+			aiAgent.Use(middleware.EditorOrAdmin())
+			{
+				aiAgent.GET("/status", aiAgentController.Status)
+				aiAgent.POST("/chat", aiAgentController.Chat)
+				aiAgent.POST("/article-draft", aiAgentController.GenerateArticleDraft)
+				aiAgent.POST("/prices/preview", aiAgentController.PreviewPrices)
+				aiAgent.POST("/apply", aiAgentController.Apply)
+				aiAgent.POST("/seo/jobs", aiAgentController.StartSelectedSEO)
+				aiAgent.POST("/seo/candidates", aiAgentController.StartCandidateSEO)
+				aiAgent.POST("/seo/category-jobs", middleware.AdminOnly(), aiAgentController.StartCategoryOptimizationJob)
+				aiAgent.POST("/seo/audit", aiAgentController.SEOAudit)
+				aiAgent.POST("/seo/auto-fix", aiAgentController.StartSEOAutoFix)
+				aiAgent.POST("/category-seo", middleware.AdminOnly(), aiAgentController.OptimizeCategorySEO)
+				aiAgent.GET("/seo/jobs", aiAgentController.ListSEOJobs)
+				aiAgent.GET("/seo/jobs/:id", aiAgentController.GetSEOJob)
+				aiAgent.GET("/seo/jobs/:id/items", aiAgentController.ListSEOJobItems)
+				aiAgent.POST("/seo/jobs/:id/pause", aiAgentController.PauseSEOJob)
+				aiAgent.POST("/seo/jobs/:id/resume", aiAgentController.ResumeSEOJob)
+				aiAgent.POST("/seo/jobs/:id/end", aiAgentController.EndPausedSEOJob)
+				aiAgent.GET("/seo/stats", aiAgentController.GetSEOStats)
+				aiAgent.GET("/settings", middleware.AdminOnly(), aiAgentController.GetSettings)
+				aiAgent.PUT("/settings", middleware.AdminOnly(), aiAgentController.UpdateSettings)
+				aiAgent.GET("/profiles", middleware.AdminOnly(), aiAgentController.ListProfiles)
+				aiAgent.POST("/profiles", middleware.AdminOnly(), aiAgentController.CreateProfile)
+				aiAgent.PUT("/profiles/:id", middleware.AdminOnly(), aiAgentController.UpdateProfile)
+				aiAgent.DELETE("/profiles/:id", middleware.AdminOnly(), aiAgentController.DeleteProfile)
+				aiAgent.POST("/profiles/:id/activate", middleware.AdminOnly(), aiAgentController.ActivateProfile)
+				aiAgent.POST("/test-connection", middleware.AdminOnly(), aiAgentController.TestProfileConnection)
+			}
+
 			// Dashboard statistics (admin and editor access)
 			dashboard := admin.Group("/dashboard")
 			dashboard.Use(middleware.EditorOrAdmin())
@@ -153,11 +195,14 @@ func SetupRoutes(r *gin.Engine) {
 			categories.Use(middleware.EditorOrAdmin())
 			{
 				categories.GET("", categoryController.GetCategories)
+				categories.GET("/:id/deletion-impact", categoryController.GetCategoryDeletionImpact)
 				categories.GET("/:id", categoryController.GetCategory)
 				categories.POST("", categoryController.CreateCategory)
 				categories.PUT("/reorder", categoryController.ReorderCategories)
 				categories.PUT("/:id", categoryController.UpdateCategory)
 				categories.DELETE("/:id", middleware.AdminOnly(), categoryController.DeleteCategory)
+				categories.POST("/cleanup/preview", middleware.AdminOnly(), categoryController.PreviewCategoryCleanup)
+				categories.POST("/cleanup/apply", middleware.AdminOnly(), categoryController.ApplyCategoryCleanup)
 			}
 
 			// Product management (admin and editor access)
@@ -167,17 +212,18 @@ func SetupRoutes(r *gin.Engine) {
 				// Bulk import (XLSX)
 				products.GET("/import/template", productController.DownloadImportTemplate)
 				products.POST("/import/xlsx", productController.ImportProductsXLSX)
+				products.POST("/import/csv", productController.ImportProductsQuoteCSV)
 				products.GET("/import/xlsx/tasks/:id", productController.GetProductImportTask)
 
 				// Bulk update is_active / is_featured
 				products.PUT("/bulk-update", productController.BulkUpdateProducts)
 				products.POST("/selection-ids", productController.GetBulkProductSelectionIDs)
-				products.PUT("/bulk-auto-categorize", productController.BulkAutoCategorizeProducts)
-				products.PUT("/bulk-categorize-optimize", productController.BulkCategorizeAndOptimizeProducts)
-				products.PUT("/bulk-disable-auto-seo", productController.BulkDisableAutoSEO)
 				products.GET("/optimization-status", productOptimizationController.GetOptimizationStatus)
 				products.POST("/optimize", productOptimizationController.OptimizeProduct)
 				products.POST("/bulk-optimize", productOptimizationController.BulkOptimizeProducts)
+				products.POST("/auto-optimize-categories", middleware.AdminOnly(), productOptimizationController.AutoOptimizeProductCategories)
+				products.POST("/standardize-titles", middleware.AdminOnly(), productOptimizationController.StandardizeProductTitles)
+				products.POST("/classification-audit", middleware.AdminOnly(), productOptimizationController.AuditProductClassifications)
 
 				// Bulk: apply/remove default watermark image URL
 				products.PUT("/bulk-default-image/apply", productController.BulkApplyDefaultImage)
@@ -203,10 +249,19 @@ func SetupRoutes(r *gin.Engine) {
 			ebayImportDrafts.Use(middleware.EditorOrAdmin())
 			{
 				ebayImportDrafts.POST("/upload", ebayImportDraftController.Upload)
+				ebayImportDrafts.POST("/json-import", ebayImportDraftController.StartJSONImport)
+				ebayImportDrafts.GET("/json-import/tasks/latest", ebayImportDraftController.GetLatestJSONImportTask)
+				ebayImportDrafts.GET("/json-import/tasks/:taskId", ebayImportDraftController.GetJSONImportTask)
+				ebayImportDrafts.POST("/json-import/tasks/:taskId/pause", ebayImportDraftController.PauseJSONImportTask)
+				ebayImportDrafts.POST("/json-import/tasks/:taskId/resume", ebayImportDraftController.ResumeJSONImportTask)
 				ebayImportDrafts.GET("", ebayImportDraftController.List)
+				ebayImportDrafts.POST("/selection-ids", ebayImportDraftController.SelectionIDs)
 				ebayImportDrafts.POST("/bulk-confirm", ebayImportDraftController.BulkConfirm)
 				ebayImportDrafts.GET("/bulk-confirm/tasks/:taskId", ebayImportDraftController.GetBulkConfirmTask)
 				ebayImportDrafts.POST("/bulk-recheck", ebayImportDraftController.BulkRecheck)
+				// POST alias keeps bulk deletion compatible with proxies that reject
+				// request bodies on DELETE while retaining the legacy DELETE route.
+				ebayImportDrafts.POST("/bulk-delete", ebayImportDraftController.BulkDelete)
 				ebayImportDrafts.DELETE("/bulk", ebayImportDraftController.BulkDelete)
 				ebayImportDrafts.GET("/:id", ebayImportDraftController.Get)
 				ebayImportDrafts.PUT("/:id", ebayImportDraftController.Update)
@@ -241,6 +296,8 @@ func SetupRoutes(r *gin.Engine) {
 				orders.GET("/:id", orderController.GetOrder)
 				orders.PUT("/:id", orderController.UpdateOrder)
 				orders.PUT("/:id/status", orderController.UpdateOrderStatus)
+				orders.POST("/:id/refund", orderController.RefundOrder)
+				orders.POST("/:id/refund/:refundID/sync", orderController.SyncRefund)
 				orders.DELETE("/:id", orderController.DeleteOrder)
 			}
 
@@ -284,6 +341,7 @@ func SetupRoutes(r *gin.Engine) {
 			{
 				media.GET("", mediaController.List)
 				media.POST("/upload", mediaController.Upload)
+				media.POST("/rotate", mediaController.Rotate)
 				media.PUT("/batch", mediaController.BatchUpdate)
 				media.DELETE("/batch", mediaController.BatchDelete)
 				media.POST("/cleanup-missing", middleware.AdminOnly(), mediaController.CleanupMissing)
@@ -379,18 +437,35 @@ func SetupRoutes(r *gin.Engine) {
 				news.DELETE("/:id", middleware.AdminOnly(), newsController.DeleteArticle)
 			}
 
-			// Email settings + marketing (admin only)
-			email := admin.Group("/email")
-			email.Use(middleware.AdminOnly())
+			sitePages := admin.Group("/site-pages")
+			sitePages.Use(middleware.EditorOrAdmin())
 			{
-				email.GET("/settings", emailController.GetSettings)
-				email.PUT("/settings", emailController.UpdateSettings)
+				sitePages.GET("", sitePageController.GetPages)
+				sitePages.GET("/:pageKey", sitePageController.GetPage)
+				sitePages.PUT("/:pageKey", sitePageController.UpsertPage)
+			}
+
+			// Email mailbox (editor/admin) + settings/marketing (admin only)
+			email := admin.Group("/email")
+			email.Use(middleware.EditorOrAdmin())
+			{
+				email.GET("/mailbox/config", emailController.MailboxConfig)
+				email.GET("/mailbox/folders", emailController.MailboxFolders)
+				email.GET("/mailbox/folders/:folderID/messages", emailController.MailboxMessages)
+				email.GET("/mailbox/messages/:messageID", emailController.MailboxMessage)
+				email.GET("/mailbox/messages/:messageID/attachments", emailController.MailboxAttachments)
+				email.GET("/mailbox/messages/:messageID/attachments/:attachmentID/download", emailController.MailboxAttachmentDownload)
+
 				email.POST("/test", emailController.SendTest)
 				email.POST("/send", emailController.Send)
-				email.POST("/broadcast", emailController.Broadcast)
+
+				email.GET("/settings", middleware.AdminOnly(), emailController.GetSettings)
+				email.PUT("/settings", middleware.AdminOnly(), emailController.UpdateSettings)
+				email.POST("/broadcast", middleware.AdminOnly(), emailController.Broadcast)
 
 				// Resend webhook management (proxy to Resend API)
 				resend := email.Group("/resend")
+				resend.Use(middleware.AdminOnly())
 				{
 					resend.GET("/webhooks", resendWebhookController.List)
 					resend.POST("/webhooks", resendWebhookController.Create)
@@ -422,6 +497,14 @@ func SetupRoutes(r *gin.Engine) {
 				companyProfile.POST("", companyProfileController.UpsertCompanyProfile)
 				companyProfile.PUT("/:id", companyProfileController.UpdateCompanyProfile)
 				companyProfile.DELETE("/:id", middleware.AdminOnly(), companyProfileController.DeleteCompanyProfile)
+			}
+
+			// Social media links (admin and editor access)
+			socialMedia := admin.Group("/social-media")
+			socialMedia.Use(middleware.EditorOrAdmin())
+			{
+				socialMedia.GET("", socialMediaSettingController.GetAdmin)
+				socialMedia.PUT("", socialMediaSettingController.Update)
 			}
 
 			// Contact Messages management (admin and editor access)
@@ -510,5 +593,13 @@ func SetupRoutes(r *gin.Engine) {
 	// Serve static files (uploaded images)
 	uploads := r.Group("/uploads")
 	uploads.Use(middleware.HotlinkProtectionMiddleware())
+	uploads.Use(func(c *gin.Context) {
+		// Media filenames are SHA-256 based, so immutable caching is safe and
+		// avoids downloading the same gallery image on every admin page.
+		if strings.HasPrefix(c.Request.URL.Path, "/uploads/media/") {
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		}
+		c.Next()
+	})
 	uploads.StaticFS("/", http.Dir("./uploads"))
 }

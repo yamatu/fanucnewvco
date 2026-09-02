@@ -99,6 +99,39 @@ func (ac *AuthController) Login(c *gin.Context) {
 	})
 }
 
+// RefreshToken issues a fresh JWT for an already-authenticated admin session.
+// The account is re-checked against the database so a deactivated user or a
+// changed role can never extend a session. Multiple people sharing one
+// account each hold their own token; refreshing one never invalidates the
+// others.
+func (ac *AuthController) RefreshToken(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, models.APIResponse{Success: false, Message: "Session is invalid", Error: "invalid_session"})
+		return
+	}
+	db := config.GetDB()
+	var user models.AdminUser
+	if err := db.Where("id = ? AND is_active = ?", userID, true).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusUnauthorized, models.APIResponse{Success: false, Message: "Account is disabled or removed", Error: "account_unavailable"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database error", Error: err.Error()})
+		return
+	}
+	token, expiresAt, err := utils.GenerateToken(user.ID, user.Username, user.Role)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to generate token", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{
+		Success: true,
+		Message: "Token refreshed",
+		Data:    models.LoginResponse{Token: token, User: user, ExpiresAt: expiresAt},
+	})
+}
+
 // RequestPasswordReset sends an admin password reset code to email.
 // Public endpoint. Returns generic success to avoid account enumeration.
 func (ac *AuthController) RequestPasswordReset(c *gin.Context) {

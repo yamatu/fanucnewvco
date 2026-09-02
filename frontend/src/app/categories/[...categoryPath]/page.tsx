@@ -7,29 +7,65 @@ import CategorySidebarTree from '@/components/categories/CategorySidebarTree';
 import ScrollRestorer from '@/components/common/ScrollRestorer';
 import { CategoryService } from '@/services';
 import { getSiteUrl } from '@/lib/url';
+import { withSiteName } from '@/lib/seo';
+import { getLocalizedMetadataPaths, getRequestPublicLocale } from '@/lib/i18n/server';
+import { getAvailableTranslationLocales, hasTranslationForLocale, localizeCategoryContent } from '@/lib/i18n/content';
+import { localizePublicPath } from '@/lib/i18n/config';
+import { translatePublicMessage } from '@/lib/i18n/messages';
 
 interface CategoryPathPageProps {
   params: Promise<{ categoryPath: string[] }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
+const legacyCategoryRedirects: Record<string, string> = {
+  'servo-drives': 'fanuc/fanuc-servo-amplifier-drive',
+  'servo-motors': 'fanuc/fanuc-servo-motor',
+  'pcb-boards': 'fanuc/fanuc-pcb-control-board',
+  'io-modules': 'fanuc/fanuc-i-o-module',
+  'control-units': 'fanuc/fanuc-cnc-system-parts',
+  'power-supplies': 'fanuc/fanuc-power-supply',
+  'cables-connectors': 'fanuc/fanuc-cables-connectors',
+  'other-components': 'fanuc/fanuc-accessories-others',
+};
+
+const brandDisplayNames: Record<string, string> = {
+  fanuc: 'FANUC',
+  mitsubishi: 'Mitsubishi',
+  ab: 'AB',
+  huawei: 'Huawei',
+  sick: 'SICK',
+  tamagawa: 'Tamagawa',
+};
+
+function getCategoryBrandName(category: any, breadcrumb?: any[]): string {
+  const rootCategory = breadcrumb?.[0] || category;
+  const key = String(rootCategory?.slug || rootCategory?.name || '').toLowerCase();
+  return brandDisplayNames[key] || rootCategory?.name || 'Industrial Automation';
+}
+
+function getCategoryTitleSuffix(brandName: string): string {
+  return brandName === 'FANUC' ? 'FANUC CNC Parts' : `${brandName} Automation Parts`;
+}
+
 // Category-specific meta description templates
-function getCategoryMetaDescription(categoryName: string, baseDescription?: string): string {
+function getCategoryMetaDescription(categoryName: string, baseDescription?: string, brandName = 'Industrial Automation'): string {
   const name = categoryName.toLowerCase();
+  const titleSuffix = getCategoryTitleSuffix(brandName);
   const templates: Record<string, string> = {
-    'servo': `Shop FANUC ${categoryName} for precise CNC motion control. Tested, 12-month warranty, fast worldwide shipping. In-stock parts ready to ship from VIBO CNC.`,
-    'motor': `Buy FANUC ${categoryName} for high-torque CNC performance. Quality tested with 12-month warranty. Fast DHL/FedEx shipping worldwide from VIBO CNC.`,
-    'pcb': `Find FANUC ${categoryName} for reliable CNC signal processing. All boards tested before shipping. 12-month warranty, worldwide delivery from VIBO CNC.`,
-    'board': `Browse FANUC ${categoryName} for CNC control systems. Quality-tested circuit boards with 12-month warranty. Fast global shipping from VIBO CNC.`,
-    'power': `Shop FANUC ${categoryName} for stable CNC power delivery. Industrial-grade units tested and ready to ship. 12-month warranty at VIBO CNC.`,
-    'i/o': `Buy FANUC ${categoryName} for robust automation I/O control. Tested modules with 12-month warranty. Worldwide express shipping from VIBO CNC.`,
-    'interface': `Find FANUC ${categoryName} for reliable CNC communication. All parts quality tested. 12-month warranty, DHL/FedEx shipping from VIBO CNC.`,
-    'encoder': `Shop FANUC ${categoryName} for accurate CNC position feedback. Tested encoders with 12-month warranty. Fast worldwide delivery from VIBO CNC.`,
-    'cable': `Buy FANUC ${categoryName} for reliable industrial connections. Quality cables with 12-month warranty. Fast express shipping worldwide at VIBO CNC.`,
-    'display': `Find FANUC ${categoryName} for clear CNC operator interfaces. Tested displays with 12-month warranty. Worldwide shipping from VIBO CNC.`,
-    'spindle': `Shop FANUC ${categoryName} for high-speed CNC spindle control. Tested drives with 12-month warranty. Express global shipping from VIBO CNC.`,
-    'controller': `Buy FANUC ${categoryName} for advanced CNC machine control. All controllers tested. 12-month warranty, fast worldwide delivery at VIBO CNC.`,
-    'robot': `Find FANUC ${categoryName} for industrial robot automation. Tested parts with 12-month warranty. Fast DHL/FedEx shipping worldwide from VIBO CNC.`,
+    'servo': `Shop ${brandName} ${categoryName} for precise motion control. Tested parts, 12-month warranty, and fast worldwide shipping from Vibocnc.`,
+    'motor': `Buy ${brandName} ${categoryName} for industrial automation and CNC maintenance. Quality tested with 12-month warranty and worldwide shipping from Vibocnc.`,
+    'pcb': `Find ${brandName} ${categoryName} for reliable CNC signal processing. Quality-tested boards with 12-month warranty and worldwide delivery from Vibocnc.`,
+    'board': `Browse ${brandName} ${categoryName} for CNC and automation control systems. Quality-tested circuit boards with 12-month warranty from Vibocnc.`,
+    'power': `Shop ${brandName} ${categoryName} for stable industrial power delivery. Tested units with 12-month warranty and worldwide shipping from Vibocnc.`,
+    'i/o': `Buy ${brandName} ${categoryName} for robust automation I/O control. Tested modules with 12-month warranty and worldwide express shipping from Vibocnc.`,
+    'interface': `Find ${brandName} ${categoryName} for reliable industrial communication. Quality-tested parts with 12-month warranty from Vibocnc.`,
+    'encoder': `Shop ${brandName} ${categoryName} for accurate position feedback. Tested encoders with 12-month warranty and fast worldwide delivery from Vibocnc.`,
+    'cable': `Buy ${brandName} ${categoryName} for reliable industrial connections. Quality cables with 12-month warranty and fast express shipping from Vibocnc.`,
+    'display': `Find ${brandName} ${categoryName} for clear machine operator interfaces. Tested displays with 12-month warranty and worldwide shipping from Vibocnc.`,
+    'spindle': `Shop ${brandName} ${categoryName} for high-speed CNC spindle control. Tested drives with 12-month warranty and express global shipping from Vibocnc.`,
+    'controller': `Buy ${brandName} ${categoryName} for advanced machine control. Tested controllers with 12-month warranty and fast worldwide delivery from Vibocnc.`,
+    'robot': `Find ${brandName} ${categoryName} for industrial robot automation. Tested parts with 12-month warranty and fast DHL/FedEx shipping worldwide from Vibocnc.`,
   };
 
   for (const [key, template] of Object.entries(templates)) {
@@ -38,52 +74,68 @@ function getCategoryMetaDescription(categoryName: string, baseDescription?: stri
 
   if (baseDescription && baseDescription.length > 50) return baseDescription;
 
-  return `Browse ${categoryName} from VIBO CNC. Quality FANUC CNC spare parts, tested with 12-month warranty. Fast worldwide shipping via DHL & FedEx.`;
+  return `Browse ${categoryName} from Vibocnc. Quality ${titleSuffix}, tested with 12-month warranty and fast worldwide shipping via DHL and FedEx.`;
 }
 
 export async function generateMetadata({ params }: CategoryPathPageProps): Promise<Metadata> {
   try {
     const { categoryPath } = await params;
+    const locale = await getRequestPublicLocale();
     const path = (categoryPath || []).join('/');
-    const { category } = await CategoryService.getCategoryByPath(path);
-    const baseUrl = getSiteUrl();
+    const resolved = await CategoryService.getCategoryByPath(path);
+    const hasRequestedTranslation = hasTranslationForLocale(resolved.category.translations, locale);
+    const contentLocale = hasRequestedTranslation ? locale : 'en';
+    const category = localizeCategoryContent(resolved.category, contentLocale);
+    const breadcrumb = (resolved.breadcrumb || []).map((item: any) => localizeCategoryContent(item, contentLocale));
     const urlPath = category.path ? `/categories/${category.path}` : `/categories/${path}`;
-    const metaDescription = getCategoryMetaDescription(category.name, category.description);
+    const { canonical: localizedCanonical, languages } = await getLocalizedMetadataPaths(
+      urlPath,
+      getAvailableTranslationLocales(resolved.category.translations),
+    );
+    const canonical = hasRequestedTranslation
+      ? localizedCanonical
+      : `${getSiteUrl()}${localizePublicPath(urlPath, 'en')}`;
+    const brandName = getCategoryBrandName(category, breadcrumb);
+    const titleSuffix = getCategoryTitleSuffix(brandName);
+    const metaDescription = getCategoryMetaDescription(category.name, category.description, brandName);
     return {
-      title: `${category.name} - FANUC CNC Parts | Buy Online | VIBO CNC`,
+      title: `${category.name} - ${titleSuffix} | Buy Online`,
       description: metaDescription,
+      robots: { index: hasRequestedTranslation, follow: true },
       openGraph: {
-        title: `${category.name} - FANUC CNC Parts | VIBO CNC`,
+        title: withSiteName(`${category.name} - ${titleSuffix} | Buy Online`),
         description: metaDescription,
         type: 'website',
-        url: `${baseUrl}${urlPath}`,
+        url: canonical,
       },
       alternates: {
-        canonical: `${baseUrl}${urlPath}`,
+        canonical,
+        languages,
       },
     };
   } catch {
     return {
-      title: 'Category | VIBO CNC',
-      description: 'Browse FANUC automation parts by category.',
+      title: 'Category',
+      description: 'Browse industrial automation parts by category.',
     };
   }
 }
 
 // CollectionPage + FAQ JSON-LD for category pages
-function CategoryStructuredData({ category, breadcrumb, baseUrl }: { category: any; breadcrumb: any[]; baseUrl: string }) {
+function CategoryStructuredData({ category, breadcrumb, baseUrl, locale }: { category: any; breadcrumb: any[]; baseUrl: string; locale: Awaited<ReturnType<typeof getRequestPublicLocale>> }) {
   const urlPath = category.path ? `/categories/${category.path}` : `/categories/${category.slug}`;
-  const categoryUrl = `${baseUrl}${urlPath}`;
+  const categoryUrl = `${baseUrl}${localizePublicPath(urlPath, locale)}`;
+  const brandName = getCategoryBrandName(category, breadcrumb);
 
   const collectionData = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     "name": category.name,
-    "description": getCategoryMetaDescription(category.name, category.description),
+    "description": getCategoryMetaDescription(category.name, category.description, brandName),
     "url": categoryUrl,
     "isPartOf": {
       "@type": "WebSite",
-      "name": "VIBO CNC",
+      "name": "Vibocnc",
       "url": baseUrl
     },
     "breadcrumb": {
@@ -92,14 +144,14 @@ function CategoryStructuredData({ category, breadcrumb, baseUrl }: { category: a
         {
           "@type": "ListItem",
           "position": 1,
-          "name": "Home",
-          "item": baseUrl
+          "name": translatePublicMessage(locale, 'common.home'),
+          "item": `${baseUrl}${localizePublicPath('/', locale)}`
         },
         ...breadcrumb.map((bc: any, idx: number) => ({
           "@type": "ListItem",
           "position": idx + 2,
           "name": bc.name,
-          "item": `${baseUrl}/categories/${bc.path || bc.slug}`
+          "item": `${baseUrl}${localizePublicPath(`/categories/${bc.path || bc.slug}`, locale)}`
         }))
       ]
     }
@@ -112,23 +164,23 @@ function CategoryStructuredData({ category, breadcrumb, baseUrl }: { category: a
     "mainEntity": [
       {
         "@type": "Question",
-        "name": `Where can I buy FANUC ${catName} online?`,
+        "name": `Where can I buy ${brandName} ${catName} online?`,
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": `You can buy genuine FANUC ${catName} online at VIBO CNC (vibocnc.com). We offer quality-tested parts with 12-month warranty and worldwide express shipping via DHL and FedEx.`
+          "text": `You can buy quality-tested ${brandName} ${catName} online at Vibocnc (vibocnc.com). We offer 12-month warranty support and worldwide express shipping via DHL and FedEx.`
         }
       },
       {
         "@type": "Question",
-        "name": `Do you offer warranty on FANUC ${catName}?`,
+        "name": `Do you offer warranty on ${brandName} ${catName}?`,
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": `Yes, all FANUC ${catName} from VIBO CNC come with a 12-month warranty. Every part is quality tested before shipment to ensure reliability.`
+          "text": `Yes, ${brandName} ${catName} supplied by Vibocnc include 12-month warranty support. Every part is quality checked before shipment.`
         }
       },
       {
         "@type": "Question",
-        "name": `How fast is shipping for FANUC ${catName}?`,
+        "name": `How fast is shipping for ${brandName} ${catName}?`,
         "acceptedAnswer": {
           "@type": "Answer",
           "text": `We offer worldwide express shipping via DHL, FedEx, and UPS. Most in-stock ${catName} ship within 1-3 business days with delivery in 3-7 business days.`
@@ -153,6 +205,7 @@ function CategoryStructuredData({ category, breadcrumb, baseUrl }: { category: a
 
 export default async function CategoryPathPage({ params, searchParams }: CategoryPathPageProps) {
   const { categoryPath } = await params;
+  const locale = await getRequestPublicLocale();
   const searchParamsResolved = await searchParams;
   const path = (categoryPath || []).join('/');
 
@@ -164,15 +217,25 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
   }
 
   if (!resolved?.category) {
+    const redirectPath = legacyCategoryRedirects[path];
+    if (redirectPath) {
+      permanentRedirect(localizePublicPath(`/categories/${redirectPath}`, locale));
+    }
     notFound();
   }
 
   // Canonical redirect to computed path if the request path differs.
   if (resolved.category.path && resolved.category.path !== path) {
-    permanentRedirect(`/categories/${resolved.category.path}`);
+    permanentRedirect(localizePublicPath(`/categories/${resolved.category.path}`, locale));
   }
 
-  const tree = await CategoryService.getCategories();
+  const categoryContentLocale = hasTranslationForLocale(resolved.category.translations, locale) ? locale : 'en';
+  resolved = {
+    category: localizeCategoryContent(resolved.category, categoryContentLocale),
+    breadcrumb: (resolved.breadcrumb || []).map((item: any) => localizeCategoryContent(item, categoryContentLocale)),
+  };
+
+  const tree = (await CategoryService.getCategories()).map((item: any) => localizeCategoryContent(item, locale));
   const breadcrumbIds = (resolved.breadcrumb || [])
     .map((c: any) => Number(c.id))
     .filter((n: number) => Number.isFinite(n) && n > 0);
@@ -184,6 +247,7 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
         category={resolved.category}
         breadcrumb={resolved.breadcrumb || []}
         baseUrl={baseUrl}
+        locale={locale}
       />
       <ScrollRestorer storageKey="category-scroll-y" />
       <div className="site-page-shell min-h-screen">
@@ -191,7 +255,7 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
         <div className="site-page-hero py-12">
           <div className="site-hero-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <div className="site-hero-kicker mb-5">Category Supply</div>
+              <div className="site-hero-kicker mb-5">{translatePublicMessage(locale, 'categories.kicker')}</div>
               <h1 className="text-3xl md:text-5xl font-bold mb-3">{resolved.category.name}</h1>
               {resolved.category.description && (
                 <p className="text-lg md:text-xl text-blue-100 max-w-3xl mx-auto leading-relaxed">{resolved.category.description}</p>
@@ -200,15 +264,15 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
                 <nav className="flex justify-center" aria-label="Breadcrumb">
                   <ol className="flex items-center flex-wrap gap-x-2 gap-y-1 text-blue-100">
                     <li>
-                      <a href="/" className="hover:text-white transition-colors">
-                        Home
+                      <a href={localizePublicPath('/', locale)} className="hover:text-white transition-colors">
+                        {translatePublicMessage(locale, 'common.home')}
                       </a>
                     </li>
                     {(resolved.breadcrumb || []).map((bc: any) => (
                       <li key={bc.id} className="flex items-center">
                         <span className="mx-2">/</span>
                         <a
-                          href={bc.path ? `/categories/${bc.path}` : `/categories/${bc.slug}`}
+                          href={localizePublicPath(bc.path ? `/categories/${bc.path}` : `/categories/${bc.slug}`, locale)}
                           className={
                             bc.id === resolved!.category.id
                               ? 'text-white font-medium'
@@ -231,7 +295,7 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
             {/* Left sidebar */}
             <aside className="lg:col-span-3">
               <div className="site-panel p-4 lg:sticky lg:top-28">
-                <div className="mb-3 border-b border-slate-200 pb-3 text-sm font-semibold uppercase tracking-wide text-slate-900">Categories</div>
+                <div className="mb-3 border-b border-slate-200 pb-3 text-sm font-semibold uppercase tracking-wide text-slate-900">{translatePublicMessage(locale, 'nav.categories')}</div>
                 <CategorySidebarTree
                   tree={tree}
                   activeCategoryId={resolved.category.id}

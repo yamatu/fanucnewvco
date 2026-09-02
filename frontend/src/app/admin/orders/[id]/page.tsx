@@ -31,6 +31,9 @@ export default function OrderDetailPage() {
   const params = useParams();
   const orderId = parseInt(params.id as string);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [refundConfirm, setRefundConfirm] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
   const queryClient = useQueryClient();
 
   // Fetch order details
@@ -63,6 +66,40 @@ export default function OrderDetailPage() {
     onError: (error: any) => {
       toast.error(error.message || t('orders.toast.deleteFailed', locale === 'zh' ? '删除订单失败' : 'Failed to delete order'));
     },
+  });
+
+  const refundOrderMutation = useMutation({
+    mutationFn: () => {
+      const amount = refundAmount.trim() === '' ? undefined : Number(refundAmount);
+      if (amount !== undefined && (!Number.isFinite(amount) || amount <= 0)) {
+        throw new Error(locale === 'zh' ? '请输入有效的退款金额' : 'Enter a valid refund amount');
+      }
+      return OrderService.refundOrder(orderId, { amount, reason: refundReason.trim() || undefined });
+    },
+    onSuccess: (result) => {
+      toast.success(result.refund.status === 'pending'
+        ? (locale === 'zh' ? '退款已提交，PayPal 正在处理' : 'Refund submitted and is pending at PayPal')
+        : (locale === 'zh' ? '退款已完成' : 'Refund completed'));
+      setRefundConfirm(false);
+      setRefundAmount('');
+      setRefundReason('');
+      queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(orderId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || (locale === 'zh' ? '退款失败' : 'Refund failed'));
+    },
+  });
+
+  const syncRefundMutation = useMutation({
+    mutationFn: (refundId: number) => OrderService.syncRefund(orderId, refundId),
+    onSuccess: (result) => {
+      toast.success(result.refund.status === 'completed'
+        ? (locale === 'zh' ? '退款状态已更新为完成' : 'Refund is now completed')
+        : (locale === 'zh' ? '退款仍在 PayPal 处理中' : 'Refund is still pending at PayPal'));
+      queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(orderId) });
+    },
+    onError: (error: any) => toast.error(error.message || (locale === 'zh' ? '同步退款状态失败' : 'Failed to sync refund status')),
   });
 
   const handleStatusUpdate = (newStatus: string) => {
@@ -101,6 +138,8 @@ export default function OrderDetailPage() {
       pending: { label: t('orders.pay.pending', locale === 'zh' ? '待支付' : 'Pending'), color: 'bg-yellow-100 text-yellow-800' },
       paid: { label: t('orders.pay.paid', locale === 'zh' ? '已支付' : 'Paid'), color: 'bg-green-100 text-green-800' },
       failed: { label: t('orders.pay.failed', locale === 'zh' ? '失败' : 'Failed'), color: 'bg-red-100 text-red-800' },
+      refund_pending: { label: locale === 'zh' ? '退款处理中' : 'Refund pending', color: 'bg-yellow-100 text-yellow-800' },
+      partially_refunded: { label: locale === 'zh' ? '部分退款' : 'Partially refunded', color: 'bg-orange-100 text-orange-800' },
       refunded: { label: t('orders.pay.refunded', locale === 'zh' ? '已退款' : 'Refunded'), color: 'bg-gray-100 text-gray-800' },
     };
 
@@ -152,8 +191,8 @@ export default function OrderDetailPage() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-4">
             <Link
               href="/admin/orders"
               className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -170,7 +209,7 @@ export default function OrderDetailPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-3">
             {OrderService.canEditOrder(order) && (
               <Link
                 href={`/admin/orders/${order.id}/edit`}
@@ -187,6 +226,19 @@ export default function OrderDetailPage() {
               >
                 <TrashIcon className="h-4 w-4 mr-2" />
                 {t('orders.delete.confirmBtn', locale === 'zh' ? '删除订单' : 'Delete Order')}
+              </button>
+            )}
+            {OrderService.canRefundOrder(order) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setRefundAmount(OrderService.refundableAmount(order).toFixed(2));
+                  setRefundConfirm(true);
+                }}
+                className="inline-flex items-center px-4 py-2 border border-orange-300 rounded-md text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100"
+              >
+                <CurrencyDollarIcon className="h-4 w-4 mr-2" />
+                {locale === 'zh' ? '退款' : 'Refund'}
               </button>
             )}
           </div>
@@ -262,7 +314,47 @@ export default function OrderDetailPage() {
                   {formatCurrency(order.total_amount)}
                 </span>
               </div>
+              {(Number(order.refunded_amount || 0) > 0 || (order.refunds?.length || 0) > 0) && (
+                <div className="mt-4 pt-4 border-t text-sm space-y-2">
+                  <div className="flex justify-between text-gray-600">
+                    <span>{locale === 'zh' ? '已退款' : 'Refunded'}</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(Number(order.refunded_amount || 0))}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>{locale === 'zh' ? '可退款余额' : 'Refundable balance'}</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(OrderService.refundableAmount(order))}</span>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {order.refunds && order.refunds.length > 0 && (
+              <div className="bg-white shadow rounded-lg p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{locale === 'zh' ? '退款记录' : 'Refund history'}</h3>
+                <div className="space-y-3">
+                  {order.refunds.map((refund) => (
+                    <div key={refund.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+                      <div>
+                        <div className="font-medium text-gray-900">{formatCurrency(refund.amount, refund.currency)}</div>
+                        <div className="text-xs text-gray-500">{refund.reason || (locale === 'zh' ? '无备注' : 'No reason')}</div>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        <div className="font-medium capitalize">{refund.status}</div>
+                        <div>{new Date(refund.created_at).toLocaleString()}</div>
+                        {refund.status === 'pending' && (
+                          <button
+                            type="button"
+                            onClick={() => syncRefundMutation.mutate(refund.id)}
+                            disabled={syncRefundMutation.isPending}
+                            className="mt-1 text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                          >{locale === 'zh' ? '同步状态' : 'Sync status'}</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Notes */}
             {order.notes && (
@@ -421,6 +513,52 @@ export default function OrderDetailPage() {
                     t('orders.delete.confirmBtn', locale === 'zh' ? '确认删除' : 'Delete Order')
                   )}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {refundConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <div className="flex items-center mb-4">
+                <ExclamationTriangleIcon className="h-6 w-6 text-orange-600 mr-3" />
+                <h3 className="text-lg font-medium text-gray-900">{locale === 'zh' ? '确认 PayPal 退款' : 'Confirm PayPal refund'}</h3>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                {locale === 'zh' ? '此操作会向 PayPal 发起真实退款，不能撤销。' : 'This starts a real PayPal refund and cannot be undone.'}
+              </p>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{locale === 'zh' ? '退款金额' : 'Refund amount'} ({order.currency})</label>
+              <input
+                type="number"
+                min="0.01"
+                max={OrderService.refundableAmount(order)}
+                step="0.01"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+                className="block w-full rounded-md border border-gray-300 px-3 py-2 mb-3"
+              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">{locale === 'zh' ? '退款原因（可选）' : 'Reason (optional)'}</label>
+              <textarea
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                maxLength={500}
+                rows={3}
+                className="block w-full rounded-md border border-gray-300 px-3 py-2 mb-5"
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRefundConfirm(false)}
+                  disabled={refundOrderMutation.isPending}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                >{t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}</button>
+                <button
+                  type="button"
+                  onClick={() => refundOrderMutation.mutate()}
+                  disabled={refundOrderMutation.isPending}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-md text-sm hover:bg-orange-700 disabled:opacity-50"
+                >{refundOrderMutation.isPending ? (locale === 'zh' ? '提交中...' : 'Submitting...') : (locale === 'zh' ? '确认退款' : 'Confirm refund')}</button>
               </div>
             </div>
           </div>

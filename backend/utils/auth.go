@@ -4,11 +4,22 @@ import (
 	"errors"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
+
+const minimumJWTSecretBytes = 32
+
+func getJWTSecret() ([]byte, error) {
+	secret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
+	if len(secret) < minimumJWTSecretBytes {
+		return nil, errors.New("JWT_SECRET must be at least 32 bytes")
+	}
+	return []byte(secret), nil
+}
 
 // HashPassword hashes a password using bcrypt
 func HashPassword(password string) (string, error) {
@@ -39,9 +50,9 @@ type CustomerClaims struct {
 
 // GenerateToken generates a JWT token for a user
 func GenerateToken(userID uint, username, role string) (string, time.Time, error) {
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		return "", time.Time{}, errors.New("JWT_SECRET not set")
+	jwtSecret, err := getJWTSecret()
+	if err != nil {
+		return "", time.Time{}, err
 	}
 
 	expiresHours := 24 // default
@@ -65,23 +76,23 @@ func GenerateToken(userID uint, username, role string) (string, time.Time, error
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(jwtSecret))
+	tokenString, err := token.SignedString(jwtSecret)
 
 	return tokenString, expirationTime, err
 }
 
 // ValidateToken validates a JWT token and returns claims
 func ValidateToken(tokenString string) (*Claims, error) {
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		return nil, errors.New("JWT_SECRET not set")
+	jwtSecret, err := getJWTSecret()
+	if err != nil {
+		return nil, err
 	}
 
 	claims := &Claims{}
 
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
-	})
+		return jwtSecret, nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithIssuer("fanuc-backend"))
 
 	if err != nil {
 		return nil, err
@@ -96,9 +107,9 @@ func ValidateToken(tokenString string) (*Claims, error) {
 
 // GenerateCustomerJWT generates a JWT token for a customer
 func GenerateCustomerJWT(customerID uint, email string) (string, error) {
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		return "", errors.New("JWT_SECRET not set")
+	jwtSecret, err := getJWTSecret()
+	if err != nil {
+		return "", err
 	}
 
 	expiresHours := 168 // 7 days for customers
@@ -121,23 +132,23 @@ func GenerateCustomerJWT(customerID uint, email string) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(jwtSecret))
+	tokenString, err := token.SignedString(jwtSecret)
 
 	return tokenString, err
 }
 
 // ValidateCustomerToken validates a customer JWT token and returns claims
 func ValidateCustomerToken(tokenString string) (*CustomerClaims, error) {
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		return nil, errors.New("JWT_SECRET not set")
+	jwtSecret, err := getJWTSecret()
+	if err != nil {
+		return nil, err
 	}
 
 	claims := &CustomerClaims{}
 
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
-	})
+		return jwtSecret, nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithIssuer("fanuc-backend-customer"))
 
 	if err != nil {
 		return nil, err

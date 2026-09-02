@@ -32,6 +32,13 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Skip initial style, layout and paint work for homepage sections below the fold
+   while reserving space so deferred rendering does not introduce layout shifts. */
+.home-deferred-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 960px;
+}
+
 .site-public {
   background:
     radial-gradient(circle at top left, rgba(196, 106, 45, 0.08), transparent 34rem),

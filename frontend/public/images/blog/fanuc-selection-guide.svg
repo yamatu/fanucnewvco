@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">FANUC automation parts selection guide</title>
+  <desc id="desc">A technical illustration of a CNC control cabinet with a FANUC selection checklist.</desc>
+  <rect width="1600" height="900" fill="#101b2d"/>
+  <rect x="0" y="0" width="1600" height="18" fill="#f6c344"/>
+  <path d="M0 700 L540 260 L940 520 L1270 210 L1600 470 V900 H0Z" fill="#172d48"/>
+  <path d="M0 780 L410 430 L790 700 L1140 370 L1600 690 V900 H0Z" fill="#0b2238" opacity=".95"/>
+  <g transform="translate(116 148)">
+    <rect width="610" height="462" rx="18" fill="#f7fafc"/>
+    <rect x="28" y="28" width="554" height="72" rx="10" fill="#f6c344"/>
+    <text x="54" y="77" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#101b2d">FANUC</text>
+    <text x="56" y="156" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#152940">PART SELECTION</text>
+    <g fill="#1b5b85">
+      <rect x="56" y="190" width="38" height="38" rx="7"/>
+      <rect x="56" y="260" width="38" height="38" rx="7"/>
+      <rect x="56" y="330" width="38" height="38" rx="7"/>
+    </g>
+    <g fill="#4f6476" font-family="Arial, sans-serif" font-size="24">
+      <text x="118" y="219">Series and control generation</text>
+      <text x="118" y="289">Part number and connector match</text>
+      <text x="118" y="359">Test history and replacement risk</text>
+    </g>
+    <path d="M66 208 l9 10 20-25" stroke="#fff" stroke-width="7" fill="none"/>
+    <path d="M66 278 l9 10 20-25" stroke="#fff" stroke-width="7" fill="none"/>
+    <path d="M66 348 l9 10 20-25" stroke="#fff" stroke-width="7" fill="none"/>
+  </g>
+  <g transform="translate(910 150)" stroke="#f6c344" fill="none" stroke-width="8">
+    <rect x="0" y="0" width="470" height="500" rx="16"/>
+    <rect x="44" y="50" width="382" height="92" rx="10"/>
+    <circle cx="98" cy="96" r="20" fill="#f6c344"/>
+    <circle cx="160" cy="96" r="20" fill="#f6c344"/>
+    <circle cx="222" cy="96" r="20" fill="#f6c344"/>
+    <path d="M44 218 H426 M44 302 H426 M44 386 H426"/>
+    <path d="M112 142 V218 M260 142 V218 M360 142 V218"/>
+    <path d="M112 302 V386 M260 302 V386 M360 302 V386"/>
+    <path d="M470 252 H560 M470 340 H560"/>
+    <path d="M560 252 v88"/>
+  </g>
+  <text x="116" y="760" font-family="Arial, sans-serif" font-size="54" font-weight="700" fill="#fff">CNC PARTS SELECTION GUIDE</text>
+  <text x="120" y="820" font-family="Arial, sans-serif" font-size="28" fill="#b9c8d8">Identify the right series, interface and condition before you buy.</text>
+</svg>

@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { getRequestBaseUrl } from '@/lib/request-url'
 import { ProductService } from '@/services/product.service'
 import { toProductPathId } from '@/lib/utils'
+import { renderLocalizedSitemap } from '@/lib/i18n/sitemap'
+import type { Product } from '@/types'
+import { getAvailableTranslationLocales } from '@/lib/i18n/content'
+import { PRODUCT_SITEMAP_PAGE_SIZE } from '@/lib/product-sitemap'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 1800 // 30 minutes
@@ -13,11 +17,15 @@ export async function GET(
   try {
     const baseUrl = await getRequestBaseUrl()
     const { page } = await context.params
-    const pageNumber = Math.max(1, parseInt(page || '1', 10) || 1)
+    const parsedPage = Number(page)
+    if (!Number.isSafeInteger(parsedPage) || parsedPage < 1) {
+      return new NextResponse('Invalid product sitemap page', { status: 404 })
+    }
+    const pageNumber = parsedPage
 
     const response = await ProductService.getProducts({
       page: pageNumber,
-      page_size: 100,
+      page_size: PRODUCT_SITEMAP_PAGE_SIZE,
       is_active: 'true',
     })
 
@@ -26,9 +34,9 @@ export async function GET(
       return new NextResponse(`No products found for sitemap page ${pageNumber}`, { status: 404 })
     }
 
-    const urls = products.map((product: any) => ({
-      url: `${baseUrl}/products/${toProductPathId(product.sku)}`,
-      lastModified: product.updated_at ? new Date(product.updated_at).toISOString() : new Date().toISOString(),
+    const urls = products.map((product: Product) => ({
+      pathname: `/products/${toProductPathId(product.sku)}`,
+      lastModified: product.updated_at ? new Date(product.updated_at).toISOString() : undefined,
       changeFrequency: product.stock_quantity === 0 ? 'monthly' : product.stock_quantity < 10 ? 'daily' : 'weekly',
       priority: product.is_featured
         ? '0.9'
@@ -37,18 +45,10 @@ export async function GET(
           : product.stock_quantity === 0
             ? '0.6'
             : '0.8',
+      availableLocales: getAvailableTranslationLocales(product.translations),
     }))
 
-    const sitemap =
-      `<?xml version="1.0" encoding="UTF-8"?>\n` +
-      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
-      urls
-        .map(
-          (u) =>
-            `  <url>\n    <loc>${u.url}</loc>\n    <lastmod>${u.lastModified}</lastmod>\n    <changefreq>${u.changeFrequency}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`
-        )
-        .join('\n') +
-      `\n</urlset>`
+    const sitemap = renderLocalizedSitemap(baseUrl, urls)
 
     return new NextResponse(sitemap, {
       headers: {

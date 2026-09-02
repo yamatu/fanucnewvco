@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Mitsubishi automation parts selection guide</title>
+  <desc id="desc">A technical illustration of a Mitsubishi servo and PLC selection workflow.</desc>
+  <rect width="1600" height="900" fill="#10252b"/>
+  <rect x="0" y="0" width="1600" height="18" fill="#e64335"/>
+  <path d="M0 610 L430 300 L820 520 L1160 160 L1600 490 V900 H0Z" fill="#173b42"/>
+  <path d="M0 790 L520 470 L870 670 L1270 390 L1600 590 V900 H0Z" fill="#0b2b35"/>
+  <g transform="translate(120 145)">
+    <rect width="560" height="470" rx="18" fill="#f7fafc"/>
+    <rect x="28" y="28" width="504" height="76" rx="10" fill="#e64335"/>
+    <text x="55" y="79" font-family="Arial, sans-serif" font-size="38" font-weight="700" fill="#fff">MITSUBISHI</text>
+    <text x="56" y="160" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#17323a">SERVO + PLC CHECK</text>
+    <g fill="#127d7d">
+      <rect x="56" y="196" width="38" height="38" rx="7"/>
+      <rect x="56" y="270" width="38" height="38" rx="7"/>
+      <rect x="56" y="344" width="38" height="38" rx="7"/>
+    </g>
+    <g fill="#536a72" font-family="Arial, sans-serif" font-size="23">
+      <text x="118" y="225">MR family and firmware</text>
+      <text x="118" y="299">Motor, load and safety margin</text>
+      <text x="118" y="373">I/O station and network fit</text>
+    </g>
+    <path d="M66 214 l9 10 20-25" stroke="#fff" stroke-width="7" fill="none"/>
+    <path d="M66 288 l9 10 20-25" stroke="#fff" stroke-width="7" fill="none"/>
+    <path d="M66 362 l9 10 20-25" stroke="#fff" stroke-width="7" fill="none"/>
+  </g>
+  <g transform="translate(930 150)" stroke="#e64335" fill="none" stroke-width="8">
+    <circle cx="235" cy="225" r="145"/>
+    <circle cx="235" cy="225" r="52" fill="#e64335"/>
+    <path d="M235 80 V0 M235 450 V370 M90 225 H0 M470 225 H380"/>
+    <path d="M142 132 L84 74 M328 318 L386 376 M328 132 L386 74 M142 318 L84 376"/>
+    <rect x="40" y="470" width="390" height="86" rx="12"/>
+    <path d="M100 470 V420 M235 470 V390 M370 470 V420"/>
+  </g>
+  <text x="116" y="760" font-family="Arial, sans-serif" font-size="54" font-weight="700" fill="#fff">MOTION CONTROL BUYING GUIDE</text>
+  <text x="120" y="820" font-family="Arial, sans-serif" font-size="28" fill="#b7c9ca">Match the drive, motor, network and application as one system.</text>
+</svg>

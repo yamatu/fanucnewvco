@@ -377,7 +377,7 @@ curl -fsS http://localhost:3006/api/v1/public/homepage-content | head
   - 前端：`frontend/src/app/admin/products/page.tsx`
   - 前端：`frontend/src/services/product.service.ts`
 
-## 2026-03-30：产品后台自动 SEO 优化接入 + 批量分类/SEO 面板补齐
+## 2026-03-30：产品后台自动 SEO 优化接入（历史批量分类入口已移除）
 
 ### 本次目标
 
@@ -415,24 +415,22 @@ curl -fsS http://localhost:3006/api/v1/public/homepage-content | head
   - `backend/controllers/product.go`
   - `CreateProduct` 在提交事务后立即执行自动优化
   - `UpdateProduct` 在提交事务后立即执行自动优化
-- 批量“分类 + SEO 优化”接口统一复用自动优化 helper：
-  - `backend/controllers/product_bulk_enrichment.go`
-  - 现在不仅补分类，也会真正更新 SEO 字段与 FAQ
-  - 支持按推断结果纠正已有错误分类
-- 后台产品页新增 SEO 操作面板：
+- 非 AI 的批量分类、批量分类 + SEO、批量关闭自动 SEO 接口及后台入口已移除：
+  - 当前产品列表页仅保留 AI SEO 任务入口
+  - 品牌筛选仍可用于筛选产品；品牌选择器仅用于分类图片批量处理
+- 后台产品页保留 AI SEO 操作面板：
   - `frontend/src/app/admin/products/page.tsx`
   - 新增内容：
     - 优化状态卡片（已优化、待优化、平均 SEO 分、自动优化状态）
-    - 批量按钮 `分类 + SEO 优化`
-    - 批量任务进度条
-    - 最近一次 SEO 优化结果表
+    - AI SEO 优化任务入口与任务进度
+    - AI SEO 状态筛选
 - 前端产品 service 新增后台 SEO API 封装：
   - `frontend/src/services/product.service.ts`
   - 新增：
     - `getOptimizationStatus()`
     - `optimizeProduct()`
     - `bulkOptimizeProducts()`
-    - `bulkCategorizeOptimizeProducts()`
+    - AI SEO 任务相关 API
 
 ### 当前行为说明
 
@@ -443,7 +441,8 @@ curl -fsS http://localhost:3006/api/v1/public/homepage-content | head
 - XLSX 导入：
   - 依旧保留原本的自动 enrichment 行为。
 - 产品列表页：
-  - 可以按当前筛选范围批量触发“分类 + SEO 优化”。
+  - 可以按当前筛选范围批量触发 AI SEO 任务。
+  - 另有“AI 自动重试失败”模式，只选择 `ai_seo_status=failed` 的启用商品，最多 30000 个，并在任务记录中标记为 `auto_failed`。
 
 ### 验证情况
 
@@ -494,7 +493,7 @@ docker-compose run --rm backend_seo_optimize
   - `backend/services/product_enrich_fanuc.go`
   - `backend/services/product_enrich.go`
   - `backend/controllers/product_optimization.go`
-- 新增批量分类 + SEO 优化能力：
+- 历史上曾新增批量分类 + SEO 优化能力（当前非 AI 接口已移除）：
   - `backend/controllers/product_bulk_enrichment.go`
   - `backend/routes/routes.go`
   - `backend/config/database.go`

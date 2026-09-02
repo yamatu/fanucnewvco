@@ -7,25 +7,38 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
   PencilIcon,
+  PencilSquareIcon,
+  SparklesIcon,
   TrashIcon,
   TagIcon,
   ArrowsUpDownIcon,
   XMarkIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import CategoryHierarchyEditor from '@/components/admin/CategoryHierarchyEditor';
-import { CategoryService } from '@/services';
+import CategoryAIToolsPanel from '@/components/admin/CategoryAIToolsPanel';
+import { CategoryService, ProductService } from '@/services';
+import { AIAgentService } from '@/services/ai-agent.service';
 import { queryKeys } from '@/lib/react-query';
 import { useAdminI18n } from '@/lib/admin-i18n';
+import { useAuth } from '@/hooks/useAuth';
+import type { CategoryDeletionImpact } from '@/services/category.service';
 
 // Categories data now comes from API only
 
 export default function AdminCategoriesPage() {
   const { locale, t } = useAdminI18n();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [editingCategory, setEditingCategory] = useState<any>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [deletionCategory, setDeletionCategory] = useState<any>(null);
+  const [deletionTargetId, setDeletionTargetId] = useState('');
+  const [seoJobCategoryId, setSeoJobCategoryId] = useState<number | null>(null);
+  const [titleJobCategoryId, setTitleJobCategoryId] = useState<number | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -80,15 +93,26 @@ export default function AdminCategoriesPage() {
 
   // Delete category mutation
   const deleteCategoryMutation = useMutation({
-    mutationFn: (id: number) => CategoryService.deleteCategory(id),
+    mutationFn: (payload: { id: number; replacementId?: number | null }) =>
+      CategoryService.reassignAndDeleteCategory(payload.id, payload.replacementId),
     onSuccess: () => {
       toast.success(t('categories.toast.deleted', 'Category deleted successfully!'));
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.tree() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
+      setDeletionCategory(null);
+      setDeletionTargetId('');
     },
     onError: (error: any) => {
       toast.error(error.message || t('categories.toast.deleteFailed', 'Failed to delete category'));
     },
+  });
+
+  const deletionImpactQuery = useQuery<CategoryDeletionImpact>({
+    queryKey: ['categories', 'deletion-impact', deletionCategory?.id],
+    queryFn: () => CategoryService.getDeletionImpact(Number(deletionCategory.id)),
+    enabled: Boolean(deletionCategory?.id),
+    retry: 1,
   });
   // Populate form when editing
   useEffect(() => {
@@ -208,11 +232,84 @@ export default function AdminCategoriesPage() {
   });
 
   const handleDelete = (category: any) => {
-    const msg = t('categories.confirm.delete', 'Are you sure you want to delete \"{name}\"? This action cannot be undone.', { name: category.name });
-    if (window.confirm(msg)) {
-      deleteCategoryMutation.mutate(category.id);
+    setDeletionCategory(category);
+    setDeletionTargetId('');
+  };
+
+  // Per-category AI SEO run: focuses on titles/meta and re-optimizes already
+  // optimized products so a category can be polished after reclassification.
+  const startCategorySEOJob = async (category: any) => {
+    const message = locale === 'zh'
+      ? `对「${category.name}」分类（含子分类）启动 AI SEO 优化任务？将优化产品标题和 SEO 元信息，已优化过的产品也会重新处理。`
+      : `Start an AI SEO job for "${category.name}" (including subcategories)? Product titles and SEO metadata are optimized; already-optimized products are re-processed.`;
+    if (!window.confirm(message)) return;
+    setSeoJobCategoryId(Number(category.id));
+    try {
+      const job = await AIAgentService.startSEOCandidateJob({
+        prompt: `Optimize the SEO title, meta description, meta keywords, and corrected product name for each product in the "${category.name}" category. Use the verified brand, model, and category; keep titles precise and non-repetitive.`,
+        limit: 30000,
+        category_id: Number(category.id),
+        include_descendants: true,
+        include_optimized: true,
+        ai_seo_status: 'all',
+        focus: ['seo'],
+      });
+      toast.success(locale === 'zh'
+        ? `已为「${category.name}」启动 SEO 任务（${job.total} 个产品），可到 AI SEO 页面查看进度`
+        : `SEO job started for "${category.name}" (${job.total} products) — track it on the AI SEO page`);
+    } catch (error: any) {
+      toast.error(error?.message || (locale === 'zh' ? '启动 SEO 任务失败' : 'Failed to start the SEO job'));
+    } finally {
+      setSeoJobCategoryId(null);
     }
   };
+
+  // Per-category title standardization: renames verified products in this
+  // subtree to "Brand Model Type" in paged batches.
+  const standardizeCategoryTitles = async (category: any) => {
+    const message = locale === 'zh'
+      ? `将「${category.name}」分类（含子分类）下可核验产品的标题统一为「品牌 型号 类型」？URL 不受影响。`
+      : `Rename verifiable products under "${category.name}" (including subcategories) to "Brand Model Type"? URLs are unchanged.`;
+    if (!window.confirm(message)) return;
+    setTitleJobCategoryId(Number(category.id));
+    try {
+      let afterId = 0;
+      let updated = 0;
+      let processed = 0;
+      for (let batch = 0; batch < 200; batch++) {
+        const result = await ProductService.standardizeTitles({
+          category_id: Number(category.id),
+          include_descendants: true,
+          include_inactive: true,
+          limit: 500,
+          after_id: afterId,
+          apply: true,
+        });
+        updated += result.updated;
+        processed += result.processed;
+        if (!result.has_more || !result.next_after_id || result.next_after_id <= afterId) break;
+        afterId = result.next_after_id;
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
+      toast.success(locale === 'zh'
+        ? `「${category.name}」标题规范化完成：检查 ${processed} 个产品，重命名 ${updated} 个`
+        : `Titles standardized for "${category.name}": ${processed} checked, ${updated} renamed`);
+    } catch (error: any) {
+      toast.error(error?.message || (locale === 'zh' ? '标题规范化失败' : 'Title standardization failed'));
+    } finally {
+      setTitleJobCategoryId(null);
+    }
+  };
+
+  useEffect(() => {
+    const impact = deletionImpactQuery.data;
+    if (!impact || deletionTargetId) return;
+    if (impact.parent?.id) {
+      setDeletionTargetId(String(impact.parent.id));
+    } else if (impact.product_count > 0 && impact.replacement_categories[0]?.id) {
+      setDeletionTargetId(String(impact.replacement_categories[0].id));
+    }
+  }, [deletionImpactQuery.data, deletionTargetId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -320,6 +417,9 @@ export default function AdminCategoriesPage() {
             </button>
           </div>
         </div>
+
+        {/* AI taxonomy tools */}
+        <CategoryAIToolsPanel />
 
         {/* Filters */}
         <div className="bg-white shadow rounded-lg p-6">
@@ -443,6 +543,26 @@ export default function AdminCategoriesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => startCategorySEOJob(category)}
+                              disabled={seoJobCategoryId !== null || titleJobCategoryId !== null}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-violet-200 text-sm text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+                              title={locale === 'zh' ? '对此分类（含子分类）启动 AI SEO 标题优化任务' : 'Start an AI SEO title job for this category and its subcategories'}
+                            >
+                              <SparklesIcon className="h-4 w-4" />
+                              {seoJobCategoryId === Number(category.id) ? (locale === 'zh' ? '启动中…' : 'Starting…') : 'SEO'}
+                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => standardizeCategoryTitles(category)}
+                                disabled={seoJobCategoryId !== null || titleJobCategoryId !== null}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-blue-200 text-sm text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+                                title={locale === 'zh' ? '将此分类（含子分类）下的产品标题统一为「品牌 型号 类型」' : 'Rename products under this category to "Brand Model Type"'}
+                              >
+                                <PencilSquareIcon className="h-4 w-4" />
+                                {titleJobCategoryId === Number(category.id) ? (locale === 'zh' ? '处理中…' : 'Working…') : (locale === 'zh' ? '标题' : 'Titles')}
+                              </button>
+                            )}
                             <button
                               onClick={() => openEdit(category)}
                               className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-white"
@@ -618,6 +738,92 @@ export default function AdminCategoriesPage() {
                   ? (editingCategory ? t('common.saving', 'Saving...') : t('common.creating', 'Creating...'))
                   : (editingCategory ? t('common.save', 'Save') : t('common.create', 'Create'))}
               </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {deletionCategory ? (
+        <div className="fixed inset-0 z-[60] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="category-delete-title">
+          <div className="flex min-h-screen items-center justify-center px-4 py-8">
+            <div className="fixed inset-0 bg-gray-900/60" onClick={() => !deleteCategoryMutation.isPending && setDeletionCategory(null)} />
+            <div className="relative w-full max-w-2xl rounded-lg bg-white shadow-xl">
+              <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-4">
+                <div>
+                  <h2 id="category-delete-title" className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-amber-500" />
+                    {locale === 'zh' ? '删除分类前检查' : 'Review before deleting'}
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500">{locale === 'zh' ? `分类：${deletionCategory.name}` : `Category: ${deletionCategory.name}`}</p>
+                </div>
+                <button onClick={() => setDeletionCategory(null)} disabled={deleteCategoryMutation.isPending} className="rounded-md p-2 text-gray-500 hover:bg-gray-50" title={locale === 'zh' ? '关闭' : 'Close'}><XMarkIcon className="h-5 w-5" /></button>
+              </div>
+
+              <div className="space-y-5 px-6 py-5">
+                {deletionImpactQuery.isLoading ? (
+                  <div className="py-10 text-center text-sm text-gray-500">{locale === 'zh' ? '正在读取关联内容…' : 'Loading linked content…'}</div>
+                ) : deletionImpactQuery.error ? (
+                  <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">{deletionImpactQuery.error instanceof Error ? deletionImpactQuery.error.message : 'Failed to load deletion impact'}</div>
+                ) : deletionImpactQuery.data ? (
+                  <>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div className="rounded-md border border-gray-200 p-3"><div className="text-xs text-gray-500">{locale === 'zh' ? '直接产品' : 'Direct products'}</div><div className="mt-1 text-xl font-semibold text-gray-900">{deletionImpactQuery.data.product_count}</div></div>
+                      <div className="rounded-md border border-gray-200 p-3"><div className="text-xs text-gray-500">{locale === 'zh' ? '直接子分类' : 'Child categories'}</div><div className="mt-1 text-xl font-semibold text-gray-900">{deletionImpactQuery.data.direct_children.length}</div></div>
+                      <div className="rounded-md border border-gray-200 p-3"><div className="text-xs text-gray-500">{locale === 'zh' ? '所有后代分类' : 'All descendants'}</div><div className="mt-1 text-xl font-semibold text-gray-900">{deletionImpactQuery.data.descendant_count}</div></div>
+                    </div>
+
+                    {deletionImpactQuery.data.direct_products.length > 0 ? (
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">{locale === 'zh' ? '关联产品预览（最多显示 100 个）' : 'Linked products (up to 100 shown)'}</h3>
+                        <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-gray-200 divide-y divide-gray-100">
+                          {deletionImpactQuery.data.direct_products.map((product) => (
+                            <a key={product.id} href={`/admin/products/${product.id}/edit`} className="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-gray-50">
+                              <span className="min-w-0 truncate text-gray-800">{product.name || product.model || product.sku}</span>
+                              <span className="shrink-0 font-mono text-xs text-gray-500">{product.sku}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {deletionImpactQuery.data.direct_children.length > 0 ? (
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">{locale === 'zh' ? '子分类' : 'Child categories'}</h3>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {deletionImpactQuery.data.direct_children.map((child) => (
+                            <button key={child.id} type="button" onClick={() => { setDeletionCategory(null); openEdit(categoryById.get(child.id) || child); }} className="rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{child.name}</button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {deletionImpactQuery.data.product_count > 0 || deletionImpactQuery.data.direct_children.length > 0 ? (
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-900" htmlFor="replacement-category">{locale === 'zh' ? '重分配到分类' : 'Reassign linked content to'}</label>
+                        <select id="replacement-category" value={deletionTargetId} onChange={(event) => setDeletionTargetId(event.target.value)} className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                          <option value="">{locale === 'zh' ? '请选择目标分类' : 'Select a target category'}</option>
+                          {deletionImpactQuery.data.replacement_categories.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
+                        </select>
+                        <p className="mt-1 text-xs text-gray-500">{locale === 'zh' ? '产品和直接子分类会在同一个事务中移动，之后删除当前分类。' : 'Products and direct children are moved in one transaction before deletion.'}</p>
+                      </div>
+                    ) : (
+                      <p className="rounded-md bg-green-50 p-3 text-sm text-green-700">{locale === 'zh' ? '没有发现产品或子分类关联，可以直接删除。' : 'No products or child categories are linked. This category can be deleted directly.'}</p>
+                    )}
+                  </>
+                ) : null}
+              </div>
+
+              <div className="flex flex-wrap justify-end gap-3 border-t border-gray-200 px-6 py-4">
+                <button type="button" onClick={() => setDeletionCategory(null)} disabled={deleteCategoryMutation.isPending} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">{t('common.cancel', 'Cancel')}</button>
+                <button
+                  type="button"
+                  onClick={() => deletionImpactQuery.data && deleteCategoryMutation.mutate({ id: Number(deletionCategory.id), replacementId: deletionTargetId ? Number(deletionTargetId) : null })}
+                  disabled={deleteCategoryMutation.isPending || deletionImpactQuery.isLoading || !deletionImpactQuery.data || ((deletionImpactQuery.data.product_count > 0 || deletionImpactQuery.data.direct_children.length > 0) && !deletionTargetId)}
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleteCategoryMutation.isPending ? (locale === 'zh' ? '处理中…' : 'Processing…') : (locale === 'zh' ? '确认重分配并删除' : 'Reassign and delete')}
+                </button>
+              </div>
             </div>
           </div>
         </div>

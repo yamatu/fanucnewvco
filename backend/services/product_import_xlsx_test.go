@@ -4,74 +4,97 @@ import (
 	"testing"
 
 	"fanuc-backend/models"
-
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
-func newProductImportTestDB(t *testing.T) *gorm.DB {
-	t.Helper()
+func TestDetectImportHeaderFindsCategoryColumn(t *testing.T) {
+	header := []string{"型号(Model)", "价格(Price)", "数量(Quantity)", "重量kg(WeightKg)", "分类类型"}
+	got := detectImportHeader(header)
 
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open sqlite db: %v", err)
-	}
-	if err := db.AutoMigrate(&models.Category{}); err != nil {
-		t.Fatalf("migrate categories: %v", err)
-	}
-	return db
-}
-
-func TestImportHeaderDetectsCategoryColumn(t *testing.T) {
-	header := detectImportHeader([]string{"SKU", "Price", "Qty", "Weight", "Category Type"})
-	if header.Model != 0 || header.Price != 1 || header.Qty != 2 || header.Weight != 3 || header.Category != 4 {
-		t.Fatalf("unexpected header map: %+v", header)
+	if got.Model != 0 || got.Price != 1 || got.Qty != 2 || got.Weight != 3 || got.Category != 4 {
+		t.Fatalf("unexpected header map: %+v", got)
 	}
 }
 
-func TestImportCategoryResolverCreatesMissingCustomCategory(t *testing.T) {
-	db := newProductImportTestDB(t)
-	if err := db.Create(&models.Category{Name: "Control Units", Slug: "control-units", IsActive: true}).Error; err != nil {
-		t.Fatalf("seed default category: %v", err)
-	}
-
-	resolver := loadImportCategoryResolver(db, "fanuc")
-	var categoryID uint
-	var created int
-	err := db.Transaction(func(tx *gorm.DB) error {
-		var err error
-		categoryID, _, created, err = resolver.resolve(tx, "Custom Servo Packs", "control-units")
-		return err
-	})
+func TestParseImportRowReadsCategory(t *testing.T) {
+	row, ok, err := parseImportRow(
+		[]string{"A06B-0123-B077", "1200", "3", "1.4", "Industrial Automation > Servo Motors"},
+		importHeaderMap{Model: 0, Price: 1, Qty: 2, Weight: 3, Category: 4},
+		2,
+	)
 	if err != nil {
-		t.Fatalf("resolve category: %v", err)
+		t.Fatalf("parseImportRow returned error: %v", err)
 	}
-	if categoryID == 0 {
-		t.Fatal("expected created category id")
+	if !ok {
+		t.Fatal("expected row to be parsed")
 	}
-	if created != 1 {
-		t.Fatalf("created categories = %d, want 1", created)
+	if row.Category != "Industrial Automation > Servo Motors" {
+		t.Fatalf("unexpected category: %q", row.Category)
+	}
+}
+
+func TestImportCategorySegments(t *testing.T) {
+	got := importCategorySegments("Industrial Automation > Servo Motors")
+	want := []string{"Industrial Automation", "Servo Motors"}
+	if len(got) != len(want) {
+		t.Fatalf("segments length mismatch: got %#v want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("segment %d mismatch: got %q want %q", i, got[i], want[i])
+		}
 	}
 
-	var category models.Category
-	if err := db.First(&category, categoryID).Error; err != nil {
-		t.Fatalf("load created category: %v", err)
+	ioCategory := importCategorySegments("I/O Modules")
+	if len(ioCategory) != 1 || ioCategory[0] != "I/O Modules" {
+		t.Fatalf("I/O category should not be split: %#v", ioCategory)
 	}
-	if category.Name != "Custom Servo Packs" {
-		t.Fatalf("category name = %q, want %q", category.Name, "Custom Servo Packs")
-	}
-	if category.Slug != "custom-servo-packs" {
-		t.Fatalf("category slug = %q, want %q", category.Slug, "custom-servo-packs")
-	}
+}
 
-	matchedID, _, createdAgain, err := resolver.resolve(db, "Custom Servo Packs", "control-units")
-	if err != nil {
-		t.Fatalf("resolve existing category: %v", err)
+func TestImportCategoryBaseSlugFallbackForChinese(t *testing.T) {
+	got := importCategoryBaseSlug("伺服电机")
+	if got == "" || got == "伺服电机" {
+		t.Fatalf("expected safe fallback slug, got %q", got)
 	}
-	if matchedID != categoryID {
-		t.Fatalf("matched id = %d, want %d", matchedID, categoryID)
+	if len(got) < len("category-00000000") {
+		t.Fatalf("fallback slug too short: %q", got)
 	}
-	if createdAgain != 0 {
-		t.Fatalf("created on second resolve = %d, want 0", createdAgain)
+}
+
+func TestImportCategoryCatalogNeverCreatesMissingCategories(t *testing.T) {
+	catalog := &importCategoryCatalog{
+		BySlug:       map[string]uint{},
+		ActiveBySlug: map[string]uint{},
+		bySlugParent: map[string]uint{},
+		byNameParent: map[string]uint{},
+		byNameAny:    map[string][]uint{},
+	}
+	catalog.add(models.Category{ID: 1, Name: "FANUC", Slug: "fanuc", IsActive: true})
+	if _, err := catalog.ResolveExisting("FANUC > Servo Motors"); err == nil {
+		t.Fatal("missing category path should not be created during import")
+	}
+	if catalog.created != 0 {
+		t.Fatalf("import created %d categories", catalog.created)
+	}
+}
+
+func TestImportCategoryCatalogResolvesFullVerifiedPath(t *testing.T) {
+	parentID := uint(1)
+	catalog := &importCategoryCatalog{
+		BySlug:       map[string]uint{},
+		ActiveBySlug: map[string]uint{},
+		bySlugParent: map[string]uint{},
+		byNameParent: map[string]uint{},
+		byNameAny:    map[string][]uint{},
+		categories: []models.Category{
+			{ID: 1, Name: "Fanuc", Slug: "fanuc", IsActive: true},
+			{ID: 2, Name: "FANUC Servo Motor", Slug: "fanuc-servo-motor", ParentID: &parentID, IsActive: true},
+		},
+	}
+	for _, category := range catalog.categories {
+		catalog.add(category)
+	}
+	inference := InferProductCategory("FANUC", "A06B-0123-B077")
+	if got := catalog.ResolveInference(inference, "Fanuc > FANUC Servo Motor"); got != 2 {
+		t.Fatalf("full category path resolved to %d, want 2", got)
 	}
 }

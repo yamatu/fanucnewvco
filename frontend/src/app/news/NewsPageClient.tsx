@@ -7,6 +7,7 @@ import { MagnifyingGlassIcon, NewspaperIcon, CalendarDaysIcon, EyeIcon } from '@
 import Layout from '@/components/layout/Layout';
 import SmartPagination from '@/components/ui/SmartPagination';
 import type { Article } from '@/types';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 
 interface NewsPageClientProps {
   initialData: {
@@ -17,6 +18,7 @@ interface NewsPageClientProps {
     searchQuery: string;
   };
   searchParams: { [key: string]: string | string[] | undefined };
+  contentType?: 'news' | 'blog';
 }
 
 function markdownToExcerpt(md: string, maxLen = 160): string {
@@ -33,23 +35,29 @@ function markdownToExcerpt(md: string, maxLen = 160): string {
   return text;
 }
 
-export default function NewsPageClient({ initialData, searchParams }: NewsPageClientProps) {
+export default function NewsPageClient({ initialData, contentType = 'news' }: NewsPageClientProps) {
   const router = useRouter();
+  const { locale, t, href } = usePublicI18n();
   const [searchQuery, setSearchQuery] = useState(initialData.searchQuery);
+  const rawBasePath = contentType === 'blog' ? '/blog' : '/news';
+  const basePath = href(rawBasePath);
+  const pageTitle = t(contentType === 'blog' ? 'news.blogTitle' : 'news.title');
+  const pageDescription = t(contentType === 'blog' ? 'news.blogDescription' : 'news.description');
+  const localeTag = locale === 'zh' ? 'zh-CN' : locale;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
     if (searchQuery.trim()) params.set('search', searchQuery.trim());
     params.set('page', '1');
-    router.push(`/news?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   };
 
   const handlePageChange = (page: number) => {
     const params = new URLSearchParams();
     if (initialData.searchQuery) params.set('search', initialData.searchQuery);
     params.set('page', String(page));
-    router.push(`/news?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   };
 
   const featuredArticles = initialData.articles.filter((a) => a.is_featured);
@@ -62,10 +70,10 @@ export default function NewsPageClient({ initialData, searchParams }: NewsPageCl
         <div className="site-page-hero">
           <div className="site-hero-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
             <div className="text-center">
-              <span className="site-hero-kicker">Insights library</span>
-              <h1 className="mt-5 text-3xl sm:text-4xl font-bold mb-4">News & Articles</h1>
+              <span className="site-hero-kicker">{t(contentType === 'blog' ? 'news.blogKicker' : 'news.kicker')}</span>
+              <h1 className="mt-5 text-3xl sm:text-4xl font-bold mb-4">{pageTitle}</h1>
               <p className="text-blue-100 text-lg max-w-2xl mx-auto mb-8">
-                Latest insights, technical guides, and industry news about industrial automation and CNC equipment.
+                {pageDescription}
               </p>
 
               {/* Search */}
@@ -76,7 +84,7 @@ export default function NewsPageClient({ initialData, searchParams }: NewsPageCl
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search articles..."
+                    placeholder={t('news.search')}
                     className="site-input w-full pl-12 pr-4 py-3 bg-white text-gray-900 text-sm"
                   />
                 </div>
@@ -90,13 +98,13 @@ export default function NewsPageClient({ initialData, searchParams }: NewsPageCl
           {initialData.searchQuery && (
             <div className="mb-6 flex items-center justify-between">
               <p className="text-gray-600">
-                {initialData.total} result{initialData.total !== 1 ? 's' : ''} for &quot;{initialData.searchQuery}&quot;
+                {t('news.results', { count: initialData.total, query: initialData.searchQuery })}
               </p>
               <button
-                onClick={() => router.push('/news')}
+                onClick={() => router.push(basePath)}
                 className="text-sm text-blue-600 hover:underline"
               >
-                Clear search
+                {t('news.clearSearch')}
               </button>
             </div>
           )}
@@ -104,20 +112,20 @@ export default function NewsPageClient({ initialData, searchParams }: NewsPageCl
           {initialData.articles.length === 0 ? (
             <div className="text-center py-16">
               <NewspaperIcon className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-600 mb-2">No articles found</h2>
-              <p className="text-gray-500">Check back later for new content.</p>
+              <h2 className="text-xl font-semibold text-gray-600 mb-2">{t('news.noArticles')}</h2>
+              <p className="text-gray-500">{t('news.checkBack')}</p>
             </div>
           ) : (
             <>
               {/* Featured Articles */}
               {!initialData.searchQuery && initialData.currentPage === 1 && featuredArticles.length > 0 && (
                 <div className="mb-12">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Featured</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('news.featured')}</h2>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {featuredArticles.slice(0, 2).map((article) => (
                       <Link
                         key={article.id}
-                        href={`/news/${article.slug}`}
+                        href={href(article.public_path || `${rawBasePath}/${article.slug}`)}
                         className="group site-product-card block"
                       >
                         {article.featured_image ? (
@@ -143,14 +151,14 @@ export default function NewsPageClient({ initialData, searchParams }: NewsPageCl
                           <div className="flex items-center gap-4 text-xs text-gray-400">
                             <span className="flex items-center gap-1">
                               <CalendarDaysIcon className="h-4 w-4" />
-                              {new Date(article.published_at || article.created_at).toLocaleDateString()}
+                              {new Date(article.published_at || article.created_at).toLocaleDateString(localeTag)}
                             </span>
                             <span className="flex items-center gap-1">
                               <EyeIcon className="h-4 w-4" />
-                              {article.view_count} views
+                              {t('common.views', { count: article.view_count })}
                             </span>
                             {article.author?.full_name && (
-                              <span>By {article.author.full_name}</span>
+                              <span>{t('common.by', { name: article.author.full_name })}</span>
                             )}
                           </div>
                         </div>
@@ -163,13 +171,13 @@ export default function NewsPageClient({ initialData, searchParams }: NewsPageCl
               {/* Article Grid */}
               <div>
                 {!initialData.searchQuery && regularArticles.length > 0 && featuredArticles.length > 0 && (
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Latest Articles</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('news.latest')}</h2>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {(initialData.searchQuery ? initialData.articles : regularArticles).map((article) => (
                     <Link
                       key={article.id}
-                      href={`/news/${article.slug}`}
+                      href={href(article.public_path || `${rawBasePath}/${article.slug}`)}
                       className="group site-product-card flex flex-col"
                     >
                       {article.featured_image ? (
@@ -195,7 +203,7 @@ export default function NewsPageClient({ initialData, searchParams }: NewsPageCl
                         <div className="flex items-center gap-3 text-xs text-gray-400">
                           <span className="flex items-center gap-1">
                             <CalendarDaysIcon className="h-3.5 w-3.5" />
-                            {new Date(article.published_at || article.created_at).toLocaleDateString()}
+                            {new Date(article.published_at || article.created_at).toLocaleDateString(localeTag)}
                           </span>
                           <span className="flex items-center gap-1">
                             <EyeIcon className="h-3.5 w-3.5" />

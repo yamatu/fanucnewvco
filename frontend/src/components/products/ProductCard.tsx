@@ -9,7 +9,7 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 
 interface Product {
@@ -117,7 +117,7 @@ export default function ProductCard({
         )}
 
         {/* Compare Price Badge */}
-        {product.compare_price && product.compare_price > product.price && (
+        {hasProductPrice(product) && product.compare_price && product.compare_price > product.price && (
           <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-md text-xs font-medium z-10">
             Sale
           </div>
@@ -152,9 +152,9 @@ export default function ProductCard({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
             <span className="text-xl font-bold text-[#003a78]">
-              {formatCurrency(product.price)}
+              {hasProductPrice(product) ? formatCurrency(product.price) : 'Contact for quote'}
             </span>
-            {product.compare_price && product.compare_price > product.price && (
+            {hasProductPrice(product) && product.compare_price && product.compare_price > product.price && (
               <span className="text-sm text-gray-500 line-through">
                 {formatCurrency(product.compare_price)}
               </span>
@@ -173,14 +173,16 @@ export default function ProductCard({
             View Details
           </Link>
 
-          <button
-            onClick={handleAddToCart}
-            disabled={isLoading}
-            className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-[#003a78] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <ShoppingCartIcon className="h-4 w-4 mr-1" />
-            {isLoading ? 'Adding...' : 'Add to Cart'}
-          </button>
+          {hasProductPrice(product) && (
+            <button
+              onClick={handleAddToCart}
+              disabled={isLoading}
+              className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-[#003a78] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ShoppingCartIcon className="h-4 w-4 mr-1" />
+              {isLoading ? 'Adding...' : 'Add to Cart'}
+            </button>
+          )}
         </div>
       </div>
     </div>

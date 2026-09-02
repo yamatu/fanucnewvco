@@ -34,20 +34,26 @@ function normalizeHost(host: string, proto: string): string {
   return h;
 }
 
-// Best-effort base URL resolution for route handlers (robots/sitemaps).
-// Prefer the incoming request host/proto so generated URLs don't accidentally
-// include dev ports or internal service names.
+// Public canonical URLs must come from the configured site URL. Only local
+// development requests are allowed to use their incoming host and port.
 export async function getRequestBaseUrl(): Promise<string> {
+  const siteUrl = getSiteUrl();
   try {
     const h = await headers();
     const host = h.get('x-forwarded-host') || h.get('host');
     const proto = h.get('x-forwarded-proto') || 'https';
     if (host) {
-      const normalizedHost = normalizeHost(host, proto);
-      return `${proto}://${normalizedHost}`.replace(/\/+$/, '');
+      const firstHost = host.split(',')[0].trim();
+      const normalizedHost = normalizeHost(firstHost, proto);
+      const hostname = normalizedHost.startsWith('[')
+        ? normalizedHost.slice(1, normalizedHost.indexOf(']'))
+        : normalizedHost.split(':')[0];
+      if (isLocalHostname(hostname)) {
+        return `${proto}://${normalizedHost}`.replace(/\/+$/, '');
+      }
     }
   } catch {
     // ignore
   }
-  return getSiteUrl();
+  return siteUrl;
 }

@@ -10,7 +10,7 @@ import { queryKeys } from '@/lib/react-query';
 import ProductFilters from '@/components/products/ProductFilters';
 import Pagination from '@/components/common/Pagination';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 import {
   AdjustmentsHorizontalIcon,
@@ -21,30 +21,47 @@ import {
   EyeIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
+import { localizeCategoryContent, localizeProductContent } from '@/lib/i18n/content';
+import type { ProductFilters as ProductServiceFilters } from '@/services/product.service';
+import type { Category, Product } from '@/types';
 
 interface CategoryProductsClientProps {
-  category: any;
+  category: Category;
   initialSearchParams: { [key: string]: string | string[] | undefined };
+}
+
+type CategoryProductFilters = Required<Pick<ProductServiceFilters, 'page' | 'page_size' | 'category_id' | 'include_descendants' | 'sort_by' | 'sort_dir' | 'search' | 'is_active'>> & {
+  min_price: string;
+  max_price: string;
+};
+
+function normalizeSortBy(value: string | null): CategoryProductFilters['sort_by'] {
+  return value === 'name' || value === 'price' || value === 'updated_at' ? value : 'created_at';
+}
+
+function normalizeSortDirection(value: string | null): CategoryProductFilters['sort_dir'] {
+  return value === 'asc' ? 'asc' : 'desc';
 }
 
 export default function CategoryProductsClient({
   category,
-  initialSearchParams
 }: CategoryProductsClientProps) {
   const router = useRouter();
+  const { locale, t, href } = usePublicI18n();
   const searchParams = useSearchParams();
   const { addItem } = useCartStore();
 
   // Filter states
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<CategoryProductFilters>({
     page: 1,
     page_size: 12,
-    category_id: category.id,
+    category_id: String(category.id),
     include_descendants: 'true',
     sort_by: 'created_at',
-    sort_order: 'desc',
+    sort_dir: 'desc',
     min_price: '',
     max_price: '',
     search: '',
@@ -56,10 +73,10 @@ export default function CategoryProductsClient({
     const urlFilters = {
       page: parseInt(searchParams.get('page') || '1'),
       page_size: parseInt(searchParams.get('page_size') || '12'),
-      category_id: category.id,
+      category_id: String(category.id),
       include_descendants: 'true',
-      sort_by: searchParams.get('sort_by') || 'created_at',
-      sort_order: searchParams.get('sort_order') || 'desc',
+      sort_by: normalizeSortBy(searchParams.get('sort_by')),
+      sort_dir: normalizeSortDirection(searchParams.get('sort_dir')),
       min_price: searchParams.get('min_price') || '',
       max_price: searchParams.get('max_price') || '',
       search: searchParams.get('search') || '',
@@ -81,14 +98,14 @@ export default function CategoryProductsClient({
     queryFn: () => CategoryService.getCategories(),
   });
 
-  const products = productsResponse?.data || [];
+  const products = (productsResponse?.data || []).map((product) => localizeProductContent(product, locale));
   const pagination = productsResponse ? {
     page: productsResponse.page,
     page_size: productsResponse.page_size,
     total: productsResponse.total,
     total_pages: productsResponse.total_pages
   } : null;
-  const categories = categoriesResponse || [];
+  const categories = (categoriesResponse || []).map((item) => localizeCategoryContent(item, locale));
 
   // Update URL when filters change
   const updateURL = (newFilters: typeof filters) => {
@@ -101,7 +118,7 @@ export default function CategoryProductsClient({
       }
     });
 
-    const base = `/categories/${category.path || category.slug}`;
+    const base = href(`/categories/${category.path || category.slug}`);
     const newURL = `${base}${params.toString() ? `?${params.toString()}` : ''}`;
     router.push(newURL, { scroll: false });
   };
@@ -124,45 +141,46 @@ export default function CategoryProductsClient({
 
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
-    let sort_by = 'created_at';
-    let sort_order = 'desc';
+    let sort_by: CategoryProductFilters['sort_by'] = 'created_at';
+    let sort_dir: CategoryProductFilters['sort_dir'] = 'desc';
     switch (val) {
-      case 'name': sort_by = 'name'; sort_order = 'asc'; break;
-      case 'name_desc': sort_by = 'name'; sort_order = 'desc'; break;
-      case 'price_asc': sort_by = 'price'; sort_order = 'asc'; break;
-      case 'price_desc': sort_by = 'price'; sort_order = 'desc'; break;
-      case 'created_at': sort_by = 'created_at'; sort_order = 'desc'; break;
+      case 'name': sort_by = 'name'; sort_dir = 'asc'; break;
+      case 'name_desc': sort_by = 'name'; sort_dir = 'desc'; break;
+      case 'price_asc': sort_by = 'price'; sort_dir = 'asc'; break;
+      case 'price_desc': sort_by = 'price'; sort_dir = 'desc'; break;
+      case 'created_at': sort_by = 'created_at'; sort_dir = 'desc'; break;
     }
-    handleFilterChange({ sort_by, sort_order });
+    handleFilterChange({ sort_by, sort_dir });
   };
 
   const sortValue = (() => {
-    if (filters.sort_by === 'name' && filters.sort_order === 'asc') return 'name';
-    if (filters.sort_by === 'name' && filters.sort_order === 'desc') return 'name_desc';
-    if (filters.sort_by === 'price' && filters.sort_order === 'asc') return 'price_asc';
-    if (filters.sort_by === 'price' && filters.sort_order === 'desc') return 'price_desc';
+    if (filters.sort_by === 'name' && filters.sort_dir === 'asc') return 'name';
+    if (filters.sort_by === 'name' && filters.sort_dir === 'desc') return 'name_desc';
+    if (filters.sort_by === 'price' && filters.sort_dir === 'asc') return 'price_asc';
+    if (filters.sort_by === 'price' && filters.sort_dir === 'desc') return 'price_desc';
     return 'created_at';
   })();
 
   const clearFilters = () => {
-    const clearedFilters = {
+    const clearedFilters: CategoryProductFilters = {
       page: 1,
       page_size: 12,
-      category_id: category.id,
+      category_id: String(category.id),
       include_descendants: 'true',
       sort_by: 'created_at',
-      sort_order: 'desc',
+      sort_dir: 'desc',
       min_price: '',
       max_price: '',
       search: '',
       is_active: 'true'
     };
     setFilters(clearedFilters);
-    const base = `/categories/${category.path || category.slug}`;
+    const base = href(`/categories/${category.path || category.slug}`);
     router.push(base, { scroll: false });
   };
 
-  const handleAddToCart = (product: any) => {
+  const handleAddToCart = (product: Product) => {
+    if (!hasProductPrice(product)) return;
     addItem(product, 1);
   };
 
@@ -174,8 +192,8 @@ export default function CategoryProductsClient({
         <div className="text-red-600 mb-4">
           <FunnelIcon className="h-12 w-12 mx-auto" />
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load products</h3>
-        <p className="text-gray-600">Please try again later.</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('common.loadError')}</h3>
+        <p className="text-gray-600">{t('common.tryAgain')}</p>
       </div>
     );
   }
@@ -183,16 +201,16 @@ export default function CategoryProductsClient({
   return (
     <div>
       {/* Toolbar */}
-      <div className="site-toolbar p-4 mb-6">
-        <div className="flex flex-col space-y-4">
+      <div className="site-toolbar mb-6 p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:gap-4">
           {/* Top row */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <div className="flex items-center space-x-4">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:items-center">
+            <div className="min-w-0">
               <span className="text-sm text-slate-700">
                 {pagination ? (
                   <>Showing {((pagination.page - 1) * pagination.page_size) + 1}-{Math.min(pagination.page * pagination.page_size, pagination.total)} of {pagination.total} products</>
                 ) : (
-                  <>Loading...</>
+                  <>{t('common.loading')}</>
                 )}
                 {hasActiveFilters && <span className="text-slate-500"> (filtered)</span>}
               </span>
@@ -203,14 +221,16 @@ export default function CategoryProductsClient({
               <button
                 onClick={() => setViewMode('grid')}
                 className={`site-icon-toggle ${viewMode === 'grid' ? 'site-icon-toggle-active' : ''}`}
-                title="Grid view"
+                title={t('products.gridView')}
+                aria-label={t('products.gridView')}
               >
                 <Squares2X2Icon className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
                 className={`site-icon-toggle ${viewMode === 'list' ? 'site-icon-toggle-active' : ''}`}
-                title="List view"
+                title={t('products.listView')}
+                aria-label={t('products.listView')}
               >
                 <ListBulletIcon className="h-4 w-4" />
               </button>
@@ -218,18 +238,18 @@ export default function CategoryProductsClient({
           </div>
 
           {/* Bottom row */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 sm:flex-none">
               <select
                 value={sortValue}
                 onChange={handleSortChange}
-                className="site-select px-3 py-2 text-sm"
+                className="site-select min-w-0 flex-1 px-3 py-2 text-sm sm:flex-none"
               >
-                <option value="name">Sort by Name (A-Z)</option>
-                <option value="name_desc">Sort by Name (Z-A)</option>
-                <option value="price_asc">Price: Low to High</option>
-                <option value="price_desc">Price: High to Low</option>
-                <option value="created_at">Newest First</option>
+                <option value="name">{t('products.sortNameAsc')}</option>
+                <option value="name_desc">{t('products.sortNameDesc')}</option>
+                <option value="price_asc">{t('products.sortPriceAsc')}</option>
+                <option value="price_desc">{t('products.sortPriceDesc')}</option>
+                <option value="created_at">{t('products.sortNewest')}</option>
               </select>
 
               <button
@@ -246,7 +266,7 @@ export default function CategoryProductsClient({
               </button>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="ml-auto flex min-w-0 items-center gap-3">
               {hasActiveFilters && (
                 <button
                   onClick={clearFilters}
@@ -286,10 +306,10 @@ export default function CategoryProductsClient({
         <>
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {products.map((product: any) => (
+              {products.map((product) => (
                 <div key={product.id} className="site-product-card">
                   <div className="relative">
-                    <Link href={`/products/${toProductPathId(product.sku)}`} className="site-product-media block aspect-[4/3] w-full">
+                    <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="site-product-media block aspect-[4/3] w-full">
                       <Image
                         src={getProductImageUrl(
                           (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
@@ -299,7 +319,7 @@ export default function CategoryProductsClient({
                         width={300}
                         height={300}
                         sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        className="h-full w-full object-cover object-center transition-transform duration-300 hover:scale-105"
+                        className="h-full w-full object-contain object-center p-3 transition-transform duration-300 hover:scale-105"
                         loading="lazy"
                       />
                     </Link>
@@ -307,7 +327,7 @@ export default function CategoryProductsClient({
 
                   <div className="p-4">
                     <h3 className="text-base font-semibold text-slate-950 mb-2 line-clamp-2 min-h-[3rem]">
-                      <Link href={`/products/${toProductPathId(product.sku)}`} className="site-product-title">
+                      <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="site-product-title">
                         {product.name}
                       </Link>
                     </h3>
@@ -320,25 +340,27 @@ export default function CategoryProductsClient({
 
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-xl font-bold text-[#0b3e75]">
-                        {formatCurrency(product.price)}
+                        {hasProductPrice(product) ? formatCurrency(product.price) : t('products.contactForQuote')}
                       </span>
 
                       <div className="flex items-center space-x-2">
                         <Link
-                          href={`/products/${toProductPathId(product.sku)}`}
+                          href={href(`/products/${toProductPathId(product.sku)}`)}
                           className="site-secondary-action h-9 w-9"
-                          title="View details"
+                          title={t('common.viewDetails')}
                         >
                           <EyeIcon className="h-5 w-5" />
                         </Link>
-                        <button
-                          onClick={() => handleAddToCart(product)}
-                          className="site-primary-action px-3 py-2 text-sm"
-                          title="Add to cart"
-                        >
-                          <ShoppingCartIcon className="h-4 w-4 mr-1" />
-                          Add to Cart
-                        </button>
+                        {hasProductPrice(product) && (
+                          <button
+                            onClick={() => handleAddToCart(product)}
+                            className="site-primary-action px-3 py-2 text-sm"
+                            title={t('common.addToCart')}
+                          >
+                            <ShoppingCartIcon className="h-4 w-4 mr-1" />
+                            {t('common.addToCart')}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -347,10 +369,10 @@ export default function CategoryProductsClient({
             </div>
           ) : (
             <div className="space-y-4 mb-8">
-              {products.map((product: any) => (
+              {products.map((product) => (
                 <div key={product.id} className="site-product-card p-4 sm:p-6">
                   <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                    <Link href={`/products/${toProductPathId(product.sku)}`} className="flex-shrink-0">
+                    <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="flex-shrink-0">
                       <Image
                         src={getProductImageUrl(
                           (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
@@ -360,14 +382,14 @@ export default function CategoryProductsClient({
                         width={120}
                         height={120}
                         sizes="120px"
-                        className="h-28 w-full object-cover rounded-md border border-slate-200 sm:h-24 sm:w-24"
+                        className="h-28 w-full object-contain rounded-md border border-slate-200 bg-white p-2 sm:h-24 sm:w-24"
                         loading="lazy"
                       />
                     </Link>
 
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-semibold text-slate-950 mb-1">
-                        <Link href={`/products/${toProductPathId(product.sku)}`} className="site-product-title">
+                        <Link href={href(`/products/${toProductPathId(product.sku)}`)} className="site-product-title">
                           {product.name}
                         </Link>
                       </h3>
@@ -381,24 +403,26 @@ export default function CategoryProductsClient({
 
                     <div className="flex-shrink-0 text-left sm:text-right">
                       <div className="text-xl font-bold text-[#0b3e75] mb-2">
-                        {formatCurrency(product.price)}
+                        {hasProductPrice(product) ? formatCurrency(product.price) : t('products.contactForQuote')}
                       </div>
                       <div className="flex items-center gap-2">
                         <Link
-                          href={`/products/${toProductPathId(product.sku)}`}
+                          href={href(`/products/${toProductPathId(product.sku)}`)}
                           className="site-secondary-action h-9 w-9"
-                          title="View details"
+                          title={t('common.viewDetails')}
                         >
                           <EyeIcon className="h-5 w-5" />
                         </Link>
-                        <button
-                          onClick={() => handleAddToCart(product)}
-                          className="site-primary-action px-4 py-2 text-sm"
-                          title="Add to cart"
-                        >
-                          <ShoppingCartIcon className="h-4 w-4 mr-2" />
-                          Add to Cart
-                        </button>
+                        {hasProductPrice(product) && (
+                          <button
+                            onClick={() => handleAddToCart(product)}
+                            className="site-primary-action px-4 py-2 text-sm"
+                            title={t('common.addToCart')}
+                          >
+                            <ShoppingCartIcon className="h-4 w-4 mr-2" />
+                            {t('common.addToCart')}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -424,7 +448,7 @@ export default function CategoryProductsClient({
           <div className="text-slate-400 mb-4">
             <MagnifyingGlassIcon className="mx-auto h-12 w-12" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-950 mb-2">No products found</h3>
+          <h3 className="text-lg font-semibold text-slate-950 mb-2">{t('products.noResults')}</h3>
           <p className="text-slate-600 mb-4">
             Try adjusting your filters or search terms.
           </p>

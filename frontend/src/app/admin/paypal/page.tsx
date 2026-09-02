@@ -13,6 +13,8 @@ type FormState = {
   currency: string;
   client_id_sandbox: string;
   client_id_live: string;
+  client_secret_sandbox: string;
+  client_secret_live: string;
 };
 
 export default function AdminPayPalPage() {
@@ -30,6 +32,8 @@ export default function AdminPayPalPage() {
     currency: 'USD',
     client_id_sandbox: '',
     client_id_live: '',
+    client_secret_sandbox: '',
+    client_secret_live: '',
   });
 
   useEffect(() => {
@@ -40,6 +44,8 @@ export default function AdminPayPalPage() {
       currency: String((data as any).currency || 'USD'),
       client_id_sandbox: String((data as any).client_id_sandbox || ''),
       client_id_live: String((data as any).client_id_live || ''),
+      client_secret_sandbox: '',
+      client_secret_live: '',
     });
   }, [data]);
 
@@ -49,19 +55,22 @@ export default function AdminPayPalPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
+      const payload: Parameters<typeof PayPalService.updateSettings>[0] = {
         enabled: form.enabled,
         mode: form.mode,
         currency: form.currency.trim() || 'USD',
         client_id_sandbox: form.client_id_sandbox.trim(),
         client_id_live: form.client_id_live.trim(),
       };
+      if (form.client_secret_sandbox.trim()) payload.client_secret_sandbox = form.client_secret_sandbox.trim();
+      if (form.client_secret_live.trim()) payload.client_secret_live = form.client_secret_live.trim();
       return PayPalService.updateSettings(payload);
     },
     onSuccess: async () => {
       toast.success(t('paypal.saved', locale === 'zh' ? '已保存' : 'Saved'));
       await qc.invalidateQueries({ queryKey: ['paypal'] });
       await qc.invalidateQueries({ queryKey: ['public', 'paypal'] });
+      setForm((p) => ({ ...p, client_secret_sandbox: '', client_secret_live: '' }));
       refetch();
     },
     onError: (e: any) => toast.error(e?.message || t('paypal.saveFailed', locale === 'zh' ? '保存失败' : 'Failed to save')),
@@ -175,6 +184,38 @@ export default function AdminPayPalPage() {
                 <div className="mt-1 font-mono break-all">{effectiveClientId || '—'}</div>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('paypal.sandboxSecret', locale === 'zh' ? 'Sandbox Client Secret' : 'Sandbox Client Secret')}
+                </label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={form.client_secret_sandbox}
+                  onChange={(e) => setForm((p) => ({ ...p, client_secret_sandbox: e.target.value }))}
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                  placeholder={data?.has_client_secret_sandbox ? '已配置，输入新值可替换' : '输入 Sandbox Secret'}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('paypal.liveSecret', locale === 'zh' ? 'Live Client Secret' : 'Live Client Secret')}
+                </label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={form.client_secret_live}
+                  onChange={(e) => setForm((p) => ({ ...p, client_secret_live: e.target.value }))}
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                  placeholder={data?.has_client_secret_live ? '已配置，输入新值可替换' : '输入 Live Secret'}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">
+              {t('paypal.secretHint', locale === 'zh' ? 'Client Secret 会在服务器端加密保存，仅用于 PayPal 支付和退款，不会回传到浏览器。' : 'Client Secrets are encrypted on the server and are never returned to the browser. They are required for PayPal refunds.')}
+            </p>
 
             <div className="flex items-center justify-end gap-2">
               <button

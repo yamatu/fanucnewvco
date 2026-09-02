@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS products (
     min_stock_level INT DEFAULT 0,
     weight DECIMAL(8,2) NULL,
     dimensions VARCHAR(100),
-    brand VARCHAR(100) DEFAULT 'FANUC',
+    brand VARCHAR(100) DEFAULT '',
     model VARCHAR(100),
     part_number VARCHAR(100),
     category_id BIGINT NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
@@ -367,7 +367,20 @@ CREATE TABLE IF NOT EXISTS company_profiles (
 );
 
 -- =====================================================
--- 17. 联系消息表
+-- 17. 社交媒体设置表
+-- =====================================================
+CREATE TABLE IF NOT EXISTS social_media_settings (
+    id BIGINT PRIMARY KEY,
+    x_url VARCHAR(500) DEFAULT '',
+    facebook_url VARCHAR(500) DEFAULT '',
+    instagram_url VARCHAR(500) DEFAULT '',
+    linkedin_url VARCHAR(500) DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================
+-- 18. 联系消息表
 -- =====================================================
 CREATE TABLE IF NOT EXISTS contact_messages (
     id BIGSERIAL PRIMARY KEY,
@@ -420,6 +433,7 @@ CREATE TRIGGER update_payment_transactions_updated_at BEFORE UPDATE ON payment_t
 CREATE TRIGGER update_banners_updated_at BEFORE UPDATE ON banners FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_homepage_contents_updated_at BEFORE UPDATE ON homepage_contents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_company_profiles_updated_at BEFORE UPDATE ON company_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_social_media_settings_updated_at BEFORE UPDATE ON social_media_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_contact_messages_updated_at BEFORE UPDATE ON contact_messages FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =====================================================
@@ -441,12 +455,35 @@ ON CONFLICT (code) DO NOTHING;
 
 -- 插入默认产品分类
 INSERT INTO categories (name, slug, description, sort_order, is_active) VALUES
-('PCB Boards', 'pcb-boards', 'FANUC PCB Boards and Circuit Boards', 1, TRUE),
-('I/O Modules', 'io-modules', 'FANUC Input/Output Modules', 2, TRUE),
-('Servo Motors', 'servo-motors', 'FANUC Servo Motors and Drives', 3, TRUE),
-('Control Units', 'control-units', 'FANUC Control Units and Controllers', 4, TRUE),
-('Power Supplies', 'power-supplies', 'FANUC Power Supply Units', 5, TRUE),
-('Cables & Connectors', 'cables-connectors', 'FANUC Cables and Connector Components', 6, TRUE)
+('Fanuc', 'fanuc', 'FANUC CNC, servo, spindle, PCB, I/O, cable, encoder, power supply and accessory parts', 1, TRUE)
+ON CONFLICT (slug) DO NOTHING;
+
+WITH fanuc_parent AS (
+    SELECT id FROM categories WHERE slug = 'fanuc' LIMIT 1
+),
+fanuc_categories(name, slug, description, sort_order) AS (
+    VALUES
+    ('FANUC I/O Module', 'fanuc-i-o-module', 'FANUC input and output modules', 1),
+    ('FANUC Operator Panel & MDI', 'fanuc-operator-panel-mdi', 'FANUC operator panels, MDI units and teach pendants', 2),
+    ('FANUC Display / Monitor', 'fanuc-display-monitor', 'FANUC CRT, LCD, display and monitor parts', 3),
+    ('FANUC Encoder / Feedback', 'fanuc-encoder-feedback', 'FANUC encoders, pulse coders and feedback components', 4),
+    ('FANUC Cables & Connectors', 'fanuc-cables-connectors', 'FANUC cables, connectors and harnesses', 5),
+    ('FANUC Memory / Storage', 'fanuc-memory-storage', 'FANUC memory and storage components', 6),
+    ('FANUC Battery', 'fanuc-battery', 'FANUC batteries and backup power accessories', 7),
+    ('FANUC Filters / Fan Unit / Cooling', 'fanuc-filters-fan-unit-cooling', 'FANUC filters, fan units and cooling parts', 8),
+    ('FANUC Accessories & Others', 'fanuc-accessories-others', 'FANUC accessories and other replacement parts', 9),
+    ('FANUC CNC System Parts', 'fanuc-cnc-system-parts', 'FANUC CNC controller and system parts', 10),
+    ('FANUC Servo Amplifier / Drive', 'fanuc-servo-amplifier-drive', 'FANUC servo amplifiers and drives', 11),
+    ('FANUC Spindle Amplifier / Drive', 'fanuc-spindle-amplifier-drive', 'FANUC spindle amplifiers and drives', 12),
+    ('FANUC Servo Motor', 'fanuc-servo-motor', 'FANUC servo motors', 13),
+    ('FANUC Spindle Motor', 'fanuc-spindle-motor', 'FANUC spindle motors', 14),
+    ('FANUC Power Supply', 'fanuc-power-supply', 'FANUC power supplies, fuses and power components', 15),
+    ('FANUC PCB / Control Board', 'fanuc-pcb-control-board', 'FANUC PCB boards and control boards', 16)
+)
+INSERT INTO categories (name, slug, description, parent_id, sort_order, is_active)
+SELECT fc.name, fc.slug, fc.description, fp.id, fc.sort_order, TRUE
+FROM fanuc_categories fc
+CROSS JOIN fanuc_parent fp
 ON CONFLICT (slug) DO NOTHING;
 
 -- 插入默认公司简介
@@ -455,15 +492,15 @@ INSERT INTO company_profiles (
     description_1, description_2, achievement,
     stats, expertise, workshop_facilities
 ) VALUES (
-    'VIBO CNC',
+    'Vibocnc',
     'Industrial Automation Specialists',
-    '2005',
+    '2007',
     'Kunshan, China',
-    '5,000sqm',
-    'VIBO CNC established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.',
-    'Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.',
-    'Top 3 FANUC Supplier in China',
-    '[{"icon":"CalendarIcon","value":"2005","label":"Established","description":"Years of experience"},{"icon":"UserGroupIcon","value":"27","label":"Workers","description":"Professional team"},{"icon":"UserGroupIcon","value":"10","label":"Sales Staff","description":"Dedicated sales team"},{"icon":"ArchiveBoxIcon","value":"100,000","label":"Items Stocked","description":"Regular inventory"},{"icon":"TruckIcon","value":"50-100","label":"Daily Parcels","description":"Shipments per day"},{"icon":"CurrencyDollarIcon","value":"200M","label":"Yearly Turnover","description":"Annual revenue"}]'::jsonb,
+    '3,500sqm',
+    'Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
+    'We support multiple automation brands with 27 workers, 10 sales professionals and more than 100,000 items regularly stocked. Daily parcel volume is around 50-100 pieces, with testing, repair and worldwide delivery support.',
+    'Multi-Brand Automation Parts Supplier',
+    '[{"icon":"CalendarIcon","value":"2007","label":"Established","description":"Founded in Kunshan, China"},{"icon":"UserGroupIcon","value":"27","label":"Workers","description":"Professional team"},{"icon":"UserGroupIcon","value":"10","label":"Sales Staff","description":"Dedicated sales team"},{"icon":"ArchiveBoxIcon","value":"100,000","label":"Items Stocked","description":"Regular inventory"},{"icon":"TruckIcon","value":"50-100","label":"Daily Parcels","description":"Shipments per day"}]'::jsonb,
     '["AB & ABB Components","FANUC Systems","Mitsubishi Parts","Siemens Solutions","Quality Testing","Global Shipping"]'::jsonb,
     '[{"id":"1","title":"Modern Facility","description":"State-of-the-art workshop with advanced equipment","image_url":"/api/placeholder/300/200"},{"id":"2","title":"Inventory Management","description":"Organized storage for 100,000+ items","image_url":"/api/placeholder/300/200"},{"id":"3","title":"Quality Control","description":"Rigorous testing and quality assurance","image_url":"/api/placeholder/300/200"}]'::jsonb
 );

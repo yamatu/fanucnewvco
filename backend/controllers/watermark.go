@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"fanuc-backend/config"
 	"fanuc-backend/models"
 	"fanuc-backend/services"
+	"fanuc-backend/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -196,7 +196,12 @@ func (wc *WatermarkController) DefaultProductImage(c *gin.Context) {
 	if strings.TrimSpace(uploadRoot) == "" {
 		uploadRoot = "./uploads"
 	}
-	full := filepath.Join(uploadRoot, filepath.FromSlash(wm.Asset.RelativePath))
+	full, err := utils.SafeExistingPath(uploadRoot, wm.Asset.RelativePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Invalid image path"})
+		return
+	}
+	// #nosec G703 -- full was resolved with SafeExistingPath, including symlink containment.
 	b, err := os.ReadFile(full)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to read image", Error: err.Error()})

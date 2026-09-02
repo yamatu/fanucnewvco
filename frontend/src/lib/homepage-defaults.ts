@@ -21,38 +21,38 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
   slides: [
     {
       id: 1,
-      title: 'VIBO CNC Industrial Parts Supply',
-      subtitle: 'Automation Components, Tested and Ready to Ship',
+      title: 'Vibocnc Industrial Automation Parts, CNC Spares & Repair Support',
+      subtitle: 'FANUC, Siemens, Mitsubishi, ABB and 20+ automation brands',
       description:
-        'VIBO CNC supplies tested automation components including system units, circuit boards, PLC modules, HMI panels, inverters, encoders, amplifiers, servo motors and servo drives for global maintenance teams.',
+        'Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
       image: 'https://s2.loli.net/2025/08/26/Vo4JfbtW5H2GMEN.png',
       cta: {
         primary: { text: 'Browse Products', href: '/products' },
-        secondary: { text: 'Learn More', href: '/about' },
+        secondary: { text: 'Get a Quote', href: '/contact?inquiry_type=quote' },
       },
     },
     {
       id: 2,
-      title: '5,000sqm Testing and Stock Facility',
-      subtitle: 'Deep Inventory for CNC Maintenance',
+      title: '3,500 sqm Parts Inspection & Service Facility',
+      subtitle: 'Organized stock, testing benches and export packing',
       description:
-        'Our team manages more than 100,000 stocked industrial parts with inspection, packaging and export processes built for urgent CNC repair and replacement orders.',
+        'Our Kunshan facility supports organized storage, incoming inspection, functional checks, protective export packing and efficient dispatch for urgent industrial parts orders.',
       image: 'https://s2.loli.net/2025/08/26/17MRNhXEcrKTdDY.png',
       cta: {
         primary: { text: 'View Facility', href: '/about' },
-        secondary: { text: 'Contact Us', href: '/contact' },
+        secondary: { text: 'Get a Quote', href: '/contact?inquiry_type=quote' },
       },
     },
     {
       id: 3,
-      title: '20+ Years Industrial Service',
-      subtitle: 'Sales, Testing and Maintenance Support',
+      title: '15+ Years Supporting Industrial Maintenance',
+      subtitle: 'Part-number checks, sourcing, testing and repair evaluation',
       description:
-        'Our sales and technical teams coordinate sourcing, testing, packing and international shipping so factories can keep production equipment running with less downtime.',
+        'Our sales and technical teams coordinate part-number checks, sourcing, testing, repair evaluation and international transport as one practical service.',
       image: 'https://s2.loli.net/2025/08/26/17MRNhXEcrKTdDY.png',
       cta: {
-        primary: { text: 'Get Support', href: '/contact' },
-        secondary: { text: 'Browse Products', href: '/products' },
+        primary: { text: 'Request a Repair', href: '/repair-request' },
+        secondary: { text: 'Get a Quote', href: '/contact?inquiry_type=quote' },
       },
     },
   ],
@@ -79,24 +79,24 @@ export type CompanyStatsData = {
 };
 
 export const DEFAULT_COMPANY_STATS_DATA: CompanyStatsData = {
-  headerTitle: 'VIBO CNC - One-Stop Industrial Parts Supplier',
+  headerTitle: 'Multi-Brand Industrial Automation Parts Supplier',
   headerDescription:
     'We supply automation components including system units, circuit boards, PLC, HMI, inverters, encoders, amplifiers, servo motors and servo drives from major industrial manufacturers.',
   stats: [
     {
       id: 1,
       icon: 'calendar',
-      value: 18,
+      value: 15,
       suffix: '+',
       label: 'Years Experience',
-      description: 'Established in 2005 in Kunshan, China',
+      description: 'Supporting industrial maintenance teams since 2007',
       color: 'text-teal-700',
     },
     {
       id: 2,
       icon: 'building',
-      value: 5000,
-      suffix: 'sqm',
+      value: 3500,
+      suffix: ' sqm',
       label: 'Workshop Facility',
       description: 'Modern infrastructure for quality service',
       color: 'text-teal-700',
@@ -113,10 +113,10 @@ export const DEFAULT_COMPANY_STATS_DATA: CompanyStatsData = {
     {
       id: 4,
       icon: 'shield',
-      value: 3,
-      suffix: '',
-      label: 'Top Fanuc Supplier',
-      description: 'One of top 3 suppliers in China',
+      value: 20,
+      suffix: '+',
+      label: 'Major Brands Supported',
+      description: 'FANUC, Siemens, Mitsubishi, ABB, Allen-Bradley, Omron and more',
       color: 'text-teal-700',
     },
     {
@@ -137,28 +137,10 @@ export const DEFAULT_COMPANY_STATS_DATA: CompanyStatsData = {
       description: '50-100 parcels shipped daily',
       color: 'text-teal-700',
     },
-    {
-      id: 7,
-      icon: 'globe',
-      value: 200,
-      suffix: 'M',
-      label: 'Yearly Turnover',
-      description: 'Annual revenue in millions',
-      color: 'text-teal-700',
-    },
-    {
-      id: 8,
-      icon: 'clock',
-      value: 365,
-      suffix: ' days',
-      label: 'Professional Service',
-      description: 'Sales, testing and maintenance',
-      color: 'text-teal-700',
-    },
   ],
   ctaTitle: 'Ready to Experience Professional Service?',
   ctaDescription:
-    'We have a professional team to provide services including sales, testing and maintenance. Join thousands of satisfied customers worldwide.',
+    'Contact our team for model verification, parts sourcing, inspection requirements, repair evaluation and international delivery options.',
   ctaPrimary: { text: 'Contact Our Experts', href: '/contact' },
   ctaSecondary: { text: 'Browse Products', href: '/products' },
 };
@@ -195,7 +177,7 @@ export type WorkshopSectionData = {
 };
 
 export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
-  headerTitle: '5,000sqm Modern Workshop Facility',
+  headerTitle: '3,500 sqm Parts Inspection & Service Facility',
   headerDescription:
     'Our facility combines structured inventory, inspection benches and export packing to deliver dependable CNC spare parts and service.',
   facilities: [
@@ -208,7 +190,7 @@ export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
       image: 'https://s2.loli.net/2025/09/01/ZxuFKAvIM3zUHj4.jpg',
       features: [
         'Automated testing systems',
-        'Quality certification process',
+        'Documented inspection process',
         'Performance validation',
         'Compliance verification',
       ],
@@ -235,8 +217,8 @@ export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
         'Professional repair and refurbishment support for critical CNC and automation components.',
       image: 'https://s2.loli.net/2025/09/01/wMHu93Fv5egJ6pn.jpg',
       features: [
-        'Certified technicians',
-        'Original FANUC procedures',
+        'Experienced technicians',
+        'Multi-brand repair procedures',
         'Advanced diagnostic tools',
         'Quality assurance testing',
       ],
@@ -257,22 +239,22 @@ export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
     },
   ],
   capabilities: [
-    { icon: 'cog', title: 'Advanced Manufacturing', description: 'Precision manufacturing with cutting-edge technology' },
-    { icon: 'clipboard', title: 'Quality Assurance', description: 'Rigorous testing and certification processes' },
+    { icon: 'cog', title: 'Parts Handling', description: 'Structured intake, identification, storage and order preparation' },
+    { icon: 'clipboard', title: 'Inspection Process', description: 'Documented visual inspection and supported functional checks' },
     { icon: 'truck', title: 'Global Logistics', description: 'Worldwide shipping and distribution network' },
-    { icon: 'check', title: 'ISO Certified', description: 'International quality management standards' },
+    { icon: 'check', title: 'Export Packing', description: 'Protective packing for industrial electronics and international transit' },
   ],
   statsBlock: {
     items: [
-      { value: '5,000', title: 'Square Meters', subtitle: 'Modern facility space' },
-      { value: '24/7', title: 'Operations', subtitle: 'Continuous production' },
-      { value: 'ISO', title: 'Certified', subtitle: 'Quality standards' },
+      { value: '3,500', title: 'Square Meters', subtitle: 'Parts inspection and service facility' },
+      { value: '20+', title: 'Automation Brands', subtitle: 'Multi-brand parts and repair support' },
+      { value: 'Since 2007', title: 'Industry Support', subtitle: 'Serving industrial maintenance requirements' },
     ],
-    ctaTitle: 'Experience Our World-Class Facility',
+    ctaTitle: 'Review Our Parts Service Facility',
     ctaDescription:
       'Schedule a virtual tour or visit our facility to see how we manage inspection, storage and export packing.',
     ctaPrimary: { text: 'Schedule Tour', href: '/contact' },
-    ctaSecondary: { text: 'Learn More', href: '/about' },
+    ctaSecondary: { text: 'View Workshop Details', href: '/about' },
   },
 };
 
@@ -303,7 +285,7 @@ export type ServicesSectionData = {
 };
 
 export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
-  headerTitle: 'Comprehensive CNC Parts Services',
+  headerTitle: 'Automation Parts Supply and Repair Support',
   headerDescription:
     'From parts supply to technical support, we provide end-to-end support for industrial automation maintenance requirements.',
   services: [
@@ -313,9 +295,9 @@ export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
       title: 'Automation Parts Supply',
       description:
         'Comprehensive inventory including servo motors, drives, encoders, control systems and electronic modules.',
-      features: ['Tested parts', 'Fast delivery', 'Competitive pricing', 'Quality guarantee'],
+      features: ['Condition identified', 'Model verification', 'Quote-based lead time', 'Protective packing'],
       color: 'bg-teal-600',
-      href: '/contact',
+      href: '/products',
     },
     {
       id: 2,
@@ -323,9 +305,9 @@ export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
       title: 'Repair Services',
       description:
         'Professional repair and refurbishment services for CNC and automation components.',
-      features: ['Expert technicians', 'Original procedures', 'Quality testing', 'Warranty included'],
+      features: ['Initial evaluation', 'Approved repair scope', 'Supported functional checks', 'Warranty terms stated'],
       color: 'bg-green-500',
-      href: '/contact',
+      href: '/repair-request',
     },
     {
       id: 3,
@@ -333,7 +315,7 @@ export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
       title: 'Technical Support',
       description:
         'Technical assistance from automation parts specialists for troubleshooting and sourcing guidance.',
-      features: ['24/7 availability', 'Certified specialists', 'Remote diagnostics', 'Quick response'],
+      features: ['Part-number checks', 'Sourcing guidance', 'Application detail review', 'Contact-based support'],
       color: 'bg-purple-500',
       href: '/contact',
     },
@@ -343,66 +325,52 @@ export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
       title: 'Global Shipping',
       description:
         'Worldwide shipping and logistics services ensuring safe delivery of sensitive electronic components.',
-      features: ['Global coverage', 'Secure packaging', 'Express delivery', 'Tracking included'],
+      features: ['Carrier options', 'Protective export packing', 'Shipment tracking', 'Destination review'],
       color: 'bg-orange-500',
       href: '/contact',
     },
-    {
-      id: 5,
-      icon: 'shield',
-      title: 'Quality Assurance',
-      description:
-        'Rigorous testing and quality control processes for sensitive industrial components.',
-      features: ['ISO certified', 'Comprehensive testing', 'Quality documentation', 'Compliance verification'],
-      color: 'bg-red-500',
-      href: '/contact',
-    },
-    {
-      id: 6,
-      icon: 'cap',
-      title: 'Training & Education',
-      description:
-        'Professional training support for industrial systems operation, maintenance and troubleshooting.',
-      features: ['Certified instructors', 'Hands-on training', 'Custom programs', 'Certification available'],
-      color: 'bg-indigo-500',
-      href: '/contact',
-    },
   ],
-  processTitle: 'Our Service Process',
+  processTitle: 'How the Repair Process Works',
   processDescription:
-    'We follow a systematic approach to keep sourcing, inspection and delivery predictable.',
+    'A clear process from the first fault description through evaluation, repair, testing and return shipment.',
   processSteps: [
     {
       step: '01',
-      title: 'Consultation',
+      title: 'Send Your Request',
       description:
-        'We analyze your requirements and provide practical recommendations for automation parts sourcing.',
+        'Share the brand, model, fault symptoms and clear photos so our team can review the unit.',
     },
     {
       step: '02',
-      title: 'Solution Design',
+      title: 'Evaluation & Quote',
       description:
-        'Our engineers design customized solutions tailored to your specific industrial applications.',
+        'We confirm whether repair is practical and outline estimated work, timing and replacement options.',
     },
     {
       step: '03',
-      title: 'Implementation',
+      title: 'Ship the Unit',
       description:
-        'Professional installation and integration services ensuring optimal system performance.',
+        'After approval, securely pack and send the unit with the repair reference supplied by our team.',
     },
     {
       step: '04',
-      title: 'Support',
+      title: 'Repair & Testing',
       description:
-        'Ongoing technical support and maintenance services to keep your systems running smoothly.',
+        'Technicians diagnose the fault, complete approved work and perform functional checks where supported.',
+    },
+    {
+      step: '05',
+      title: 'Return & Follow-up',
+      description:
+        'The serviced unit is protectively packed and returned with shipment details and follow-up support.',
     },
   ],
   ctaTitle: 'Ready to Get Started?',
   ctaDescription:
     'Contact our experts today to discuss your automation parts needs and delivery requirements.',
-  ctaPrimary: { text: 'Contact Us Today', href: '/contact' },
+  ctaPrimary: { text: 'Request a Repair Evaluation', href: '/repair-request' },
   ctaSecondary: { text: 'Browse Products', href: '/products' },
-  ctaBadges: ['24/7 Support Available', 'Worldwide Service', 'Quality Guaranteed'],
+  ctaBadges: ['Model Verification', 'Worldwide Delivery', 'Warranty Terms Stated'],
 };
 
 export type FeaturedProductsSectionData = {
@@ -420,11 +388,14 @@ export const DEFAULT_FEATURED_PRODUCTS_SECTION_DATA: FeaturedProductsSectionData
   ctaHref: '/products',
 };
 
-export function getDefaultDataBySectionKey(key: string): any | null {
+export function getDefaultDataBySectionKey(key: string): unknown | null {
   if (key === 'hero_section') return DEFAULT_HERO_DATA;
   if (key === 'company_stats') return DEFAULT_COMPANY_STATS_DATA;
   if (key === 'workshop_section') return DEFAULT_WORKSHOP_SECTION_DATA;
   if (key === 'services_section') return DEFAULT_SERVICES_SECTION_DATA;
   if (key === 'featured_products') return DEFAULT_FEATURED_PRODUCTS_SECTION_DATA;
+  if (key === 'brands_section') return { brands: [] };
+  if (key === 'repair_capabilities') return { capabilities: [] };
+  if (key === 'home_blog') return { source: 'featured_blog_articles', limit: 3 };
   return null;
 }

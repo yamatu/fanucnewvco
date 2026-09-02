@@ -51,8 +51,9 @@ export default function SitemapManagementPage() {
     { name: 'Primary Sitemap', url: `${baseUrl}/sitemap.xml`, description: 'Primary sitemap submission URL', status: 'Primary' },
     { name: 'Static Pages', url: `${baseUrl}/sitemap-static.xml`, description: 'All static pages', status: 'Child' },
     { name: 'Categories', url: `${baseUrl}/sitemap-categories.xml`, description: 'All category pages', status: 'Child' },
-    { name: 'Products Index', url: `${baseUrl}/sitemap-products-index.xml`, description: 'Product sitemap index', status: 'Child' },
+    { name: 'Product Sitemaps', url: `${baseUrl}/sitemap-products/1.xml`, description: 'Product sitemap pages are listed directly by the primary sitemap', status: 'Child' },
     { name: 'News & Articles', url: `${baseUrl}/sitemap-news.xml`, description: 'All published articles', status: 'Child' },
+    { name: 'Blog Articles', url: `${baseUrl}/sitemap-blog.xml`, description: 'All published blog posts', status: 'Child' },
   ];
 
   return (

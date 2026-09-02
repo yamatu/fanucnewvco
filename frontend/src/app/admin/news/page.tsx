@@ -12,6 +12,7 @@ import {
   MagnifyingGlassIcon,
   EyeIcon,
   NewspaperIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { NewsService } from '@/services';
@@ -20,19 +21,20 @@ import { useAdminI18n } from '@/lib/admin-i18n';
 import type { Article } from '@/types';
 
 function AdminNewsContent() {
-  const { t } = useAdminI18n();
+  const { locale, t } = useAdminI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('is_published') || '');
+  const [typeFilter, setTypeFilter] = useState(searchParams.get('content_type') || '');
   const page = parseInt(searchParams.get('page') || '1', 10);
   const pageSize = 20;
 
   const filters = useMemo(
-    () => ({ page, page_size: pageSize, search: search.trim(), is_published: statusFilter }),
-    [page, pageSize, search, statusFilter]
+    () => ({ page, page_size: pageSize, search: search.trim(), is_published: statusFilter, content_type: typeFilter as 'news' | 'blog' | undefined }),
+    [page, pageSize, search, statusFilter, typeFilter]
   );
 
   const { data, isLoading } = useQuery({
@@ -46,7 +48,7 @@ function AdminNewsContent() {
       toast.success(t('news.deleted', 'Article deleted'));
       queryClient.invalidateQueries({ queryKey: queryKeys.news.lists() });
     },
-    onError: (err: any) => toast.error(err.message || 'Failed to delete'),
+    onError: (err: Error) => toast.error(err.message || t('news.deleteFailed')),
   });
 
   const articles = data?.data || [];
@@ -58,6 +60,7 @@ function AdminNewsContent() {
     const params = new URLSearchParams();
     if (search.trim()) params.set('search', search.trim());
     if (statusFilter) params.set('is_published', statusFilter);
+    if (typeFilter) params.set('content_type', typeFilter);
     params.set('page', '1');
     router.push(`/admin/news?${params.toString()}`);
   };
@@ -69,7 +72,7 @@ function AdminNewsContent() {
   };
 
   const handleDelete = (article: Article) => {
-    if (!confirm(`Delete "${article.title}"?`)) return;
+    if (!confirm(t('news.deleteConfirm', undefined, { title: article.title }))) return;
     deleteMutation.mutate(article.id);
   };
 
@@ -84,13 +87,22 @@ function AdminNewsContent() {
               {t('news.total', '{count} articles total', { count: total })}
             </p>
           </div>
-          <Link
-            href="/admin/news/new"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            {t('news.create', 'New Article')}
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/admin/site-pages"
+              className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <DocumentTextIcon className="mr-2 h-5 w-5" />
+              {t('nav.sitePages', 'Site Pages')}
+            </Link>
+            <Link
+              href="/admin/news/new"
+              className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              <PlusIcon className="mr-2 h-5 w-5" />
+              {t('news.create', 'New Article')}
+            </Link>
+          </div>
         </div>
 
         {/* Filters */}
@@ -106,6 +118,22 @@ function AdminNewsContent() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+            <select
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                const params = new URLSearchParams(searchParams.toString());
+                if (e.target.value) params.set('content_type', e.target.value);
+                else params.delete('content_type');
+                params.set('page', '1');
+                router.push(`/admin/news?${params.toString()}`);
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+            >
+              <option value="">{t('news.type.all')}</option>
+              <option value="news">{t('news.type.news')}</option>
+              <option value="blog">{t('news.type.blog')}</option>
+            </select>
             <select
               value={statusFilter}
               onChange={(e) => {
@@ -192,14 +220,14 @@ function AdminNewsContent() {
                             </p>
                             {article.is_featured && (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800">
-                                Featured
+                                {t('news.featured')}
                               </span>
                             )}
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500 max-w-[150px] truncate">
-                        /news/{article.slug}
+                        {article.public_path || `/${article.content_type || 'news'}/${article.slug}`}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -220,18 +248,18 @@ function AdminNewsContent() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">
                         {article.published_at
-                          ? new Date(article.published_at).toLocaleDateString()
-                          : new Date(article.created_at).toLocaleDateString()}
+                          ? new Date(article.published_at).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US')
+                          : new Date(article.created_at).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US')}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {article.is_published && (
                             <a
-                              href={`/news/${article.slug}`}
+                              href={article.public_path || `/${article.content_type || 'news'}/${article.slug}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-1.5 text-gray-400 hover:text-blue-600"
-                              title="View"
+                              title={t('news.view')}
                             >
                               <EyeIcon className="h-4 w-4" />
                             </a>
@@ -239,14 +267,14 @@ function AdminNewsContent() {
                           <Link
                             href={`/admin/news/${article.id}/edit`}
                             className="p-1.5 text-gray-400 hover:text-blue-600"
-                            title="Edit"
+                            title={t('common.edit')}
                           >
                             <PencilSquareIcon className="h-4 w-4" />
                           </Link>
                           <button
                             onClick={() => handleDelete(article)}
                             className="p-1.5 text-gray-400 hover:text-red-600"
-                            title="Delete"
+                            title={t('common.delete')}
                           >
                             <TrashIcon className="h-4 w-4" />
                           </button>
@@ -263,7 +291,7 @@ function AdminNewsContent() {
           {totalPages > 1 && (
             <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
               <p className="text-sm text-gray-500">
-                Page {page} of {totalPages} ({total} total)
+                {t('news.pagination', undefined, { page, pages: totalPages, total })}
               </p>
               <div className="flex gap-1">
                 <button
@@ -271,7 +299,7 @@ function AdminNewsContent() {
                   onClick={() => goToPage(page - 1)}
                   className="px-3 py-1 text-sm border rounded disabled:opacity-50"
                 >
-                  Prev
+                  {t('news.previous')}
                 </button>
                 {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
                   let p: number;
@@ -301,7 +329,7 @@ function AdminNewsContent() {
                   onClick={() => goToPage(page + 1)}
                   className="px-3 py-1 text-sm border rounded disabled:opacity-50"
                 >
-                  Next
+                  {t('news.next')}
                 </button>
               </div>
             </div>

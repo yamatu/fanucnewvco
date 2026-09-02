@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, ReactNode, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   Bars3Icon,
@@ -27,7 +28,8 @@ import {
   ChartBarIcon,
   NewspaperIcon,
   ClipboardDocumentListIcon,
-  ShareIcon
+  ShareIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth, useLogout } from '@/hooks/useAuth';
@@ -37,6 +39,7 @@ import { queryKeys } from '@/lib/react-query';
 import { Order } from '@/types';
 import { OrderService } from '@/services';
 import { formatCurrency } from '@/lib/utils';
+import AIAgentAssistant from '@/components/admin/AIAgentAssistant';
 
 const navigation = [
   { key: 'nav.dashboard', name: 'Dashboard', href: '/admin', icon: HomeIcon },
@@ -55,11 +58,14 @@ const navigation = [
   { key: 'nav.backup', name: 'Backup & Restore', href: '/admin/backup', icon: ArrowDownTrayIcon },
   { key: 'nav.cache', name: 'Cache & CDN', href: '/admin/cache', icon: ArrowPathIcon },
   { key: 'nav.paypal', name: 'PayPal', href: '/admin/paypal', icon: CreditCardIcon },
-  { key: 'nav.socialLinks', name: 'Social & SEO', href: '/admin/social-links', icon: ShareIcon },
   { key: 'nav.indexnow', name: 'IndexNow / Bing', href: '/admin/indexnow', icon: BellIcon },
   { key: 'nav.analytics', name: 'Visitor Analytics', href: '/admin/analytics', icon: ChartBarIcon },
   { key: 'nav.homepage', name: 'Homepage Content', href: '/admin/homepage', icon: DocumentTextIcon },
+  { key: 'nav.socialMedia', name: 'Social Media', href: '/admin/social-media', icon: ShareIcon },
   { key: 'nav.news', name: 'News & Articles', href: '/admin/news', icon: NewspaperIcon },
+  { key: 'nav.sitePages', name: 'Site Pages', href: '/admin/site-pages', icon: DocumentTextIcon },
+  { key: 'nav.aiAssistant', name: 'AI Assistant', href: '/admin/ai-assistant', icon: SparklesIcon },
+  { key: 'nav.aiSeo', name: 'AI SEO Records', href: '/admin/ai-seo', icon: SparklesIcon },
 ];
 
 interface AdminLayoutProps {
@@ -86,12 +92,9 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
   };
 
   // Make nested routes (e.g. /admin/products/new, /admin/products/[id]/edit) still show the parent title.
-  const activeNav = useMemo(
-    () => navigation
-      .filter((item) => pathname === item.href || pathname.startsWith(item.href + '/'))
-      .sort((a, b) => b.href.length - a.href.length)[0],
-    [pathname]
-  );
+  const activeNav = [...navigation]
+    .sort((a, b) => b.href.length - a.href.length)
+    .find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
 
   const { data: recentOrdersData, isFetching: isRecentOrdersFetching } = useQuery({
     queryKey: queryKeys.orders.recent(),
@@ -265,7 +268,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
   }, [isNotificationOpen, closeNotificationPanel]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen overflow-hidden bg-gray-50 flex">
         {/* Mobile sidebar overlay */}
         {sidebarOpen && (
           <div 
@@ -282,9 +285,13 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
         }`}>
           <div className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 px-6">
             <div className="flex items-center space-x-3">
-              <div className="bg-blue-600 text-white px-3 py-1 rounded font-bold text-lg">
-                FANUC
-              </div>
+              <Image
+                src="/images/vibocnc-logo.png"
+                alt="Vibocnc"
+                width={96}
+                height={26}
+                className="h-7 w-auto object-contain"
+              />
               <span className="text-gray-900 font-semibold">{t('admin.panel', '管理后台')}</span>
             </div>
             <button
@@ -347,9 +354,9 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
         </div>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col lg:ml-0">
+        <div className="flex-1 min-w-0 flex flex-col lg:ml-0">
           {/* Top navigation */}
-          <header className="bg-white shadow-sm border-b border-gray-200">
+          <header className="shrink-0 bg-white shadow-sm border-b border-gray-200">
             <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
               <div className="flex items-center">
                 <button
@@ -498,6 +505,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
 	              {children}
 	            </div>
 	        </main>
+	        <AIAgentAssistant />
 	        </div>
 	      </div>
 	  );

@@ -5,8 +5,7 @@ import "time"
 // PayPalSetting stores PayPal configuration.
 //
 // This is a single-row table (ID=1) so the admin UI can update it easily.
-// We only store Client IDs here (not secrets). Client IDs are public by nature
-// and are required on the frontend to load the PayPal JS SDK.
+// Client secrets are encrypted at rest and never included in JSON responses.
 type PayPalSetting struct {
 	ID uint `json:"id" gorm:"primaryKey"`
 
@@ -16,13 +15,43 @@ type PayPalSetting struct {
 	// Allowed: "sandbox" | "live"
 	Mode string `json:"mode" gorm:"size:16;default:'sandbox'"`
 
-	ClientIDSandbox string `json:"client_id_sandbox" gorm:"size:255;default:''"`
-	ClientIDLive    string `json:"client_id_live" gorm:"size:255;default:''"`
+	ClientIDSandbox        string `json:"client_id_sandbox" gorm:"size:255;default:''"`
+	ClientIDLive           string `json:"client_id_live" gorm:"size:255;default:''"`
+	ClientSecretSandboxEnc string `json:"-" gorm:"type:text"`
+	ClientSecretLiveEnc    string `json:"-" gorm:"type:text"`
 
 	Currency string `json:"currency" gorm:"size:10;default:'USD'"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PayPalAdminConfig struct {
+	ID                     uint      `json:"id"`
+	Enabled                bool      `json:"enabled"`
+	Mode                   string    `json:"mode"`
+	ClientIDSandbox        string    `json:"client_id_sandbox"`
+	ClientIDLive           string    `json:"client_id_live"`
+	HasClientSecretSandbox bool      `json:"has_client_secret_sandbox"`
+	HasClientSecretLive    bool      `json:"has_client_secret_live"`
+	Currency               string    `json:"currency"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
+}
+
+func (s *PayPalSetting) ToAdminConfig() PayPalAdminConfig {
+	return PayPalAdminConfig{
+		ID:                     s.ID,
+		Enabled:                s.Enabled,
+		Mode:                   s.Mode,
+		ClientIDSandbox:        s.ClientIDSandbox,
+		ClientIDLive:           s.ClientIDLive,
+		HasClientSecretSandbox: s.ClientSecretSandboxEnc != "",
+		HasClientSecretLive:    s.ClientSecretLiveEnc != "",
+		Currency:               s.Currency,
+		CreatedAt:              s.CreatedAt,
+		UpdatedAt:              s.UpdatedAt,
+	}
 }
 
 func (s *PayPalSetting) EffectiveClientID() string {

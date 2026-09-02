@@ -6,6 +6,7 @@ import (
 
 	"fanuc-backend/config"
 	"fanuc-backend/models"
+	"fanuc-backend/utils"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -59,15 +60,17 @@ func (pc *PayPalController) GetSettings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: s})
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: s.ToAdminConfig()})
 }
 
 type updatePayPalSettingsRequest struct {
-	Enabled         *bool   `json:"enabled"`
-	Mode            *string `json:"mode"`
-	ClientIDSandbox *string `json:"client_id_sandbox"`
-	ClientIDLive    *string `json:"client_id_live"`
-	Currency        *string `json:"currency"`
+	Enabled             *bool   `json:"enabled"`
+	Mode                *string `json:"mode"`
+	ClientIDSandbox     *string `json:"client_id_sandbox"`
+	ClientIDLive        *string `json:"client_id_live"`
+	ClientSecretSandbox *string `json:"client_secret_sandbox"`
+	ClientSecretLive    *string `json:"client_secret_live"`
+	Currency            *string `json:"currency"`
 }
 
 // Admin: PUT /api/v1/admin/paypal/settings
@@ -107,6 +110,22 @@ func (pc *PayPalController) UpdateSettings(c *gin.Context) {
 	if req.ClientIDLive != nil {
 		s.ClientIDLive = strings.TrimSpace(*req.ClientIDLive)
 	}
+	if req.ClientSecretSandbox != nil && strings.TrimSpace(*req.ClientSecretSandbox) != "" {
+		encrypted, encryptErr := utils.EncryptSecret(strings.TrimSpace(*req.ClientSecretSandbox))
+		if encryptErr != nil {
+			c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to encrypt PayPal sandbox secret", Error: encryptErr.Error()})
+			return
+		}
+		s.ClientSecretSandboxEnc = encrypted
+	}
+	if req.ClientSecretLive != nil && strings.TrimSpace(*req.ClientSecretLive) != "" {
+		encrypted, encryptErr := utils.EncryptSecret(strings.TrimSpace(*req.ClientSecretLive))
+		if encryptErr != nil {
+			c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to encrypt PayPal live secret", Error: encryptErr.Error()})
+			return
+		}
+		s.ClientSecretLiveEnc = encrypted
+	}
 	if req.Currency != nil {
 		cur := strings.ToUpper(strings.TrimSpace(*req.Currency))
 		if cur == "" {
@@ -123,5 +142,5 @@ func (pc *PayPalController) UpdateSettings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Saved", Data: s})
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Saved", Data: s.ToAdminConfig()})
 }

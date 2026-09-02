@@ -1,15 +1,18 @@
 import type { Metadata } from 'next';
 import { getSiteUrl } from '@/lib/url';
 
-export const HOME_TITLE = 'FANUC Parts & Industrial Automation Components | Vcocnc';
-export const HOME_DESCRIPTION =
-  'Vcocnc supplies FANUC CNC parts and industrial automation components, with 100,000+ items in stock, technical support and worldwide shipping since 2005.';
-export const DEFAULT_OG_IMAGE = {
-  url: '/images/og-image.jpg',
-  width: 1200,
-  height: 630,
-  alt: 'Vcocnc FANUC parts and industrial automation components',
-};
+export const SITE_NAME = 'Vibocnc';
+
+const SITE_NAME_SUFFIX = /(?:\s*\|\s*VIBO\s*CNC)+\s*$/i;
+
+export function withoutSiteNameSuffix(title: string): string {
+  return title.replace(SITE_NAME_SUFFIX, '').trim();
+}
+
+export function withSiteName(title: string): string {
+  const pageTitle = withoutSiteNameSuffix(title);
+  return pageTitle ? `${pageTitle} | ${SITE_NAME}` : SITE_NAME;
+}
 
 export function buildStaticPageMetadata(
   path: string,
@@ -19,26 +22,26 @@ export function buildStaticPageMetadata(
 ): Metadata {
   const baseUrl = getSiteUrl();
   const canonicalUrl = `${baseUrl}${path}`;
+  const pageTitle = withoutSiteNameSuffix(title);
+  const socialTitle = withSiteName(pageTitle);
 
   return {
-    title,
+    title: pageTitle,
     description,
     ...(keywords ? { keywords } : {}),
     alternates: {
       canonical: canonicalUrl,
     },
     openGraph: {
-      title,
+      title: socialTitle,
       description,
       type: 'website',
       url: canonicalUrl,
-      images: [DEFAULT_OG_IMAGE],
     },
     twitter: {
       card: 'summary_large_image',
-      title,
+      title: socialTitle,
       description,
-      images: [DEFAULT_OG_IMAGE.url],
     },
   };
 }

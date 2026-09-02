@@ -1,9 +1,12 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"fanuc-backend/config"
 	"fanuc-backend/models"
@@ -13,6 +16,14 @@ import (
 )
 
 type EmailController struct{}
+
+var aliMailMailboxFolders = []gin.H{
+	{"id": "2", "key": "inbox", "name": "收件箱", "label": "Inbox"},
+	{"id": "1", "key": "sent", "name": "发件箱", "label": "Sent"},
+	{"id": "5", "key": "drafts", "name": "草稿箱", "label": "Drafts"},
+	{"id": "3", "key": "junk", "name": "垃圾箱", "label": "Junk"},
+	{"id": "6", "key": "deleted", "name": "已删除", "label": "Deleted"},
+}
 
 // Public: GET /api/v1/public/email/config
 func (ec *EmailController) GetPublicConfig(c *gin.Context) {
@@ -57,8 +68,9 @@ func (ec *EmailController) SendCode(c *gin.Context) {
 
 type EmailSettingsResponse struct {
 	models.EmailSetting
-	HasSMTPPassword bool `json:"has_smtp_password"`
-	HasResendAPIKey bool `json:"has_resend_api_key"`
+	HasSMTPPassword        bool `json:"has_smtp_password"`
+	HasResendAPIKey        bool `json:"has_resend_api_key"`
+	HasAliMailClientSecret bool `json:"has_alimail_client_secret"`
 }
 
 // Admin: GET /api/v1/admin/email/settings
@@ -71,11 +83,13 @@ func (ec *EmailController) GetSettings(c *gin.Context) {
 	}
 	hasPass := strings.TrimSpace(s.SMTPPassword) != ""
 	hasResend := strings.TrimSpace(s.ResendAPIKey) != ""
+	hasAliMailSecret := strings.TrimSpace(s.AliMailClientSecret) != ""
 	// Do not return the password.
 	s.SMTPPassword = ""
 	s.ResendAPIKey = ""
 	s.ResendWebhookSecret = ""
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: EmailSettingsResponse{EmailSetting: *s, HasSMTPPassword: hasPass, HasResendAPIKey: hasResend}})
+	s.AliMailClientSecret = ""
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: EmailSettingsResponse{EmailSetting: *s, HasSMTPPassword: hasPass, HasResendAPIKey: hasResend, HasAliMailClientSecret: hasAliMailSecret}})
 }
 
 type updateEmailSettingsRequest struct {
@@ -91,6 +105,10 @@ type updateEmailSettingsRequest struct {
 	SMTPTLSMode                      *string `json:"smtp_tls_mode"`
 	ResendAPIKey                     *string `json:"resend_api_key"`
 	ResendWebhookSecret              *string `json:"resend_webhook_secret"`
+	AliMailEndpoint                  *string `json:"alimail_endpoint"`
+	AliMailClientID                  *string `json:"alimail_client_id"`
+	AliMailClientSecret              *string `json:"alimail_client_secret"`
+	AliMailAccountEmail              *string `json:"alimail_account_email"`
 	VerificationEnabled              *bool   `json:"verification_enabled"`
 	MarketingEnabled                 *bool   `json:"marketing_enabled"`
 	ShippingNotificationsEnabled     *bool   `json:"shipping_notifications_enabled"`
@@ -210,6 +228,35 @@ func (ec *EmailController) UpdateSettings(c *gin.Context) {
 			}
 		}
 	}
+	if req.AliMailEndpoint != nil {
+		endpoint := strings.TrimSpace(*req.AliMailEndpoint)
+		if endpoint == "" {
+			endpoint = "https://alimail-cn.aliyuncs.com"
+		}
+		if _, err := services.NewAliMailClient(endpoint, "validation", "validation"); err != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid AliMail endpoint", Error: err.Error()})
+			return
+		}
+		s.AliMailEndpoint = endpoint
+	}
+	if req.AliMailClientID != nil {
+		s.AliMailClientID = strings.TrimSpace(*req.AliMailClientID)
+	}
+	if req.AliMailAccountEmail != nil {
+		s.AliMailAccountEmail = strings.TrimSpace(*req.AliMailAccountEmail)
+	}
+	if req.AliMailClientSecret != nil {
+		if *req.AliMailClientSecret == "" {
+			if c.Query("allow_clear") == "1" {
+				s.AliMailClientSecret = ""
+			}
+		} else {
+			if err := services.UpdateAliMailClientSecret(db, s, strings.TrimSpace(*req.AliMailClientSecret)); err != nil {
+				c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to save AliMail secret", Error: err.Error()})
+				return
+			}
+		}
+	}
 	if req.VerificationEnabled != nil {
 		s.VerificationEnabled = *req.VerificationEnabled
 	}
@@ -274,10 +321,12 @@ func (ec *EmailController) UpdateSettings(c *gin.Context) {
 
 	hasPass := strings.TrimSpace(s.SMTPPassword) != ""
 	hasResend := strings.TrimSpace(s.ResendAPIKey) != ""
+	hasAliMailSecret := strings.TrimSpace(s.AliMailClientSecret) != ""
 	s.SMTPPassword = ""
 	s.ResendAPIKey = ""
 	s.ResendWebhookSecret = ""
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Saved", Data: EmailSettingsResponse{EmailSetting: *s, HasSMTPPassword: hasPass, HasResendAPIKey: hasResend}})
+	s.AliMailClientSecret = ""
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Saved", Data: EmailSettingsResponse{EmailSetting: *s, HasSMTPPassword: hasPass, HasResendAPIKey: hasResend, HasAliMailClientSecret: hasAliMailSecret}})
 }
 
 type sendTestEmailRequest struct {
@@ -302,9 +351,9 @@ func (ec *EmailController) SendTest(c *gin.Context) {
 	db := config.GetDB()
 	err := services.SendEmail(db, services.EmailSendOptions{
 		To:      req.To,
-		Subject: "Test email from VIBO CNC",
-		Text:    "This is a test email from VIBO CNC admin panel.",
-		HTML:    "<p>This is a <b>test email</b> from VIBO CNC admin panel.</p>",
+		Subject: "Test email from Vibocnc",
+		Text:    "This is a test email from Vibocnc admin panel.",
+		HTML:    "<p>This is a <b>test email</b> from Vibocnc admin panel.</p>",
 		Headers: map[string]string{"X-Entity-Ref-ID": "test-email"},
 	})
 	if err != nil {
@@ -335,6 +384,154 @@ func (ec *EmailController) Send(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Sent"})
+}
+
+func (ec *EmailController) MailboxConfig(c *gin.Context) {
+	db := config.GetDB()
+	s, err := services.GetOrCreateEmailSetting(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to load settings", Error: err.Error()})
+		return
+	}
+	accountEmail := strings.TrimSpace(s.AliMailAccountEmail)
+	if accountEmail == "" {
+		accountEmail = strings.TrimSpace(s.FromEmail)
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: gin.H{
+		"enabled":       s.Enabled,
+		"provider":      s.Provider,
+		"account_email": accountEmail,
+		"from_email":    s.FromEmail,
+		"from_name":     s.FromName,
+		"reply_to":      s.ReplyTo,
+		"folders":       aliMailMailboxFolders,
+		"can_read":      strings.EqualFold(strings.TrimSpace(s.Provider), "alimail"),
+	}})
+}
+
+func (ec *EmailController) MailboxFolders(c *gin.Context) {
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: aliMailMailboxFolders})
+}
+
+func (ec *EmailController) MailboxMessages(c *gin.Context) {
+	client, accountEmail, err := getAliMailMailboxClient()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Mailbox is not configured", Error: err.Error()})
+		return
+	}
+	folderID := strings.TrimSpace(c.Param("folderID"))
+	if folderID == "" {
+		folderID = "2"
+	}
+	cursor := c.Query("cursor")
+	size, _ := strconv.Atoi(c.DefaultQuery("size", "30"))
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 45*time.Second)
+	defer cancel()
+	out, err := client.ListMessages(ctx, accountEmail, folderID, cursor, size)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to load mailbox messages", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: out})
+}
+
+func (ec *EmailController) MailboxMessage(c *gin.Context) {
+	client, accountEmail, err := getAliMailMailboxClient()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Mailbox is not configured", Error: err.Error()})
+		return
+	}
+	messageID := strings.TrimSpace(c.Param("messageID"))
+	if messageID == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Missing message ID", Error: "missing_message_id"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 45*time.Second)
+	defer cancel()
+	out, err := client.GetMessage(ctx, accountEmail, messageID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to load message", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: out})
+}
+
+func (ec *EmailController) MailboxAttachments(c *gin.Context) {
+	client, accountEmail, err := getAliMailMailboxClient()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Mailbox is not configured", Error: err.Error()})
+		return
+	}
+	messageID := strings.TrimSpace(c.Param("messageID"))
+	if messageID == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Missing message ID", Error: "missing_message_id"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 45*time.Second)
+	defer cancel()
+	out, err := client.ListAttachments(ctx, accountEmail, messageID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to load attachments", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: out})
+}
+
+func (ec *EmailController) MailboxAttachmentDownload(c *gin.Context) {
+	client, accountEmail, err := getAliMailMailboxClient()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Mailbox is not configured", Error: err.Error()})
+		return
+	}
+	messageID := strings.TrimSpace(c.Param("messageID"))
+	attachmentID := strings.TrimSpace(c.Param("attachmentID"))
+	if messageID == "" || attachmentID == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Missing attachment parameters", Error: "missing_attachment_parameters"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 60*time.Second)
+	defer cancel()
+	body, contentType, filename, err := client.DownloadAttachment(ctx, accountEmail, messageID, attachmentID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to download attachment", Error: err.Error()})
+		return
+	}
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	c.Data(http.StatusOK, contentType, body)
+}
+
+func getAliMailMailboxClient() (*services.AliMailClient, string, error) {
+	db := config.GetDB()
+	s, err := services.GetOrCreateEmailSetting(db)
+	if err != nil {
+		return nil, "", err
+	}
+	if !s.Enabled {
+		return nil, "", fmt.Errorf("email is disabled")
+	}
+	if !strings.EqualFold(strings.TrimSpace(s.Provider), "alimail") {
+		return nil, "", fmt.Errorf("mailbox requires provider=alimail")
+	}
+	accountEmail := strings.TrimSpace(s.AliMailAccountEmail)
+	if accountEmail == "" {
+		accountEmail = strings.TrimSpace(s.FromEmail)
+	}
+	if accountEmail == "" {
+		return nil, "", fmt.Errorf("alimail account email is required")
+	}
+	secret, err := services.GetDecryptedAliMailClientSecret(s)
+	if err != nil {
+		return nil, "", err
+	}
+	client, err := services.NewAliMailClient(s.AliMailEndpoint, s.AliMailClientID, secret)
+	if err != nil {
+		return nil, "", err
+	}
+	return client, accountEmail, nil
 }
 
 type broadcastRequest struct {

@@ -1,6 +1,9 @@
 package services
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestInferFanucCategoryInference(t *testing.T) {
 	tests := []struct {
@@ -8,12 +11,14 @@ func TestInferFanucCategoryInference(t *testing.T) {
 		wantPartType string
 		wantSlug     string
 	}{
-		{model: "A06B-1234-B175", wantPartType: "Servo Motor", wantSlug: "fanuc-servo-motor"},
-		{model: "A06B-6111-H002", wantPartType: "Spindle Amplifier / Drive", wantSlug: "fanuc-spindle-amplifier-drive"},
-		{model: "A16B-2200-0390", wantPartType: "PCB / Control Board", wantSlug: "fanuc-pcb-control-board"},
-		{model: "A02B-0050-K802#L-10M", wantPartType: "PCB / Control Board", wantSlug: "fanuc-pcb-control-board"},
+		{model: "A06B-6114-H103", wantPartType: "Servo Amplifier / Drive", wantSlug: "fanuc-servo-amplifier-drive"},
+		{model: "A06B-6092-H275#H508", wantPartType: "Spindle Amplifier / Drive", wantSlug: "fanuc-spindle-amplifier-drive"},
+		{model: "A06B-0123-B075", wantPartType: "Servo Motor", wantSlug: "fanuc-servo-motor"},
+		{model: "A06B-1451-B100", wantPartType: "Spindle Motor", wantSlug: "fanuc-spindle-motor"},
+		{model: "A16B-2200-0390", wantPartType: "PCB Board", wantSlug: "fanuc-pcb-control-board"},
 		{model: "A03B-0819-C011", wantPartType: "I/O Module", wantSlug: "fanuc-i-o-module"},
-		{model: "A98L-0031-0025", wantPartType: "Battery", wantSlug: "fanuc-battery"},
+		{model: "A14B-0082-B202", wantPartType: "Power Supply Unit", wantSlug: "fanuc-power-supply"},
+		{model: "A860-0203-T001", wantPartType: "Encoder / Feedback", wantSlug: "fanuc-encoder-feedback"},
 		{model: "CAB-0200", wantPartType: "Cable / Connector", wantSlug: "fanuc-cables-connectors"},
 	}
 
@@ -44,5 +49,33 @@ func TestFanucEnrichProducesSEOContent(t *testing.T) {
 	}
 	if enriched.CategorySlug != "fanuc-servo-motor" {
 		t.Fatalf("unexpected category slug: %s", enriched.CategorySlug)
+	}
+}
+
+func TestNonFanucA06BModelDoesNotUseFanucClassifier(t *testing.T) {
+	got := InferProductCategory("Siemens", "A06B-6092-TEST")
+	if got.BrandKey != "siemens" {
+		t.Fatalf("brand key mismatch: got %q want %q", got.BrandKey, "siemens")
+	}
+	if strings.HasPrefix(got.MatchRule, "fanuc:") || strings.Contains(strings.ToLower(got.CategorySlug), "fanuc") {
+		t.Fatalf("non-FANUC product used FANUC classifier: %#v", got)
+	}
+}
+
+func TestGenericModuleIsNotAutomaticallyPowerSupply(t *testing.T) {
+	got := InferProductCategory("Siemens", "CPU-MODULE-315")
+	if got.PartType == "Power Supply Unit" {
+		t.Fatalf("generic module was incorrectly classified as power supply: %#v", got)
+	}
+}
+
+func TestInferProductCategoryTreatsUnknownFanucModelAsFanuc(t *testing.T) {
+	got := InferProductCategory("UNKNOWN", "A06B-0278-B000")
+
+	if got.BrandKey != "fanuc" {
+		t.Fatalf("brand key mismatch: got %q want %q", got.BrandKey, "fanuc")
+	}
+	if got.CategorySlug != "fanuc-servo-motor" {
+		t.Fatalf("category slug mismatch: got %q want %q", got.CategorySlug, "fanuc-servo-motor")
 	}
 }

@@ -74,7 +74,7 @@ func contactSiteURL(c *gin.Context) string {
 		proto = "https"
 	}
 	host := c.GetHeader("X-Forwarded-Host")
-	if host == "" && c.Request != nil {
+	if host == "" {
 		host = c.Request.Host
 	}
 	if host == "" {

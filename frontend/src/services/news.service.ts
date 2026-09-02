@@ -10,7 +10,8 @@ export interface NewsFilters {
   page_size?: number;
   search?: string;
   is_published?: string;
-  is_featured?: string;
+  is_featured?: string | boolean;
+  content_type?: 'news' | 'blog';
 }
 
 // ---------------------------------------------------------------------------
@@ -40,8 +41,16 @@ export class NewsService {
     throw new Error(response.data.message || 'Article not found');
   }
 
-  static async getArticleBySlug(slug: string): Promise<Article> {
-    const response = await apiClient.get<APIResponse<Article>>(`/public/news/slug/${slug}`);
+  static async getArticleBySlug(slug: string, contentType?: 'news' | 'blog'): Promise<Article> {
+    const suffix = contentType ? `?content_type=${contentType}` : '';
+    const response = await apiClient.get<APIResponse<Article>>(`/public/news/slug/${slug}${suffix}`);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Article not found');
+  }
+
+  static async getArticleByPath(path: string): Promise<Article> {
+    const normalized = path.split('/').map(encodeURIComponent).join('/');
+    const response = await apiClient.get<APIResponse<Article>>(`/public/news/path/${normalized}`);
     if (response.data.success && response.data.data) return response.data.data;
     throw new Error(response.data.message || 'Article not found');
   }

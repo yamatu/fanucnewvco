@@ -18,9 +18,11 @@ import { EmailService as EmailServiceDefault } from './email.service';
 import { ShippingRateService as ShippingRateServiceDefault } from './shipping-rate.service';
 import { AnalyticsService as AnalyticsServiceDefault } from './analytics.service';
 import { NewsService as NewsServiceDefault } from './news.service';
+import { SitePageService as SitePageServiceDefault } from './site-page.service';
 import { IndexNowService as IndexNowServiceDefault } from './indexnow.service';
+import SocialMediaServiceDefault from './social-media.service';
 import EbayImportDraftServiceDefault from './ebay-import-draft.service';
-import SocialLinksServiceDefault from './social-links.service';
+import AIAgentServiceDefault from './ai-agent.service';
 
 // Export all services
 export const AuthService = AuthServiceDefault;
@@ -42,9 +44,11 @@ export const EmailService = EmailServiceDefault;
 export const ShippingRateService = ShippingRateServiceDefault;
 export const AnalyticsService = AnalyticsServiceDefault;
 export const NewsService = NewsServiceDefault;
+export const SitePageService = SitePageServiceDefault;
 export const IndexNowService = IndexNowServiceDefault;
+export const SocialMediaService = SocialMediaServiceDefault;
 export const EbayImportDraftService = EbayImportDraftServiceDefault;
-export const SocialLinksService = SocialLinksServiceDefault;
+export const AIAgentService = AIAgentServiceDefault;
 
 // Export types
 export type { ProductFilters } from './product.service';
@@ -83,13 +87,8 @@ export type {
   EbayImportDraftFilters,
   EbayImportDraftConfirmResponse,
   EbayImportDraftBulkConfirmResponse,
+  EbayImportDraftJSONTaskSnapshot,
 } from './ebay-import-draft.service';
-export type {
-  SocialLinksPublicConfig,
-  SocialLinkSetting,
-  UpdateSocialLinkSettingRequest,
-} from './social-links.service';
-export { getConfiguredSocialURLs } from './social-links.service';
 
 // API Service class that combines all services
 export class ApiService {
@@ -111,9 +110,11 @@ export class ApiService {
   static shippingRates = ShippingRateService;
   static analytics = AnalyticsService;
   static news = NewsService;
+  static sitePages = SitePageService;
   static indexnow = IndexNowService;
+  static socialMedia = SocialMediaService;
   static ebayImportDrafts = EbayImportDraftService;
-  static socialLinks = SocialLinksService;
+  static aiAgent = AIAgentService;
 }
 
 export default ApiService;

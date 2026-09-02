@@ -85,8 +85,14 @@ export class MediaService {
     throw new Error(response.data.message || 'Failed to upload media');
   }
 
+  static async rotate(payload: { asset_id?: number; url?: string; folder?: string; degrees: 90 | 180 | 270 }): Promise<MediaAsset> {
+    const response = await apiClient.post<APIResponse<MediaAsset>>('/admin/media/rotate', payload);
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.error || response.data.message || 'Failed to rotate media');
+  }
+
   static async batchDelete(ids: number[]): Promise<void> {
-    const response = await apiClient.delete<APIResponse<any>>('/admin/media/batch', {
+    const response = await apiClient.delete<APIResponse<{ deleted: number }>>('/admin/media/batch', {
       data: { ids },
     });
     if (response.data.success) return;
@@ -100,7 +106,7 @@ export class MediaService {
   }
 
   static async batchUpdate(ids: number[], updates: Partial<Pick<MediaAsset, 'folder' | 'tags' | 'title' | 'alt_text'>>): Promise<void> {
-    const response = await apiClient.put<APIResponse<any>>('/admin/media/batch', {
+    const response = await apiClient.put<APIResponse<{ updated: number }>>('/admin/media/batch', {
       ids,
       ...updates,
     });

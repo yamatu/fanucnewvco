@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
   Bars3Icon,
@@ -19,65 +19,26 @@ import {
 import { useCart } from '@/store/cart.store';
 import { useCustomer } from '@/store/customer.store';
 import { cn, formatCurrency, getProductImageUrl, getDefaultProductImageWithSku, toProductPathId } from '@/lib/utils';
-import type { APIResponse, Category, PaginationResponse, Product } from '@/types';
-
-const CartSidebar = dynamic(
-  () => import('@/components/cart/CartSidebar').then((module) => module.CartSidebar),
-  { ssr: false }
-);
+import type { Category, Product } from '@/types';
+import { CategoryService, ProductService } from '@/services';
+import { queryKeys } from '@/lib/react-query';
+import LanguageSelector from './LanguageSelector';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
+import { localizeCategoryContent, localizeProductContent } from '@/lib/i18n/content';
 
 const navigation = [
-  { name: 'Home', href: '/' },
-  { name: 'Products', href: '/products' },
-  { name: 'Categories', href: '/categories' },
-  { name: 'News', href: '/news' },
-  { name: 'About', href: '/about' },
-  { name: 'Contact', href: '/contact' },
+  { key: 'nav.home', href: '/' },
+  { key: 'nav.products', href: '/products' },
+  { key: 'nav.categories', href: '/categories' },
+  { key: 'nav.repair', href: '/repair-request' },
+  { key: 'nav.news', href: '/news' },
+  { key: 'nav.blog', href: '/blog' },
+  { key: 'nav.about', href: '/about' },
+  { key: 'nav.contact', href: '/contact' },
 ];
 
-async function fetchPublicCategories(signal?: AbortSignal): Promise<Category[]> {
-  const response = await fetch('/api/v1/public/categories', {
-    headers: { Accept: 'application/json' },
-    signal,
-  });
-  if (!response.ok) return [];
-
-  const payload = await response.json() as APIResponse<Category[]>;
-  return payload.success && Array.isArray(payload.data) ? payload.data : [];
-}
-
-async function fetchProductSuggestions(query: string, signal?: AbortSignal): Promise<Product[]> {
-  const params = new URLSearchParams({
-    search: query,
-    is_active: 'true',
-    page: '1',
-    page_size: '3',
-  });
-  const response = await fetch(`/api/v1/public/products?${params.toString()}`, {
-    headers: { Accept: 'application/json' },
-    signal,
-  });
-  if (!response.ok) return [];
-
-  const payload = await response.json() as APIResponse<PaginationResponse<Product>>;
-  return payload.success && Array.isArray(payload.data?.data) ? payload.data.data : [];
-}
-
-function useCategoryTree(enabled: boolean) {
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  useEffect(() => {
-    if (!enabled || categories.length > 0) return;
-
-    const controller = new AbortController();
-    void fetchPublicCategories(controller.signal).then(setCategories).catch(() => undefined);
-    return () => controller.abort();
-  }, [categories.length, enabled]);
-
-  return categories;
-}
-
 export function Header() {
+  const { locale, t, href } = usePublicI18n();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -87,39 +48,34 @@ export function Header() {
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const mobileSearchDropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const suggestionAbortRef = useRef<AbortController | null>(null);
   const router = useRouter();
-  const { itemCount, isOpen: cartOpen, toggleCart } = useCart();
+  const { itemCount, toggleCart } = useCart();
   const { isAuthenticated, customer, logout } = useCustomer();
 
   const handleLogout = () => {
     logout();
     setUserMenuOpen(false);
-    router.push('/');
+    router.push(href('/'));
   };
 
   const fetchSuggestions = useCallback((query: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!query.trim() || query.trim().length < 2) {
-      suggestionAbortRef.current?.abort();
       setSuggestions([]);
-      setSuggestionsLoading(false);
       return;
     }
     setSuggestionsLoading(true);
     debounceRef.current = setTimeout(async () => {
-      suggestionAbortRef.current?.abort();
-      const controller = new AbortController();
-      suggestionAbortRef.current = controller;
       try {
-        setSuggestions(await fetchProductSuggestions(query.trim(), controller.signal));
+        const res = await ProductService.searchProducts(query.trim(), { page_size: 3 });
+        setSuggestions((res.data || []).map((product) => localizeProductContent(product, locale)));
       } catch {
-        if (!controller.signal.aborted) setSuggestions([]);
+        setSuggestions([]);
       } finally {
-        if (!controller.signal.aborted) setSuggestionsLoading(false);
+        setSuggestionsLoading(false);
       }
     }, 300);
-  }, []);
+  }, [locale]);
 
   const handleSearchInput = (value: string) => {
     setSearchQuery(value);
@@ -135,17 +91,13 @@ export function Header() {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      suggestionAbortRef.current?.abort();
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+      router.push(href(`/products?search=${encodeURIComponent(searchQuery.trim())}`));
       setSearchOpen(false);
       setSearchQuery('');
       setSuggestions([]);
@@ -166,7 +118,7 @@ export function Header() {
       <div className="border-t border-gray-100 mt-2 pt-2">
         {suggestionsLoading ? (
           <div className="flex items-center justify-center py-4">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-600" />
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-700" />
           </div>
         ) : suggestions.length > 0 ? (
           <div className="space-y-1">
@@ -178,9 +130,9 @@ export function Header() {
               return (
                 <Link
                   key={p.id}
-                  href={`/products/${toProductPathId(p.sku)}`}
+              href={href(`/products/${toProductPathId(p.sku)}`)}
                   onClick={handleSuggestionClick}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-yellow-50 transition-colors"
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition-colors"
                 >
                   <div className="h-12 w-12 flex-shrink-0 rounded-md bg-gray-100 overflow-hidden">
                     <Image
@@ -195,116 +147,131 @@ export function Header() {
                     <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
                     <p className="text-xs text-gray-500">SKU: {p.sku}</p>
                   </div>
-                  <div className="text-sm font-semibold text-yellow-700 whitespace-nowrap">
+                  <div className="text-sm font-semibold text-[#0b3e75] whitespace-nowrap">
                     {formatCurrency(p.price)}
                   </div>
                 </Link>
               );
             })}
             <Link
-              href={`/products?search=${encodeURIComponent(searchQuery.trim())}`}
+              href={href(`/products?search=${encodeURIComponent(searchQuery.trim())}`)}
               onClick={handleSuggestionClick}
-              className="block text-center text-sm text-yellow-600 hover:text-yellow-700 font-medium py-2"
+              className="site-link-accent block text-center text-sm py-2"
             >
-              View all results
+              {t('header.viewResults')}
             </Link>
           </div>
         ) : (
-          <p className="text-sm text-gray-500 text-center py-3">No products found</p>
+          <p className="text-sm text-gray-500 text-center py-3">{t('header.noProducts')}</p>
         )}
       </div>
     );
   };
 
   return (
-    <header className="bg-white shadow-lg sticky top-0 z-50">
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
       {/* Top Bar */}
-      <div className="bg-yellow-500 text-black py-2">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center text-sm">
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2">
-                <PhoneIcon className="h-4 w-4" />
-                <span suppressHydrationWarning>+86 13348028050</span>
-
-              </div>
-              <div className="flex items-center space-x-2">
-                <EnvelopeIcon className="h-4 w-4" />
-                <span suppressHydrationWarning>sales@vcocncspare.com</span>
-
-              </div>
+      <div className="bg-slate-950 text-slate-100 py-2">
+        <div className="max-w-7xl mx-auto px-2.5 min-[360px]:px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center text-xs sm:text-sm">
+            <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 min-[360px]:gap-2.5 sm:justify-start sm:gap-6">
+              <a href="tel:+8613348028050" className="flex min-w-0 items-center gap-1.5 hover:text-orange-200 sm:gap-2">
+                <PhoneIcon className="h-3.5 w-3.5 shrink-0 text-orange-300 sm:h-4 sm:w-4" />
+                <span className="whitespace-nowrap text-[10px] min-[360px]:text-xs sm:text-sm" suppressHydrationWarning>+86 13348028050</span>
+              </a>
+              <a href="mailto:sales@vibocnc.com" className="flex min-w-0 items-center gap-1.5 hover:text-orange-200 sm:gap-2">
+                <EnvelopeIcon className="h-3.5 w-3.5 shrink-0 text-orange-300 sm:h-4 sm:w-4" />
+                <span className="whitespace-nowrap text-[10px] min-[360px]:text-xs sm:text-sm" suppressHydrationWarning>sales@vibocnc.com</span>
+              </a>
             </div>
-            <div className="hidden md:flex items-center space-x-4">
-              <span suppressHydrationWarning>Professional FANUC Parts & Services | Vcocnc Since 2005</span>
+            <div className="hidden min-w-0 items-center gap-3 md:flex">
+              <span className="hidden max-w-[38rem] truncate xl:block" suppressHydrationWarning>
+                {t('header.supply')}
+              </span>
+              <LanguageSelector />
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
+      <div className="mx-auto max-w-[90rem] px-2.5 min-[360px]:px-4 sm:px-6 lg:px-8 min-[1900px]:max-w-[112rem]">
+        <div className="flex items-center justify-between gap-2 py-3 min-[360px]:gap-3 sm:gap-4 sm:py-4">
           {/* Logo */}
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="bg-yellow-500 text-black px-4 py-2 rounded-lg font-bold text-xl">
-                Vcocnc
-              </div>
-              <div className="hidden sm:block">
-                <div className="text-xl font-bold text-gray-900">CNC Solutions</div>
-                <div className="text-sm text-gray-600">Since 2005</div>
+          <div className="flex flex-shrink-0 items-center">
+            <Link href={href('/')} className="flex items-center space-x-3">
+              {/* Keep the only high-priority image on the homepage reserved for the Hero LCP. */}
+              <Image
+                src="/images/vibocnc-logo.png"
+                alt="Vibocnc"
+                width={186}
+                height={50}
+                loading="eager"
+                fetchPriority="low"
+                className="h-8 w-auto object-contain min-[360px]:h-10 sm:h-12"
+              />
+              <div className="hidden min-[1900px]:block">
+                <div className="text-xl font-bold text-slate-950">{t('header.hub')}</div>
+                <div className="text-sm text-slate-500">{t('header.automationSupply')}</div>
               </div>
             </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-8">
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-2 xl:flex min-[1800px]:gap-6" aria-label={t('header.primaryNavigation')}>
             {navigation.map((item) => {
-              if (item.name === 'Categories') {
+              if (item.key === 'nav.categories') {
                 return (
-                  <CategoriesDropdown key={item.name} />
+                  <CategoriesDropdown key={item.key} />
                 );
               }
               return (
                 <Link
-                  key={item.name}
-                  href={item.href}
-                  className="text-gray-700 hover:text-yellow-600 font-medium transition-colors duration-200"
+                  key={item.key}
+                  href={href(item.href)}
+                  className={cn(
+                    'shrink-0 whitespace-nowrap text-xs font-semibold uppercase tracking-wide transition-colors duration-200 min-[1800px]:text-sm',
+                    item.key === 'nav.repair'
+                      ? 'rounded-md bg-orange-700 px-3 py-2 text-white hover:bg-[#003a78]'
+                      : 'text-slate-700 hover:text-orange-600',
+                  )}
                 >
-                  {item.name}
+                  {t(item.key)}
                 </Link>
               );
             })}
           </nav>
 
           {/* Right Side Actions */}
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-shrink-0 items-center gap-1 min-[360px]:gap-2 sm:gap-3 sm:pl-4 2xl:gap-4 2xl:pl-6">
             {/* Search */}
-            <div className="relative" ref={searchDropdownRef}>
+            <div className="relative hidden sm:block" ref={searchDropdownRef}>
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
-                className="p-2 text-gray-600 hover:text-yellow-600 transition-colors"
+                aria-label={t('header.search')}
+                className="p-2 text-slate-600 hover:text-orange-600 transition-colors"
               >
                 <MagnifyingGlassIcon className="h-6 w-6" />
               </button>
 
               {searchOpen && (
-                <div className="absolute right-0 top-full mt-2 w-96 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
+                <div className="absolute right-0 top-full mt-2 w-96 bg-white border border-slate-200 rounded-lg shadow-xl p-4 z-50">
                   <form onSubmit={handleSearch}>
                     <div className="flex">
                       <input
                         type="text"
-                        placeholder="Search products..."
+                        aria-label={t('header.searchProducts')}
+                        placeholder={t('header.searchProducts')}
                         value={searchQuery}
                         onChange={(e) => handleSearchInput(e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                        className="flex-1 px-3 py-2 border border-slate-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-[#003a78]"
                         autoFocus
                       />
                       <button
                         type="submit"
-                        className="px-4 py-2 bg-yellow-500 text-black rounded-r-md hover:bg-yellow-600 transition-colors font-semibold"
+                        className="px-4 py-2 bg-[#003a78] text-white rounded-r-md hover:bg-orange-600 transition-colors font-semibold"
                       >
-                        Search
+                        {t('header.search')}
                       </button>
                     </div>
                   </form>
@@ -316,11 +283,12 @@ export function Header() {
             {/* Cart */}
             <button
               onClick={toggleCart}
-              className="relative p-2 text-gray-600 hover:text-yellow-600 transition-colors"
+              aria-label={t('header.cart')}
+              className="relative p-2 text-slate-600 hover:text-orange-600 transition-colors"
             >
               <ShoppingCartIcon className="h-6 w-6" />
               {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
                   {itemCount}
                 </span>
               )}
@@ -331,10 +299,10 @@ export function Header() {
               <div className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center space-x-2 p-2 text-gray-600 hover:text-yellow-600 transition-colors"
+                  className="flex items-center space-x-2 p-2 text-slate-600 hover:text-orange-600 transition-colors"
                 >
                   <UserCircleIcon className="h-6 w-6" />
-                  <span className="hidden md:inline text-sm font-medium">{customer.full_name}</span>
+                  <span className="hidden whitespace-nowrap text-sm font-medium min-[1720px]:inline">{customer.full_name}</span>
                 </button>
 
                 {userMenuOpen && (
@@ -344,58 +312,58 @@ export function Header() {
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      My Account
+                      {t('header.myAccount')}
                     </Link>
                     <Link
                       href="/account/orders"
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      My Orders
+                      {t('header.myOrders')}
                     </Link>
                     <Link
                       href="/account/tickets"
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      Support Tickets
+                      {t('header.supportTickets')}
                     </Link>
                     <Link
-                      href="/track-order"
+                      href={href('/track-order')}
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      Track Order
+                      {t('header.trackOrder')}
                     </Link>
                     <hr className="my-1" />
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                     >
-                      Logout
+                      {t('header.logout')}
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="hidden md:flex items-center space-x-2">
+              <div className="hidden items-center space-x-2 min-[1720px]:flex">
                 <Link
                   href="/login"
-                  className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-yellow-600 transition-colors"
+                  className="px-3 py-2 text-sm font-medium text-slate-700 hover:text-orange-600 transition-colors"
                 >
-                  Login
+                  {t('header.login')}
                 </Link>
                 <Link
                   href="/register"
-                  className="px-3 py-2 text-sm font-medium text-white bg-yellow-500 rounded-md hover:bg-yellow-600 transition-colors"
+                  className="px-3 py-2 text-sm font-semibold text-white bg-[#003a78] rounded-md hover:bg-orange-600 transition-colors"
                 >
-                  Register
+                  {t('header.register')}
                 </Link>
                 <Link
-                  href="/track-order"
-                  className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  href={href('/track-order')}
+                  className="px-3 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
                 >
-                  Track Order
+                  {t('header.trackOrder')}
                 </Link>
               </div>
             )}
@@ -403,7 +371,10 @@ export function Header() {
             {/* Mobile menu button */}
             <button
               type="button"
-              className="lg:hidden p-2 text-gray-600 hover:text-yellow-600"
+              aria-label={mobileMenuOpen ? t('header.closeMenu') : t('header.openMenu')}
+              aria-controls="responsive-navigation"
+              aria-expanded={mobileMenuOpen}
+              className="p-2 text-slate-600 hover:text-orange-600 min-[1720px]:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? (
@@ -418,39 +389,40 @@ export function Header() {
 
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-gray-200">
+        <nav id="responsive-navigation" className="border-t border-slate-200 bg-white min-[1720px]:hidden" aria-label={t('header.mobileNavigation')}>
           <div className="px-4 py-4 space-y-4">
             {navigation.map((item) => {
-              if (item.name === 'Categories') {
-                return <MobileCategoriesMenu key={item.name} onNavigate={() => setMobileMenuOpen(false)} />;
+              if (item.key === 'nav.categories') {
+                return <MobileCategoriesMenu key={item.key} onNavigate={() => setMobileMenuOpen(false)} />;
               }
               return (
                 <Link
-                  key={item.name}
-                  href={item.href}
-                  className="block text-gray-700 hover:text-yellow-600 font-medium py-2"
+                  key={item.key}
+                  href={href(item.href)}
+                  className="block text-slate-700 hover:text-orange-600 font-medium py-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  {item.name}
+                  {t(item.key)}
                 </Link>
               );
             })}
-            
+
             {/* Mobile Search */}
             <div className="pt-4 border-t border-gray-200" ref={mobileSearchDropdownRef}>
               <form onSubmit={handleSearch} className="flex">
                 <input
                   type="text"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearchInput(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  aria-label={t('header.searchProducts')}
+                  placeholder={t('header.searchProducts')}
+                value={searchQuery}
+                onChange={(e) => handleSearchInput(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-[#003a78]"
                 />
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-yellow-500 text-black rounded-r-md hover:bg-yellow-600 transition-colors font-semibold"
+                  className="px-4 py-2 bg-[#003a78] text-white rounded-r-md hover:bg-orange-600 transition-colors font-semibold"
                 >
-                  Search
+                  {t('header.search')}
                 </button>
               </form>
               {renderSuggestions()}
@@ -459,27 +431,44 @@ export function Header() {
             {/* Mobile Track Order */}
             <div className="pt-4 border-t border-gray-200">
               <Link
-                href="/track-order"
+                href={href('/track-order')}
                 className="block w-full text-center px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Track Order
+                {t('header.trackOrder')}
               </Link>
             </div>
+
+            {!isAuthenticated && (
+              <div className="grid grid-cols-2 gap-3 border-t border-gray-200 pt-4">
+                <Link
+                  href="/login"
+                  className="px-4 py-2 text-center text-sm font-medium text-slate-700 transition-colors hover:text-orange-600"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t('header.login')}
+                </Link>
+                <Link
+                  href="/register"
+                  className="rounded-md bg-[#003a78] px-4 py-2 text-center text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t('header.register')}
+                </Link>
+              </div>
+            )}
           </div>
-        </div>
+        </nav>
       )}
 
       {/* Search Overlay for mobile */}
       {searchOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+        <div
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 xl:hidden"
           onClick={() => setSearchOpen(false)}
         />
       )}
 
-      {/* Cart Sidebar */}
-      {cartOpen ? <CartSidebar /> : null}
     </header>
   );
 }
@@ -488,8 +477,19 @@ export default Header;
 
 // --- Categories Dropdown (desktop) ---
 function CategoriesDropdown() {
+  const { locale, t, href } = usePublicI18n();
   const [shouldLoad, setShouldLoad] = useState(false);
-  const categories = useCategoryTree(shouldLoad);
+  const { data: fetchedCategories = [] } = useQuery<Category[]>({
+    queryKey: queryKeys.categories.tree(),
+    queryFn: () => CategoryService.getCategories(),
+    enabled: shouldLoad,
+    staleTime: 5 * 60 * 1000,
+  });
+  const categories = useMemo(
+    () => fetchedCategories.map((item) => localizeCategoryContent(item, locale)),
+    [fetchedCategories, locale],
+  );
+
   const [hoverPath, setHoverPath] = useState<number[]>([]);
 
   const byId = useMemo(() => {
@@ -522,25 +522,25 @@ function CategoriesDropdown() {
   return (
     <div
       className="relative group"
-      onPointerEnter={() => setShouldLoad(true)}
+      onMouseEnter={() => setShouldLoad(true)}
       onFocusCapture={() => setShouldLoad(true)}
     >
       <Link
-        href="/categories"
-        className="text-gray-700 hover:text-yellow-600 font-medium transition-colors duration-200 py-2 px-1 block"
+        href={href('/categories')}
+        className="block shrink-0 whitespace-nowrap px-1 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 transition-colors duration-200 hover:text-orange-600 min-[1800px]:text-sm"
       >
-        Categories
+        {t('nav.categories')}
       </Link>
       {/* Invisible bridge to prevent hover gap */}
       <div className="absolute top-full left-0 w-full h-2 bg-transparent"></div>
       {/* Dropdown Panel */}
       {Array.isArray(categories) && categories.length > 0 && (
         <div
-          className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 ease-in-out transform group-hover:translate-y-0 translate-y-1 absolute left-0 top-full mt-1 w-[720px] max-h-[80vh] overflow-auto rounded-xl border border-gray-100 bg-white shadow-2xl z-50 p-4 backdrop-blur-sm"
+          className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 ease-in-out transform group-hover:translate-y-0 translate-y-1 absolute left-0 top-full mt-1 w-[720px] max-h-[80vh] overflow-auto rounded-xl border border-slate-200 bg-white shadow-2xl z-50 p-4 backdrop-blur-sm"
           onMouseLeave={() => setHoverPath([])}
         >
-          <div className="mb-3 pb-2 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">Product Categories</h3>
+          <div className="mb-3 pb-2 border-b border-slate-100">
+            <h3 className="text-sm font-semibold text-slate-800 uppercase tracking-wide">{t('header.productCategories')}</h3>
           </div>
           <div className="flex gap-3">
             {columns.map((col, level) => (
@@ -552,12 +552,12 @@ function CategoriesDropdown() {
                     return (
                       <li key={cat.id}>
                         <Link
-                          href={`/categories/${cat.path || cat.slug}`}
+                          href={href(`/categories/${cat.path || cat.slug}`)}
                           onMouseEnter={() => setHoverAtLevel(level, cat.id)}
                           scroll={false}
                           className={cn(
                             'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                            isActive ? 'bg-yellow-100 text-yellow-900' : 'text-gray-800 hover:bg-yellow-50 hover:text-yellow-800'
+                            isActive ? 'bg-blue-50 text-[#003a78]' : 'text-slate-800 hover:bg-slate-50 hover:text-orange-600'
                           )}
                         >
                           <span className="min-w-0 flex-1 truncate">{cat.name}</span>
@@ -577,8 +577,19 @@ function CategoriesDropdown() {
 }
 
 function MobileCategoriesMenu({ onNavigate }: { onNavigate: () => void }) {
+  const { locale, t } = usePublicI18n();
   const [open, setOpen] = useState(false);
-  const categories = useCategoryTree(open);
+  const { data: fetchedCategories = [] } = useQuery<Category[]>({
+    queryKey: queryKeys.categories.tree(),
+    queryFn: () => CategoryService.getCategories(),
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+  });
+  const categories = useMemo(
+    () => fetchedCategories.map((item) => localizeCategoryContent(item, locale)),
+    [fetchedCategories, locale],
+  );
+
   const [openIds, setOpenIds] = useState<Set<number>>(new Set());
   const toggle = (id: number) => {
     setOpenIds((prev) => {
@@ -593,14 +604,14 @@ function MobileCategoriesMenu({ onNavigate }: { onNavigate: () => void }) {
     <div>
       <button
         type="button"
-        className="w-full flex items-center justify-between text-gray-700 hover:text-yellow-600 font-medium py-2"
+        className="w-full flex items-center justify-between text-slate-700 hover:text-orange-600 font-medium py-2"
         onClick={() => setOpen((v) => !v)}
       >
-        <span>Categories</span>
-        <span className="text-gray-400">{open ? '–' : '+'}</span>
+        <span>{t('nav.categories')}</span>
+        <span className="text-slate-400">{open ? '-' : '+'}</span>
       </button>
       {open && Array.isArray(categories) && categories.length > 0 && (
-        <div className="mt-2 pl-2 border-l border-gray-200 space-y-1">
+        <div className="mt-2 pl-2 border-l border-slate-200 space-y-1">
           <MobileCategoryTree categories={categories} level={0} onNavigate={onNavigate} openIds={openIds} onToggle={toggle} />
         </div>
       )}
@@ -621,6 +632,7 @@ function MobileCategoryTree({
   openIds: Set<number>;
   onToggle: (id: number) => void;
 }) {
+  const { href } = usePublicI18n();
   return (
     <div className="space-y-1">
       {categories.map((cat) => (
@@ -644,8 +656,8 @@ function MobileCategoryTree({
             )}
 
             <Link
-              href={`/categories/${cat.path || cat.slug}`}
-              className="block text-sm text-gray-700 hover:text-yellow-600 py-0.5"
+              href={href(`/categories/${cat.path || cat.slug}`)}
+              className="block text-sm text-slate-700 hover:text-orange-600 py-0.5"
               onClick={onNavigate}
               scroll={false}
             >

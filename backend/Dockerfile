@@ -7,7 +7,7 @@
 # - docker.m.daocloud.io
 ARG BASE_REGISTRY=docker.io
 
-FROM ${BASE_REGISTRY}/library/golang:1.21-alpine AS builder
+FROM ${BASE_REGISTRY}/library/golang:1.25-alpine AS builder
 
 WORKDIR /src
 
@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/server .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/bulk-seo-optimize ./cmd/bulk-seo-optimize
 
 ARG BASE_REGISTRY=docker.io
-FROM ${BASE_REGISTRY}/library/alpine:3.19 AS runner
+FROM ${BASE_REGISTRY}/library/alpine:3.23 AS runner
 
 WORKDIR /app
 # mysql client tools (mysqldump/mysql) are used by the admin backup/restore endpoints.

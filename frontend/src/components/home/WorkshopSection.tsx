@@ -14,6 +14,8 @@ import {
   ClipboardDocumentCheckIcon
 } from '@heroicons/react/24/outline';
 import { DEFAULT_WORKSHOP_SECTION_DATA, type WorkshopSectionData } from '@/lib/homepage-defaults';
+import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
+import { normalizeLegacyCompanyText } from '@/lib/company-facts';
 
 type Props = { content?: HomepageContent | null };
 
@@ -34,54 +36,54 @@ function normalizeWorkshopData(input: any): WorkshopSectionData {
   const facilities = Array.isArray(data?.facilities) && data.facilities.length > 0 ? data.facilities : DEFAULT_WORKSHOP_SECTION_DATA.facilities;
   const capabilities = Array.isArray(data?.capabilities) && data.capabilities.length > 0 ? data.capabilities : DEFAULT_WORKSHOP_SECTION_DATA.capabilities;
   return {
-    headerTitle: data?.headerTitle || DEFAULT_WORKSHOP_SECTION_DATA.headerTitle,
-    headerDescription: data?.headerDescription || DEFAULT_WORKSHOP_SECTION_DATA.headerDescription,
+    headerTitle: normalizeLegacyCompanyText(data?.headerTitle || DEFAULT_WORKSHOP_SECTION_DATA.headerTitle),
+    headerDescription: normalizeLegacyCompanyText(data?.headerDescription || DEFAULT_WORKSHOP_SECTION_DATA.headerDescription),
     facilities,
     capabilities,
-    statsBlock: data?.statsBlock || DEFAULT_WORKSHOP_SECTION_DATA.statsBlock,
+    statsBlock: {
+      ...(data?.statsBlock || DEFAULT_WORKSHOP_SECTION_DATA.statsBlock),
+      items: (data?.statsBlock?.items || DEFAULT_WORKSHOP_SECTION_DATA.statsBlock.items).map((item: any) => ({
+        ...item,
+        value: normalizeLegacyCompanyText(item.value),
+        title: normalizeLegacyCompanyText(item.title),
+        subtitle: normalizeLegacyCompanyText(item.subtitle),
+      })),
+    },
   };
 }
 
 export function WorkshopSection({ content }: Props) {
+  const { locale, t, href } = usePublicI18n();
   const [activeTab, setActiveTab] = useState(0);
   const base = normalizeWorkshopData((content as any)?.data);
   const data: WorkshopSectionData = {
     ...base,
-    headerTitle: content?.title || base.headerTitle,
-    headerDescription: content?.description || base.headerDescription,
+    headerTitle: content?.title ? normalizeLegacyCompanyText(content.title) : base.headerTitle,
+    headerDescription: content?.description ? normalizeLegacyCompanyText(content.description) : base.headerDescription,
   };
   const activeFacility = data.facilities[activeTab] || data.facilities[0];
 
   return (
-    <section className="py-20 bg-white">
+    <section className="home-deferred-section py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-slate-950 mb-4">
-            {data.headerTitle}
+            {locale === 'en' ? data.headerTitle : t('home.workshop.title')}
           </h2>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-            {data.headerDescription}
+            {locale === 'en' ? data.headerDescription : t('home.workshop.description')}
           </p>
         </div>
 
         {/* Facility Tabs */}
         <div className="mb-16">
           {/* Tab Navigation */}
-          <div
-            className="flex flex-wrap justify-center mb-8 border-b border-slate-200"
-            role="tablist"
-            aria-label="Workshop facilities"
-          >
+          <div className="flex flex-wrap justify-center mb-8 border-b border-slate-200">
             {data.facilities.map((facility: any, index: number) => (
               <button
                 key={facility.id}
                 onClick={() => setActiveTab(index)}
-                type="button"
-                role="tab"
-                id={`facility-tab-${facility.id}`}
-                aria-controls={`facility-panel-${facility.id}`}
-                aria-selected={activeTab === index}
                 className={`px-6 py-3 font-medium text-sm md:text-base transition-colors duration-300 border-b-2 ${
                   activeTab === index
                     ? 'border-[#003a78] text-[#003a78]'
@@ -95,24 +97,21 @@ export function WorkshopSection({ content }: Props) {
 
           {/* Tab Content */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-lg overflow-hidden">
-            {activeFacility && (
+            {activeFacility ? (
               <div
                 key={activeFacility.id}
-                id={`facility-panel-${activeFacility.id}`}
-                role="tabpanel"
-                aria-labelledby={`facility-tab-${activeFacility.id}`}
               >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                   {/* Image */}
-                  <div className="relative min-h-96">
+                  <div className="relative h-96 min-h-96 lg:h-auto lg:min-h-[32rem]">
                     <Image
                       src={activeFacility.image}
                       alt={activeFacility.title}
                       width={960}
-                      height={720}
-                      quality={70}
+                      height={640}
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 50vw"
-                      className="absolute inset-0 h-full w-full object-cover"
+                      className="h-full w-full object-cover"
+                      unoptimized={typeof activeFacility.image === 'string' && activeFacility.image.startsWith('/uploads/')}
                       loading="lazy"
                     />
                   </div>
@@ -146,7 +145,7 @@ export function WorkshopSection({ content }: Props) {
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -194,18 +193,16 @@ export function WorkshopSection({ content }: Props) {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
-                href={data.statsBlock?.ctaPrimary?.href || '/contact'}
-                className="bg-orange-500 text-white hover:bg-[#003a78] px-8 py-3 rounded-md font-semibold transition-colors duration-300"
+                href={href(data.statsBlock?.ctaPrimary?.href || '/contact')}
+                className="bg-orange-700 text-white hover:bg-[#003a78] px-8 py-3 rounded-md font-semibold transition-colors duration-300"
               >
-                {data.statsBlock?.ctaPrimary?.text || 'Schedule Tour'}
+                {locale === 'en' ? data.statsBlock?.ctaPrimary?.text || t('common.contactUs') : t('common.contactUs')}
               </a>
               <a
-                href={data.statsBlock?.ctaSecondary?.href || '/about'}
+                href={href(data.statsBlock?.ctaSecondary?.href || '/about')}
                 className="border border-white/60 text-white hover:bg-white hover:text-slate-950 px-8 py-3 rounded-md font-semibold transition-colors duration-300"
               >
-                {/^(learn|read|view) more$/i.test(data.statsBlock?.ctaSecondary?.text || '')
-                  ? 'About Our Workshop'
-                  : data.statsBlock?.ctaSecondary?.text || 'About Our Workshop'}
+                {locale === 'en' ? 'View Workshop Details' : `${t('home.workshop.title')} · ${t('common.learnMore')}`}
               </a>
             </div>
           </div>

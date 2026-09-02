@@ -118,7 +118,7 @@ export function CartSidebar() {
                                   <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
                                     <Image
                                       src={getProductImageUrl(item.product.image_urls || [], getDefaultProductImageWithSku(item.product.sku, '/images/default-product.svg'))}
-                                      alt={`${item.product.name} - ${item.product.sku} FANUC Part`}
+                                      alt={`${item.product.name} - ${item.product.sku} industrial automation part`}
                                       width={96}
                                       height={96}
                                       className="h-full w-full object-cover object-center"
@@ -240,4 +240,3 @@ export function CartSidebar() {
 }
 
 export default CartSidebar;
-

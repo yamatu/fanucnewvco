@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS products (
     min_stock_level INT DEFAULT 0,
     weight DECIMAL(8,2) NULL,
     dimensions VARCHAR(100),
-    brand VARCHAR(100) DEFAULT 'FANUC',
+    brand VARCHAR(100) DEFAULT '',
     model VARCHAR(100),
     part_number VARCHAR(100),
     category_id BIGINT UNSIGNED NOT NULL,
@@ -387,7 +387,20 @@ CREATE TABLE IF NOT EXISTS company_profiles (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- 17. 联系消息表
+-- 17. 社交媒体设置表
+-- =====================================================
+CREATE TABLE IF NOT EXISTS social_media_settings (
+    id BIGINT UNSIGNED PRIMARY KEY,
+    x_url VARCHAR(500) DEFAULT '',
+    facebook_url VARCHAR(500) DEFAULT '',
+    instagram_url VARCHAR(500) DEFAULT '',
+    linkedin_url VARCHAR(500) DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- 18. 联系消息表
 -- =====================================================
 CREATE TABLE IF NOT EXISTS contact_messages (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -434,12 +447,27 @@ INSERT IGNORE INTO languages (code, name, native_name, is_active, is_default, so
 
 -- 插入默认产品分类
 INSERT IGNORE INTO categories (name, slug, description, sort_order, is_active) VALUES
-('PCB Boards', 'pcb-boards', 'FANUC PCB Boards and Circuit Boards', 1, TRUE),
-('I/O Modules', 'io-modules', 'FANUC Input/Output Modules', 2, TRUE),
-('Servo Motors', 'servo-motors', 'FANUC Servo Motors and Drives', 3, TRUE),
-('Control Units', 'control-units', 'FANUC Control Units and Controllers', 4, TRUE),
-('Power Supplies', 'power-supplies', 'FANUC Power Supply Units', 5, TRUE),
-('Cables & Connectors', 'cables-connectors', 'FANUC Cables and Connector Components', 6, TRUE);
+('Fanuc', 'fanuc', 'FANUC CNC, servo, spindle, PCB, I/O, cable, encoder, power supply and accessory parts', 1, TRUE);
+
+SET @fanuc_category_id = (SELECT id FROM categories WHERE slug = 'fanuc' LIMIT 1);
+
+INSERT IGNORE INTO categories (name, slug, description, parent_id, sort_order, is_active) VALUES
+('FANUC I/O Module', 'fanuc-i-o-module', 'FANUC input and output modules', @fanuc_category_id, 1, TRUE),
+('FANUC Operator Panel & MDI', 'fanuc-operator-panel-mdi', 'FANUC operator panels, MDI units and teach pendants', @fanuc_category_id, 2, TRUE),
+('FANUC Display / Monitor', 'fanuc-display-monitor', 'FANUC CRT, LCD, display and monitor parts', @fanuc_category_id, 3, TRUE),
+('FANUC Encoder / Feedback', 'fanuc-encoder-feedback', 'FANUC encoders, pulse coders and feedback components', @fanuc_category_id, 4, TRUE),
+('FANUC Cables & Connectors', 'fanuc-cables-connectors', 'FANUC cables, connectors and harnesses', @fanuc_category_id, 5, TRUE),
+('FANUC Memory / Storage', 'fanuc-memory-storage', 'FANUC memory and storage components', @fanuc_category_id, 6, TRUE),
+('FANUC Battery', 'fanuc-battery', 'FANUC batteries and backup power accessories', @fanuc_category_id, 7, TRUE),
+('FANUC Filters / Fan Unit / Cooling', 'fanuc-filters-fan-unit-cooling', 'FANUC filters, fan units and cooling parts', @fanuc_category_id, 8, TRUE),
+('FANUC Accessories & Others', 'fanuc-accessories-others', 'FANUC accessories and other replacement parts', @fanuc_category_id, 9, TRUE),
+('FANUC CNC System Parts', 'fanuc-cnc-system-parts', 'FANUC CNC controller and system parts', @fanuc_category_id, 10, TRUE),
+('FANUC Servo Amplifier / Drive', 'fanuc-servo-amplifier-drive', 'FANUC servo amplifiers and drives', @fanuc_category_id, 11, TRUE),
+('FANUC Spindle Amplifier / Drive', 'fanuc-spindle-amplifier-drive', 'FANUC spindle amplifiers and drives', @fanuc_category_id, 12, TRUE),
+('FANUC Servo Motor', 'fanuc-servo-motor', 'FANUC servo motors', @fanuc_category_id, 13, TRUE),
+('FANUC Spindle Motor', 'fanuc-spindle-motor', 'FANUC spindle motors', @fanuc_category_id, 14, TRUE),
+('FANUC Power Supply', 'fanuc-power-supply', 'FANUC power supplies, fuses and power components', @fanuc_category_id, 15, TRUE),
+('FANUC PCB / Control Board', 'fanuc-pcb-control-board', 'FANUC PCB boards and control boards', @fanuc_category_id, 16, TRUE);
 
 -- 插入默认公司简介
 INSERT IGNORE INTO company_profiles (
@@ -447,15 +475,15 @@ INSERT IGNORE INTO company_profiles (
     description_1, description_2, achievement,
     stats, expertise, workshop_facilities
 ) VALUES (
-    'VIBO CNC',
+    'Vibocnc',
     'Industrial Automation Specialists',
-    '2005',
+    '2007',
     'Kunshan, China',
-    '5,000sqm',
-    'VIBO CNC established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.',
-    'Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.',
-    'Top 3 FANUC Supplier in China',
-    '[{"icon":"CalendarIcon","value":"2005","label":"Established","description":"Years of experience"},{"icon":"UserGroupIcon","value":"27","label":"Workers","description":"Professional team"},{"icon":"UserGroupIcon","value":"10","label":"Sales Staff","description":"Dedicated sales team"},{"icon":"ArchiveBoxIcon","value":"100,000","label":"Items Stocked","description":"Regular inventory"},{"icon":"TruckIcon","value":"50-100","label":"Daily Parcels","description":"Shipments per day"},{"icon":"CurrencyDollarIcon","value":"200M","label":"Yearly Turnover","description":"Annual revenue"}]',
+    '3,500sqm',
+    'Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
+    'We support multiple automation brands with 27 workers, 10 sales professionals and more than 100,000 items regularly stocked. Daily parcel volume is around 50-100 pieces, with testing, repair and worldwide delivery support.',
+    'Multi-Brand Automation Parts Supplier',
+    '[{"icon":"CalendarIcon","value":"2007","label":"Established","description":"Founded in Kunshan, China"},{"icon":"UserGroupIcon","value":"27","label":"Workers","description":"Professional team"},{"icon":"UserGroupIcon","value":"10","label":"Sales Staff","description":"Dedicated sales team"},{"icon":"ArchiveBoxIcon","value":"100,000","label":"Items Stocked","description":"Regular inventory"},{"icon":"TruckIcon","value":"50-100","label":"Daily Parcels","description":"Shipments per day"}]',
     '["AB & ABB Components","FANUC Systems","Mitsubishi Parts","Siemens Solutions","Quality Testing","Global Shipping"]',
     '[{"id":"1","title":"Modern Facility","description":"State-of-the-art workshop with advanced equipment","image_url":"/api/placeholder/300/200"},{"id":"2","title":"Inventory Management","description":"Organized storage for 100,000+ items","image_url":"/api/placeholder/300/200"},{"id":"3","title":"Quality Control","description":"Rigorous testing and quality assurance","image_url":"/api/placeholder/300/200"}]'
 );

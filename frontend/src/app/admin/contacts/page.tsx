@@ -114,7 +114,7 @@ export default function ContactsPage() {
       replied: t('contacts.status.replied', locale === 'zh' ? '已回复' : 'Replied'),
       closed: t('contacts.status.closed', locale === 'zh' ? '已关闭' : 'Closed'),
     };
-    return map[s] || status;
+    return map[s] || status || '-';
   };
 
   const getPriorityLabel = (priority: string) => {
@@ -125,18 +125,30 @@ export default function ContactsPage() {
       medium: t('contacts.priority.medium', locale === 'zh' ? '中' : 'Medium'),
       low: t('contacts.priority.low', locale === 'zh' ? '低' : 'Low'),
     };
-    return map[p] || priority;
+    return map[p] || priority || '-';
   };
 
   const getInquiryTypeLabel = (type: string) => {
     const x = String(type || '').toLowerCase();
     const map: Record<string, string> = {
+      general: t('contacts.type.general', locale === 'zh' ? '常规' : 'General'),
       parts: t('contacts.type.parts', locale === 'zh' ? '配件' : 'Parts'),
       repair: t('contacts.type.repair', locale === 'zh' ? '维修' : 'Repair'),
       support: t('contacts.type.support', locale === 'zh' ? '技术支持' : 'Support'),
       quote: t('contacts.type.quote', locale === 'zh' ? '报价' : 'Quote'),
     };
-    return map[x] || type;
+    return map[x] || type || '-';
+  };
+
+  const formatContactTime = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value || '-';
+    }
+    return formatDistanceToNow(date, {
+      addSuffix: true,
+      locale: locale === 'zh' ? zhCN : undefined,
+    });
   };
 
   return (
@@ -295,10 +307,7 @@ export default function ContactsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex items-center">
                         <CalendarIcon className="h-4 w-4 mr-1" />
-                        {formatDistanceToNow(new Date(contact.created_at), {
-                          addSuffix: true,
-                          locale: locale === 'zh' ? zhCN : undefined,
-                        })}
+                        {formatContactTime(contact.created_at)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -314,9 +323,8 @@ export default function ContactsPage() {
                                 setAdminNotes(msg.admin_notes || '');
                                 setShowModal(true);
                               })
-                              .catch((error: unknown) => {
-                                const message = error instanceof Error ? error.message : '';
-								toast.error(message || t('contacts.toast.loadFailed', locale === 'zh' ? '加载消息失败' : 'Failed to load message'));
+                              .catch((e: any) => {
+								toast.error(e?.message || t('contacts.toast.loadFailed', locale === 'zh' ? '加载消息失败' : 'Failed to load message'));
                               });
                           }}
                           className="text-yellow-600 hover:text-yellow-900"
@@ -410,7 +418,7 @@ export default function ContactsPage() {
 				  <label className="block text-sm font-medium text-gray-700">{t('contacts.field.status', locale === 'zh' ? '状态' : 'Status')}</label>
                   <select
                     value={editingStatus}
-                    onChange={(e) => setEditingStatus(e.target.value as ContactMessage['status'])}
+                    onChange={(e) => setEditingStatus(e.target.value as any)}
                     className="mt-1 w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="new">{t('contacts.status.new', locale === 'zh' ? '新消息' : 'New')}</option>
@@ -423,7 +431,7 @@ export default function ContactsPage() {
 				  <label className="block text-sm font-medium text-gray-700">{t('contacts.field.priority', locale === 'zh' ? '优先级' : 'Priority')}</label>
                   <select
                     value={editingPriority}
-                    onChange={(e) => setEditingPriority(e.target.value as ContactMessage['priority'])}
+                    onChange={(e) => setEditingPriority(e.target.value as any)}
                     className="mt-1 w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="urgent">{t('contacts.priority.urgent', locale === 'zh' ? '紧急' : 'Urgent')}</option>

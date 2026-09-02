@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import {
   ArrowUpTrayIcon,
+  ArrowPathIcon,
+  EyeIcon,
   MagnifyingGlassIcon,
   PencilIcon,
   SparklesIcon,
@@ -12,6 +14,8 @@ import {
   TrashIcon,
   XMarkIcon,
   PhotoIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
 } from '@heroicons/react/24/outline';
 
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -74,6 +78,7 @@ export default function AdminMediaPage() {
   const [applyMode, setApplyMode] = useState<'fill_empty' | 'replace_all'>('fill_empty');
 
   const [editingAsset, setEditingAsset] = useState<MediaAsset | null>(null);
+  const [previewAsset, setPreviewAsset] = useState<MediaAsset | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editAlt, setEditAlt] = useState('');
   const [editFolder, setEditFolder] = useState('');
@@ -227,6 +232,23 @@ export default function AdminMediaPage() {
     onError: (error: unknown) => toast.error(getErrorMessage(error, t('common.saveFailed', locale === 'zh' ? '保存失败' : 'Failed to save'))),
   });
 
+  const rotateMutation = useMutation({
+    mutationFn: (payload: { asset: MediaAsset; degrees: 90 | 180 | 270 }) =>
+      MediaService.rotate({ asset_id: payload.asset.id, degrees: payload.degrees }),
+    onSuccess: (asset) => {
+      toast.success(t('media.toast.rotated', locale === 'zh' ? '旋转后的图片已保存到图库' : 'Rotated image saved to the media library'));
+      setEditingAsset(asset);
+      setPreviewAsset((current) => (current ? asset : null));
+      setEditTitle(asset.title || '');
+      setEditAlt(asset.alt_text || '');
+      setEditFolder(asset.folder || '');
+      setEditTags(asset.tags || '');
+      queryClient.invalidateQueries({ queryKey: queryKeys.media.lists() });
+    },
+    onError: (error: unknown) =>
+      toast.error(getErrorMessage(error, t('media.toast.rotateFailed', locale === 'zh' ? '图片旋转失败' : 'Failed to rotate image'))),
+  });
+
   const watermarkSettingsMutation = useMutation({
     mutationFn: (payload: { enabled?: boolean; watermark_position?: string; base_media_asset_id?: number | null }) =>
       MediaService.updateWatermarkSettings(payload),
@@ -238,7 +260,7 @@ export default function AdminMediaPage() {
   });
 
   const watermarkMutation = useMutation({
-    mutationFn: (payload: { asset_id: number; text_source: 'sku' | 'custom'; sku?: string; text?: string }) =>
+    mutationFn: (payload: { asset_id: number; text_source: 'sku' | 'custom'; sku?: string; text?: string; watermark_position?: string }) =>
       MediaService.watermarkAsset(payload),
     onSuccess: (asset) => {
       toast.success(t('media.toast.watermarkedCreated', locale === 'zh' ? '水印图片已生成' : 'Watermarked image created'));
@@ -293,6 +315,23 @@ export default function AdminMediaPage() {
     }
     setUploadFiles(prev => [...prev, ...onlyImages]);
   };
+
+  useEffect(() => {
+    if (!showUploadModal) return;
+    const handlePaste = (event: ClipboardEvent) => {
+      const files = Array.from(event.clipboardData?.files || []);
+      if (!files.length) return;
+      event.preventDefault();
+      const onlyImages = files.filter(file => file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|avif|bmp|tiff?|heic|heif)$/i.test(file.name));
+      if (!onlyImages.length) {
+        toast.error(t('media.toast.onlyImages', locale === 'zh' ? '请选择图片文件' : 'Please select image files'));
+        return;
+      }
+      setUploadFiles(prev => [...prev, ...onlyImages]);
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [showUploadModal, locale, t]);
 
   const openEdit = (asset: MediaAsset) => {
     setEditingAsset(asset);
@@ -718,15 +757,24 @@ export default function AdminMediaPage() {
                         <PencilIcon className="h-4 w-4 text-gray-700" />
                       </button>
 
-                      <div className="aspect-square bg-gray-50">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewAsset(asset)}
+                        className="relative block aspect-square w-full bg-gray-50 p-2"
+                        aria-label={t('media.preview', locale === 'zh' ? '放大预览' : 'Preview')}
+                      >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={asset.url}
                           alt={asset.alt_text || asset.original_name}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-contain"
                           loading="lazy"
+                          decoding="async"
                         />
-                      </div>
+                        <span className="absolute bottom-2 right-2 rounded bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                          <EyeIcon className="h-4 w-4" />
+                        </span>
+                      </button>
                       <div className="p-2">
                         <div className="text-xs font-medium text-gray-900 truncate" title={asset.original_name}>
                           {asset.original_name}
@@ -754,23 +802,54 @@ export default function AdminMediaPage() {
                       </span>
                     ) : null}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage(1)}
+                    className="rounded-md border border-gray-200 p-2 text-gray-700 disabled:opacity-50 hover:bg-gray-50"
+                    title={locale === 'zh' ? '第一页' : 'First page'}
+                    aria-label={locale === 'zh' ? '第一页' : 'First page'}
+                  >
+                    <ChevronDoubleLeftIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
                     disabled={page <= 1}
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
                   >
                     {t('common.prev', locale === 'zh' ? '上一页' : 'Prev')}
                   </button>
-                  <div className="text-sm text-gray-700">
-                    {t('common.page', locale === 'zh' ? '第 {page} 页 / 共 {pages} 页' : 'Page {page} / {pages}', { page, pages: totalPages })}
-                  </div>
+                  <label className="flex items-center gap-1 text-sm text-gray-700">
+                    <input
+                      type="number"
+                      min={1}
+                      max={totalPages}
+                      value={page}
+                      onChange={(event) => setPage(Math.min(totalPages, Math.max(1, Number(event.target.value) || 1)))}
+                      className="w-16 rounded-md border border-gray-200 px-2 py-2 text-center text-sm"
+                      aria-label={locale === 'zh' ? '跳转页码' : 'Jump to page'}
+                    />
+                    <span>/ {totalPages}</span>
+                  </label>
                   <button
+                    type="button"
                     disabled={page >= totalPages}
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
                   >
                     {t('common.next', locale === 'zh' ? '下一页' : 'Next')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage(totalPages)}
+                    className="rounded-md border border-gray-200 p-2 text-gray-700 disabled:opacity-50 hover:bg-gray-50"
+                    title={locale === 'zh' ? '最后一页' : 'Last page'}
+                    aria-label={locale === 'zh' ? '最后一页' : 'Last page'}
+                  >
+                    <ChevronDoubleRightIcon className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -847,7 +926,7 @@ export default function AdminMediaPage() {
                       value={watermarkText}
                       onChange={(e) => setWatermarkText(e.target.value)}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder={t('media.watermark.textPh', locale === 'zh' ? '例如：VIBO CNC' : 'e.g. VIBO CNC')}
+                      placeholder={t('media.watermark.textPh', locale === 'zh' ? '例如：Vibocnc' : 'e.g. Vibocnc')}
                     />
                   </div>
                 )}
@@ -946,7 +1025,7 @@ export default function AdminMediaPage() {
                 }}
               >
                 <PhotoIcon className="mx-auto h-10 w-10 text-gray-300" />
-                <p className="mt-2 text-sm text-gray-700">{t('media.upload.drop', locale === 'zh' ? '拖拽图片到此处' : 'Drag & drop images here')}</p>
+                <p className="mt-2 text-sm text-gray-700">{t('media.upload.drop', locale === 'zh' ? '拖拽图片到此处，或直接粘贴图片' : 'Drag & drop or paste images here')}</p>
                 <p className="mt-1 text-xs text-gray-500">{t('common.or', locale === 'zh' ? '或' : 'or')}</p>
                 <button
                   type="button"
@@ -1125,10 +1204,11 @@ export default function AdminMediaPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="border rounded-lg overflow-hidden bg-gray-50">
+                <button type="button" onClick={() => setPreviewAsset(editingAsset)} className="relative border rounded-lg overflow-hidden bg-gray-50 p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={editingAsset.url} alt={editingAsset.alt_text || editingAsset.original_name} className="w-full h-auto" />
-                </div>
+                  <img src={editingAsset.url} alt={editingAsset.alt_text || editingAsset.original_name} className="h-80 w-full object-contain" />
+                  <span className="absolute bottom-3 right-3 rounded bg-black/60 p-1.5 text-white"><EyeIcon className="h-5 w-5" /></span>
+                </button>
                 <div className="space-y-4">
                   <div className="text-sm">
                     <div className="text-gray-900 font-medium truncate" title={editingAsset.original_name}>{editingAsset.original_name}</div>
@@ -1171,6 +1251,29 @@ export default function AdminMediaPage() {
                       onChange={(e) => setEditTags(e.target.value)}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
+                  </div>
+                  <div>
+                    <div className="mb-2 text-sm font-medium text-gray-700">{locale === 'zh' ? '图片方向' : 'Image orientation'}</div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={rotateMutation.isPending}
+                        onClick={() => rotateMutation.mutate({ asset: editingAsset, degrees: 270 })}
+                        className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
+                      >
+                        <ArrowPathIcon className="mr-1 h-4 w-4 -scale-x-100" />
+                        {locale === 'zh' ? '左转 90°' : 'Left 90°'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={rotateMutation.isPending}
+                        onClick={() => rotateMutation.mutate({ asset: editingAsset, degrees: 90 })}
+                        className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
+                      >
+                        <ArrowPathIcon className="mr-1 h-4 w-4" />
+                        {locale === 'zh' ? '右转 90°' : 'Right 90°'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1220,6 +1323,16 @@ export default function AdminMediaPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {previewAsset && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4" onClick={() => setPreviewAsset(null)}>
+          <button type="button" onClick={() => setPreviewAsset(null)} className="absolute right-5 top-5 rounded-full bg-white/90 p-2 text-gray-800">
+            <XMarkIcon className="h-6 w-6" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={previewAsset.url} alt={previewAsset.alt_text || previewAsset.original_name} className="max-h-[90vh] max-w-[94vw] object-contain" onClick={(event) => event.stopPropagation()} />
         </div>
       )}
     </AdminLayout>
