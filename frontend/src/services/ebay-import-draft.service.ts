@@ -4,6 +4,7 @@ import {
   EbayImportDraftDetail,
   EbayImportDraftListResponse,
   EbayImportDraftUpdateRequest,
+  EbayBulkConfirmTaskSnapshot,
   Product,
 } from '@/types';
 
@@ -92,15 +93,25 @@ export class EbayImportDraftService {
     throw new Error(response.data.message || 'Failed to confirm eBay import draft');
   }
 
-  static async bulkConfirm(ids: number[], action?: string): Promise<EbayImportDraftBulkConfirmResponse> {
-    const response = await apiClient.post<APIResponse<EbayImportDraftBulkConfirmResponse>>(
+  static async bulkConfirm(ids: number[], action?: string): Promise<EbayBulkConfirmTaskSnapshot> {
+    const response = await apiClient.post<APIResponse<EbayBulkConfirmTaskSnapshot>>(
       '/admin/ebay-import-drafts/bulk-confirm',
       { ids, action }
     );
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
-    throw new Error(response.data.message || 'Failed to bulk confirm eBay import drafts');
+    throw new Error(response.data.message || 'Failed to start bulk confirm task');
+  }
+
+  static async getBulkConfirmTask(taskId: string): Promise<EbayBulkConfirmTaskSnapshot> {
+    const response = await apiClient.get<APIResponse<EbayBulkConfirmTaskSnapshot>>(
+      `/admin/ebay-import-drafts/bulk-confirm/tasks/${taskId}`
+    );
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    throw new Error(response.data.message || 'Failed to get bulk confirm task status');
   }
 
   static async bulkRecheck(ids: number[]): Promise<{ updated: number; total: number }> {

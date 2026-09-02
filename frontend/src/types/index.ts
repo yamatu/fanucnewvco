@@ -332,6 +332,30 @@ export interface EbayImportDraftUpdateRequest {
   status?: string;
 }
 
+export interface EbayBulkConfirmItemResult {
+  id: number;
+  success: boolean;
+  status_code: number;
+  error?: string;
+}
+
+export interface EbayBulkConfirmTaskSnapshot {
+  id: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  total: number;
+  processed: number;
+  success_count: number;
+  failed_count: number;
+  skipped_count: number;
+  progress_pct: number;
+  message?: string;
+  results?: EbayBulkConfirmItemResult[];
+  started_at?: string;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Category Types
 export interface Category {
   id: number;

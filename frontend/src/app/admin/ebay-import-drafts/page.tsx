@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -18,7 +18,7 @@ import Pagination from '@/components/common/Pagination';
 import { EbayImportDraftService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { useAdminI18n } from '@/lib/admin-i18n';
-import type { EbayImportDraftListItem } from '@/types';
+import type { EbayImportDraftListItem, EbayBulkConfirmTaskSnapshot } from '@/types';
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof Error && error.message) return error.message;
@@ -32,6 +32,8 @@ function EbayImportDraftsContent() {
   const queryClient = useQueryClient();
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [bulkConfirmTask, setBulkConfirmTask] = useState<EbayBulkConfirmTaskSnapshot | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
   const pageSize = 20;
@@ -66,18 +68,63 @@ function EbayImportDraftsContent() {
     await queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
   };
 
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
+  const startPolling = useCallback(
+    (taskId: string) => {
+      stopPolling();
+      pollRef.current = setInterval(async () => {
+        try {
+          const snapshot = await EbayImportDraftService.getBulkConfirmTask(taskId);
+          setBulkConfirmTask(snapshot);
+
+          if (snapshot.status === 'completed' || snapshot.status === 'failed') {
+            stopPolling();
+            await invalidateAll();
+            setSelectedIds([]);
+            if (snapshot.status === 'completed') {
+              toast.success(
+                locale === 'zh'
+                  ? `批量导入完成: ${snapshot.success_count}/${snapshot.total} 成功`
+                  : `Bulk import done: ${snapshot.success_count}/${snapshot.total} succeeded`
+              );
+            } else {
+              toast.error(locale === 'zh' ? '批量导入任务失败' : 'Bulk import task failed');
+            }
+            setTimeout(() => setBulkConfirmTask(null), 8000);
+          }
+        } catch {
+          stopPolling();
+          setBulkConfirmTask(null);
+        }
+      }, 1500);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [locale, stopPolling]
+  );
+
   const bulkConfirmMutation = useMutation({
     mutationFn: (ids: number[]) => EbayImportDraftService.bulkConfirm(ids),
-    onSuccess: async (result) => {
-      await invalidateAll();
-      setSelectedIds([]);
+    onSuccess: (snapshot) => {
+      setBulkConfirmTask(snapshot);
+      startPolling(snapshot.id);
       toast.success(
         locale === 'zh'
-          ? `已确认 ${result.success_count}/${result.total} 条草稿`
-          : `Confirmed ${result.success_count}/${result.total} drafts`
+          ? `批量导入任务已启动 (${snapshot.total} 条)`
+          : `Bulk import task started (${snapshot.total} drafts)`
       );
     },
-    onError: (err: unknown) => toast.error(getErrorMessage(err, locale === 'zh' ? '批量确认失败' : 'Bulk confirm failed')),
+    onError: (err: unknown) =>
+      toast.error(getErrorMessage(err, locale === 'zh' ? '批量确认失败' : 'Bulk confirm failed')),
   });
 
   const bulkRecheckMutation = useMutation({
@@ -90,7 +137,8 @@ function EbayImportDraftsContent() {
           : `Rechecked ${result.updated}/${result.total} drafts`
       );
     },
-    onError: (err: unknown) => toast.error(getErrorMessage(err, locale === 'zh' ? '批量重检失败' : 'Bulk recheck failed')),
+    onError: (err: unknown) =>
+      toast.error(getErrorMessage(err, locale === 'zh' ? '批量重检失败' : 'Bulk recheck failed')),
   });
 
   const bulkDeleteMutation = useMutation({
@@ -98,9 +146,12 @@ function EbayImportDraftsContent() {
     onSuccess: async (result) => {
       await invalidateAll();
       setSelectedIds([]);
-      toast.success(locale === 'zh' ? `已删除 ${result.deleted} 条草稿` : `Deleted ${result.deleted} drafts`);
+      toast.success(
+        locale === 'zh' ? `已删除 ${result.deleted} 条草稿` : `Deleted ${result.deleted} drafts`
+      );
     },
-    onError: (err: unknown) => toast.error(getErrorMessage(err, locale === 'zh' ? '批量删除失败' : 'Bulk delete failed')),
+    onError: (err: unknown) =>
+      toast.error(getErrorMessage(err, locale === 'zh' ? '批量删除失败' : 'Bulk delete failed')),
   });
 
   const updateParams = (updates: Record<string, string | number | undefined>) => {
@@ -121,11 +172,14 @@ function EbayImportDraftsContent() {
     setSelectedIds((prev) => (checked ? Array.from(new Set([...prev, id])) : prev.filter((x) => x !== id)));
   };
 
+  const isTaskRunning = bulkConfirmTask != null && (bulkConfirmTask.status === 'queued' || bulkConfirmTask.status === 'processing');
+
   const handleBulkConfirm = () => {
     if (selectedIds.length === 0) {
       toast.error(locale === 'zh' ? '请先选择草稿' : 'Select drafts first');
       return;
     }
+    if (isTaskRunning) return;
     bulkConfirmMutation.mutate(selectedIds);
   };
 
@@ -231,11 +285,17 @@ function EbayImportDraftsContent() {
             </button>
             <button
               onClick={handleBulkConfirm}
-              disabled={bulkConfirmMutation.isPending || selectedIds.length === 0}
+              disabled={bulkConfirmMutation.isPending || isTaskRunning || selectedIds.length === 0}
               className="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
             >
               <CheckCircleIcon className="mr-2 h-4 w-4" />
-              {locale === 'zh' ? '批量确认导入' : 'Bulk Confirm'}
+              {isTaskRunning
+                ? locale === 'zh'
+                  ? `导入中 ${bulkConfirmTask!.processed}/${bulkConfirmTask!.total}`
+                  : `Importing ${bulkConfirmTask!.processed}/${bulkConfirmTask!.total}`
+                : locale === 'zh'
+                  ? '批量确认导入'
+                  : 'Bulk Confirm'}
             </button>
             <button
               onClick={handleBulkDelete}
@@ -247,6 +307,43 @@ function EbayImportDraftsContent() {
             </button>
           </div>
         </div>
+
+        {bulkConfirmTask && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 shadow-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-medium text-blue-900">
+                {bulkConfirmTask.status === 'completed'
+                  ? locale === 'zh' ? '批量导入完成' : 'Bulk import completed'
+                  : bulkConfirmTask.status === 'failed'
+                    ? locale === 'zh' ? '批量导入失败' : 'Bulk import failed'
+                    : locale === 'zh' ? '批量导入进行中...' : 'Bulk import in progress...'}
+              </span>
+              <span className="text-sm text-blue-700">
+                {bulkConfirmTask.processed}/{bulkConfirmTask.total}
+                {' '}({Math.round(bulkConfirmTask.progress_pct)}%)
+                {bulkConfirmTask.failed_count > 0 && (
+                  <span className="ml-2 text-red-600">
+                    {locale === 'zh' ? `${bulkConfirmTask.failed_count} 失败` : `${bulkConfirmTask.failed_count} failed`}
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="h-3 w-full overflow-hidden rounded-full bg-blue-200">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  bulkConfirmTask.status === 'completed' ? 'bg-green-500' :
+                  bulkConfirmTask.status === 'failed' ? 'bg-red-500' : 'bg-blue-600'
+                }`}
+                style={{ width: `${bulkConfirmTask.progress_pct}%` }}
+              />
+            </div>
+            <div className="mt-2 flex gap-4 text-xs text-blue-700">
+              <span>{locale === 'zh' ? '成功' : 'Success'}: {bulkConfirmTask.success_count}</span>
+              <span>{locale === 'zh' ? '失败' : 'Failed'}: {bulkConfirmTask.failed_count}</span>
+              <span>{locale === 'zh' ? '剩余' : 'Remaining'}: {bulkConfirmTask.total - bulkConfirmTask.processed}</span>
+            </div>
+          </div>
+        )}
 
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-5">

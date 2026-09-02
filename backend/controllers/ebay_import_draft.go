@@ -269,19 +269,38 @@ func (ec *EbayImportDraftController) BulkConfirm(c *gin.Context) {
 		return
 	}
 
-	results := make([]gin.H, 0, len(req.IDs))
-	successCount := 0
 	userID := currentAdminUserID(c)
-	for _, id := range req.IDs {
-		result, statusCode, err := ec.confirmDraftImport(c.Request.Context(), id, req.Action, userID)
-		if err != nil {
-			results = append(results, gin.H{"id": id, "success": false, "status_code": statusCode, "error": err.Error()})
-			continue
-		}
-		successCount++
-		results = append(results, gin.H{"id": id, "success": true, "status_code": http.StatusOK, "data": result})
+
+	confirmFn := func(id uint, action string, uid *uint) (int, error) {
+		_, statusCode, err := ec.confirmDraftImport(context.Background(), id, action, uid)
+		return statusCode, err
 	}
-	c.JSON(http.StatusOK, models.APIResponse{Success: successCount > 0, Message: "Bulk confirm processed", Data: gin.H{"success_count": successCount, "total": len(req.IDs), "results": results}})
+
+	snapshot := services.StartEbayBulkConfirmTask(req.IDs, req.Action, userID, confirmFn)
+	c.JSON(http.StatusAccepted, models.APIResponse{Success: true, Message: "Bulk confirm task started", Data: snapshot})
+}
+
+func (ec *EbayImportDraftController) GetBulkConfirmTask(c *gin.Context) {
+	taskID := strings.TrimSpace(c.Param("taskId"))
+	if taskID == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Missing task ID", Error: "missing_task_id"})
+		return
+	}
+
+	snapshot, ok := services.GetEbayBulkConfirmTaskSnapshot(taskID)
+	if !ok {
+		c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Task not found", Error: "task_not_found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Task status", Data: snapshot})
+}
+
+func (ec *EbayImportDraftController) ConfirmDraftFn() services.EbayDraftConfirmFunc {
+	return func(id uint, action string, userID *uint) (int, error) {
+		_, statusCode, err := ec.confirmDraftImport(context.Background(), id, action, userID)
+		return statusCode, err
+	}
 }
 
 func (ec *EbayImportDraftController) BulkRecheck(c *gin.Context) {

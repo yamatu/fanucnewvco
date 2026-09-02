@@ -46,6 +46,7 @@ func SetupRoutes(r *gin.Engine) {
 	productOptimizationController := &controllers.ProductOptimizationController{}
 	indexNowController := &controllers.IndexNowController{}
 	ebayImportDraftController := &controllers.EbayImportDraftController{}
+	services.StartEbayAutoImportDaemon(ebayImportDraftController.ConfirmDraftFn())
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -204,6 +205,7 @@ func SetupRoutes(r *gin.Engine) {
 				ebayImportDrafts.POST("/upload", ebayImportDraftController.Upload)
 				ebayImportDrafts.GET("", ebayImportDraftController.List)
 				ebayImportDrafts.POST("/bulk-confirm", ebayImportDraftController.BulkConfirm)
+				ebayImportDrafts.GET("/bulk-confirm/tasks/:taskId", ebayImportDraftController.GetBulkConfirmTask)
 				ebayImportDrafts.POST("/bulk-recheck", ebayImportDraftController.BulkRecheck)
 				ebayImportDrafts.DELETE("/bulk", ebayImportDraftController.BulkDelete)
 				ebayImportDrafts.GET("/:id", ebayImportDraftController.Get)
