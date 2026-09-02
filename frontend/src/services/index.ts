@@ -20,6 +20,7 @@ import { AnalyticsService as AnalyticsServiceDefault } from './analytics.service
 import { NewsService as NewsServiceDefault } from './news.service';
 import { IndexNowService as IndexNowServiceDefault } from './indexnow.service';
 import EbayImportDraftServiceDefault from './ebay-import-draft.service';
+import SocialLinksServiceDefault from './social-links.service';
 
 // Export all services
 export const AuthService = AuthServiceDefault;
@@ -43,6 +44,7 @@ export const AnalyticsService = AnalyticsServiceDefault;
 export const NewsService = NewsServiceDefault;
 export const IndexNowService = IndexNowServiceDefault;
 export const EbayImportDraftService = EbayImportDraftServiceDefault;
+export const SocialLinksService = SocialLinksServiceDefault;
 
 // Export types
 export type { ProductFilters } from './product.service';
@@ -82,6 +84,12 @@ export type {
   EbayImportDraftConfirmResponse,
   EbayImportDraftBulkConfirmResponse,
 } from './ebay-import-draft.service';
+export type {
+  SocialLinksPublicConfig,
+  SocialLinkSetting,
+  UpdateSocialLinkSettingRequest,
+} from './social-links.service';
+export { getConfiguredSocialURLs } from './social-links.service';
 
 // API Service class that combines all services
 export class ApiService {
@@ -105,6 +113,7 @@ export class ApiService {
   static news = NewsService;
   static indexnow = IndexNowService;
   static ebayImportDrafts = EbayImportDraftService;
+  static socialLinks = SocialLinksService;
 }
 
 export default ApiService;

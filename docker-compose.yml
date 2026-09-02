@@ -62,7 +62,7 @@ services:
       # CORS: allow the browser origin(s) you access the site from.
       # If you run Nginx on the host for TLS, set CORS_ORIGINS to your domain(s).
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
-
+      CORS_EXTENSION_ORIGINS: "chrome-extension://fmdjodgbjajecbnghigkhbbchlpcggio"
       # Redis (rate limit + cache)
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -94,6 +94,10 @@ services:
 
       # Used to encrypt sensitive admin settings (e.g. Cloudflare Global API Key)
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}
+
+      # Revalidate cached Next.js pages after content mutations.
+      FRONTEND_URL: http://frontend:3000
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
     depends_on:
       mysql:
         condition: service_healthy
@@ -164,6 +168,9 @@ services:
         NEXT_PUBLIC_SITE_DESCRIPTION: ${NEXT_PUBLIC_SITE_DESCRIPTION:-Industrial automation components and CNC spare parts}
         NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
         NEXT_PUBLIC_PAYPAL_ENVIRONMENT: ${NEXT_PUBLIC_PAYPAL_ENVIRONMENT:-sandbox}
+        # Keep Next.js Docker builds inside small VPS memory limits.
+        NEXT_BUILD_WORKER_COUNT: ${NEXT_BUILD_WORKER_COUNT:-1}
+        NEXT_BUILD_NODE_OPTIONS: "${NEXT_BUILD_NODE_OPTIONS:---max-old-space-size=768}"
     container_name: vibocnc_frontend
     environment:
       NODE_ENV: production
@@ -177,6 +184,7 @@ services:
       NEXT_PUBLIC_SITE_DESCRIPTION: ${NEXT_PUBLIC_SITE_DESCRIPTION:-Industrial automation components and CNC spare parts}
       NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
       NEXT_PUBLIC_PAYPAL_ENVIRONMENT: ${NEXT_PUBLIC_PAYPAL_ENVIRONMENT:-sandbox}
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
     depends_on:
       - backend
     # Expose for host Nginx reverse proxy (bind to localhost by default)

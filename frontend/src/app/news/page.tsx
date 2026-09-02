@@ -10,11 +10,11 @@ export async function generateMetadata({ searchParams }: {
   const params = await searchParams;
   const search = params.search;
 
-  let title = 'News & Articles | VIBO CNC';
-  let description = 'Latest news, insights, and technical articles about industrial automation, FANUC parts, and CNC equipment from VIBO CNC.';
+  let title = 'FANUC News & Technical Articles | Vcocnc';
+  let description = 'Latest news, insights, and technical articles about industrial automation, FANUC parts, and CNC equipment from Vcocnc.';
 
   if (search) {
-    title = `Search: ${search} - News | VIBO CNC`;
+    title = `Search: ${search} - News | Vcocnc`;
     description = `Search results for "${search}" in news and articles.`;
   }
 
@@ -22,7 +22,7 @@ export async function generateMetadata({ searchParams }: {
   const hasSearch = typeof search === 'string' && search.trim().length > 0;
 
   return {
-    title,
+    title: { absolute: title },
     description,
     robots: hasSearch ? { index: false, follow: true } : { index: true, follow: true },
     keywords: ['FANUC news', 'CNC articles', 'industrial automation', 'technical blog', search].filter(Boolean).join(', '),
@@ -85,12 +85,12 @@ export default async function NewsPage({
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'Blog',
-    'name': 'VIBO CNC News & Articles',
+    'name': 'Vcocnc News & Articles',
     'description': 'Latest news and insights about industrial automation and FANUC parts.',
     'url': `${baseUrl}/news`,
     'publisher': {
       '@type': 'Organization',
-      'name': 'VIBO CNC',
+      'name': 'Vcocnc',
       'url': baseUrl,
     },
     'blogPost': serverData.articles.slice(0, 10).map((article: any) => ({
@@ -103,7 +103,7 @@ export default async function NewsPage({
       'image': article.featured_image || undefined,
       'author': {
         '@type': 'Person',
-        'name': article.author?.full_name || 'VIBO CNC',
+        'name': article.author?.full_name || 'Vcocnc',
       },
     })),
   };
@@ -117,7 +117,7 @@ export default async function NewsPage({
       <Suspense
         fallback={
           <div className="min-h-screen flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800" />
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600" />
           </div>
         }
       >

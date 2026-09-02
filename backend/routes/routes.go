@@ -40,6 +40,7 @@ func SetupRoutes(r *gin.Engine) {
 	cacheController := &controllers.CacheController{}
 	hotlinkController := &controllers.HotlinkController{}
 	payPalController := &controllers.PayPalController{}
+	socialLinksController := &controllers.SocialLinksController{}
 	analyticsController := &controllers.AnalyticsController{}
 	newsController := &controllers.NewsController{}
 	productOptimizationController := &controllers.ProductOptimizationController{}
@@ -101,6 +102,7 @@ func SetupRoutes(r *gin.Engine) {
 
 			// PayPal (public config)
 			public.GET("/paypal/config", payPalController.GetPublicConfig)
+			public.GET("/social-links", socialLinksController.GetPublicConfig)
 
 			// Email (public)
 			public.GET("/email/config", emailController.GetPublicConfig)
@@ -323,6 +325,14 @@ func SetupRoutes(r *gin.Engine) {
 			{
 				paypal.GET("/settings", payPalController.GetSettings)
 				paypal.PUT("/settings", payPalController.UpdateSettings)
+			}
+
+			// Social links and Organization identity signals (admin only)
+			socialLinks := admin.Group("/social-links")
+			socialLinks.Use(middleware.AdminOnly())
+			{
+				socialLinks.GET("/settings", socialLinksController.GetSettings)
+				socialLinks.PUT("/settings", socialLinksController.UpdateSettings)
 			}
 
 			// IndexNow / Bing (admin only)

@@ -61,6 +61,18 @@ func TriggerNextRevalidate(skus []string, paths []string, alsoAllProducts bool) 
 	}
 }
 
+// TriggerNextRevalidateTag invalidates a named Next.js data-cache tag.
+func TriggerNextRevalidateTag(tag string) {
+	frontendURL := strings.TrimRight(strings.TrimSpace(os.Getenv("FRONTEND_URL")), "/")
+	secret := strings.TrimSpace(os.Getenv("REVALIDATE_SECRET"))
+	tag = strings.TrimSpace(tag)
+	if frontendURL == "" || secret == "" || tag == "" {
+		return
+	}
+
+	go doRevalidateRequest(frontendURL+"/api/revalidate", secret, "", tag)
+}
+
 func doRevalidateRequest(endpoint, secret, path, tag string) {
 	body := map[string]string{}
 	if path != "" {

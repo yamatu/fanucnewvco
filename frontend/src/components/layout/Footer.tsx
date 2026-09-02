@@ -1,14 +1,11 @@
-'use client';
-
 import Link from 'next/link';
-import { getSiteUrl } from '@/lib/url';
 import {
   PhoneIcon,
   EnvelopeIcon,
   MapPinIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
-import { useState } from 'react';
+import FooterSocialLinks from '@/components/social/FooterSocialLinks';
 
 const footerNavigation = {
   products: [
@@ -50,24 +47,6 @@ const footerNavigation = {
 };
 
 export function Footer() {
-  const [newsletterEmail, setNewsletterEmail] = useState('');
-  const siteUrl = getSiteUrl();
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const url = new URL(siteUrl || window.location.origin);
-      url.pathname = '/contact';
-      if (newsletterEmail && newsletterEmail.trim()) {
-        url.searchParams.set('email', newsletterEmail.trim());
-      }
-      window.location.href = url.toString();
-    } catch {
-      // Fallback to relative navigation
-      const qs = newsletterEmail && newsletterEmail.trim() ? `?email=${encodeURIComponent(newsletterEmail.trim())}` : '';
-      window.location.href = `/contact${qs}`;
-    }
-  };
   return (
     <footer className="bg-slate-950 text-white">
       {/* Main Footer Content */}
@@ -115,6 +94,8 @@ export function Footer() {
                 <span className="text-slate-300">Mon-Fri: 8:00 AM - 6:00 PM</span>
               </div>
             </div>
+
+            <FooterSocialLinks />
           </div>
 
           {/* Products */}
@@ -197,15 +178,20 @@ export function Footer() {
         <div className="mt-12 pt-8 border-t border-slate-800">
           <div className="max-w-md">
             <h3 className="text-lg font-semibold mb-4">Stay Updated</h3>
-            <p className="text-slate-300 mb-4">
+            <p id="newsletter-description" className="text-slate-300 mb-4">
               Subscribe to our newsletter for the latest automation components and industry updates.
             </p>
-            <form className="flex" onSubmit={handleSubscribe}>
+            <form className="flex" action="/contact" method="get">
+              <label htmlFor="newsletter-email" className="sr-only">
+                Email address for newsletter updates
+              </label>
               <input
+                id="newsletter-email"
+                name="email"
                 type="email"
+                autoComplete="email"
+                aria-describedby="newsletter-description"
                 placeholder="Enter your email"
-                value={newsletterEmail}
-                onChange={(e) => setNewsletterEmail(e.target.value)}
                 className="flex-1 px-4 py-2 bg-slate-900 border border-slate-700 rounded-l-md focus:outline-none focus:ring-2 focus:ring-[#003a78] text-white placeholder-slate-400"
               />
               <button
@@ -224,7 +210,7 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-slate-400 text-sm">
-              Copyright 2024 VIBO CNC. All rights reserved.
+              &copy; {new Date().getFullYear()} VIBO CNC. All rights reserved.
             </div>
 
             <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 md:mt-0">

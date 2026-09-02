@@ -1,7 +1,6 @@
-'use client';
-
 import Link from 'next/link';
 import type { HomepageContent } from '@/types';
+import type { ComponentType, SVGProps } from 'react';
 import { 
   CogIcon, 
   WrenchScrewdriverIcon, 
@@ -16,7 +15,9 @@ import { DEFAULT_SERVICES_SECTION_DATA, type ServicesSectionData } from '@/lib/h
 
 type Props = { content?: HomepageContent | null };
 
-const ICONS: Record<string, any> = {
+type OutlineIcon = ComponentType<SVGProps<SVGSVGElement>>;
+
+const ICONS: Record<string, OutlineIcon> = {
   cog: CogIcon,
   wrench: WrenchScrewdriverIcon,
   phone: PhoneIcon,
@@ -25,9 +26,13 @@ const ICONS: Record<string, any> = {
   cap: AcademicCapIcon,
 };
 
-function normalizeServicesData(input: any): ServicesSectionData {
+function normalizeServicesData(input: unknown): ServicesSectionData {
   if (!input) return DEFAULT_SERVICES_SECTION_DATA;
-  const data = typeof input === 'string' ? (() => { try { return JSON.parse(input); } catch { return null; } })() : input;
+  const data = typeof input === 'string'
+    ? (() => { try { return JSON.parse(input) as Partial<ServicesSectionData>; } catch { return null; } })()
+    : typeof input === 'object'
+      ? input as Partial<ServicesSectionData>
+      : null;
   const services = Array.isArray(data?.services) && data.services.length > 0 ? data.services : DEFAULT_SERVICES_SECTION_DATA.services;
   const processSteps = Array.isArray(data?.processSteps) && data.processSteps.length > 0 ? data.processSteps : DEFAULT_SERVICES_SECTION_DATA.processSteps;
   return {
@@ -46,7 +51,7 @@ function normalizeServicesData(input: any): ServicesSectionData {
 }
 
 export function ServicesSection({ content }: Props) {
-  const base = normalizeServicesData((content as any)?.data);
+  const base = normalizeServicesData(content?.data);
   const data: ServicesSectionData = {
     ...base,
     headerTitle: content?.title || base.headerTitle,
@@ -70,7 +75,7 @@ export function ServicesSection({ content }: Props) {
 
         {/* Services Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20">
-          {data.services.map((service: any) => {
+          {data.services.map((service) => {
             const Icon = ICONS[String(service.icon)] || CogIcon;
             return (
               <div
@@ -107,7 +112,7 @@ export function ServicesSection({ content }: Props) {
                     href={service.href || '/contact'}
                     className="text-[#003a78] hover:text-[#003a78] font-semibold text-sm flex items-center group-hover:translate-x-2 transition-transform duration-300"
                   >
-                    Learn More
+                    Explore {service.title}
                     <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
@@ -130,7 +135,7 @@ export function ServicesSection({ content }: Props) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {data.processSteps.map((step: any, index: number) => (
+            {data.processSteps.map((step, index) => (
               <div key={index} className="text-center relative">
                 {/* Step Number */}
                 <div className="bg-slate-950 text-white w-16 h-16 rounded-lg flex items-center justify-center text-xl font-bold mx-auto mb-4">

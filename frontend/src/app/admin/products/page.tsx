@@ -1268,7 +1268,7 @@ function AdminProductsContent() {
               <div className="flex items-center justify-between border-b px-4 py-3">
                 <div>
 				  <div className="text-lg font-semibold text-gray-900">{t('products.import.modalTitle', locale === 'zh' ? '批量导入产品（XLSX）' : 'Bulk Import Products (XLSX)')}</div>
-				  <div className="text-xs text-gray-500">{t('products.import.columns', locale === 'zh' ? '模板列：型号 / 价格 / 数量 / 重量kg' : 'Template columns: Model, Price, Quantity, WeightKg')}</div>
+				  <div className="text-xs text-gray-500">{t('products.import.columns', locale === 'zh' ? '模板列：型号 / 价格 / 数量 / 重量kg / 分类' : 'Template columns: Model, Price, Quantity, WeightKg, Category')}</div>
                 </div>
                 <button
                   onClick={() => {
@@ -1322,7 +1322,7 @@ function AdminProductsContent() {
                     }}
                     className="block w-full text-sm"
                   />
-				  <p className="mt-1 text-xs text-gray-500">{t('products.import.hint', locale === 'zh' ? '系统会按 SKU/型号/料号匹配；更新价格/库存/重量，并可补全 SEO 字段。' : 'We will match by SKU/model/part number; then update price/stock/weight, and fill missing SEO fields.')}</p>
+				  <p className="mt-1 text-xs text-gray-500">{t('products.import.hint', locale === 'zh' ? '系统会按 SKU/型号/料号匹配；分类列可填写自定义分类，分类不存在时会自动创建。' : 'We will match by SKU/model/part number. Use the Category column for custom categories; missing categories are created automatically.')}</p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -1374,6 +1374,7 @@ function AdminProductsContent() {
                           <span>{locale === 'zh' ? `已处理：${importTask.processed_rows}/${importTask.total_rows || '?'}` : `Processed: ${importTask.processed_rows}/${importTask.total_rows || '?'}`}</span>
                           <span>{locale === 'zh' ? `新增：${importTask.created}` : `Created: ${importTask.created}`}</span>
                           <span>{locale === 'zh' ? `更新：${importTask.updated}` : `Updated: ${importTask.updated}`}</span>
+                          <span>{locale === 'zh' ? `新分类：${importTask.created_categories || 0}` : `New categories: ${importTask.created_categories || 0}`}</span>
                           <span>{locale === 'zh' ? `跳过：${importTask.skipped}` : `Skipped: ${importTask.skipped}`}</span>
                           <span>{locale === 'zh' ? `失败：${importTask.failed}` : `Failed: ${importTask.failed}`}</span>
                         </div>
@@ -1390,8 +1391,8 @@ function AdminProductsContent() {
 					<div className="text-sm font-semibold text-gray-900">{t('common.result', locale === 'zh' ? '结果' : 'Result')}</div>
                     <div className="mt-1 text-sm text-gray-700">
 						{t('products.import.summary', locale === 'zh'
-							? `总行数：${importResult.total_rows} | 新增：${importResult.created} | 更新：${importResult.updated} | 失败：${importResult.failed}`
-							: `Total rows: ${importResult.total_rows} | Created: ${importResult.created} | Updated: ${importResult.updated} | Failed: ${importResult.failed}`)}
+							? `总行数：${importResult.total_rows} | 新增：${importResult.created} | 更新：${importResult.updated} | 新分类：${importResult.created_categories || 0} | 失败：${importResult.failed}`
+							: `Total rows: ${importResult.total_rows} | Created: ${importResult.created} | Updated: ${importResult.updated} | New categories: ${importResult.created_categories || 0} | Failed: ${importResult.failed}`)}
                     </div>
 
                     {Array.isArray(importResult.items) && importResult.items.length > 0 && (
@@ -1401,6 +1402,7 @@ function AdminProductsContent() {
                             <tr>
 							  <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('common.row', locale === 'zh' ? '行号' : 'Row')}</th>
 							  <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('products.import.model', locale === 'zh' ? '型号' : 'Model')}</th>
+							  <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('products.field.category', locale === 'zh' ? '分类' : 'Category')}</th>
 							  <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('common.action', locale === 'zh' ? '操作' : 'Action')}</th>
 							  <th className="px-3 py-2 text-left font-semibold text-gray-700">{t('common.message', locale === 'zh' ? '信息' : 'Message')}</th>
                             </tr>
@@ -1410,6 +1412,7 @@ function AdminProductsContent() {
                               <tr key={`${it.row_number || i}-${it.model || i}`} className="border-t">
                                 <td className="px-3 py-2 text-gray-700">{it.row_number}</td>
                                 <td className="px-3 py-2 font-mono text-gray-900">{it.model}</td>
+                                <td className="px-3 py-2 text-gray-700">{it.category || '-'}</td>
                                 <td className="px-3 py-2 text-gray-700">{it.action}</td>
                                 <td className="px-3 py-2 text-gray-600">{it.message}</td>
                               </tr>

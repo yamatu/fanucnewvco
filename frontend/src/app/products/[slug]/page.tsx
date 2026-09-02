@@ -5,6 +5,7 @@ import { getSiteUrl } from '@/lib/url';
 import { toProductPathId } from '@/lib/utils';
 import type { Product, ProductImage } from '@/types';
 import ProductDetailClient from './ProductDetailClient';
+import { ReactQueryProvider } from '@/lib/react-query';
 import { redirect, notFound } from 'next/navigation';
 
 const DEFAULT_SITE_NAME = 'VIBO CNC';
@@ -251,7 +252,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   return (
     <>
-      <ProductDetailClient productSku={initialProduct?.sku || sku} initialProduct={initialProduct} />
+      <ReactQueryProvider>
+        <ProductDetailClient productSku={initialProduct?.sku || sku} initialProduct={initialProduct} />
+      </ReactQueryProvider>
     </>
   );
 }

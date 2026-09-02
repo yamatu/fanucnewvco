@@ -1,16 +1,21 @@
-'use client';
-
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { getImageProps } from 'next/image';
 import type { HomepageContent } from '@/types';
 import { DEFAULT_HERO_DATA, type HeroSectionData } from '@/lib/homepage-defaults';
+import HeroCarouselControls from './HeroCarouselControls';
 
 type Props = { content?: HomepageContent | null };
 
+function getDescriptiveCtaText(text: string, href: string, slideTitle: string): string {
+  if (!/^(learn|read|view) more$/i.test(text.trim())) return text;
+  if (href === '/about') return 'About Vcocnc';
+  if (href === '/contact') return 'Contact Vcocnc';
+  if (href === '/categories') return 'Browse Product Categories';
+  return `Explore ${slideTitle}`;
+}
+
 function normalizeHeroData(content?: HomepageContent | null): HeroSectionData {
-  const raw = (content as any)?.data;
+  const raw = content?.data;
   const parsed = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
 
   // Start from structured data if provided, otherwise defaults.
@@ -37,151 +42,75 @@ export function HeroSection({ content }: Props) {
   const heroData = normalizeHeroData(content);
   const slides = heroData.slides;
   const autoPlayMs = heroData.autoPlayMs || 6000;
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const initialSlide = slides[0];
 
-  // Auto-play functionality
-  useEffect(() => {
-    if (!isAutoPlaying) return;
+  if (!initialSlide) return null;
 
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, autoPlayMs);
-
-    return () => clearInterval(interval);
-  }, [isAutoPlaying, slides.length, autoPlayMs]);
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
-    setIsAutoPlaying(false);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-    setIsAutoPlaying(false);
-  };
-
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index);
-    setIsAutoPlaying(false);
-  };
+  const { props: initialImageProps } = getImageProps({
+    src: initialSlide.image,
+    alt: initialSlide.title,
+    width: 1920,
+    height: 1080,
+    quality: 70,
+    sizes: '100vw',
+    priority: true,
+    fetchPriority: 'high',
+    decoding: 'sync',
+  });
 
   return (
-    <section className="relative w-full h-[72vh] min-h-[560px] max-h-[780px] flex items-center overflow-hidden bg-slate-950">
-      {/* Background Images */}
-      {slides.map((slide, index) => (
-        <div
-          key={slide.id ?? index}
-          className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${
-            index === currentSlide ? 'opacity-100' : 'opacity-0'
-          }`}
-        >
-          <Image
-            src={slide.image}
-            alt={slide.title}
-            fill
-            className="object-cover w-full h-full"
-            style={{
-              objectPosition: 'center center',
-              objectFit: 'cover'
-            }}
-            sizes="100vw"
-            priority={index === 0}
-            unoptimized={typeof slide.image === 'string' && slide.image.startsWith('/uploads/')}
-            onError={(e) => {
-              console.error('Image failed to load:', slide.image);
-              // 设置备用图片
-              const target = e.currentTarget as HTMLImageElement;
-              target.src = 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=1920&h=1080';
-            }}
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(15,23,42,0.92)_0%,rgba(15,23,42,0.74)_42%,rgba(15,23,42,0.28)_100%)]" />
-          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-slate-950/75 to-transparent" />
-        </div>
-      ))}
+    <section className="relative w-full h-screen min-h-screen flex items-center justify-center overflow-hidden bg-gray-900">
+      {/* Keep the LCP image outside the carousel's client hydration boundary. */}
+      <div className="absolute inset-0 h-full w-full">
+        {/* getImageProps keeps Next.js optimization without hydrating the LCP element. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          {...initialImageProps}
+          alt={initialSlide.title}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/40" />
+      </div>
 
-      {/* Content */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {slides.map((slide, index) => (
-          <div
-            key={slide.id ?? index}
-            className={`max-w-3xl transition-all duration-1000 ${
-              index === currentSlide
-                ? 'opacity-100 transform translate-y-0'
-                : 'opacity-0 transform translate-y-8'
-            }`}
-            style={{ display: index === currentSlide ? 'block' : 'none' }}
-          >
-            <div className="mb-6 inline-flex items-center border border-orange-300/40 bg-slate-950/45 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-orange-100 backdrop-blur">
-              Industrial Automation Supply
-            </div>
-
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black mb-6 leading-[0.98] text-white">
-              {slide.title}
+      {/* The initial slide is server-rendered so its LCP paint is not gated by hydration. */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-4xl mx-auto bg-white bg-opacity-90 rounded-2xl p-8 md:p-12 shadow-2xl">
+          <div>
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-gray-900">
+              {initialSlide.title}
             </h1>
 
-            <h2 className="text-xl md:text-2xl font-semibold mb-6 text-orange-200">
-              {slide.subtitle}
-            </h2>
-
-            <p className="text-base md:text-lg mb-10 max-w-2xl leading-8 text-slate-200">
-              {slide.description}
+            <p className="text-xl md:text-2xl lg:text-3xl font-light mb-8 text-yellow-600">
+              {initialSlide.subtitle}
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <p className="text-lg md:text-xl mb-12 max-w-3xl mx-auto leading-relaxed text-gray-700">
+              {initialSlide.description}
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                href={slide.cta.primary.href}
-                className="inline-flex justify-center bg-orange-500 hover:bg-[#003a78] text-white px-7 py-3 rounded-md text-base font-semibold transition-colors shadow-lg shadow-teal-950/30"
+                href={initialSlide.cta.primary.href}
+                className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
-                {slide.cta.primary.text}
+                {getDescriptiveCtaText(initialSlide.cta.primary.text, initialSlide.cta.primary.href, initialSlide.title)}
               </Link>
 
               <Link
-                href={slide.cta.secondary.href}
-                className="inline-flex justify-center border border-white/60 text-white hover:bg-white hover:text-slate-950 px-7 py-3 rounded-md text-base font-semibold transition-colors"
+                href={initialSlide.cta.secondary.href}
+                className="border-2 border-yellow-500 text-yellow-600 hover:bg-yellow-500 hover:text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105"
               >
-                {slide.cta.secondary.text}
+                {getDescriptiveCtaText(initialSlide.cta.secondary.text, initialSlide.cta.secondary.href, initialSlide.title)}
               </Link>
             </div>
           </div>
-        ))}
+        </div>
       </div>
 
-      {/* Navigation Arrows */}
-      <button
-        onClick={prevSlide}
-        className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-slate-950/50 hover:bg-slate-950/80 text-white p-3 rounded-full transition-all duration-300"
-        aria-label="Previous slide"
-      >
-        <ChevronLeftIcon className="h-6 w-6" />
-      </button>
-
-      <button
-        onClick={nextSlide}
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-slate-950/50 hover:bg-slate-950/80 text-white p-3 rounded-full transition-all duration-300"
-        aria-label="Next slide"
-      >
-        <ChevronRightIcon className="h-6 w-6" />
-      </button>
-
-      {/* Slide Indicators */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex space-x-3">
-        {slides.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              index === currentSlide
-                ? 'bg-orange-500 scale-125'
-                : 'bg-white/50 hover:bg-white/80'
-            }`}
-            aria-label={`Go to slide ${index + 1}`}
-          />
-        ))}
-      </div>
+      <HeroCarouselControls slides={slides} autoPlayMs={autoPlayMs} />
 
       {/* Scroll Indicator */}
-      <div className="hidden md:block absolute bottom-8 right-8 z-20 text-white animate-bounce">
+      <div className="absolute bottom-8 right-8 z-20 text-white animate-bounce">
         <div className="flex flex-col items-center">
           <span className="text-sm mb-2">Scroll Down</span>
           <svg
