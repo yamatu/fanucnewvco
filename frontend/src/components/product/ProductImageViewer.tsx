@@ -21,7 +21,7 @@ function getImageAlt(productName: string, productSku?: string, categoryName?: st
   const cat = categoryName || 'Industrial Component';
   switch (index) {
     case 0:
-      return `${sku} ${productName} - Product View | Vibocnc`.trim();
+      return `${sku} ${productName} - Product View | Vcocnc`.trim();
     case 1:
       return `${sku} ${productName} - Detail View | ${cat}`.trim();
     default:

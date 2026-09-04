@@ -89,7 +89,7 @@ type aiSEOCategory struct {
 	ParentName  string `json:"parent_name"`
 }
 
-const aiSEOScopeMarker = "[[VIBOCNC_AI_SCOPE="
+const aiSEOScopeMarker = "[[VCOCNC_AI_SCOPE="
 
 func normalizeAISEOFocus(values []string) []string {
 	allowed := map[string]bool{"category": true, "seo": true, "content": true, "all": true}

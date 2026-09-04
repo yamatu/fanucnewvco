@@ -138,12 +138,12 @@ func (s *CompanyProfileService) InitializeDefaultProfile() error {
 
 	// Create default profile
 	defaultProfile := &models.CompanyProfile{
-		CompanyName:       "Vibocnc",
+		CompanyName:       "Vcocnc",
 		CompanySubtitle:   "Industrial Automation Specialists",
 		EstablishmentYear: "2007",
 		Location:          "Kunshan, China",
 		WorkshopSize:      "3,500sqm",
-		Description1:      "Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.",
+		Description1:      "Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.",
 		Description2:      "We support multiple automation brands with 27 workers, 10 sales professionals and more than 100,000 items regularly stocked. Daily parcel volume is around 50-100 pieces, with testing, repair and worldwide delivery support.",
 		Achievement:       "Multi-Brand Automation Parts Supplier",
 		Stats: models.CompanyStatsArray{

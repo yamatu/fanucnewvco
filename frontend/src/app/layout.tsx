@@ -11,7 +11,7 @@ import { buildLanguageAlternates, getLocaleConfig, isLocalizablePublicPath, loca
 import { translatePublicMessage } from "@/lib/i18n/messages";
 
 const SITE_DESCRIPTION =
-  "Vibocnc supplies current, legacy and obsolete CNC and industrial automation parts across 20+ brands, with inspection, repair support and worldwide shipping.";
+  "Vcocnc supplies current, legacy and obsolete CNC and industrial automation parts across 20+ brands, with inspection, repair support and worldwide shipping.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const siteUrl = getSiteUrl();
@@ -49,7 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
       "PLC modules",
       "HMI panels",
       "servo drive repair",
-      "Vibocnc",
+      "Vcocnc",
       "China CNC parts supplier",
       "industrial spare parts",
       "CNC machine parts",
@@ -82,7 +82,7 @@ export async function generateMetadata(): Promise<Metadata> {
           url: "/images/og-image.jpg",
           width: 1200,
           height: 630,
-          alt: "Vibocnc - Industrial Automation Components",
+          alt: "Vcocnc - Industrial Automation Components",
         },
       ],
     },

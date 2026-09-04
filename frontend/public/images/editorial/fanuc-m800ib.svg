@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title description">
   <title id="title">M-800iB/60-20B Precision Cutting</title>
-  <desc id="description">Vibocnc technical editorial cover for M-800iB/60-20B Precision Cutting.</desc>
+  <desc id="description">Vcocnc technical editorial cover for M-800iB/60-20B Precision Cutting.</desc>
   <rect width="1600" height="900" fill="#f4f7fa"/>
   <rect x="0" y="0" width="860" height="900" fill="#07182b"/>
   <path d="M860 0h740v900H760c92-148 138-300 138-456C898 280 885 132 860 0z" fill="#0e3153"/>
@@ -8,7 +8,7 @@
   <text x="105" y="228" fill="#f5c400" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700">PROCESS ROBOT</text>
   <text x="105" y="390" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700">M-800iB/60-20B</text>
   <text x="105" y="492" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700">Precision Cutting</text>
-  <text x="108" y="675" fill="#b9c9d7" font-family="Arial, Helvetica, sans-serif" font-size="29">Industrial automation insight | Vibocnc</text>
+  <text x="108" y="675" fill="#b9c9d7" font-family="Arial, Helvetica, sans-serif" font-size="29">Industrial automation insight | Vcocnc</text>
   <g fill="none" stroke="#f5c400" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"><path d="M1010 690h450M1080 690V535l110-88 105 65 70-132M1190 447l-35-125 115-75 95 133M1365 380l58 86-46 90"/><circle cx="1190" cy="447" r="32"/><circle cx="1365" cy="380" r="32"/><circle cx="1377" cy="556" r="25"/><path d="M1398 570l42 112M1422 625l48 18"/></g>
   <circle cx="1510" cy="90" r="28" fill="#f5c400"/>
 </svg>

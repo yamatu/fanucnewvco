@@ -18,7 +18,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const { locale, canonical: url, languages } = await getLocalizedMetadataPathsWithQuery('/blog', pageQuery);
   const title = search ? `Search: ${search} - Blog` : translatePublicMessage(locale, 'news.blogTitle');
   const description = search
-    ? `Search results for "${search}" in the Vibocnc industrial automation blog.`
+    ? `Search results for "${search}" in the Vcocnc industrial automation blog.`
     : translatePublicMessage(locale, 'news.blogDescription');
   return {
     title,

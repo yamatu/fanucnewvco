@@ -52,7 +52,7 @@ func getDefaultSiteURL() string {
 	if v := strings.TrimSpace(os.Getenv("NEXT_PUBLIC_SITE_URL")); v != "" {
 		return strings.TrimRight(v, "/")
 	}
-	return "https://vibocnc.com"
+	return "https://www.vcocncspare.com"
 }
 
 func normalizeSiteURL(input string) string {

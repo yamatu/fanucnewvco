@@ -52,11 +52,11 @@ export default function BrandsSection({ content }: { content?: HomepageContent |
     || 'We source current, legacy and obsolete automation components from leading industrial manufacturers. Send us the exact part number when a model is difficult to find.';
   const buttonText = content?.button_text || 'Browse All Automation Parts';
   const buttonUrl = content?.button_url || '/products';
-  const vibocncLinks = [
-    { label: `Vibocnc ${t('nav.products')}`, href: '/products' },
-    { label: `${t('nav.about')} Vibocnc`, href: '/about' },
-    { label: `Vibocnc ${t('nav.repair')}`, href: '/repair-request' },
-    { label: `${t('nav.contact')} Vibocnc`, href: '/contact' },
+  const vcocncLinks = [
+    { label: `Vcocnc ${t('nav.products')}`, href: '/products' },
+    { label: `${t('nav.about')} Vcocnc`, href: '/about' },
+    { label: `Vcocnc ${t('nav.repair')}`, href: '/repair-request' },
+    { label: `${t('nav.contact')} Vcocnc`, href: '/contact' },
   ];
 
   return (
@@ -68,10 +68,10 @@ export default function BrandsSection({ content }: { content?: HomepageContent |
           <p className="mt-5 max-w-lg text-base leading-7 text-slate-600">{description}</p>
           <div className="home-brand-summary mt-6 border-t border-slate-300 pt-5">
             <p className="text-sm leading-6 text-slate-700">
-              Search the <strong className="text-slate-950">Vibocnc</strong> catalogue by manufacturer, model or exact part number, or send the label details to our team for review.
+              Search the <strong className="text-slate-950">Vcocnc</strong> catalogue by manufacturer, model or exact part number, or send the label details to our team for review.
             </p>
-            <nav aria-label="Vibocnc company links" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
-              {vibocncLinks.map((item) => (
+            <nav aria-label="Vcocnc company links" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+              {vcocncLinks.map((item) => (
                 <Link key={item.href} href={href(item.href)} className="text-[#0b3e75] underline decoration-slate-300 underline-offset-4 hover:text-orange-700">
                   {item.label}
                 </Link>

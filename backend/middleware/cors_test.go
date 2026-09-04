@@ -20,7 +20,7 @@ func TestIsChromeExtensionOrigin(t *testing.T) {
 		{name: "uppercase", origin: "chrome-extension://ABCDEFGHIJKLMNOPABCDEFGHIJKLMNOP", want: false},
 		{name: "invalid character", origin: "chrome-extension://abcdefghijklmnopabcdefghijklmnoq", want: false},
 		{name: "short", origin: "chrome-extension://abcdefghijklmnop", want: false},
-		{name: "website", origin: "https://vibocnc.com", want: false},
+		{name: "website", origin: "https://www.vcocncspare.com", want: false},
 	}
 
 	for _, test := range tests {
@@ -34,7 +34,7 @@ func TestIsChromeExtensionOrigin(t *testing.T) {
 
 func TestCORSMiddlewareAllowsChromeExtensionInProduction(t *testing.T) {
 	t.Setenv("GO_ENV", "production")
-	t.Setenv("CORS_ORIGINS", "https://vibocnc.com")
+	t.Setenv("CORS_ORIGINS", "https://www.vcocncspare.com")
 	t.Setenv("CORS_ALLOW_CHROME_EXTENSIONS", "true")
 	t.Setenv("CORS_EXTENSION_ORIGINS", "")
 	gin.SetMode(gin.TestMode)
@@ -60,7 +60,7 @@ func TestCORSMiddlewareAllowsChromeExtensionInProduction(t *testing.T) {
 
 func TestCORSMiddlewareRejectsChromeExtensionWhenDisabled(t *testing.T) {
 	t.Setenv("GO_ENV", "production")
-	t.Setenv("CORS_ORIGINS", "https://vibocnc.com")
+	t.Setenv("CORS_ORIGINS", "https://www.vcocncspare.com")
 	t.Setenv("CORS_ALLOW_CHROME_EXTENSIONS", "false")
 	t.Setenv("CORS_EXTENSION_ORIGINS", "")
 	gin.SetMode(gin.TestMode)

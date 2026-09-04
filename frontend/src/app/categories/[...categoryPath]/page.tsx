@@ -53,19 +53,19 @@ function getCategoryMetaDescription(categoryName: string, baseDescription?: stri
   const name = categoryName.toLowerCase();
   const titleSuffix = getCategoryTitleSuffix(brandName);
   const templates: Record<string, string> = {
-    'servo': `Shop ${brandName} ${categoryName} for precise motion control. Tested parts, 12-month warranty, and fast worldwide shipping from Vibocnc.`,
-    'motor': `Buy ${brandName} ${categoryName} for industrial automation and CNC maintenance. Quality tested with 12-month warranty and worldwide shipping from Vibocnc.`,
-    'pcb': `Find ${brandName} ${categoryName} for reliable CNC signal processing. Quality-tested boards with 12-month warranty and worldwide delivery from Vibocnc.`,
-    'board': `Browse ${brandName} ${categoryName} for CNC and automation control systems. Quality-tested circuit boards with 12-month warranty from Vibocnc.`,
-    'power': `Shop ${brandName} ${categoryName} for stable industrial power delivery. Tested units with 12-month warranty and worldwide shipping from Vibocnc.`,
-    'i/o': `Buy ${brandName} ${categoryName} for robust automation I/O control. Tested modules with 12-month warranty and worldwide express shipping from Vibocnc.`,
-    'interface': `Find ${brandName} ${categoryName} for reliable industrial communication. Quality-tested parts with 12-month warranty from Vibocnc.`,
-    'encoder': `Shop ${brandName} ${categoryName} for accurate position feedback. Tested encoders with 12-month warranty and fast worldwide delivery from Vibocnc.`,
-    'cable': `Buy ${brandName} ${categoryName} for reliable industrial connections. Quality cables with 12-month warranty and fast express shipping from Vibocnc.`,
-    'display': `Find ${brandName} ${categoryName} for clear machine operator interfaces. Tested displays with 12-month warranty and worldwide shipping from Vibocnc.`,
-    'spindle': `Shop ${brandName} ${categoryName} for high-speed CNC spindle control. Tested drives with 12-month warranty and express global shipping from Vibocnc.`,
-    'controller': `Buy ${brandName} ${categoryName} for advanced machine control. Tested controllers with 12-month warranty and fast worldwide delivery from Vibocnc.`,
-    'robot': `Find ${brandName} ${categoryName} for industrial robot automation. Tested parts with 12-month warranty and fast DHL/FedEx shipping worldwide from Vibocnc.`,
+    'servo': `Shop ${brandName} ${categoryName} for precise motion control. Tested parts, 12-month warranty, and fast worldwide shipping from Vcocnc.`,
+    'motor': `Buy ${brandName} ${categoryName} for industrial automation and CNC maintenance. Quality tested with 12-month warranty and worldwide shipping from Vcocnc.`,
+    'pcb': `Find ${brandName} ${categoryName} for reliable CNC signal processing. Quality-tested boards with 12-month warranty and worldwide delivery from Vcocnc.`,
+    'board': `Browse ${brandName} ${categoryName} for CNC and automation control systems. Quality-tested circuit boards with 12-month warranty from Vcocnc.`,
+    'power': `Shop ${brandName} ${categoryName} for stable industrial power delivery. Tested units with 12-month warranty and worldwide shipping from Vcocnc.`,
+    'i/o': `Buy ${brandName} ${categoryName} for robust automation I/O control. Tested modules with 12-month warranty and worldwide express shipping from Vcocnc.`,
+    'interface': `Find ${brandName} ${categoryName} for reliable industrial communication. Quality-tested parts with 12-month warranty from Vcocnc.`,
+    'encoder': `Shop ${brandName} ${categoryName} for accurate position feedback. Tested encoders with 12-month warranty and fast worldwide delivery from Vcocnc.`,
+    'cable': `Buy ${brandName} ${categoryName} for reliable industrial connections. Quality cables with 12-month warranty and fast express shipping from Vcocnc.`,
+    'display': `Find ${brandName} ${categoryName} for clear machine operator interfaces. Tested displays with 12-month warranty and worldwide shipping from Vcocnc.`,
+    'spindle': `Shop ${brandName} ${categoryName} for high-speed CNC spindle control. Tested drives with 12-month warranty and express global shipping from Vcocnc.`,
+    'controller': `Buy ${brandName} ${categoryName} for advanced machine control. Tested controllers with 12-month warranty and fast worldwide delivery from Vcocnc.`,
+    'robot': `Find ${brandName} ${categoryName} for industrial robot automation. Tested parts with 12-month warranty and fast DHL/FedEx shipping worldwide from Vcocnc.`,
   };
 
   for (const [key, template] of Object.entries(templates)) {
@@ -74,7 +74,7 @@ function getCategoryMetaDescription(categoryName: string, baseDescription?: stri
 
   if (baseDescription && baseDescription.length > 50) return baseDescription;
 
-  return `Browse ${categoryName} from Vibocnc. Quality ${titleSuffix}, tested with 12-month warranty and fast worldwide shipping via DHL and FedEx.`;
+  return `Browse ${categoryName} from Vcocnc. Quality ${titleSuffix}, tested with 12-month warranty and fast worldwide shipping via DHL and FedEx.`;
 }
 
 export async function generateMetadata({ params }: CategoryPathPageProps): Promise<Metadata> {
@@ -135,7 +135,7 @@ function CategoryStructuredData({ category, breadcrumb, baseUrl, locale }: { cat
     "url": categoryUrl,
     "isPartOf": {
       "@type": "WebSite",
-      "name": "Vibocnc",
+      "name": "Vcocnc",
       "url": baseUrl
     },
     "breadcrumb": {
@@ -167,7 +167,7 @@ function CategoryStructuredData({ category, breadcrumb, baseUrl, locale }: { cat
         "name": `Where can I buy ${brandName} ${catName} online?`,
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": `You can buy quality-tested ${brandName} ${catName} online at Vibocnc (vibocnc.com). We offer 12-month warranty support and worldwide express shipping via DHL and FedEx.`
+          "text": `You can buy quality-tested ${brandName} ${catName} online at Vcocnc (vcocncspare.com). We offer 12-month warranty support and worldwide express shipping via DHL and FedEx.`
         }
       },
       {
@@ -175,7 +175,7 @@ function CategoryStructuredData({ category, breadcrumb, baseUrl, locale }: { cat
         "name": `Do you offer warranty on ${brandName} ${catName}?`,
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": `Yes, ${brandName} ${catName} supplied by Vibocnc include 12-month warranty support. Every part is quality checked before shipment.`
+          "text": `Yes, ${brandName} ${catName} supplied by Vcocnc include 12-month warranty support. Every part is quality checked before shipment.`
         }
       },
       {

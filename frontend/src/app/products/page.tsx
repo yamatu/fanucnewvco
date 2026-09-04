@@ -177,12 +177,12 @@ export async function generateMetadata({ searchParams }: {
     if (brandCategory && brandPath) {
       const brandMetadataPaths = await getLocalizedMetadataPaths(brandPath);
       title = `${brandCategory.name} Industrial Automation Parts`;
-      description = `Browse ${brandCategory.name} industrial automation parts, current and obsolete models, compatibility support, repair evaluation, and worldwide shipping from Vibocnc.`;
+      description = `Browse ${brandCategory.name} industrial automation parts, current and obsolete models, compatibility support, repair evaluation, and worldwide shipping from Vcocnc.`;
       return {
         title,
         description,
         robots: { index: true, follow: true },
-        keywords: `${brandCategory.name} parts, ${brandCategory.name} automation, industrial automation parts, CNC parts, Vibocnc`,
+        keywords: `${brandCategory.name} parts, ${brandCategory.name} automation, industrial automation parts, CNC parts, Vcocnc`,
         openGraph: { title: withSiteName(title), description, type: 'website', url: brandMetadataPaths.canonical },
         alternates: { canonical: brandMetadataPaths.canonical, languages: brandMetadataPaths.languages },
       };

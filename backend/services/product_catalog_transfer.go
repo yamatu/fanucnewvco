@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -503,9 +504,8 @@ func normalizeCatalogOptions(options ProductCatalogImportOptions) ProductCatalog
 
 func replaceCatalogText(value string, replacements []ProductCatalogTextReplacement) string {
 	for _, replacement := range replacements {
-		value = strings.ReplaceAll(value, replacement.From, replacement.To)
-		value = strings.ReplaceAll(value, strings.ToLower(replacement.From), strings.ToLower(replacement.To))
-		value = strings.ReplaceAll(value, strings.ToUpper(replacement.From), strings.ToUpper(replacement.To))
+		matcher := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(replacement.From))
+		value = matcher.ReplaceAllStringFunc(value, func(string) string { return replacement.To })
 	}
 	return value
 }

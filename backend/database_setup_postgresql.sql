@@ -442,7 +442,7 @@ CREATE TRIGGER update_contact_messages_updated_at BEFORE UPDATE ON contact_messa
 
 -- 插入默认管理员用户 (密码: admin123)
 INSERT INTO admin_users (username, email, password_hash, full_name, role, is_active)
-VALUES ('admin', 'admin@vibocnc.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System Administrator', 'admin', TRUE)
+VALUES ('admin', 'admin@vcocncspare.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System Administrator', 'admin', TRUE)
 ON CONFLICT (username) DO NOTHING;
 
 -- 插入默认语言
@@ -492,12 +492,12 @@ INSERT INTO company_profiles (
     description_1, description_2, achievement,
     stats, expertise, workshop_facilities
 ) VALUES (
-    'Vibocnc',
+    'Vcocnc',
     'Industrial Automation Specialists',
     '2007',
     'Kunshan, China',
     '3,500sqm',
-    'Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
+    'Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
     'We support multiple automation brands with 27 workers, 10 sales professionals and more than 100,000 items regularly stocked. Daily parcel volume is around 50-100 pieces, with testing, repair and worldwide delivery support.',
     'Multi-Brand Automation Parts Supplier',
     '[{"icon":"CalendarIcon","value":"2007","label":"Established","description":"Founded in Kunshan, China"},{"icon":"UserGroupIcon","value":"27","label":"Workers","description":"Professional team"},{"icon":"UserGroupIcon","value":"10","label":"Sales Staff","description":"Dedicated sales team"},{"icon":"ArchiveBoxIcon","value":"100,000","label":"Items Stocked","description":"Regular inventory"},{"icon":"TruckIcon","value":"50-100","label":"Daily Parcels","description":"Shipments per day"}]'::jsonb,

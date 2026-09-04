@@ -24,7 +24,7 @@ import (
 
 const (
 	aiSEOCategorySelectionMode = "category_optimization"
-	aiSEOCategoryOptionsMarker = "[[VIBOCNC_CATEGORY_JOB_OPTIONS="
+	aiSEOCategoryOptionsMarker = "[[VCOCNC_CATEGORY_JOB_OPTIONS="
 )
 
 var categoryOptimizationJobCreationMu sync.Mutex

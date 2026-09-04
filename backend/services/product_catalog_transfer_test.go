@@ -34,7 +34,7 @@ func TestCatalogBrandAndTextMapping(t *testing.T) {
 	if actual := mapCatalogBrand("vibocnc", options.BrandMap); actual != "Vcocnc" {
 		t.Fatalf("mapped brand = %q", actual)
 	}
-	actual := replaceCatalogText("Vibocnc support: sales@vibocnc.com", options.TextReplacements)
+	actual := replaceCatalogText("ViBoCnC support: sales@vibocnc.com", options.TextReplacements)
 	if actual != "Vcocnc support: sales@vcocncspare.com" {
 		t.Fatalf("replacement result = %q", actual)
 	}

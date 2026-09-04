@@ -127,7 +127,7 @@ export default function ArticleDetailClient({
             </aside>
           )}
 
-          <aside className="border-t border-gray-200 py-8" aria-label="Related Vibocnc resources">
+          <aside className="border-t border-gray-200 py-8" aria-label="Related Vcocnc resources">
             <h2 className="mb-4 text-xl font-bold text-gray-900">Explore related resources</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Link href={href('/products')} className="rounded-lg border border-gray-200 p-4 text-sm font-semibold text-[#0b3e75] hover:border-blue-300">Automation parts →</Link>

@@ -17,14 +17,14 @@ export default function ContactPage() {
     {
       icon: BuildingOfficeIcon,
       label: 'Company Name',
-      value: 'Vibocnc',
+      value: 'Vcocnc',
       description: 'Industrial Automation Specialists',
     },
     {
       icon: EnvelopeIcon,
       label: 'Email',
-      value: 'sales@vibocnc.com',
-      link: 'mailto:sales@vibocnc.com',
+      value: 'sales@vcocncspare.com',
+      link: 'mailto:sales@vcocncspare.com',
 
       description: 'Send us an email anytime',
     },
@@ -143,7 +143,7 @@ export default function ContactPage() {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">About Vibocnc</h3>
+                <h3 className="text-sm font-medium text-blue-800">About Vcocnc</h3>
                 <div className="mt-2 text-sm text-blue-700">
                   <p>
                     Established in 2007, we supply parts and support for 20+ industrial automation brands worldwide.

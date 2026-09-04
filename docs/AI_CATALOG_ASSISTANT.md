@@ -78,7 +78,7 @@ A06B-6079-H206 = 960.50 USD
 
 在 **AI SEO 优化记录** 中可以暂停排队或执行中的任务。暂停会阻止领取新的 SKU，已发出的少量请求允许完成当前商品；所有未处理 SKU 仍保留在队列，点击“继续”即可从原处恢复。暂停的任务不会因容器重启自动启动。对已暂停任务还可以点击“结束”：已成功优化的产品保留结果，剩余 SKU 会从队列释放，后续可重新加入新的优化任务。
 
-每个任务完成后，系统会刷新产品/站点地图相关缓存；如果后台 **IndexNow** 已启用且允许自动提交产品更新，会把该批已优化 URL 合并为一次 IndexNow 提交，从而帮助 Bing 等支持 IndexNow 的搜索引擎更快发现更新。Google 仍应在 Google Search Console 中提交 `https://www.vibocnc.com/sitemap.xml`。
+每个任务完成后，系统会刷新产品/站点地图相关缓存；如果后台 **IndexNow** 已启用且允许自动提交产品更新，会把该批已优化 URL 合并为一次 IndexNow 提交，从而帮助 Bing 等支持 IndexNow 的搜索引擎更快发现更新。Google 仍应在 Google Search Console 中提交 `https://www.vcocncspare.com/sitemap.xml`。
 
 ## 写入边界与安全性
 

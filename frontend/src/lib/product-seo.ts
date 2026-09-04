@@ -104,7 +104,7 @@ export function buildProductSeoKeywords(product: Product): string {
     type,
     [type, 'replacement'].filter(Boolean).join(' '),
     'industrial automation parts',
-    'Vibocnc',
+    'Vcocnc',
   ];
   return [...new Set(candidates.map(normalizeWhitespace).filter(Boolean))].join(', ');
 }

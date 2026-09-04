@@ -16,19 +16,19 @@ export type HomepageBrandFAQ = {
 
 export const HOMEPAGE_BRAND_FAQS: HomepageBrandFAQ[] = [
   {
-    question: 'What is Vibocnc?',
+    question: 'What is Vcocnc?',
     answer:
-      'Vibocnc is an industrial automation parts and CNC spares supplier based in Kunshan, China. Since 2007, the company has helped maintenance teams source current, legacy and obsolete components, verify model details, arrange inspection or repair evaluation, and coordinate worldwide delivery.',
+      'Vcocnc is an industrial automation parts and CNC spares supplier based in Kunshan, China. Since 2007, the company has helped maintenance teams source current, legacy and obsolete components, verify model details, arrange inspection or repair evaluation, and coordinate worldwide delivery.',
   },
   {
-    question: 'Does Vibocnc only supply FANUC parts?',
+    question: 'Does Vcocnc only supply FANUC parts?',
     answer:
-      'No. FANUC is one of the main product lines, but Vibocnc supports more than 20 automation brands, including Siemens, Mitsubishi, ABB, Allen-Bradley, Omron, Yaskawa, Schneider Electric, SICK and Tamagawa.',
+      'No. FANUC is one of the main product lines, but Vcocnc supports more than 20 automation brands, including Siemens, Mitsubishi, ABB, Allen-Bradley, Omron, Yaskawa, Schneider Electric, SICK and Tamagawa.',
   },
   {
-    question: 'Can Vibocnc help identify an obsolete replacement part?',
+    question: 'Can Vcocnc help identify an obsolete replacement part?',
     answer:
-      'Yes. Send the manufacturer, complete part number, machine or control model, required condition and clear label photos. Vibocnc can check available stock and compatible options, or coordinate a repair evaluation when replacement stock is unavailable.',
+      'Yes. Send the manufacturer, complete part number, machine or control model, required condition and clear label photos. Vcocnc can check available stock and compatible options, or coordinate a repair evaluation when replacement stock is unavailable.',
   },
   {
     question: 'How are model and condition details confirmed?',
@@ -36,9 +36,9 @@ export const HOMEPAGE_BRAND_FAQS: HomepageBrandFAQ[] = [
       'The team checks the submitted part number, model, label information and application details before quotation. The quotation or product page identifies the offered model, condition, warranty scope and lead time so the buyer can confirm the exact option before ordering.',
   },
   {
-    question: 'Does Vibocnc ship industrial automation parts worldwide?',
+    question: 'Does Vcocnc ship industrial automation parts worldwide?',
     answer:
-      'Yes. Vibocnc coordinates international delivery from Kunshan, China. Carrier options, estimated delivery time, protective export packing and destination requirements are confirmed during quotation and order processing.',
+      'Yes. Vcocnc coordinates international delivery from Kunshan, China. Carrier options, estimated delivery time, protective export packing and destination requirements are confirmed during quotation and order processing.',
   },
 ];
 
@@ -64,7 +64,7 @@ const capabilities = [
   {
     title: 'Worldwide order coordination',
     description:
-      'Quotation, protective export packing and international delivery are coordinated from the Vibocnc facility in Kunshan, China.',
+      'Quotation, protective export packing and international delivery are coordinated from the Vcocnc facility in Kunshan, China.',
     icon: GlobeAltIcon,
   },
 ];
@@ -82,22 +82,22 @@ export default function HomeBrandAuthoritySection({
 
   return (
     <>
-      <section id="about-vibocnc" className="home-brand-summary border-b border-slate-200 bg-white py-16 lg:py-20">
+      <section id="about-vcocnc" className="home-brand-summary border-b border-slate-200 bg-white py-16 lg:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-[1.08fr_0.92fr] lg:items-start">
             <div>
-              <p className="text-xs font-bold uppercase text-[#0b3e75]">Vibocnc company profile</p>
+              <p className="text-xs font-bold uppercase text-[#0b3e75]">Vcocnc company profile</p>
               {primaryHeading ? (
                 <h1 className="mt-3 max-w-3xl text-3xl font-black text-slate-950 sm:text-4xl">
-                  What is Vibocnc?
+                  What is Vcocnc?
                 </h1>
               ) : (
                 <h2 className="mt-3 max-w-3xl text-3xl font-black text-slate-950 sm:text-4xl">
-                  What is Vibocnc?
+                  What is Vcocnc?
                 </h2>
               )}
               <p className="entity-summary mt-5 max-w-3xl text-lg leading-8 text-slate-700">
-                Vibocnc is an industrial automation parts and CNC spares supplier based in Kunshan, China.
+                Vcocnc is an industrial automation parts and CNC spares supplier based in Kunshan, China.
                 Since 2007, we have helped maintenance teams source current, legacy and obsolete components,
                 verify model details, arrange inspection or repair evaluation, and coordinate worldwide delivery.
               </p>
@@ -161,11 +161,11 @@ export default function HomeBrandAuthoritySection({
         </div>
       </section>
 
-      <section id="vibocnc-faq" className="border-b border-slate-200 bg-[#f3f6f8] py-16 lg:py-20">
+      <section id="vcocnc-faq" className="border-b border-slate-200 bg-[#f3f6f8] py-16 lg:py-20">
         <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.72fr_1.28fr] lg:px-8">
           <div>
-            <p className="text-xs font-bold uppercase text-[#0b3e75]">Vibocnc FAQ</p>
-            <h2 className="mt-3 text-3xl font-black text-slate-950 sm:text-4xl">Questions about Vibocnc</h2>
+            <p className="text-xs font-bold uppercase text-[#0b3e75]">Vcocnc FAQ</p>
+            <h2 className="mt-3 text-3xl font-black text-slate-950 sm:text-4xl">Questions about Vcocnc</h2>
             <p className="mt-5 max-w-md text-base leading-7 text-slate-600">
               Direct answers about our company, supported manufacturers, model verification and international supply.
             </p>

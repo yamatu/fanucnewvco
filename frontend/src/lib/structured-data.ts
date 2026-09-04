@@ -15,8 +15,8 @@ export function generateOrganizationSchema(sameAs: string[] = []) {
     "@type": "Organization",
     "@id": `${baseUrl}/#organization`,
     "name": SITE_NAME,
-    "alternateName": ["VIBOCNC", "Vibo CNC", "Vibocnc Industrial Automation Parts"],
-    "description": "Vibocnc is an industrial automation parts and CNC spares supplier across 20+ brands, with model verification, inspection, repair support and worldwide shipping.",
+    "alternateName": ["VCOCNC", "Vibo CNC", "Vcocnc Industrial Automation Parts"],
+    "description": "Vcocnc is an industrial automation parts and CNC spares supplier across 20+ brands, with model verification, inspection, repair support and worldwide shipping.",
     "url": baseUrl,
     "foundingDate": "2007",
     "areaServed": "Worldwide",
@@ -46,7 +46,7 @@ export function generateOrganizationSchema(sameAs: string[] = []) {
       "@type": "ContactPoint",
       "contactType": "sales",
       "telephone": "+86-13348028050",
-      "email": "sales@vibocnc.com",
+      "email": "sales@vcocncspare.com",
       "availableLanguage": ["en", "zh", "es", "de", "fr", "it", "pt", "ja", "ko", "ru", "ar"]
     },
     ...(socialProfiles.length > 0 ? { "sameAs": socialProfiles } : {})
@@ -61,9 +61,9 @@ export function generateWebsiteSchema() {
     "@type": "WebSite",
     "@id": `${baseUrl}/#website`,
     "name": SITE_NAME,
-    "alternateName": ["VIBOCNC", "Vibo CNC", "vibocnc.com"],
+    "alternateName": ["VCOCNC", "Vibo CNC", "vcocncspare.com"],
     "url": baseUrl,
-    "description": "Vibocnc is an industrial automation parts and CNC spares supplier across 20+ brands, with model verification, inspection, repair support and worldwide shipping.",
+    "description": "Vcocnc is an industrial automation parts and CNC spares supplier across 20+ brands, with model verification, inspection, repair support and worldwide shipping.",
     "publisher": {
       "@type": "Organization",
       "@id": `${baseUrl}/#organization`,
@@ -73,7 +73,7 @@ export function generateWebsiteSchema() {
     "mainEntity": {
       "@type": "ItemList",
       "name": "Industrial Automation Resources",
-      "description": "Main product, service and technical content hubs available at Vibocnc",
+      "description": "Main product, service and technical content hubs available at Vcocnc",
       "itemListElement": [
         {
           "@type": "ListItem",
@@ -108,7 +108,7 @@ export function generateWebsiteSchema() {
         {
           "@type": "ListItem",
           "position": 6,
-          "name": "Contact Vibocnc",
+          "name": "Contact Vcocnc",
           "url": `${baseUrl}/contact`
         }
       ]
@@ -168,7 +168,7 @@ export function generateFAQSchema(locale = 'en') {
         "name": isZh ? "你们的质保政策是什么？" : "What is your warranty policy?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": isZh ? "质保范围会根据产品成色和制造商条款，在每个产品页面或报价中明确说明。许多产品提供 12 个月 Vibocnc 质保支持，符合条件的新品也可能保留制造商质保。" : "Warranty coverage is stated for each product or quotation and depends on condition and manufacturer terms. Many supplied parts include 12-month Vibocnc warranty support, while eligible new items may retain the applicable manufacturer warranty."
+          "text": isZh ? "质保范围会根据产品成色和制造商条款，在每个产品页面或报价中明确说明。许多产品提供 12 个月 Vcocnc 质保支持，符合条件的新品也可能保留制造商质保。" : "Warranty coverage is stated for each product or quotation and depends on condition and manufacturer terms. Many supplied parts include 12-month Vcocnc warranty support, while eligible new items may retain the applicable manufacturer warranty."
         }
       },
       {
@@ -176,7 +176,7 @@ export function generateFAQSchema(locale = 'en') {
         "name": isZh ? "如何获得技术支持？" : "How can I get technical support?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": isZh ? "您可通过 sales@vibocnc.com 或电话联系我们。团队可协助安装指导、故障排查、兼容性确认和替换建议。" : "Our technical support team is available via email at sales@vibocnc.com or phone. We provide installation guidance, troubleshooting, compatibility assistance, and replacement recommendations."
+          "text": isZh ? "您可通过 sales@vcocncspare.com 或电话联系我们。团队可协助安装指导、故障排查、兼容性确认和替换建议。" : "Our technical support team is available via email at sales@vcocncspare.com or phone. We provide installation guidance, troubleshooting, compatibility assistance, and replacement recommendations."
         }
       },
       {

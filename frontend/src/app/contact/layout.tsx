@@ -7,12 +7,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const { locale, canonical, languages } = await getLocalizedMetadataPaths('/contact');
   const title = translatePublicMessage(locale, 'contact.title');
   const description = locale === 'en'
-    ? 'Contact Vibocnc for industrial automation parts, repair evaluation, technical support and quotations across major brands.'
+    ? 'Contact Vcocnc for industrial automation parts, repair evaluation, technical support and quotations across major brands.'
     : translatePublicMessage(locale, 'contact.description');
   return {
     title,
     description,
-    keywords: 'contact Vibocnc, automation parts quote, CNC parts inquiry, repair evaluation, industrial technical support',
+    keywords: 'contact Vcocnc, automation parts quote, CNC parts inquiry, repair evaluation, industrial technical support',
     alternates: { canonical, languages },
     openGraph: { title: withSiteName(title), description, type: 'website', url: canonical },
   };

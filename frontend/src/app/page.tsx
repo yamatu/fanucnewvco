@@ -27,14 +27,14 @@ import HomepagePreviewMarker from '@/components/admin/homepage/HomepagePreviewMa
 
 export const revalidate = 300;
 
-const HOME_TITLE = 'Vibocnc | Industrial Automation Parts & CNC Spares';
+const HOME_TITLE = 'Vcocnc | Industrial Automation Parts & CNC Spares';
 const HOME_DESCRIPTION =
-  'Vibocnc supplies current, legacy and obsolete industrial automation parts and CNC spares across 20+ brands, with inspection, repair and worldwide shipping.';
+  'Vcocnc supplies current, legacy and obsolete industrial automation parts and CNC spares across 20+ brands, with inspection, repair and worldwide shipping.';
 
 function getHomeTitle(locale: string): string {
   if (locale === 'en') return HOME_TITLE;
   const localizedTitle = translatePublicMessage(locale as Parameters<typeof translatePublicMessage>[0], 'home.hero.title');
-  return /\bvibocnc\b/i.test(localizedTitle) ? localizedTitle : `Vibocnc | ${localizedTitle}`;
+  return /\bvcocnc\b/i.test(localizedTitle) ? localizedTitle : `Vcocnc | ${localizedTitle}`;
 }
 
 function getHomeDescription(locale: string): string {
@@ -74,7 +74,7 @@ export async function generateMetadata(): Promise<Metadata> {
           url: ogImageUrl,
           width: 1200,
           height: 630,
-          alt: 'Vibocnc industrial automation components',
+          alt: 'Vcocnc industrial automation components',
         },
       ],
     },
@@ -361,7 +361,7 @@ export default async function Home({
     } : {}),
     "speakable": {
       "@type": "SpeakableSpecification",
-      "cssSelector": ["h1", "#about-vibocnc .entity-summary", "#vibocnc-faq .faq-answer"],
+      "cssSelector": ["h1", "#about-vcocnc .entity-summary", "#vcocnc-faq .faq-answer"],
     },
   };
 

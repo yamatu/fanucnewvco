@@ -286,8 +286,8 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
           <div className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 px-6">
             <div className="flex items-center space-x-3">
               <Image
-                src="/images/vibocnc-logo.png"
-                alt="Vibocnc"
+                src="/images/vcocnc-logo.png"
+                alt="Vcocnc"
                 width={96}
                 height={26}
                 className="h-7 w-auto object-contain"

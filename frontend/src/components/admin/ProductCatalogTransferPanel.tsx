@@ -30,28 +30,17 @@ function errorMessage(error: unknown, fallback: string) {
 
 function currentTargetIdentity() {
   const configured = String(process.env.NEXT_PUBLIC_SITE_NAME || '').trim();
-  const host = typeof window === 'undefined' ? '' : window.location.hostname.toLowerCase();
-  const vcocnc = /vcocnc|vco/i.test(configured) || host.includes('vcocnc');
-  return vcocnc
-    ? { name: 'Vcocnc', domain: 'vcocncspare.com', email: 'sales@vcocncspare.com' }
-    : { name: configured || 'Vibocnc', domain: 'vibocnc.com', email: 'sales@vibocnc.com' };
+  return { name: configured || 'Vcocnc', domain: 'vcocncspare.com', email: 'sales@vcocncspare.com' };
 }
 
 function defaultReplacements(preview: ProductCatalogPreview) {
   const source = `${preview.manifest.source_site} ${preview.manifest.source_url}`.toLowerCase();
   const target = currentTargetIdentity();
-  if (target.name === 'Vcocnc' && source.includes('vibocnc')) {
+  if (source.includes('vibocnc')) {
     return [
       { from: 'sales@vibocnc.com', to: target.email },
       { from: 'vibocnc.com', to: target.domain },
       { from: 'Vibocnc', to: target.name },
-    ];
-  }
-  if (target.name === 'Vibocnc' && (source.includes('vcocnc') || source.includes('vcocncspare'))) {
-    return [
-      { from: 'sales@vcocncspare.com', to: target.email },
-      { from: 'vcocncspare.com', to: target.domain },
-      { from: 'Vcocnc', to: target.name },
     ];
   }
   return [{ from: '', to: '' }];

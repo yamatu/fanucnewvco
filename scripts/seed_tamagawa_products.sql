@@ -262,14 +262,14 @@ SELECT
   c.id AS category_id,
   1 AS is_active,
   0 AS is_featured,
-  CONCAT('Tamagawa ', seed.sku, ' ', seed.product_type, ' | Vibocnc') AS meta_title,
+  CONCAT('Tamagawa ', seed.sku, ' ', seed.product_type, ' | Vcocnc') AS meta_title,
   CONCAT(
     'Tamagawa ', seed.sku, ' ', seed.product_type,
-    ' for CNC and industrial automation repair and replacement. Compatibility support, 12-month warranty, and worldwide shipping from Vibocnc.'
+    ' for CNC and industrial automation repair and replacement. Compatibility support, 12-month warranty, and worldwide shipping from Vcocnc.'
   ) AS meta_description,
   CONCAT(
     seed.sku, ', Tamagawa ', seed.series_name, ', ', seed.product_type,
-    ', Tamagawa Seiki, encoder, resolver, servo, motion control, Vibocnc'
+    ', Tamagawa Seiki, encoder, resolver, servo, motion control, Vcocnc'
   ) AS meta_keywords,
   JSON_ARRAY() AS image_urls,
   '12 months' AS warranty_period,

@@ -258,7 +258,7 @@ func searchProductEvidenceUncached(ctx context.Context, brand, model string) ([]
 			lastErr = err
 			continue
 		}
-		req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; VIBOCNCBot/1.0; +https://vibocnc.com)")
+		req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; VCOCNCBot/1.0; +https://www.vcocncspare.com)")
 		req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 		resp, err := NewPublicHTTPClient(9 * time.Second).Do(req)
 		if err != nil {

@@ -12,13 +12,13 @@ import { usePublicI18n } from '@/lib/i18n/PublicI18nProvider';
 type Props = { content?: HomepageContent | null };
 
 function normalizeBrandName(text: string): string {
-  return text.replace(/\bvibo\s*cnc\b/gi, 'Vibocnc');
+  return text.replace(/\bvibo\s*cnc\b/gi, 'Vcocnc');
 }
 
 function ensureHomepageBrandTitle(text: string, index: number): string {
   const normalized = normalizeBrandName(text).trim();
-  if (index !== 0 || /\bvibocnc\b/i.test(normalized)) return normalized;
-  return `Vibocnc ${normalized}`;
+  if (index !== 0 || /\bvcocnc\b/i.test(normalized)) return normalized;
+  return `Vcocnc ${normalized}`;
 }
 
 function isLegacyFanucHero(text?: string): boolean {

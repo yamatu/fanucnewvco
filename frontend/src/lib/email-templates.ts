@@ -45,7 +45,7 @@ export function baseTwoColumnTemplate(opts: {
     primaryLabel = 'Browse Products',
     secondaryUrl = `${DEFAULT_SITE_URL}/contact`,
     secondaryLabel = 'Contact Us',
-    footerEmail = 'sales@vibocnc.com',
+    footerEmail = 'sales@vcocncspare.com',
     footerPhone = '+86 13348028050',
   } = opts;
 
@@ -81,7 +81,7 @@ export function baseTwoColumnTemplate(opts: {
           <table role="presentation" class="container" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">
             <tr>
               <td class="pad" style="padding:22px 24px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#111827;">
-                <div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:800;">Vibocnc Spare Parts</div>
+                <div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:800;">Vcocnc Spare Parts</div>
                 <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;opacity:0.9;margin-top:4px;">FANUC CNC Parts • Repair • Exchange</div>
               </td>
             </tr>
@@ -113,7 +113,7 @@ export function baseTwoColumnTemplate(opts: {
                             <div style="margin-top:12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#374151;line-height:1.6;">
                               <div><b>Email:</b> ${escapeHtml(footerEmail)}</div>
                               <div><b>WhatsApp:</b> ${escapeHtml(footerPhone)}</div>
-                              <div><b>Website:</b> vibocnc.com</div>
+                              <div><b>Website:</b> vcocncspare.com</div>
                             </div>
                             <div style="margin-top:14px;">
                               <a href="${escapeAttr(secondaryUrl)}" style="display:block;text-align:center;background:#f59e0b;color:#111827;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:13px;padding:10px 12px;border-radius:10px;">${escapeHtml(secondaryLabel)}</a>
@@ -129,8 +129,8 @@ export function baseTwoColumnTemplate(opts: {
 
             <tr>
               <td style="padding:16px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;">
-                <div style="font-family:Arial,Helvetica,sans-serif;color:#6b7280;font-size:12px;line-height:1.6;">Vibocnc Spare Parts • ${escapeHtml(footerEmail)}</div>
-                <div style="margin-top:6px;font-family:Arial,Helvetica,sans-serif;color:#9ca3af;font-size:11px;line-height:1.6;">You received this email because you are a customer of Vibocnc.</div>
+                <div style="font-family:Arial,Helvetica,sans-serif;color:#6b7280;font-size:12px;line-height:1.6;">Vcocnc Spare Parts • ${escapeHtml(footerEmail)}</div>
+                <div style="margin-top:6px;font-family:Arial,Helvetica,sans-serif;color:#9ca3af;font-size:11px;line-height:1.6;">You received this email because you are a customer of Vcocnc.</div>
               </td>
             </tr>
           </table>
@@ -228,7 +228,7 @@ export function buildEmailHtml(subject: string, modules: EmailModule[]): { html:
   });
 
   const textLines: string[] = [];
-  textLines.push('Vibocnc Spare Parts');
+  textLines.push('Vcocnc Spare Parts');
   textLines.push('');
   for (const m of modules) {
     textLines.push(m.title);
@@ -239,7 +239,7 @@ export function buildEmailHtml(subject: string, modules: EmailModule[]): { html:
     textLines.push(m.ctaLabel + ': ' + m.ctaUrl);
     textLines.push('');
   }
-  textLines.push('Contact: sales@vibocnc.com');
+  textLines.push('Contact: sales@vcocncspare.com');
 
   return { html, text: textLines.join('\n') };
 }

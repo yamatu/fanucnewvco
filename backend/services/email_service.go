@@ -141,7 +141,7 @@ func GetOrCreateEmailSetting(db *gorm.DB) (*models.EmailSetting, error) {
 				Provider:                         "smtp",
 				SMTPTLSMode:                      "starttls",
 				SMTPPort:                         587,
-				FromName:                         "Vibocnc",
+				FromName:                         "Vcocnc",
 				AliMailEndpoint:                  defaultAliMailEndpoint,
 				CodeExpiryMinutes:                10,
 				CodeResendSeconds:                60,
@@ -165,7 +165,7 @@ func GetOrCreateEmailSetting(db *gorm.DB) (*models.EmailSetting, error) {
 	return &s, nil
 }
 
-func firstNonEmpty(values ...string) string {
+func firstNonEmptyEmailValue(values ...string) string {
 	for _, v := range values {
 		if strings.TrimSpace(v) != "" {
 			return strings.TrimSpace(v)
@@ -278,7 +278,7 @@ func sendResendEmail(db *gorm.DB, s *models.EmailSetting, opts EmailSendOptions)
 		Subject: opts.Subject,
 		HTML:    opts.HTML,
 		Text:    opts.Text,
-		ReplyTo: firstNonEmpty(strings.TrimSpace(opts.ReplyTo), strings.TrimSpace(s.ReplyTo)),
+		ReplyTo: firstNonEmptyEmailValue(strings.TrimSpace(opts.ReplyTo), strings.TrimSpace(s.ReplyTo)),
 		Headers: opts.Headers,
 	}
 	_, err = client.SendEmail(req)
@@ -355,23 +355,23 @@ func CreateAndSendVerificationCode(db *gorm.DB, email string, purpose Verificati
 		return err
 	}
 
-	subject := "Your Vibocnc verification code"
+	subject := "Your Vcocnc verification code"
 	if purpose == PurposeReset || purpose == PurposeAdminReset {
-		subject = "Reset your Vibocnc password"
+		subject = "Reset your Vcocnc password"
 	}
 
 	text := fmt.Sprintf(
-		"Vibocnc\n\nYour verification code is: %s\n\nThis code expires in %d minutes.\nIf you did not request this, you can ignore this email.\n\n--\nVibocnc Spare Parts\n",
+		"Vcocnc\n\nYour verification code is: %s\n\nThis code expires in %d minutes.\nIf you did not request this, you can ignore this email.\n\n--\nVcocnc Spare Parts\n",
 		code, expMin,
 	)
 	html := fmt.Sprintf(
 		"<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;line-height:1.5;color:#111\">"+
-			"<h2 style=\"margin:0 0 12px 0\">Vibocnc Verification Code</h2>"+
+			"<h2 style=\"margin:0 0 12px 0\">Vcocnc Verification Code</h2>"+
 			"<p style=\"margin:0 0 14px 0\">Use the code below to continue:</p>"+
 			"<div style=\"font-size:28px;font-weight:700;letter-spacing:6px;background:#fff8e1;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;display:inline-block\">%s</div>"+
 			"<p style=\"margin:14px 0 0 0;font-size:13px;color:#555\">Expires in %d minutes. If you did not request this, you can ignore this email.</p>"+
 			"<hr style=\"border:none;border-top:1px solid #eee;margin:18px 0\"/>"+
-			"<div style=\"font-size:12px;color:#777\">Vibocnc Spare Parts</div>"+
+			"<div style=\"font-size:12px;color:#777\">Vcocnc Spare Parts</div>"+
 			"</div>",
 		code, expMin,
 	)
