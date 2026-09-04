@@ -34,7 +34,7 @@ const footerNavigation = {
     { name: 'Global Shipping', href: '/contact' },
   ],
   company: [
-    { name: 'About Vibocnc', href: '/about' },
+    { name: 'About Vcocnc', href: '/about' },
     { name: 'Product Categories', href: '/categories' },
     { name: 'Brands We Supply', href: '/#brands-we-supply' },
     { name: 'Our Workshop', href: '/about' },
@@ -105,20 +105,20 @@ export function Footer({ initialSocialSettings }: { initialSocialSettings?: Soci
           <div className="lg:col-span-2">
             <Link
               href={href('/')}
-              aria-label="Vibocnc home"
+              aria-label="Vcocnc home"
               className="mb-6 flex items-center space-x-3 focus:outline-none focus:ring-2 focus:ring-orange-300"
             >
               <div className="rounded-md bg-white px-3 py-2">
                 <Image
-                  src="/images/vibocnc-logo.png"
-                  alt="Vibocnc industrial automation parts"
+                  src="/images/vcocnc-logo.png"
+                  alt="Vcocnc industrial automation parts"
                   width={150}
                   height={40}
                   className="h-9 w-auto object-contain"
                 />
               </div>
               <div>
-                <div className="text-xl font-bold">Vibocnc</div>
+                <div className="text-xl font-bold">Vcocnc</div>
                 <div className="text-sm text-slate-400">{t('header.hub')} - {t('footer.since')}</div>
               </div>
             </Link>
@@ -141,7 +141,7 @@ export function Footer({ initialSocialSettings }: { initialSocialSettings?: Soci
 
               <div className="flex items-center space-x-3">
                 <EnvelopeIcon className="h-5 w-5 text-orange-300 flex-shrink-0" />
-                <span className="text-slate-300">sales@vibocnc.com</span>
+                <span className="text-slate-300">sales@vcocncspare.com</span>
               </div>
 
               <div className="flex items-center space-x-3">
@@ -151,14 +151,14 @@ export function Footer({ initialSocialSettings }: { initialSocialSettings?: Soci
             </div>
 
             {socialLinks.length > 0 && (
-              <div className="mt-6 flex flex-wrap gap-2" aria-label="Vibocnc social media">
+              <div className="mt-6 flex flex-wrap gap-2" aria-label="Vcocnc social media">
                 {socialLinks.map(({ name, href, Icon }) => (
                   <a
                     key={name}
                     href={href}
                     target="_blank"
                     rel="me noopener noreferrer"
-                    aria-label={`Follow Vibocnc on ${name}`}
+                    aria-label={`Follow Vcocnc on ${name}`}
                     title={name}
                     className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-700 text-slate-300 transition-colors hover:border-orange-400 hover:bg-orange-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-300"
                   >

@@ -68,7 +68,7 @@ func TestPinAIAgentSEOJobProfile(t *testing.T) {
 
 func TestParseAISEOOutputAcceptsDeepSeekWrappedJSON(t *testing.T) {
 	raw := "Here is the result:\n```json\n{" +
-		"\"result\":{\"title\":\"FANUC servo drive\",\"metaTitle\":\"FANUC Servo Drive | VIBOCNC\",\"metaDescription\":\"Industrial automation servo drive replacement.\",\"description\":\"Verified servo drive reference.\",\"category\":\"Servo Drives\"}}\n```\nDone."
+		"\"result\":{\"title\":\"FANUC servo drive\",\"metaTitle\":\"FANUC Servo Drive | VCOCNC\",\"metaDescription\":\"Industrial automation servo drive replacement.\",\"description\":\"Verified servo drive reference.\",\"category\":\"Servo Drives\"}}\n```\nDone."
 	output, err := parseAISEOOutput(raw)
 	if err != nil {
 		t.Fatalf("wrapped DeepSeek JSON should parse: %v", err)

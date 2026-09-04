@@ -179,9 +179,9 @@ export function Header() {
                 <PhoneIcon className="h-3.5 w-3.5 shrink-0 text-orange-300 sm:h-4 sm:w-4" />
                 <span className="whitespace-nowrap text-[10px] min-[360px]:text-xs sm:text-sm" suppressHydrationWarning>+86 13348028050</span>
               </a>
-              <a href="mailto:sales@vibocnc.com" className="flex min-w-0 items-center gap-1.5 hover:text-orange-200 sm:gap-2">
+              <a href="mailto:sales@vcocncspare.com" className="flex min-w-0 items-center gap-1.5 hover:text-orange-200 sm:gap-2">
                 <EnvelopeIcon className="h-3.5 w-3.5 shrink-0 text-orange-300 sm:h-4 sm:w-4" />
-                <span className="whitespace-nowrap text-[10px] min-[360px]:text-xs sm:text-sm" suppressHydrationWarning>sales@vibocnc.com</span>
+                <span className="whitespace-nowrap text-[10px] min-[360px]:text-xs sm:text-sm" suppressHydrationWarning>sales@vcocncspare.com</span>
               </a>
             </div>
             <div className="hidden min-w-0 items-center gap-3 md:flex">
@@ -202,8 +202,8 @@ export function Header() {
             <Link href={href('/')} className="flex items-center space-x-3">
               {/* Keep the only high-priority image on the homepage reserved for the Hero LCP. */}
               <Image
-                src="/images/vibocnc-logo.png"
-                alt="Vibocnc"
+                src="/images/vcocnc-logo.png"
+                alt="Vcocnc"
                 width={186}
                 height={50}
                 loading="eager"

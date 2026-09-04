@@ -15,7 +15,7 @@ const articles = [
     slug: 'fanuc-cnc-parts-selection-guide',
     summary: 'A field guide to selecting FANUC CNC parts by series, part number, interfaces, revision, condition and service risk.',
     featuredImage: '/images/blog/fanuc-selection-guide.svg',
-    metaTitle: 'How to Choose FANUC CNC Parts | Vibocnc Guide',
+    metaTitle: 'How to Choose FANUC CNC Parts | Vcocnc Guide',
     metaDescription: 'Learn how to choose FANUC CNC parts by series, exact part number, connector, revision, condition and test evidence before ordering.',
     metaKeywords: 'FANUC CNC parts selection, FANUC replacement parts, CNC control board, FANUC compatibility, industrial automation parts',
     isFeatured: true,
@@ -30,7 +30,7 @@ Record the CNC series, control generation, machine builder, axis count and the a
 
 Take clear photos of the rating label, connector side, mounting points and the cabinet wiring. Write down the exact part number, including suffixes and revision letters. Do not shorten a number because the last characters often identify voltage, axis capacity, software option or a hardware revision.
 
-If you need help building a replacement shortlist, compare the data on [Vibocnc products](/products) and browse the relevant [automation categories](/categories) before contacting a supplier.
+If you need help building a replacement shortlist, compare the data on [Vcocnc products](/products) and browse the relevant [automation categories](/categories) before contacting a supplier.
 
 ## 2. Match the part number and the electrical envelope
 
@@ -56,7 +56,7 @@ Ask these questions before purchase:
 - What warranty period and return process apply?
 - What is the expected dispatch time if the first unit fails inspection?
 
-Vibocnc can review a failed unit through a [repair evaluation request](/repair-request), and the team can compare repair, tested replacement and legacy sourcing options.
+Vcocnc can review a failed unit through a [repair evaluation request](/repair-request), and the team can compare repair, tested replacement and legacy sourcing options.
 
 ## 5. Verify the receiving inspection
 
@@ -73,14 +73,14 @@ After installation, restore only the backed-up data that belongs to the machine.
 5. Require a written test scope, warranty and lead time.
 6. Document receiving inspection and commissioning results.
 
-For a second opinion, read our [FANUC servo amplifier selection guide](/blog/fanuc-servo-amplifier-selection-guide), or send the label and failure details through [Contact Vibocnc](/contact).`,
+For a second opinion, read our [FANUC servo amplifier selection guide](/blog/fanuc-servo-amplifier-selection-guide), or send the label and failure details through [Contact Vcocnc](/contact).`,
   },
   {
     title: 'How to Choose a FANUC Servo Amplifier for Repair or Retrofit',
     slug: 'fanuc-servo-amplifier-selection-guide',
     summary: 'A practical FANUC servo amplifier checklist covering axis capacity, motor feedback, cabinet power, alarms and commissioning.',
     featuredImage: '/images/blog/fanuc-selection-guide.svg',
-    metaTitle: 'FANUC Servo Amplifier Selection Guide | Vibocnc',
+    metaTitle: 'FANUC Servo Amplifier Selection Guide | Vcocnc',
     metaDescription: 'Choose a FANUC servo amplifier with the right axis capacity, voltage, motor feedback, connectors and test evidence for your CNC repair.',
     metaKeywords: 'FANUC servo amplifier selection, FANUC servo drive repair, CNC amplifier replacement, alpha i, beta i, servo alarm',
     isFeatured: false,
@@ -95,7 +95,7 @@ Write down the alarm number, the affected axis, when the alarm appears and wheth
 
 Photograph the amplifier label, the terminal block, the power bus and the motor cable. Note the CNC series, the number of axes in the cabinet and whether the system uses a separate spindle drive. These details distinguish a single-axis unit from a multi-axis module and help prevent a capacity mismatch.
 
-Use [Vibocnc's product catalog](/products) to compare available automation parts, then send the evidence for a [repair evaluation](/repair-request) if the failure is not conclusive.
+Use [Vcocnc's product catalog](/products) to compare available automation parts, then send the evidence for a [repair evaluation](/repair-request) if the failure is not conclusive.
 
 ## Match the amplifier to the motor and load
 
@@ -121,7 +121,7 @@ Compare the total recovery time, not only the part price:
 - warranty coverage and return handling;
 - availability of a second unit if the first fails.
 
-Vibocnc provides [repair and replacement options](/repair-request) for automation parts, including legacy assemblies that are no longer easy to source.
+Vcocnc provides [repair and replacement options](/repair-request) for automation parts, including legacy assemblies that are no longer easy to source.
 
 ## Commission methodically
 
@@ -145,7 +145,7 @@ For broader part-number checks, read [How to choose FANUC CNC parts](/blog/fanuc
     slug: 'mitsubishi-servo-drive-selection-guide',
     summary: 'A system-level guide to choosing Mitsubishi MELSERVO drives by family, motor, network, safety function and application load.',
     featuredImage: '/images/blog/mitsubishi-selection-guide.svg',
-    metaTitle: 'Mitsubishi Servo Drive Selection Guide | Vibocnc',
+    metaTitle: 'Mitsubishi Servo Drive Selection Guide | Vcocnc',
     metaDescription: 'Compare Mitsubishi servo drive families by motor, load, feedback, network, safety requirements, cabinet power and replacement risk.',
     metaKeywords: 'Mitsubishi servo drive selection, MR-J4, MR-J5, MELSERVO, Mitsubishi amplifier replacement, servo motor sizing',
     isFeatured: true,
@@ -158,7 +158,7 @@ Mitsubishi MELSERVO systems are selected as a drive, motor, feedback device, cab
 
 Describe the load, speed range, acceleration, duty cycle, stopping method and ambient conditions. A point-to-point indexer has different needs from a continuously cycling conveyor or a high-response cutting axis. Record reflected inertia, vertical load, mechanical backlash and the required positioning accuracy when those values are available.
 
-Use the [Vibocnc products catalog](/products) and [automation categories](/categories) to organize candidate drives, but keep the machine's measured load as the authority. A supplier can validate the part faster when the application data is included with the label photo.
+Use the [Vcocnc products catalog](/products) and [automation categories](/categories) to organize candidate drives, but keep the machine's measured load as the authority. A supplier can validate the part faster when the application data is included with the label photo.
 
 ## Identify the MELSERVO family and communication method
 
@@ -184,7 +184,7 @@ Include these items in a quote request:
 - input voltage and axis load;
 - requested warranty and delivery date.
 
-Vibocnc can review the evidence through a [repair evaluation request](/repair-request), including legacy Mitsubishi parts and practical replacement options.
+Vcocnc can review the evidence through a [repair evaluation request](/repair-request), including legacy Mitsubishi parts and practical replacement options.
 
 ## Commission without changing several variables at once
 
@@ -201,14 +201,14 @@ Verify direction, homing, following error, emergency stop and safe torque-off be
 5. Compare tested repair and replacement by total downtime.
 6. Back up parameters and document commissioning results.
 
-For the PLC and I/O side of the same machine, read [How to choose Mitsubishi PLC and I/O modules](/blog/mitsubishi-plc-i-o-selection-guide). To discuss a part number, [contact Vibocnc](/contact).`,
+For the PLC and I/O side of the same machine, read [How to choose Mitsubishi PLC and I/O modules](/blog/mitsubishi-plc-i-o-selection-guide). To discuss a part number, [contact Vcocnc](/contact).`,
   },
   {
     title: 'How to Choose Mitsubishi PLC and I/O Modules for Factory Automation',
     slug: 'mitsubishi-plc-i-o-selection-guide',
     summary: 'A clear Mitsubishi PLC selection workflow covering CPU capacity, I/O points, network, safety, expansion and lifecycle support.',
     featuredImage: '/images/blog/mitsubishi-selection-guide.svg',
-    metaTitle: 'Mitsubishi PLC and I/O Selection Guide | Vibocnc',
+    metaTitle: 'Mitsubishi PLC and I/O Selection Guide | Vcocnc',
     metaDescription: 'Choose Mitsubishi PLC and I/O modules by CPU capacity, scan time, point count, network, safety, expansion and lifecycle support planning.',
     metaKeywords: 'Mitsubishi PLC selection, Mitsubishi I/O module, FX5U, iQ-F, iQ-R, factory automation PLC replacement',
     isFeatured: false,
@@ -221,7 +221,7 @@ Selecting a Mitsubishi PLC is an architecture decision, not a CPU-only decision.
 
 Create an I/O list with every digital input, digital output, analog channel, high-speed counter, pulse output and special function. Add spare capacity for maintenance changes. Note whether outputs are relay, transistor or a different electrical type, and record voltage, common grouping and current per point.
 
-Then record scan-time expectations, motion axes, recipe memory, data logging, remote stations and the controller software project version. Use [Vibocnc's products](/products) and [categories](/categories) to organize parts, but let the existing program and wiring define the shortlist.
+Then record scan-time expectations, motion axes, recipe memory, data logging, remote stations and the controller software project version. Use [Vcocnc's products](/products) and [categories](/categories) to organize parts, but let the existing program and wiring define the shortlist.
 
 ## Separate the Mitsubishi platform families
 
@@ -239,7 +239,7 @@ For remote I/O, match the network protocol, station number, refresh time and ava
 
 List the modules that are most likely to fail and keep an approved spare strategy. For obsolete platforms, compare a tested original module, repair of the existing unit and a planned migration. The lowest purchase price may be expensive if engineering software, program conversion or an unplanned wiring change is required.
 
-When requesting a quote, include the CPU/module labels, cabinet photos, I/O list, network type, alarm or diagnostic text and the desired delivery date. Vibocnc can review those details through a [repair evaluation request](/repair-request) and help compare available, refurbished and repairable options.
+When requesting a quote, include the CPU/module labels, cabinet photos, I/O list, network type, alarm or diagnostic text and the desired delivery date. Vcocnc can review those details through a [repair evaluation request](/repair-request) and help compare available, refurbished and repairable options.
 
 ## Validate the replacement in a controlled sequence
 
@@ -256,14 +256,14 @@ Test power-up, CPU diagnostics, each I/O group, analog scaling, remote communica
 5. Compare tested spare, repair and migration cost over the machine life.
 6. Back up data and verify each I/O group during commissioning.
 
-For motion axes, read [How to choose Mitsubishi servo drives](/blog/mitsubishi-servo-drive-selection-guide). For a part review or availability check, [contact the Vibocnc team](/contact).`,
+For motion axes, read [How to choose Mitsubishi servo drives](/blog/mitsubishi-servo-drive-selection-guide). For a part review or availability check, [contact the Vcocnc team](/contact).`,
   },
   {
     title: 'How to Choose Siemens SIMATIC PLC Parts: S7-1200, S7-1500 and Legacy Systems',
     slug: 'siemens-simatic-plc-selection-guide',
     summary: 'A Siemens SIMATIC selection guide for CPU generation, engineering files, I/O, communications, safety and legacy replacement planning.',
     featuredImage: '/images/blog/siemens-selection-guide.svg',
-    metaTitle: 'Siemens SIMATIC PLC Selection Guide | Vibocnc',
+    metaTitle: 'Siemens SIMATIC PLC Selection Guide | Vcocnc',
     metaDescription: 'Choose Siemens SIMATIC PLC parts by S7 generation, engineering file, I/O, network, safety, firmware and replacement strategy for uptime.',
     metaKeywords: 'Siemens SIMATIC PLC selection, S7-1200, S7-1500, S7-300 replacement, S7-400 parts, PLC repair',
     isFeatured: true,
@@ -276,7 +276,7 @@ Siemens SIMATIC systems span compact controllers, modular racks, distributed I/O
 
 Save the TIA Portal or legacy STEP 7 project before touching the cabinet. Record the CPU order number, firmware version, memory card, rack position, communication modules and remote I/O stations. Photograph labels and connector sides, and note the diagnostic buffer text.
 
-S7-1200 and S7-1500 projects have different engineering assumptions from older S7-300 and S7-400 installations. A modern CPU may be the right migration target, but it is not automatically a drop-in spare. Use [Vibocnc products](/products) and [product categories](/categories) to compare available components, then confirm the project path with a specialist.
+S7-1200 and S7-1500 projects have different engineering assumptions from older S7-300 and S7-400 installations. A modern CPU may be the right migration target, but it is not automatically a drop-in spare. Use [Vcocnc products](/products) and [product categories](/categories) to compare available components, then confirm the project path with a specialist.
 
 ## Match the CPU to the workload
 
@@ -311,14 +311,14 @@ Run a dry cycle and record the firmware, hardware order number, loaded project v
 5. Compare tested spare, repair and planned migration risk.
 6. Back up data and document the complete commissioning test.
 
-For drive systems, continue with [How to choose Siemens SINAMICS drives](/blog/siemens-sinamics-drive-selection-guide). For a compatibility review, [contact Vibocnc](/contact).`,
+For drive systems, continue with [How to choose Siemens SINAMICS drives](/blog/siemens-sinamics-drive-selection-guide). For a compatibility review, [contact Vcocnc](/contact).`,
   },
   {
     title: 'How to Choose Siemens SINAMICS Drives for Motion and Process Equipment',
     slug: 'siemens-sinamics-drive-selection-guide',
     summary: 'A practical SINAMICS drive guide covering G120, S120 and related system choices, motor data, control mode, network and safety.',
     featuredImage: '/images/blog/siemens-selection-guide.svg',
-    metaTitle: 'Siemens SINAMICS Drive Selection Guide | Vibocnc',
+    metaTitle: 'Siemens SINAMICS Drive Selection Guide | Vcocnc',
     metaDescription: 'Choose Siemens SINAMICS drives by application, motor data, control unit, power module, network, braking and safety needs before ordering.',
     metaKeywords: 'Siemens SINAMICS selection, G120, S120, drive replacement, Siemens inverter repair, motion control drive',
     isFeatured: false,
@@ -331,7 +331,7 @@ SINAMICS drives are modular systems whose control unit, power module, motor, fee
 
 Classify the axis as a pump, fan, conveyor, spindle, hoist, winder or coordinated motion axis. Record speed range, overload duration, acceleration, braking energy, duty cycle and ambient temperature. For a vertical or regenerative load, include the brake resistor or regenerative supply requirements in the first quote.
 
-A drive for a simple variable-speed fan has a different control and feedback requirement from a coordinated servo axis. Gather the motor nameplate, mechanical load, cable length and machine safety design before comparing part numbers. The [Vibocnc product catalog](/products) is a useful starting point, and [categories](/categories) can help separate drive, motor and control components.
+A drive for a simple variable-speed fan has a different control and feedback requirement from a coordinated servo axis. Gather the motor nameplate, mechanical load, cable length and machine safety design before comparing part numbers. The [Vcocnc product catalog](/products) is a useful starting point, and [categories](/categories) can help separate drive, motor and control components.
 
 ## Distinguish the SINAMICS architecture
 
@@ -349,7 +349,7 @@ Check line impedance, fuses, DC-link arrangement, cabinet ventilation and the al
 
 Repair is useful when the unit is a rare revision, when the control project is stable or when matching modules are difficult to source. A tested replacement may shorten downtime if the exact control and power combination is available. Migration can improve lifecycle support, but it needs engineering, parameter conversion and a documented acceptance test.
 
-Send the exact labels, alarm history, project or parameter backup and required delivery date with a [repair evaluation request](/repair-request). Vibocnc can compare a repair, tested replacement and practical sourcing route instead of quoting a generic drive with unknown compatibility.
+Send the exact labels, alarm history, project or parameter backup and required delivery date with a [repair evaluation request](/repair-request). Vcocnc can compare a repair, tested replacement and practical sourcing route instead of quoting a generic drive with unknown compatibility.
 
 ## Commission in layers
 
@@ -366,7 +366,7 @@ Run an unloaded low-speed test, then verify direction, current, feedback, brakin
 5. Compare repair, tested replacement and migration by downtime risk.
 6. Back up data and document layered commissioning results.
 
-For the controller side, read [How to choose Siemens SIMATIC PLC parts](/blog/siemens-simatic-plc-selection-guide). To share a label or alarm for review, [contact Vibocnc](/contact).`,
+For the controller side, read [How to choose Siemens SIMATIC PLC parts](/blog/siemens-simatic-plc-selection-guide). To share a label or alarm for review, [contact Vcocnc](/contact).`,
   },
 ];
 

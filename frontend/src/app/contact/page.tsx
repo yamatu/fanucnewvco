@@ -22,14 +22,14 @@ const siteUrl = getSiteUrl();
 const contactPageSchema = {
   "@context": "https://schema.org",
   "@type": "ContactPage",
-  "name": "Contact Vibocnc",
-  "description": "Get in touch with Vibocnc for multi-brand industrial automation parts, repair evaluation, technical support and quotes.",
+  "name": "Contact Vcocnc",
+  "description": "Get in touch with Vcocnc for multi-brand industrial automation parts, repair evaluation, technical support and quotes.",
   "url": `${siteUrl}/contact`,
   "mainEntity": {
     "@type": "Organization",
-    "name": "Vibocnc",
+    "name": "Vcocnc",
     "telephone": "+86-13348028050",
-    "email": "sales@vibocnc.com",
+    "email": "sales@vcocncspare.com",
     "address": {
       "@type": "PostalAddress",
       "addressLocality": "Kunshan",
@@ -175,7 +175,7 @@ function ContactContent() {
                   <EnvelopeIcon className="h-6 w-6 text-[#0b3e75] mt-1 flex-shrink-0" />
                   <div>
                     <h3 className="font-semibold text-gray-900">{t('contact.email')}</h3>
-                    <p className="text-gray-600">sales@vibocnc.com</p>
+                    <p className="text-gray-600">sales@vcocncspare.com</p>
                   </div>
                 </div>
 

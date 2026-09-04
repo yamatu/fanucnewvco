@@ -34,7 +34,7 @@ func getSiteURLForPurge() string {
 		return strings.TrimRight(v, "/")
 	}
 	// Fallback: keep consistent with sitemap controller.
-	return "https://vibocnc.com"
+	return "https://www.vcocncspare.com"
 }
 
 func getOrCreateCloudflareSetting(db *gorm.DB) (*models.CloudflareCacheSetting, error) {

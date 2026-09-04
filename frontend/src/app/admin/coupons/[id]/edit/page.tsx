@@ -46,39 +46,39 @@ export default function EditCouponPage() {
       yup.object({
         code: yup
           .string()
-          .required(t('coupons.validation.codeRequired', 'Coupon code is required'))
-          .min(3, t('coupons.validation.codeMin', 'Code must be at least 3 characters')),
-        name: yup.string().required(t('coupons.validation.nameRequired', 'Coupon name is required')),
+          .required(t('coupons.validation.codeRequired', locale === 'zh' ? '请输入优惠券代码' : 'Coupon code is required'))
+          .min(3, t('coupons.validation.codeMin', locale === 'zh' ? '代码至少 3 个字符' : 'Code must be at least 3 characters')),
+        name: yup.string().required(t('coupons.validation.nameRequired', locale === 'zh' ? '请输入优惠券名称' : 'Coupon name is required')),
         description: yup.string(),
         type: yup
           .string()
           .oneOf(['percentage', 'fixed_amount'])
-          .required(t('coupons.validation.typeRequired', 'Discount type is required')),
+          .required(t('coupons.validation.typeRequired', locale === 'zh' ? '请选择优惠类型' : 'Discount type is required')),
         value: yup
           .number()
-          .required(t('coupons.validation.valueRequired', 'Discount value is required'))
-          .min(0.01, t('coupons.validation.valueMin', 'Value must be greater than 0')),
+          .required(t('coupons.validation.valueRequired', locale === 'zh' ? '请输入优惠数值' : 'Discount value is required'))
+          .min(0.01, t('coupons.validation.valueMin', locale === 'zh' ? '数值必须大于 0' : 'Value must be greater than 0')),
         min_order_amount: yup
           .number()
-          .min(0, t('coupons.validation.minOrderNonNeg', 'Minimum order amount cannot be negative'))
+          .min(0, t('coupons.validation.minOrderNonNeg', locale === 'zh' ? '最低订单金额不能为负数' : 'Minimum order amount cannot be negative'))
           .default(0),
         max_discount_amount: yup
           .number()
-          .min(0, t('coupons.validation.maxNonNeg', 'Maximum discount amount cannot be negative'))
+          .min(0, t('coupons.validation.maxNonNeg', locale === 'zh' ? '最高优惠不能为负数' : 'Maximum discount amount cannot be negative'))
           .nullable(),
         usage_limit: yup
           .number()
-          .min(1, t('coupons.validation.usageMin', 'Usage limit must be at least 1'))
+          .min(1, t('coupons.validation.usageMin', locale === 'zh' ? '使用上限至少为 1' : 'Usage limit must be at least 1'))
           .nullable(),
         user_usage_limit: yup
           .number()
-          .min(1, t('coupons.validation.userUsageMin', 'User usage limit must be at least 1'))
+          .min(1, t('coupons.validation.userUsageMin', locale === 'zh' ? '单用户上限至少为 1' : 'User usage limit must be at least 1'))
           .nullable(),
         is_active: yup.boolean().default(true),
         starts_at: yup.string().nullable(),
         expires_at: yup.string().nullable(),
       }),
-    [t]
+    [locale, t]
   );
 
   const {
@@ -572,44 +572,4 @@ export default function EditCouponPage() {
     </AdminLayout>
   );
 }
-/*
-  const couponSchema = useMemo(
-    () =>
-      yup.object({
-        code: yup
-          .string()
-          .required(t('coupons.validation.codeRequired', locale === 'zh' ? '请输入优惠券代码' : 'Coupon code is required'))
-          .min(3, t('coupons.validation.codeMin', locale === 'zh' ? '代码至少 3 个字符' : 'Code must be at least 3 characters')),
-        name: yup.string().required(t('coupons.validation.nameRequired', locale === 'zh' ? '请输入优惠券名称' : 'Coupon name is required')),
-        description: yup.string(),
-        type: yup
-          .string()
-          .oneOf(['percentage', 'fixed_amount'])
-          .required(t('coupons.validation.typeRequired', locale === 'zh' ? '请选择优惠类型' : 'Discount type is required')),
-        value: yup
-          .number()
-          .required(t('coupons.validation.valueRequired', locale === 'zh' ? '请输入优惠数值' : 'Discount value is required'))
-          .min(0.01, t('coupons.validation.valueMin', locale === 'zh' ? '数值必须大于 0' : 'Value must be greater than 0')),
-        min_order_amount: yup
-          .number()
-          .min(0, t('coupons.validation.minOrderNonNeg', locale === 'zh' ? '最低订单金额不能为负数' : 'Minimum order amount cannot be negative'))
-          .default(0),
-        max_discount_amount: yup
-          .number()
-          .min(0, t('coupons.validation.maxNonNeg', locale === 'zh' ? '最高优惠不能为负数' : 'Maximum discount amount cannot be negative'))
-          .nullable(),
-        usage_limit: yup
-          .number()
-          .min(1, t('coupons.validation.usageMin', locale === 'zh' ? '使用上限至少为 1' : 'Usage limit must be at least 1'))
-          .nullable(),
-        user_usage_limit: yup
-          .number()
-          .min(1, t('coupons.validation.userUsageMin', locale === 'zh' ? '单用户上限至少为 1' : 'User usage limit must be at least 1'))
-          .nullable(),
-        is_active: yup.boolean().default(true),
-        starts_at: yup.string().nullable(),
-        expires_at: yup.string().nullable(),
-      }),
-    [locale, t]
-  );
-*/
+

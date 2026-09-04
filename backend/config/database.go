@@ -176,6 +176,7 @@ func ConnectDatabase() {
 			// Legacy flat shipping rate table (kept for compatibility; not used by new flow)
 			&models.ShippingRate{},
 			&models.WatermarkSetting{},
+			&models.ProductCatalogImportJob{},
 			&models.VisitorLog{},
 			&models.AnalyticsSetting{},
 			// News / Articles
@@ -340,7 +341,7 @@ func createDefaultAdmin() {
 	}
 	email := os.Getenv("DEFAULT_ADMIN_EMAIL")
 	if email == "" {
-		email = "admin@vibocnc.com"
+		email = "admin@vcocncspare.com"
 	}
 	fullName := os.Getenv("DEFAULT_ADMIN_FULLNAME")
 	if fullName == "" {
@@ -453,20 +454,19 @@ func sanitizeLegacyBrandReferences() {
 		{"ebay_import_drafts", []string{"source_url", "source_title", "source_description", "name", "description", "meta_title", "meta_description", "meta_keywords"}},
 	}
 
-	legacyCompact := "vco" + "cnc"
-	legacySpareHost := legacyCompact + "spare.com"
-	legacyShopHost := legacyCompact + ".shop"
+	legacyCompact := "vibo" + "cnc"
+	legacyHost := legacyCompact + ".com"
 	replacements := [][2]string{
-		{"sales@" + legacySpareHost, "sales@vibocnc.com"},
-		{"admin@" + legacyShopHost, "admin@vibocnc.com"},
-		{"VIBO CNC", "Vibocnc"},
-		{"Vibo CNC", "Vibocnc"},
-		{"ViboCNC", "Vibocnc"},
-		{"VIBOCNC", "Vibocnc"},
-		{"VCO" + "CNC", "Vibocnc"},
-		{"VCO " + "CNC", "Vibocnc"},
-		{"Vco" + "cnc", "Vibocnc"},
-		{legacyCompact, "vibocnc"},
+		{"sales@" + legacyHost, "sales@vcocncspare.com"},
+		{"admin@" + legacyHost, "admin@vcocncspare.com"},
+		{"www." + legacyHost, "www.vcocncspare.com"},
+		{legacyHost, "vcocncspare.com"},
+		{"VIBO CNC", "Vcocnc"},
+		{"Vibo CNC", "Vcocnc"},
+		{"ViboCNC", "Vcocnc"},
+		{"VIBOCNC", "Vcocnc"},
+		{"Vibocnc", "Vcocnc"},
+		{legacyCompact, "vcocnc"},
 	}
 
 	totalUpdated := int64(0)
@@ -503,10 +503,10 @@ func sanitizeLegacyBrandReferences() {
 
 func upgradeLegacyCompanyCopy(value string) string {
 	replacements := [][2]string{
-		{"Vibocnc- One-Stop CNC Solution Supplier", "Industrial Automation Parts, CNC Spares & Repair Support"},
+		{"Vcocnc- One-Stop CNC Solution Supplier", "Industrial Automation Parts, CNC Spares & Repair Support"},
 		{"Your Trusted Partner Since 2005", "FANUC, Siemens, Mitsubishi, ABB and 20+ automation brands"},
-		{"Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.", "Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
-		{"Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
+		{"Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.", "Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
+		{"Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
 		{"5,000sqm Workshop Facility", "3,500 sqm Parts Inspection & Service Facility"},
 		{"Top 3 Fanuc Supplier in China", "Organized stock, testing benches and export packing"},
 		{"Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.", "Our Kunshan facility supports organized storage, incoming inspection, functional checks, protective export packing and efficient dispatch for urgent industrial parts orders."},
@@ -792,7 +792,7 @@ func migrateLegacyCompanyFacts() {
 
 const (
 	legacyHomepageHeroTitle  = "Industrial Automation Parts, CNC Spares & Repair Support"
-	brandedHomepageHeroTitle = "Vibocnc Industrial Automation Parts, CNC Spares & Repair Support"
+	brandedHomepageHeroTitle = "Vcocnc Industrial Automation Parts, CNC Spares & Repair Support"
 )
 
 func upgradeHomepageSEOContent(content *models.HomepageContent) bool {
@@ -1031,12 +1031,12 @@ func createDefaultCompanyProfile() {
 
 	// Create default company profile
 	defaultProfile := models.CompanyProfile{
-		CompanyName:       "Vibocnc",
+		CompanyName:       "Vcocnc",
 		CompanySubtitle:   "Industrial Automation Specialists",
 		EstablishmentYear: "2007",
 		Location:          "Kunshan, China",
 		WorkshopSize:      "3,500sqm",
-		Description1:      "Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.",
+		Description1:      "Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.",
 		Description2:      "We support multiple automation brands with 27 workers, 10 sales professionals and more than 100,000 items regularly stocked. Daily parcel volume is around 50-100 pieces, with testing, repair and worldwide delivery support.",
 		Achievement:       "Multi-Brand Automation Parts Supplier",
 		Stats: models.CompanyStatsArray{

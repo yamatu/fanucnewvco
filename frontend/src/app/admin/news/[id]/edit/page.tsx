@@ -276,7 +276,7 @@ export default function EditArticlePage() {
                         {watchMetaTitle || watchTitle || t('news.seo.articleTitle')}
                       </div>
                       <div className="text-[#202124] text-sm mt-0.5 truncate">
-                        vibocnc.com <span className="text-gray-400">{'>'}</span> {watchContentType} <span className="text-gray-400">{'>'}</span> {watchSlug || 'article-slug'}
+                        vcocncspare.com <span className="text-gray-400">{'>'}</span> {watchContentType} <span className="text-gray-400">{'>'}</span> {watchSlug || 'article-slug'}
                       </div>
                       <div className="text-[#4d5156] text-sm mt-1 line-clamp-2">
                         {watchMetaDesc || watch('summary') || t('news.seo.articleDescription')}

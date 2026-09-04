@@ -35,7 +35,7 @@ export default function HomepageLivePreview({ locale, selectedKey, version, onSe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
-      if (event.data?.type !== 'vibocnc-homepage-edit') return;
+      if (event.data?.type !== 'vcocnc-homepage-edit') return;
       const sectionKey = String(event.data.sectionKey || '');
       if (sectionKey) onSelectSection(sectionKey);
     };
@@ -99,7 +99,7 @@ export default function HomepageLivePreview({ locale, selectedKey, version, onSe
         >
           <iframe
             key={`${version}-${refreshKey}`}
-            title={zh ? 'Vibocnc 首页真实预览' : 'Vibocnc live homepage preview'}
+            title={zh ? 'Vcocnc 首页真实预览' : 'Vcocnc live homepage preview'}
             src="/?admin_preview=1"
             className="h-full w-full border-0 bg-white"
           />

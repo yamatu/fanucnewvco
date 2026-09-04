@@ -381,7 +381,7 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
   const canPurchase = hasProductPrice(product);
   // Keep this href identical during SSR and hydration. The SKU/model is enough
   // for the sales team to identify the quote request without leaking a runtime URL.
-  const quoteEmailHref = `mailto:sales@vibocnc.com?subject=${encodeURIComponent(`Quote request: ${product.sku}`)}&body=${encodeURIComponent(`Hello, please provide price and lead time for ${computedHeading} (${product.sku}).`)}`;
+  const quoteEmailHref = `mailto:sales@vcocncspare.com?subject=${encodeURIComponent(`Quote request: ${product.sku}`)}&body=${encodeURIComponent(`Hello, please provide price and lead time for ${computedHeading} (${product.sku}).`)}`;
 
   const getFallbackDescription = () => {
     const sku = product.sku || '';
@@ -402,7 +402,7 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
     ? product.description
     : getFallbackDescription();
   const introBrandPrefix = brandName ? `${brandName} ` : '';
-  const introParagraph = `${computedHeading} is a ${introBrandPrefix}${categoryName.toLowerCase()} supplied by Vibocnc for CNC maintenance, replacement, and industrial automation support. ${product.stock_quantity > 0 ? 'This item is in stock and ready to ship worldwide.' : `This item is available to order with ${product.lead_time || '3-7 days'} lead time.`}`.replace(/\s+/g, ' ').trim();
+  const introParagraph = `${computedHeading} is a ${introBrandPrefix}${categoryName.toLowerCase()} supplied by Vcocnc for CNC maintenance, replacement, and industrial automation support. ${product.stock_quantity > 0 ? 'This item is in stock and ready to ship worldwide.' : `This item is available to order with ${product.lead_time || '3-7 days'} lead time.`}`.replace(/\s+/g, ' ').trim();
   const normalizedIntro = normalizeComparisonText(introParagraph);
   const normalizedDescription = normalizeComparisonText(descriptionToShow);
   const shouldRenderIntroParagraph = normalizedIntro !== '' && !normalizedDescription.includes(normalizedIntro);
@@ -426,8 +426,8 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
           {
             question: `如何确认 ${product.sku} 是否兼容？`,
             answer: product.compatibility_info
-              ? `${stripHtml(product.compatibility_info)} 下单前请联系 sales@vibocnc.com 进行最终兼容性确认。`
-              : `请将设备型号或原零件号发送至 sales@vibocnc.com，我们会在发货前协助确认兼容性。`,
+              ? `${stripHtml(product.compatibility_info)} 下单前请联系 sales@vcocncspare.com 进行最终兼容性确认。`
+              : `请将设备型号或原零件号发送至 sales@vcocncspare.com，我们会在发货前协助确认兼容性。`,
           },
         ]
         : [
@@ -444,8 +444,8 @@ export default function ProductDetailClient({ productSku, initialProduct, conten
           {
             question: `How can I confirm compatibility for ${product.sku}?`,
             answer: product.compatibility_info
-              ? `${stripHtml(product.compatibility_info)} Contact sales@vibocnc.com for final compatibility confirmation before ordering.`
-              : `Share your machine model or original part number with sales@vibocnc.com and we will verify compatibility before shipment.`,
+              ? `${stripHtml(product.compatibility_info)} Contact sales@vcocncspare.com for final compatibility confirmation before ordering.`
+              : `Share your machine model or original part number with sales@vcocncspare.com and we will verify compatibility before shipment.`,
           },
         ];
   const partHighlights = [

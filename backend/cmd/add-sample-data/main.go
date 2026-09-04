@@ -193,14 +193,14 @@ func main() {
 			{
 				ProductID: product.ID,
 				Platform:  "Official Store",
-				URL:       "https://vibocnc.com/contact?inquiry_type=quote",
+				URL:       "https://www.vcocncspare.com/contact?inquiry_type=quote",
 				Price:     float64Ptr(product.Price),
 				IsActive:  true,
 			},
 			{
 				ProductID: product.ID,
 				Platform:  "Authorized Dealer",
-				URL:       "https://vibocnc.com/contact?inquiry_type=quote",
+				URL:       "https://www.vcocncspare.com/contact?inquiry_type=quote",
 				Price:     float64Ptr(product.Price * 1.05), // Slightly higher price
 				IsActive:  true,
 			},

@@ -31,7 +31,7 @@ export default async function RepairRequestPage() {
     '@type': 'Service',
     name: 'Industrial Automation Parts Repair Evaluation',
     serviceType: 'Industrial electronics repair and replacement evaluation',
-    provider: { '@type': 'Organization', '@id': `${baseUrl}/#organization`, name: 'Vibocnc' },
+    provider: { '@type': 'Organization', '@id': `${baseUrl}/#organization`, name: 'Vcocnc' },
     areaServed: 'Worldwide',
     url: localizedUrl,
     description: copy.description,

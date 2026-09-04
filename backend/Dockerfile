@@ -31,8 +31,8 @@ RUN apk add --no-cache ca-certificates tzdata mariadb-client
 COPY --from=builder /out/server /app/server
 COPY --from=builder /out/bulk-seo-optimize /app/bulk-seo-optimize
 
-# 上传目录（建议用 volume 挂载）
-RUN mkdir -p /app/uploads
+# 上传目录（建议用 volume 挂载）。用 COPY 创建目录，避免低内存环境下再启动一层 RUN 容器。
+COPY uploads/.gitkeep /app/uploads/.gitkeep
 
 EXPOSE 8080
 

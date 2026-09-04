@@ -7,7 +7,7 @@ export const COMPANY_FACTS = {
 
 const LEGACY_COPY_REPLACEMENTS: Array<[string, string]> = [
   [
-    'Vibocnc- One-Stop CNC Solution Supplier',
+    'Vcocnc- One-Stop CNC Solution Supplier',
     'Industrial Automation Parts, CNC Spares & Repair Support',
   ],
   [
@@ -15,8 +15,8 @@ const LEGACY_COPY_REPLACEMENTS: Array<[string, string]> = [
     'FANUC, Siemens, Mitsubishi, ABB and 20+ automation brands',
   ],
   [
-    'Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.',
-    'Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
+    'Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.',
+    'Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
   ],
   [
     '5,000sqm Workshop Facility',

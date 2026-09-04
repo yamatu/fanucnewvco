@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getSiteUrl } from '@/lib/url';
 
-export const SITE_NAME = 'Vibocnc';
+export const SITE_NAME = 'Vcocnc';
 
 const SITE_NAME_SUFFIX = /(?:\s*\|\s*VIBO\s*CNC)+\s*$/i;
 

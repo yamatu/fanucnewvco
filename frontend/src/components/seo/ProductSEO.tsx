@@ -9,9 +9,9 @@ import {
   inferProductTypeLabel,
 } from '@/lib/product-seo';
 
-const PUBLIC_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://vibocnc.com').replace(/\/+$/, '');
+const PUBLIC_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.vcocncspare.com').replace(/\/+$/, '');
 
-const DEFAULT_SITE_NAME = 'Vibocnc';
+const DEFAULT_SITE_NAME = 'Vcocnc';
 const GENERIC_BRAND_LABEL = 'industrial automation';
 const GENERIC_MANUFACTURER_LABEL = 'industrial automation parts manufacturer';
 
@@ -197,7 +197,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PU
         : "https://schema.org/BackOrder",
       "seller": {
         "@type": "Organization",
-        "name": "Vibocnc",
+        "name": "Vcocnc",
         "url": baseUrl
       }
     } : undefined
@@ -327,8 +327,8 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PU
           "acceptedAnswer": {
             "@type": "Answer",
             "text": product.compatibility_info
-              ? `${stripHtml(product.compatibility_info)} 下单前请联系 sales@vibocnc.com 进行最终兼容性确认。`
-              : `请将设备型号或原零件号发送至 sales@vibocnc.com，我们会在发货前协助确认兼容性。`
+              ? `${stripHtml(product.compatibility_info)} 下单前请联系 sales@vcocncspare.com 进行最终兼容性确认。`
+              : `请将设备型号或原零件号发送至 sales@vcocncspare.com，我们会在发货前协助确认兼容性。`
           }
         }
       ]
@@ -357,8 +357,8 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = PU
           "acceptedAnswer": {
             "@type": "Answer",
             "text": product.compatibility_info
-              ? `${stripHtml(product.compatibility_info)} Contact sales@vibocnc.com for final compatibility confirmation before ordering.`
-              : `Share your machine model or original part number with sales@vibocnc.com and we will verify compatibility before shipment.`
+              ? `${stripHtml(product.compatibility_info)} Contact sales@vcocncspare.com for final compatibility confirmation before ordering.`
+              : `Share your machine model or original part number with sales@vcocncspare.com and we will verify compatibility before shipment.`
           }
         }
       ];

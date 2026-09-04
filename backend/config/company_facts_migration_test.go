@@ -9,7 +9,7 @@ import (
 )
 
 func TestUpgradeLegacyCompanyCopy(t *testing.T) {
-	legacy := "Vibocnc- One-Stop CNC Solution Supplier | Your Trusted Partner Since 2005 | 5,000sqm Workshop Facility"
+	legacy := "Vcocnc- One-Stop CNC Solution Supplier | Your Trusted Partner Since 2005 | 5,000sqm Workshop Facility"
 	want := "Industrial Automation Parts, CNC Spares & Repair Support | FANUC, Siemens, Mitsubishi, ABB and 20+ automation brands | 3,500 sqm Parts Inspection & Service Facility"
 
 	if got := upgradeLegacyCompanyCopy(legacy); got != want {

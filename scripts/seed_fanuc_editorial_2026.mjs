@@ -16,7 +16,7 @@ const articles = [
     slug: 'fanuc-servo-alarm-troubleshooting-field-guide',
     summary: 'A practical workflow for separating motor, cable, feedback, power and servo-amplifier faults without replacing parts by guesswork.',
     featuredImage: '/images/editorial/fanuc-servo-diagnostics.svg',
-    metaTitle: 'FANUC Servo Alarm Troubleshooting Guide | Vibocnc',
+    metaTitle: 'FANUC Servo Alarm Troubleshooting Guide | Vcocnc',
     metaDescription: 'Diagnose FANUC servo alarms with a safe evidence-first workflow covering alarm history, motor and cable isolation, feedback, power and amplifier checks.',
     metaKeywords: 'FANUC servo alarm troubleshooting, SV0438 alarm, FANUC servo amplifier repair, abnormal current alarm, CNC servo diagnostics',
     isFeatured: true,
@@ -70,7 +70,7 @@ Check the exact amplifier part number, revision, axis capacity, supply module an
 
 An amplifier becomes the leading suspect when external insulation and cable checks pass, mechanics move correctly, parameters match, and the fault remains tied to the same amplifier channel. Even then, request a load-tested repair or exact replacement rather than relying on a simple power-on test.
 
-Browse [FANUC servo and drive parts](/categories/fanuc) or submit the label, alarm history and test results through the [Vibocnc repair request](/repair-request). The evidence lets the repair team quote the correct unit and test scope.
+Browse [FANUC servo and drive parts](/categories/fanuc) or submit the label, alarm history and test results through the [Vcocnc repair request](/repair-request). The evidence lets the repair team quote the correct unit and test scope.
 
 ## 6. Validate the repair in controlled stages
 
@@ -95,7 +95,7 @@ Record the final cause, part number, revision, parameters restored and measureme
 - [Community discussion: SV0438 abnormal current](https://www.reddit.com/r/CNC/comments/yxp1u8/438_z_axes_inv_abnormal_current/)
 - [Community discussion: abnormal current offset diagnosis](https://www.reddit.com/r/CNC/comments/1hh5zz5/looking_for_a_possible_diagnosis/)
 
-Community links are field reports, not FANUC service instructions. Always use the manual for the exact control, drive and machine builder. For part compatibility, read the [FANUC parts selection guide](/blog/fanuc-cnc-parts-selection-guide) or [contact Vibocnc](/contact).`,
+Community links are field reports, not FANUC service instructions. Always use the manual for the exact control, drive and machine builder. For part compatibility, read the [FANUC parts selection guide](/blog/fanuc-cnc-parts-selection-guide) or [contact Vcocnc](/contact).`,
   },
   {
     contentType: 'news',
@@ -103,7 +103,7 @@ Community links are field reports, not FANUC service instructions. Always use th
     slug: 'fanuc-crx-3ia-portable-cobot-debut',
     summary: 'FANUC is showing the compact CRX-3iA at Automate 2026, including a portable vertical-up welding demonstration on structural steel.',
     featuredImage: '/images/editorial/fanuc-crx-3ia.svg',
-    metaTitle: 'FANUC CRX-3iA Portable Cobot Debut | Vibocnc News',
+    metaTitle: 'FANUC CRX-3iA Portable Cobot Debut | Vcocnc News',
     metaDescription: 'FANUC introduces the 11 kg CRX-3iA portable collaborative robot and demonstrates vertical-up welding at Automate 2026.',
     metaKeywords: 'FANUC CRX-3iA, portable cobot, collaborative robot, robot welding, Automate 2026',
     isFeatured: true,
@@ -139,11 +139,11 @@ Teams evaluating the CRX-3iA should document:
 
 For existing collaborative-robot cells, portable deployment should be evaluated as a new application rather than assumed compatible with an older CRX project. Review reach, payload, inertia, process equipment and safety validation together.
 
-## Vibocnc view
+## Vcocnc view
 
 The CRX-3iA expands the use case for collaborative robots from bring parts to the robot toward bring the robot to the task. Its value will depend on how quickly a plant can establish repeatable fixturing, process qualification and a safe handoff between locations.
 
-Vibocnc supplies [industrial automation parts](/products) and supports [repair evaluation for control and motion equipment](/repair-request). For robot-cell reliability, keep controller, I/O, vision, welding and safety-system records connected rather than treating the arm as an isolated component.
+Vcocnc supplies [industrial automation parts](/products) and supports [repair evaluation for control and motion equipment](/repair-request). For robot-cell reliability, keep controller, I/O, vision, welding and safety-system records connected rather than treating the arm as an isolated component.
 
 ## Official source
 
@@ -158,7 +158,7 @@ Product capabilities and availability should be confirmed with FANUC for the tar
     slug: 'fanuc-r2000e-next-generation-robot-series',
     summary: 'FANUC is debuting the R-2000/E series with eight configurations, higher axis speeds, more wrist-load capacity and a smaller installation footprint.',
     featuredImage: '/images/editorial/fanuc-r2000e.svg',
-    metaTitle: 'FANUC R-2000/E Robot Series Update | Vibocnc News',
+    metaTitle: 'FANUC R-2000/E Robot Series Update | Vcocnc News',
     metaDescription: 'Review FANUC R-2000/E series changes, including eight configurations, faster axes, increased wrist-load capacity and footprint improvements.',
     metaKeywords: 'FANUC R-2000/E, industrial robot, spot welding robot, material handling robot, Automate 2026',
     isFeatured: true,
@@ -194,11 +194,11 @@ A generation change creates a mixed-fleet period. Plants should decide whether t
 
 The handover package should include a controller image, application software, calibration records, payload data, safety signature, network map and a tested recovery sequence. Without that package, a faster robot can still create longer recovery time after a fault.
 
-## Vibocnc view
+## Vcocnc view
 
 The R-2000/E update is most valuable when the plant plans the cell lifecycle along with the cycle-time improvement. Treat compatibility, training and recovery documentation as part of the capital project.
 
-Vibocnc can help identify [automation and robot-system components](/products) or review a failed control, drive or I/O assembly through the [repair request workflow](/repair-request). Use the exact model, controller and serial information when sourcing parts for a mixed FANUC fleet.
+Vcocnc can help identify [automation and robot-system components](/products) or review a failed control, drive or I/O assembly through the [repair request workflow](/repair-request). Use the exact model, controller and serial information when sourcing parts for a mixed FANUC fleet.
 
 ## Official source
 
@@ -213,7 +213,7 @@ Final specifications and regional availability should be verified against the mo
     slug: 'fanuc-physical-ai-automate-2026-factory-lessons',
     summary: 'FANUC is combining 3D vision, adaptive motion, simulation, ROS 2 and generative interfaces in its Automate 2026 demonstrations.',
     featuredImage: '/images/editorial/fanuc-physical-ai.svg',
-    metaTitle: 'FANUC Physical AI at Automate 2026 | Vibocnc News',
+    metaTitle: 'FANUC Physical AI at Automate 2026 | Vcocnc News',
     metaDescription: 'Analyze FANUC Physical AI demonstrations using 3D vision, adaptive motion, NVIDIA processing, ROS 2, simulation and natural-language programming.',
     metaKeywords: 'FANUC Physical AI, Automate 2026, robot AI, ROS 2 industrial robot, generative AI robot programming',
     isFeatured: true,
@@ -252,11 +252,11 @@ Traditional recovery records include robot backups, payload schedules, frames, c
 
 Without those records, the cell may be mechanically healthy but impossible to reproduce after controller replacement.
 
-## Vibocnc view
+## Vcocnc view
 
 Physical AI is most credible when it reduces a defined source of production variation and leaves a clear audit trail. Start with one measurable problem, specify the fallback state and build the backup package before scaling the architecture.
 
-Vibocnc supports [industrial controls, I/O, drives and automation parts](/categories) and offers [repair evaluation](/repair-request) for existing equipment. AI applications still depend on reliable power, motion, sensing and controller hardware.
+Vcocnc supports [industrial controls, I/O, drives and automation parts](/categories) and offers [repair evaluation](/repair-request) for existing equipment. AI applications still depend on reliable power, motion, sensing and controller hardware.
 
 ## Official source
 
@@ -270,7 +270,7 @@ The demonstrations are show applications, not universal performance claims. Each
     slug: 'fanuc-r50ia-controller-cybersecurity-vision-update',
     summary: 'The R-50iA robot controller combines IEC 62443 certification, higher-resolution vision, Python support, energy features and remote service tools.',
     featuredImage: '/images/editorial/fanuc-r50ia.svg',
-    metaTitle: 'FANUC R-50iA Controller Features | Vibocnc News',
+    metaTitle: 'FANUC R-50iA Controller Features | Vcocnc News',
     metaDescription: 'Explore FANUC R-50iA controller cybersecurity certification, 5 MP vision, Python integration, energy-saving and remote-maintenance features.',
     metaKeywords: 'FANUC R-50iA, robot controller, IEC 62443, FANUC iRVision, Python robot integration',
     isFeatured: true,
@@ -303,11 +303,11 @@ FANUC lists Mate-, A- and B-cabinet versions. The physical cabinet, installed op
 
 For a new cell, store the robot image, Python files, software-PLC project, vision calibration, user-role policy and network settings in one controlled recovery package.
 
-## Vibocnc view
+## Vcocnc view
 
 R-50iA shifts controller selection from motion and I/O alone toward security, software integration and data lifecycle. Maintenance teams need access to both electrical drawings and software ownership records.
 
-Vibocnc lists [industrial controller and automation components](/products) and can assess failed boards, drives and support equipment through a [repair request](/repair-request). Always include the full controller cabinet and installed-robot identity.
+Vcocnc lists [industrial controller and automation components](/products) and can assess failed boards, drives and support equipment through a [repair request](/repair-request). Always include the full controller cabinet and installed-robot identity.
 
 ## Official source
 
@@ -322,7 +322,7 @@ Cybersecurity features should be implemented within the plant's own risk, patch 
     slug: 'fanuc-roboguide-v10-robot-simulation-update',
     summary: 'ROBOGUIDE V10 adds a 64-bit architecture, VR support, improved CAD import and a redesigned interface for offline robot-cell development.',
     featuredImage: '/images/editorial/fanuc-roboguide-v10.svg',
-    metaTitle: 'FANUC ROBOGUIDE V10 Simulation Update | Vibocnc News',
+    metaTitle: 'FANUC ROBOGUIDE V10 Simulation Update | Vcocnc News',
     metaDescription: 'FANUC ROBOGUIDE V10 adds 64-bit performance, VR capabilities, enhanced CAD import and a modern interface for robot simulation.',
     metaKeywords: 'FANUC ROBOGUIDE V10, robot simulation, offline programming, digital twin, FANUC software',
     isFeatured: false,
@@ -358,11 +358,11 @@ An offline-programming project becomes part of the production baseline. Store:
 
 When a cell changes, update both the simulation and recovery record. Otherwise the next engineer may program against an obsolete mechanical layout.
 
-## Vibocnc view
+## Vcocnc view
 
 ROBOGUIDE V10's value is not only faster simulation. It offers an opportunity to connect design evidence, commissioning evidence and maintenance backups. Plants that control those three states can use offline work without losing track of what actually runs on the floor.
 
-Vibocnc supports [robot-cell controls and industrial automation parts](/products) and provides [repair evaluation](/repair-request) for drives, boards and related equipment. Preserve software and hardware identities together when replacing a controller component.
+Vcocnc supports [robot-cell controls and industrial automation parts](/products) and provides [repair evaluation](/repair-request) for drives, boards and related equipment. Preserve software and hardware identities together when replacing a controller component.
 
 ## Official source
 
@@ -376,7 +376,7 @@ Confirm licensing, supported controller generations and workstation requirements
     slug: 'fanuc-spindle-amplifier-alarm-troubleshooting-guide',
     summary: 'A temperature-, load- and event-based method for diagnosing intermittent FANUC spindle alarms before ordering a spindle amplifier.',
     featuredImage: '/images/editorial/fanuc-spindle-diagnostics.svg',
-    metaTitle: 'FANUC Spindle Amplifier Alarm Guide | Vibocnc',
+    metaTitle: 'FANUC Spindle Amplifier Alarm Guide | Vcocnc',
     metaDescription: 'Troubleshoot intermittent FANUC spindle alarms using alarm timing, cooling, power, motor cable, load and feedback evidence.',
     metaKeywords: 'FANUC spindle alarm, FANUC spindle amplifier repair, AL-12 alarm, CNC spindle diagnostics, spindle drive overheating',
     isFeatured: false,
@@ -435,7 +435,7 @@ The amplifier becomes a stronger suspect when cooling, mechanics, motor insulati
 
 A useful repair report should state more than powered on. Ask whether the unit was inspected for thermal damage, whether fans and capacitors were evaluated, whether control and power stages were tested, and whether the drive was run under representative load.
 
-Vibocnc can compare [available spindle and CNC parts](/products) with a [repair evaluation](/repair-request). When the exact revision is scarce, repairing the original unit may reduce compatibility risk; when a tested exact replacement is ready, replacement may shorten downtime.
+Vcocnc can compare [available spindle and CNC parts](/products) with a [repair evaluation](/repair-request). When the exact revision is scarce, repairing the original unit may reduce compatibility risk; when a tested exact replacement is ready, replacement may shorten downtime.
 
 ## Commission the corrected system
 
@@ -449,7 +449,7 @@ Keep the event log running after the machine returns to production. An intermitt
 - [Community report: intermittent spindle AL-12](https://www.reddit.com/r/CNC/comments/1uzlugj/al12_alarm_on_fanuc_spindle_drive/)
 - [Community report: spindle and soft-thermal sequence](https://www.reddit.com/r/CNC/comments/1ntpgg3/need_help_softthermal_ovc_alarm_caused_by_the/)
 
-Community reports are examples of field symptoms, not substitutes for the exact maintenance manual. For motion-system checks, continue with the [servo alarm isolation guide](/blog/fanuc-servo-alarm-troubleshooting-field-guide) or [send the drive label to Vibocnc](/contact).`,
+Community reports are examples of field symptoms, not substitutes for the exact maintenance manual. For motion-system checks, continue with the [servo alarm isolation guide](/blog/fanuc-servo-alarm-troubleshooting-field-guide) or [send the drive label to Vcocnc](/contact).`,
   },
   {
     contentType: 'blog',
@@ -457,7 +457,7 @@ Community reports are examples of field symptoms, not substitutes for the exact 
     slug: 'fanuc-cnc-backup-battery-sram-restore-guide',
     summary: 'A maintenance plan for backing up CNC, PMC and machine data before battery work, board replacement or an extended shutdown.',
     featuredImage: '/images/editorial/fanuc-cnc-backup.svg',
-    metaTitle: 'FANUC CNC Backup & Battery Planning Guide | Vibocnc',
+    metaTitle: 'FANUC CNC Backup & Battery Planning Guide | Vcocnc',
     metaDescription: 'Plan FANUC 0i and 30i CNC backups, battery maintenance and recovery records for parameters, PMC data, offsets and machine-specific files.',
     metaKeywords: 'FANUC CNC backup, FANUC battery replacement, SRAM backup, FANUC 0i parameters, FANUC 30i restore',
     isFeatured: true,
@@ -536,7 +536,7 @@ Do not load the first file you find. Confirm the machine and control identity, r
 
 Restore in the sequence specified by the manual and machine builder. Verify safety-related limits, axis directions, reference positions, pitch compensation, tool change and spindle orientation before production. Use low-risk dry tests and document any value changed after the restore.
 
-If a board or memory device is involved, compare exact numbers in [Vibocnc's automation catalog](/products) and submit the failure details through the [repair request page](/repair-request). Keeping the original board until acceptance testing is complete preserves a recovery path.
+If a board or memory device is involved, compare exact numbers in [Vcocnc's automation catalog](/products) and submit the failure details through the [repair request page](/repair-request). Keeping the original board until acceptance testing is complete preserves a recovery path.
 
 ## Backup package checklist
 
@@ -562,7 +562,7 @@ For help matching the platform to its documentation, read [How to find the right
     slug: 'fanuc-pdf-manual-navigation-guide',
     summary: 'A step-by-step method for matching a FANUC CNC, servo or spindle problem to the correct series, model and manual instead of using a random PDF.',
     featuredImage: '/images/editorial/fanuc-manual-navigation.svg',
-    metaTitle: 'How to Find the Right FANUC CNC PDF Manual | Vibocnc',
+    metaTitle: 'How to Find the Right FANUC CNC PDF Manual | Vcocnc',
     metaDescription: 'Match FANUC CNC series, model, software and manual type to find the correct official documentation for alarms, parameters, maintenance and backup.',
     metaKeywords: 'FANUC PDF manual, FANUC maintenance manual, FANUC 0i manual, FANUC 30i manual, FANUC alarm manual',
     isFeatured: false,
@@ -659,7 +659,7 @@ A useful index might include:
 - [FANUC Series 30i/31i/32i Model B brochure](https://www.fanucamerica.com/docs/default-source/cnc-files/brochures/fanuc_30ib_low.pdf)
 - [Community discussion: turret sequence fault](https://www.reddit.com/r/CNC/comments/10kcnw2/turret_wont_index_fanuc_oitc_hwacheon_cutex_16/)
 
-Once the correct document is known, use the [servo alarm workflow](/blog/fanuc-servo-alarm-troubleshooting-field-guide) or [CNC backup guide](/blog/fanuc-cnc-backup-battery-sram-restore-guide). To identify a replacement from its label, [contact Vibocnc](/contact).`,
+Once the correct document is known, use the [servo alarm workflow](/blog/fanuc-servo-alarm-troubleshooting-field-guide) or [CNC backup guide](/blog/fanuc-cnc-backup-battery-sram-restore-guide). To identify a replacement from its label, [contact Vcocnc](/contact).`,
   },
   {
     contentType: 'blog',
@@ -667,7 +667,7 @@ Once the correct document is known, use the [servo alarm workflow](/blog/fanuc-s
     slug: 'fanuc-estop-turret-interlock-troubleshooting-guide',
     summary: 'A ladder-led approach to FANUC machine interlocks that separates CNC alarms from machine-builder safety, turret and sequence conditions.',
     featuredImage: '/images/editorial/fanuc-interlock-diagnostics.svg',
-    metaTitle: 'FANUC E-Stop & Turret Interlock Guide | Vibocnc',
+    metaTitle: 'FANUC E-Stop & Turret Interlock Guide | Vcocnc',
     metaDescription: 'Troubleshoot FANUC E-stop, turret and machine interlock faults through the approved safety circuit, PMC ladder, inputs and sequence conditions.',
     metaKeywords: 'FANUC E-stop alarm, FANUC turret alarm, PMC ladder troubleshooting, CNC interlock fault, machine safety circuit',
     isFeatured: false,
@@ -730,7 +730,7 @@ If the physical input changes at the device but not in the ladder, trace the wir
 
 This input-logic-output split avoids replacing a CNC board when the actual fault is a sensor, or replacing a valve when the logic never commanded it.
 
-For suspected I/O or control-board faults, record the exact module number, slot, LED state and measured signal. Browse [industrial I/O and control parts](/categories) and submit the evidence through [Vibocnc repair evaluation](/repair-request).
+For suspected I/O or control-board faults, record the exact module number, slot, LED state and measured signal. Browse [industrial I/O and control parts](/categories) and submit the evidence through [Vcocnc repair evaluation](/repair-request).
 
 ## Validate every restored safety function
 
@@ -755,7 +755,7 @@ Document the cause, wiring or device changed, I/O address, ladder condition and 
 - [Community discussion: turret indexing sequence](https://www.reddit.com/r/CNC/comments/10kcnw2/turret_wont_index_fanuc_oitc_hwacheon_cutex_16/)
 - [Community discussion: turret proximity inputs](https://www.reddit.com/r/CNC/comments/8cw6cj/having_alarm_on_sl25bsy_says_ex2240f_servo_turret/)
 
-For the control-side documentation workflow, read [How to find the right FANUC manual](/blog/fanuc-pdf-manual-navigation-guide). For a module or board review, [contact Vibocnc](/contact).`,
+For the control-side documentation workflow, read [How to find the right FANUC manual](/blog/fanuc-pdf-manual-navigation-guide). For a module or board review, [contact Vcocnc](/contact).`,
   },
   {
     contentType: 'news',
@@ -763,7 +763,7 @@ For the control-side documentation workflow, read [How to find the right FANUC m
     slug: 'fanuc-m950ia-500-heavy-payload-robot-update',
     summary: 'The M-950iA/500 combines a 500 kg payload, 2,830 mm reach and serial-link motion for heavy handling in constrained production layouts.',
     featuredImage: '/images/editorial/fanuc-m950ia.svg',
-    metaTitle: 'FANUC M-950iA/500 Heavy Robot | Vibocnc News',
+    metaTitle: 'FANUC M-950iA/500 Heavy Robot | Vcocnc News',
     metaDescription: 'FANUC M-950iA/500 offers 500 kg payload capacity, 2,830 mm reach and serial-link motion for heavy material handling.',
     metaKeywords: 'FANUC M-950iA/500, 500 kg robot, heavy payload robot, material handling robot, industrial automation',
     isFeatured: false,
@@ -798,11 +798,11 @@ Heavy-payload installations should store controller backups, mastered position, 
 
 If the M-950iA joins an older FANUC fleet, compare controller generation, pendant, software, I/O and safety architecture before assuming common spares. A consistent naming and backup standard can still reduce downtime even where hardware is not interchangeable.
 
-## Vibocnc view
+## Vcocnc view
 
 The M-950iA/500 creates options for layouts that need both payload and articulation. Its business case should include foundation, tooling, recovery and lifecycle support, not just robot reach and cycle time.
 
-Vibocnc supplies [industrial automation parts](/products) and reviews failed controls, drives and I/O through the [repair request page](/repair-request). Include the complete robot, controller and application identity in any parts inquiry.
+Vcocnc supplies [industrial automation parts](/products) and reviews failed controls, drives and I/O through the [repair request page](/repair-request). Include the complete robot, controller and application identity in any parts inquiry.
 
 ## Official source
 
@@ -818,7 +818,7 @@ Payload and motion limits must be checked against the official data sheet for th
     slug: 'fanuc-m800ib-60-20b-laser-processing-robot',
     summary: 'FANUC is demonstrating the M-800iB/60-20B in an integrated laser-cutting cell focused on speed, accuracy and path control.',
     featuredImage: '/images/editorial/fanuc-m800ib.svg',
-    metaTitle: 'FANUC M-800iB/60-20B Laser Robot | Vibocnc News',
+    metaTitle: 'FANUC M-800iB/60-20B Laser Robot | Vcocnc News',
     metaDescription: 'FANUC demonstrates the M-800iB/60-20B for advanced laser cutting, highlighting accurate paths, speed and process integration.',
     metaKeywords: 'FANUC M-800iB/60-20B, laser cutting robot, process robot, path accuracy, FABTECH 2025',
     isFeatured: false,
@@ -854,11 +854,11 @@ Plants adding robotic laser processing should map network ownership and stop beh
 
 Spare planning should include the components that stop the whole process, not only robot parts. A low-cost sensor, industrial PC, safety module or cooling component can set the same downtime as the robot controller.
 
-## Vibocnc view
+## Vcocnc view
 
 The M-800iB demonstration shows FANUC pushing robots further into precision process work. Successful deployment depends on calibration control and a recovery package that joins the robot program with the process equipment.
 
-Browse [industrial controls, drives and automation parts](/categories) or request [repair evaluation](/repair-request) for a failed cell component. Vibocnc uses exact labels and operating evidence to distinguish a controller issue from a process-side fault.
+Browse [industrial controls, drives and automation parts](/categories) or request [repair evaluation](/repair-request) for a failed cell component. Vcocnc uses exact labels and operating evidence to distinguish a controller issue from a process-side fault.
 
 ## Official source
 
@@ -872,7 +872,7 @@ Final robot and process specifications should be validated with FANUC and the la
     slug: 'fanuc-sr3ia-u-ceiling-mount-scara-robot',
     summary: 'The SR-3iA/U ceiling-mount SCARA is designed around a 360-degree work envelope for compact assembly, picking and packaging cells.',
     featuredImage: '/images/editorial/fanuc-sr3ia-u.svg',
-    metaTitle: 'FANUC SR-3iA/U Ceiling SCARA | Vibocnc News',
+    metaTitle: 'FANUC SR-3iA/U Ceiling SCARA | Vcocnc News',
     metaDescription: 'FANUC SR-3iA/U ceiling-mount SCARA provides a 360-degree work envelope for compact pick, place and assembly applications.',
     metaKeywords: 'FANUC SR-3iA/U, ceiling mount SCARA, pick and place robot, assembly robot, compact automation',
     isFeatured: false,
@@ -899,11 +899,11 @@ Plan access to motors, cables, lubrication points and connectors without requiri
 
 A replacement arm or controller must be checked against the exact model and software options. SCARA naming similarities do not guarantee identical mounting, reach, controller or cable requirements.
 
-## Vibocnc view
+## Vcocnc view
 
 The SR-3iA/U is a layout tool as much as a robot model. Its main benefit appears when cell designers use the overhead architecture to simplify material flow while preserving maintainability.
 
-Vibocnc lists [automation parts and control components](/products) and supports [repair evaluation](/repair-request) for industrial electronic assemblies. Include the full robot/controller configuration and cell symptoms with any inquiry.
+Vcocnc lists [automation parts and control components](/products) and supports [repair evaluation](/repair-request) for industrial electronic assemblies. Include the full robot/controller configuration and cell symptoms with any inquiry.
 
 ## Official source
 
@@ -917,7 +917,7 @@ Confirm payload, reach, mounting and environmental limits from the current offic
     slug: 'fanuc-otto-mobile-robotic-order-fulfillment',
     summary: 'A ProMat 2025 demonstration combines a FANUC CRX-10iA/L cobot with OTTO autonomous mobile robotics for flexible warehouse fulfillment.',
     featuredImage: '/images/editorial/fanuc-warehouse.svg',
-    metaTitle: 'FANUC Mobile Robotic Order Fulfillment | Vibocnc News',
+    metaTitle: 'FANUC Mobile Robotic Order Fulfillment | Vcocnc News',
     metaDescription: 'FANUC and OTTO combine a CRX-10iA/L collaborative robot with mobile robotics for flexible warehouse order fulfillment.',
     metaKeywords: 'FANUC CRX-10iA/L, OTTO AMR, mobile manipulation, robotic order fulfillment, warehouse automation',
     isFeatured: false,
@@ -950,11 +950,11 @@ Store robot and mobile-platform backups, maps, docking references, network addre
 
 Critical spares may include network, safety, charging and sensing components in addition to robot and AMR hardware. The single weakest component can stop the mobile workflow.
 
-## Vibocnc view
+## Vcocnc view
 
 Mobile manipulation can make automation more flexible, but it also turns localization and network health into production dependencies. A successful pilot should include repeatable recovery from lost docking, low battery, blocked route, failed pick and controller restart.
 
-Vibocnc supplies [industrial automation components](/products) and can assess failed controls, drives, HMIs and I/O through the [repair request page](/repair-request).
+Vcocnc supplies [industrial automation components](/products) and can assess failed controls, drives, HMIs and I/O through the [repair request page](/repair-request).
 
 ## Official source
 
@@ -968,7 +968,7 @@ The show system is an application demonstration; production performance depends 
     slug: 'fanuc-p55-15-21a-paint-robot-r50ia-controller',
     summary: 'FANUC says the P-55/15-21A is its first paint robot to use the R-50iA controller, with a consolidated cabinet and batteryless encoders.',
     featuredImage: '/images/editorial/fanuc-p55.svg',
-    metaTitle: 'FANUC P-55/15-21A Paint Robot Update | Vibocnc News',
+    metaTitle: 'FANUC P-55/15-21A Paint Robot Update | Vcocnc News',
     metaDescription: 'FANUC P-55/15-21A paint robot uses the R-50iA controller, a consolidated cabinet, batteryless encoders and conveyor line tracking.',
     metaKeywords: 'FANUC P-55/15-21A, paint robot, R-50iA controller, batteryless encoder, finishing automation',
     isFeatured: false,
@@ -1001,7 +1001,7 @@ The R-50iA introduces different security, vision, software and service capabilit
 
 Store the robot backup with PaintTool settings, line-tracking calibration, applicator recipes, safety validation, controller version and explosion-protection documentation. That package is essential after a controller or encoder-related service event.
 
-## Vibocnc view
+## Vcocnc view
 
 The P-55/15-21A update combines process, controller and maintenance changes. Its lifecycle advantage will be strongest where the plant uses the simplified hardware to improve documentation and recovery, rather than treating fewer components as a reason to reduce preventive checks.
 

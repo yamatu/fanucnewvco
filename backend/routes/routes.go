@@ -43,6 +43,7 @@ func SetupRoutes(r *gin.Engine) {
 	cacheController := &controllers.CacheController{}
 	hotlinkController := &controllers.HotlinkController{}
 	payPalController := &controllers.PayPalController{}
+	socialLinksController := &controllers.SocialLinksController{}
 	analyticsController := &controllers.AnalyticsController{}
 	newsController := &controllers.NewsController{}
 	sitePageController := &controllers.SitePageController{}
@@ -50,6 +51,8 @@ func SetupRoutes(r *gin.Engine) {
 	indexNowController := &controllers.IndexNowController{}
 	ebayImportDraftController := &controllers.EbayImportDraftController{}
 	aiAgentController := &controllers.AIAgentController{}
+	services.StartEbayAutoImportDaemon(ebayImportDraftController.ConfirmDraftFn())
+	services.StartProductCatalogImportDaemon(db)
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -109,6 +112,7 @@ func SetupRoutes(r *gin.Engine) {
 
 			// PayPal (public config)
 			public.GET("/paypal/config", payPalController.GetPublicConfig)
+			public.GET("/social-links", socialLinksController.GetPublicConfig)
 
 			// Email (public)
 			public.GET("/email/config", emailController.GetPublicConfig)
@@ -246,9 +250,19 @@ func SetupRoutes(r *gin.Engine) {
 			ebayImportDrafts.Use(middleware.EditorOrAdmin())
 			{
 				ebayImportDrafts.POST("/upload", ebayImportDraftController.Upload)
+				ebayImportDrafts.POST("/json-import", ebayImportDraftController.StartJSONImport)
+				ebayImportDrafts.GET("/json-import/tasks/latest", ebayImportDraftController.GetLatestJSONImportTask)
+				ebayImportDrafts.GET("/json-import/tasks/:taskId", ebayImportDraftController.GetJSONImportTask)
+				ebayImportDrafts.POST("/json-import/tasks/:taskId/pause", ebayImportDraftController.PauseJSONImportTask)
+				ebayImportDrafts.POST("/json-import/tasks/:taskId/resume", ebayImportDraftController.ResumeJSONImportTask)
 				ebayImportDrafts.GET("", ebayImportDraftController.List)
+				ebayImportDrafts.POST("/selection-ids", ebayImportDraftController.SelectionIDs)
 				ebayImportDrafts.POST("/bulk-confirm", ebayImportDraftController.BulkConfirm)
+				ebayImportDrafts.GET("/bulk-confirm/tasks/:taskId", ebayImportDraftController.GetBulkConfirmTask)
 				ebayImportDrafts.POST("/bulk-recheck", ebayImportDraftController.BulkRecheck)
+				// POST alias keeps bulk deletion compatible with proxies that reject
+				// request bodies on DELETE while retaining the legacy DELETE route.
+				ebayImportDrafts.POST("/bulk-delete", ebayImportDraftController.BulkDelete)
 				ebayImportDrafts.DELETE("/bulk", ebayImportDraftController.BulkDelete)
 				ebayImportDrafts.GET("/:id", ebayImportDraftController.Get)
 				ebayImportDrafts.PUT("/:id", ebayImportDraftController.Update)
@@ -346,6 +360,16 @@ func SetupRoutes(r *gin.Engine) {
 				backup.POST("/db/restore", backupController.RestoreDBBackup)
 				backup.GET("/media", backupController.DownloadMediaBackup)
 				backup.POST("/media/restore", backupController.RestoreMediaBackup)
+				backup.GET("/products/export", backupController.DownloadProductCatalog)
+				backup.POST("/products/import/jobs", backupController.CreateProductCatalogImportJob)
+				backup.PUT("/products/import/jobs/:id/chunk", backupController.UploadProductCatalogChunk)
+				backup.POST("/products/import/jobs/:id/complete", backupController.CompleteProductCatalogImportUpload)
+				backup.GET("/products/import/jobs/:id", backupController.GetProductCatalogImportJob)
+				backup.GET("/products/import/jobs/:id/preview", backupController.GetProductCatalogImportPreview)
+				backup.POST("/products/import/jobs/:id/apply", backupController.ApplyProductCatalogImport)
+				backup.POST("/products/import/jobs/:id/pause", backupController.PauseProductCatalogImport)
+				backup.POST("/products/import/jobs/:id/resume", backupController.ResumeProductCatalogImport)
+				backup.DELETE("/products/import/jobs/:id", backupController.CancelProductCatalogImport)
 			}
 
 			// Cache & CDN (admin only)
@@ -372,6 +396,14 @@ func SetupRoutes(r *gin.Engine) {
 			{
 				paypal.GET("/settings", payPalController.GetSettings)
 				paypal.PUT("/settings", payPalController.UpdateSettings)
+			}
+
+			// Social links and Organization identity signals (admin only)
+			socialLinks := admin.Group("/social-links")
+			socialLinks.Use(middleware.AdminOnly())
+			{
+				socialLinks.GET("/settings", socialLinksController.GetSettings)
+				socialLinks.PUT("/settings", socialLinksController.UpdateSettings)
 			}
 
 			// IndexNow / Bing (admin only)

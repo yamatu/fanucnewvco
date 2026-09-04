@@ -14,7 +14,7 @@ const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 },
   fileName: sourcePath,
 }).outputText;
-const outputPath = path.join(os.tmpdir(), `vibocnc-product-seo-${process.pid}.mjs`);
+const outputPath = path.join(os.tmpdir(), `vcocnc-product-seo-${process.pid}.mjs`);
 await fs.writeFile(outputPath, compiled);
 
 try {

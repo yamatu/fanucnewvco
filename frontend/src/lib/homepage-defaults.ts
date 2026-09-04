@@ -21,10 +21,10 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
   slides: [
     {
       id: 1,
-      title: 'Vibocnc Industrial Automation Parts, CNC Spares & Repair Support',
+      title: 'Vcocnc Industrial Automation Parts, CNC Spares & Repair Support',
       subtitle: 'FANUC, Siemens, Mitsubishi, ABB and 20+ automation brands',
       description:
-        'Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
+        'Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
       image: 'https://s2.loli.net/2025/08/26/Vo4JfbtW5H2GMEN.png',
       cta: {
         primary: { text: 'Browse Products', href: '/products' },

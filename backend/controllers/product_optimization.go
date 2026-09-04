@@ -429,8 +429,8 @@ func (poc *ProductOptimizationController) enhanceProductContent(product *models.
 		}
 		metaTitle := services.BuildSafeMetaTitle(
 			strings.TrimSpace(enriched.MetaTitle),
-			fmt.Sprintf("%s %s - %s | Vibocnc", product.SKU, categoryKeyword, stockTag),
-			fmt.Sprintf("%s %s | Vibocnc", brandDisplay, product.SKU),
+			fmt.Sprintf("%s %s - %s | Vcocnc", product.SKU, categoryKeyword, stockTag),
+			fmt.Sprintf("%s %s | Vcocnc", brandDisplay, product.SKU),
 			fmt.Sprintf("%s %s", brandDisplay, product.SKU),
 		)
 		updateData["meta_title"] = metaTitle
@@ -466,7 +466,7 @@ func (poc *ProductOptimizationController) enhanceProductContent(product *models.
 				brandPartsLabel + " parts",
 				"CNC spare parts",
 				"industrial automation",
-				"Vibocnc",
+				"Vcocnc",
 			}
 			if model != "" {
 				keywords = append(keywords, model)

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { ChangeEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,18 +12,24 @@ import {
   MagnifyingGlassIcon,
   TrashIcon,
   EyeIcon,
+  ArrowUpTrayIcon,
+  PauseIcon,
+  PlayIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import Pagination from '@/components/common/Pagination';
 import { EbayImportDraftService } from '@/services';
+import type { EbayImportDraftJSONTaskSnapshot } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { useAdminI18n } from '@/lib/admin-i18n';
-import type { EbayImportDraftListItem } from '@/types';
+import type { EbayImportDraftListItem, EbayBulkConfirmTaskSnapshot } from '@/types';
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof Error && error.message) return error.message;
   return fallback;
 };
+
+const MAX_JSON_IMPORT_BYTES = 1024 * 1024 * 1024;
 
 function EbayImportDraftsContent() {
   const { locale } = useAdminI18n();
@@ -32,6 +38,13 @@ function EbayImportDraftsContent() {
   const queryClient = useQueryClient();
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [bulkConfirmTask, setBulkConfirmTask] = useState<EbayBulkConfirmTaskSnapshot | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [jsonImportTask, setJsonImportTask] = useState<EbayImportDraftJSONTaskSnapshot | null>(null);
+  const [jsonUploadPending, setJsonUploadPending] = useState(false);
+  const [jsonUploadPct, setJsonUploadPct] = useState(0);
+  const [jsonTaskControlPending, setJsonTaskControlPending] = useState(false);
+  const jsonFileInputRef = useRef<HTMLInputElement>(null);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
   const pageSize = 20;
@@ -60,24 +73,111 @@ function EbayImportDraftsContent() {
   const list = data?.items || [];
   const total = data?.total || 0;
   const totalPages = data?.total_pages || 1;
+  const visibleIds = list.map((item) => item.id);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+  const allDraftsSelected = total > 0 && selectedIds.length >= total;
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [search, status, matchStatus, brand]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void EbayImportDraftService.getLatestJSONImportTask()
+      .then((task) => {
+        if (!cancelled && task) setJsonImportTask(task);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const taskId = jsonImportTask?.id;
+    const taskStatus = jsonImportTask?.status;
+    if (!taskId || (taskStatus !== 'queued' && taskStatus !== 'processing' && taskStatus !== 'paused')) return;
+    let polling = false;
+    const timer = window.setInterval(() => {
+      if (polling) return;
+      polling = true;
+      void EbayImportDraftService.getJSONImportTask(taskId)
+        .then(async (task) => {
+          setJsonImportTask(task);
+          if (task.status === 'completed' || task.status === 'failed') {
+            await queryClient.invalidateQueries({ queryKey: queryKeys.ebayImportDrafts.lists() });
+            toast(task.status === 'completed'
+              ? (locale === 'zh' ? `后台导入完成：新增 ${task.created}，跳过重复 ${task.skipped}，失败 ${task.failed}` : `Background import completed: ${task.created} created, ${task.skipped} duplicates skipped, ${task.failed} failed`)
+              : (locale === 'zh' ? `后台导入失败：${task.message || '未知错误'}` : `Background import failed: ${task.message || 'Unknown error'}`),
+            { id: `ebay-json-task-${task.id}`, icon: task.status === 'completed' ? '✅' : '❌' });
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => { polling = false; });
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [jsonImportTask?.id, jsonImportTask?.status, locale, queryClient]);
 
   const invalidateAll = async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.ebayImportDrafts.lists() });
     await queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
   };
 
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
+  const startPolling = useCallback(
+    (taskId: string) => {
+      stopPolling();
+      pollRef.current = setInterval(async () => {
+        try {
+          const snapshot = await EbayImportDraftService.getBulkConfirmTask(taskId);
+          setBulkConfirmTask(snapshot);
+
+          if (snapshot.status === 'completed' || snapshot.status === 'failed') {
+            stopPolling();
+            await invalidateAll();
+            setSelectedIds([]);
+            if (snapshot.status === 'completed') {
+              toast.success(
+                locale === 'zh'
+                  ? `批量导入完成: ${snapshot.success_count}/${snapshot.total} 成功`
+                  : `Bulk import done: ${snapshot.success_count}/${snapshot.total} succeeded`
+              );
+            } else {
+              toast.error(locale === 'zh' ? '批量导入任务失败' : 'Bulk import task failed');
+            }
+            setTimeout(() => setBulkConfirmTask(null), 8000);
+          }
+        } catch {
+          stopPolling();
+          setBulkConfirmTask(null);
+        }
+      }, 1500);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [locale, stopPolling]
+  );
+
   const bulkConfirmMutation = useMutation({
     mutationFn: (ids: number[]) => EbayImportDraftService.bulkConfirm(ids),
-    onSuccess: async (result) => {
-      await invalidateAll();
-      setSelectedIds([]);
+    onSuccess: (snapshot) => {
+      setBulkConfirmTask(snapshot);
+      startPolling(snapshot.id);
       toast.success(
         locale === 'zh'
-          ? `已确认 ${result.success_count}/${result.total} 条草稿`
-          : `Confirmed ${result.success_count}/${result.total} drafts`
+          ? `批量导入任务已启动 (${snapshot.total} 条)`
+          : `Bulk import task started (${snapshot.total} drafts)`
       );
     },
-    onError: (err: unknown) => toast.error(getErrorMessage(err, locale === 'zh' ? '批量确认失败' : 'Bulk confirm failed')),
+    onError: (err: unknown) =>
+      toast.error(getErrorMessage(err, locale === 'zh' ? '批量确认失败' : 'Bulk confirm failed')),
   });
 
   const bulkRecheckMutation = useMutation({
@@ -103,6 +203,15 @@ function EbayImportDraftsContent() {
     onError: (err: unknown) => toast.error(getErrorMessage(err, locale === 'zh' ? '批量删除失败' : 'Bulk delete failed')),
   });
 
+  const selectAllMutation = useMutation({
+    mutationFn: () => EbayImportDraftService.selectionIds(filters),
+    onSuccess: (result) => {
+      setSelectedIds(result.ids);
+      toast.success(locale === 'zh' ? `已选择全部 ${result.total} 条草稿` : `Selected all ${result.total} drafts`);
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, locale === 'zh' ? '全选草稿失败' : 'Failed to select all drafts')),
+  });
+
   const updateParams = (updates: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
@@ -114,18 +223,25 @@ function EbayImportDraftsContent() {
   };
 
   const toggleSelectAll = (checked: boolean) => {
-    setSelectedIds(checked ? list.map((item) => item.id) : []);
+    setSelectedIds((prev) => {
+      if (checked) return Array.from(new Set([...prev, ...visibleIds]));
+      const visible = new Set(visibleIds);
+      return prev.filter((id) => !visible.has(id));
+    });
   };
 
   const toggleSelectOne = (id: number, checked: boolean) => {
     setSelectedIds((prev) => (checked ? Array.from(new Set([...prev, id])) : prev.filter((x) => x !== id)));
   };
 
+  const isTaskRunning = bulkConfirmTask != null && (bulkConfirmTask.status === 'queued' || bulkConfirmTask.status === 'processing');
+
   const handleBulkConfirm = () => {
     if (selectedIds.length === 0) {
       toast.error(locale === 'zh' ? '请先选择草稿' : 'Select drafts first');
       return;
     }
+    if (isTaskRunning) return;
     bulkConfirmMutation.mutate(selectedIds);
   };
 
@@ -144,6 +260,75 @@ function EbayImportDraftsContent() {
     }
     if (!window.confirm(locale === 'zh' ? '确定删除选中的草稿吗？' : 'Delete selected drafts?')) return;
     bulkDeleteMutation.mutate(selectedIds);
+  };
+
+  const handleSelectAll = () => {
+    if (total === 0 || allDraftsSelected || selectAllMutation.isPending) return;
+    selectAllMutation.mutate();
+  };
+
+  const handleJsonFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setJsonUploadPending(true);
+    setJsonUploadPct(0);
+    try {
+      if (file.size > MAX_JSON_IMPORT_BYTES) throw new Error('JSON 文件不能超过 1 GB');
+      const task = await EbayImportDraftService.startJSONImport(file, setJsonUploadPct);
+      setJsonImportTask(task);
+      toast.success(locale === 'zh'
+        ? '文件上传完成，后台任务已开始；现在可以关闭或刷新网页'
+        : 'File uploaded and background import started; you may close or refresh this page');
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, locale === 'zh' ? 'JSON 导入失败' : 'JSON import failed');
+      toast.error(message);
+    } finally {
+      setJsonUploadPending(false);
+    }
+  };
+
+  const refreshJSONImportTask = async () => {
+    setJsonTaskControlPending(true);
+    try {
+      const task = jsonImportTask?.id
+        ? await EbayImportDraftService.getJSONImportTask(jsonImportTask.id)
+        : await EbayImportDraftService.getLatestJSONImportTask();
+      setJsonImportTask(task);
+      if (!task) toast(locale === 'zh' ? '暂无后台导入任务' : 'No background import task found');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, locale === 'zh' ? '刷新任务失败' : 'Failed to refresh task'));
+    } finally {
+      setJsonTaskControlPending(false);
+    }
+  };
+
+  const pauseJSONImportTask = async () => {
+    if (!jsonImportTask) return;
+    setJsonTaskControlPending(true);
+    try {
+      const task = await EbayImportDraftService.pauseJSONImportTask(jsonImportTask.id);
+      setJsonImportTask(task);
+      toast.success(locale === 'zh' ? '已请求暂停，当前商品处理完成后暂停' : 'Pause requested; the task will pause after the current product');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, locale === 'zh' ? '暂停任务失败' : 'Failed to pause task'));
+    } finally {
+      setJsonTaskControlPending(false);
+    }
+  };
+
+  const resumeJSONImportTask = async () => {
+    if (!jsonImportTask) return;
+    setJsonTaskControlPending(true);
+    try {
+      const task = await EbayImportDraftService.resumeJSONImportTask(jsonImportTask.id);
+      setJsonImportTask(task);
+      toast.success(locale === 'zh' ? '后台导入任务已继续' : 'Background import resumed');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, locale === 'zh' ? '继续任务失败' : 'Failed to resume task'));
+    } finally {
+      setJsonTaskControlPending(false);
+    }
   };
 
   const renderStatus = (draft: EbayImportDraftListItem) => {
@@ -221,6 +406,22 @@ function EbayImportDraftsContent() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={jsonFileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={handleJsonFileChange}
+            />
+            <button
+              type="button"
+              onClick={() => jsonFileInputRef.current?.click()}
+              disabled={jsonUploadPending || jsonImportTask?.status === 'queued' || jsonImportTask?.status === 'processing' || jsonImportTask?.status === 'paused'}
+              className="inline-flex items-center rounded-md border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ArrowUpTrayIcon className="mr-2 h-4 w-4" />
+              {jsonUploadPending ? '文件上传中...' : '创建后台 JSON 导入任务'}
+            </button>
             <button
               onClick={handleBulkRecheck}
               disabled={bulkRecheckMutation.isPending || selectedIds.length === 0}
@@ -231,11 +432,13 @@ function EbayImportDraftsContent() {
             </button>
             <button
               onClick={handleBulkConfirm}
-              disabled={bulkConfirmMutation.isPending || selectedIds.length === 0}
+              disabled={bulkConfirmMutation.isPending || isTaskRunning || selectedIds.length === 0}
               className="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
             >
               <CheckCircleIcon className="mr-2 h-4 w-4" />
-              {locale === 'zh' ? '批量确认导入' : 'Bulk Confirm'}
+              {isTaskRunning
+                ? (locale === 'zh' ? '导入中...' : 'Importing...')
+                : (locale === 'zh' ? '批量确认导入' : 'Bulk Confirm')}
             </button>
             <button
               onClick={handleBulkDelete}
@@ -247,6 +450,43 @@ function EbayImportDraftsContent() {
             </button>
           </div>
         </div>
+
+        {bulkConfirmTask && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 shadow-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-medium text-blue-900">
+                {bulkConfirmTask.status === 'completed'
+                  ? locale === 'zh' ? '批量导入完成' : 'Bulk import completed'
+                  : bulkConfirmTask.status === 'failed'
+                    ? locale === 'zh' ? '批量导入失败' : 'Bulk import failed'
+                    : locale === 'zh' ? '批量导入进行中...' : 'Bulk import in progress...'}
+              </span>
+              <span className="text-sm text-blue-700">
+                {bulkConfirmTask.processed}/{bulkConfirmTask.total}
+                {' '}({Math.round(bulkConfirmTask.progress_pct)}%)
+                {bulkConfirmTask.failed_count > 0 && (
+                  <span className="ml-2 text-red-600">
+                    {locale === 'zh' ? `${bulkConfirmTask.failed_count} 失败` : `${bulkConfirmTask.failed_count} failed`}
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="h-3 w-full overflow-hidden rounded-full bg-blue-200">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  bulkConfirmTask.status === 'completed' ? 'bg-green-500' :
+                  bulkConfirmTask.status === 'failed' ? 'bg-red-500' : 'bg-blue-600'
+                }`}
+                style={{ width: `${bulkConfirmTask.progress_pct}%` }}
+              />
+            </div>
+            <div className="mt-2 flex gap-4 text-xs text-blue-700">
+              <span>{locale === 'zh' ? '成功' : 'Success'}: {bulkConfirmTask.success_count}</span>
+              <span>{locale === 'zh' ? '失败' : 'Failed'}: {bulkConfirmTask.failed_count}</span>
+              <span>{locale === 'zh' ? '剩余' : 'Remaining'}: {bulkConfirmTask.total - bulkConfirmTask.processed}</span>
+            </div>
+          </div>
+        )}
 
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
@@ -310,6 +550,129 @@ function EbayImportDraftsContent() {
           </div>
         </div>
 
+        {jsonUploadPending && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4" role="status" aria-live="polite">
+            <div className="flex items-center justify-between gap-3 text-sm text-amber-900">
+              <span>正在把 JSON 文件上传到服务器，请在上传完成前保持此页面打开。</span>
+              <span>{jsonUploadPct}%</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-amber-100">
+              <div className="h-full bg-amber-500 transition-[width] duration-200" style={{ width: `${jsonUploadPct}%` }} />
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-lg border border-blue-100 bg-blue-50 p-4" role="status" aria-live="polite">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 text-sm text-blue-900">
+              <p className="font-semibold">后台 JSON 导入任务</p>
+              {jsonImportTask ? (
+                <>
+                  <p className="mt-1 break-all">{jsonImportTask.filename} · 任务 ID：{jsonImportTask.id}</p>
+                  <p className="mt-1">
+                    {jsonImportTask.status === 'queued'
+                      ? '等待后台处理'
+                      : jsonImportTask.status === 'processing'
+                        ? `处理中：新增 ${jsonImportTask.created}，跳过重复 ${jsonImportTask.skipped}，失败 ${jsonImportTask.failed}`
+                        : jsonImportTask.status === 'paused'
+                          ? `已暂停：新增 ${jsonImportTask.created}，跳过重复 ${jsonImportTask.skipped}，失败 ${jsonImportTask.failed}`
+                          : jsonImportTask.status === 'completed'
+                            ? `已完成：新增 ${jsonImportTask.created}，跳过重复 ${jsonImportTask.skipped}，失败 ${jsonImportTask.failed}`
+                            : `任务失败：${jsonImportTask.message || '未知错误'}`}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-blue-700">暂无任务。上传 JSON 后，进度会固定显示在这里。</p>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void refreshJSONImportTask()}
+                disabled={jsonTaskControlPending}
+                className="inline-flex items-center rounded-md border border-blue-300 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+              >
+                <ArrowPathIcon className={`mr-1.5 h-4 w-4 ${jsonTaskControlPending ? 'animate-spin' : ''}`} />
+                刷新任务
+              </button>
+              {(jsonImportTask?.status === 'queued' || jsonImportTask?.status === 'processing') && (
+                <button
+                  type="button"
+                  onClick={() => void pauseJSONImportTask()}
+                  disabled={jsonTaskControlPending}
+                  className="inline-flex items-center rounded-md border border-amber-400 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  <PauseIcon className="mr-1.5 h-4 w-4" />暂停任务
+                </button>
+              )}
+              {jsonImportTask?.status === 'paused' && (
+                <button
+                  type="button"
+                  onClick={() => void resumeJSONImportTask()}
+                  disabled={jsonTaskControlPending}
+                  className="inline-flex items-center rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  <PlayIcon className="mr-1.5 h-4 w-4" />继续任务
+                </button>
+              )}
+            </div>
+          </div>
+          {jsonImportTask && (
+            <>
+              <div className="mt-3 flex items-center justify-between text-xs text-blue-800">
+                <span>{jsonImportTask.message || jsonImportTask.status}</span>
+                <span>{Math.min(100, Math.max(0, jsonImportTask.progress_pct || 0)).toFixed(1)}%</span>
+              </div>
+              <div className="mt-1 h-2 overflow-hidden rounded-full bg-blue-100">
+                <div
+                  className={`h-full transition-[width] duration-300 ${jsonImportTask.status === 'paused' ? 'bg-amber-500' : jsonImportTask.status === 'failed' ? 'bg-red-500' : 'bg-blue-600'}`}
+                  style={{ width: `${Math.max(jsonImportTask.status === 'completed' ? 100 : 2, Math.min(100, jsonImportTask.progress_pct || 0))}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-blue-800">
+                已处理 {jsonImportTask.processed} 条 · 最后更新 {new Date(jsonImportTask.updated_at).toLocaleString()}。关闭或刷新网页不会终止任务。
+              </p>
+            </>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
+          <p className="text-sm text-blue-900" role="status" aria-live="polite">
+            {locale === 'zh' ? `已选择 ${selectedIds.length} 条草稿` : `${selectedIds.length} draft(s) selected`}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              disabled={total === 0 || allDraftsSelected || selectAllMutation.isPending || bulkDeleteMutation.isPending}
+              className="rounded-md border border-blue-300 bg-white px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {selectAllMutation.isPending
+                ? (locale === 'zh' ? '全选中...' : 'Selecting...')
+                : (locale === 'zh' ? `全选所有草稿（${total}）` : `Select all drafts (${total})`)}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              disabled={selectedIds.length === 0 || bulkDeleteMutation.isPending || bulkConfirmMutation.isPending || bulkRecheckMutation.isPending}
+              className="rounded-md border border-blue-200 bg-white px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {locale === 'zh' ? '清除选择' : 'Clear selection'}
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={selectedIds.length === 0 || bulkDeleteMutation.isPending}
+              className="inline-flex items-center rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <TrashIcon className="mr-2 h-4 w-4" />
+              {bulkDeleteMutation.isPending
+                ? (locale === 'zh' ? '删除中...' : 'Deleting...')
+                : (locale === 'zh' ? '删除选中草稿' : 'Delete selected')}
+            </button>
+          </div>
+        </div>
+
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
           {isLoading ? (
             <div className="flex justify-center p-12">
@@ -331,7 +694,8 @@ function EbayImportDraftsContent() {
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300"
-                        checked={list.length > 0 && selectedIds.length === list.length}
+                        checked={allVisibleSelected}
+                        aria-label={locale === 'zh' ? '选择当前页草稿' : 'Select drafts on this page'}
                         onChange={(e) => toggleSelectAll(e.target.checked)}
                       />
                     </th>
@@ -352,6 +716,7 @@ function EbayImportDraftsContent() {
                           type="checkbox"
                           className="h-4 w-4 rounded border-gray-300"
                           checked={selectedIds.includes(draft.id)}
+                          aria-label={locale === 'zh' ? `选择草稿 ${draft.id}` : `Select draft ${draft.id}`}
                           onChange={(e) => toggleSelectOne(draft.id, e.target.checked)}
                         />
                       </td>

@@ -28,9 +28,11 @@ export interface ProductImportResult {
   updated: number;
   skipped: number;
   failed: number;
+  created_categories: number;
   items: Array<{
     row_number: number;
     model: string;
+    category?: string;
     action: string;
     product_id?: number;
     sku?: string;
@@ -54,6 +56,7 @@ export interface ProductImportTaskSnapshot {
   updated: number;
   skipped: number;
   failed: number;
+  created_categories: number;
   message?: string;
   result?: ProductImportResult;
   started_at?: string;
@@ -737,7 +740,7 @@ export class ProductService {
     return response.data as Blob;
   }
 
-  // Admin: Import products via XLSX (model/price/quantity)
+  // Admin: Import products via XLSX (model/price/quantity/weight/category)
   static async importProductsXlsx(
     file: File,
     opts?: { brand?: string; overwrite?: boolean; create_missing?: boolean },

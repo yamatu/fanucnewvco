@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +21,8 @@ import (
 )
 
 type EbayImportDraftController struct{}
+
+const maxEbayDraftJSONImportSize = int64(1024 << 20)
 
 func (ec *EbayImportDraftController) Upload(c *gin.Context) {
 	var req models.EbayImportDraftUploadRequest
@@ -82,6 +86,91 @@ func (ec *EbayImportDraftController) Upload(c *gin.Context) {
 	})
 }
 
+func (ec *EbayImportDraftController) StartJSONImport(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxEbayDraftJSONImportSize+(10<<20))
+	contentType := strings.ToLower(strings.TrimSpace(c.GetHeader("Content-Type")))
+	filename := strings.TrimSpace(c.Query("filename"))
+	fileSize := c.Request.ContentLength
+	var source io.Reader = c.Request.Body
+	var closeSource func() error
+
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		file, err := c.FormFile("file")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Missing JSON file", Error: err.Error()})
+			return
+		}
+		filename = file.Filename
+		fileSize = file.Size
+		opened, err := file.Open()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to read JSON file", Error: err.Error()})
+			return
+		}
+		source = opened
+		closeSource = opened.Close
+	} else if !strings.Contains(contentType, "application/json") && !strings.Contains(contentType, "application/octet-stream") {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "JSON file content type is required", Error: "invalid_content_type"})
+		return
+	}
+	if closeSource != nil {
+		defer closeSource()
+	}
+	if filename == "" {
+		filename = "ebay-import-drafts.json"
+	}
+	if !strings.EqualFold(filepath.Ext(filename), ".json") {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Only .json files are supported", Error: "invalid_file_type"})
+		return
+	}
+	if fileSize == 0 || fileSize > maxEbayDraftJSONImportSize {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "JSON file must be between 1 byte and 1 GB", Error: "invalid_file_size"})
+		return
+	}
+	task, err := services.StartEbayDraftJSONImportTask(config.GetDB(), source, filepath.Base(filename), fileSize)
+	if err != nil {
+		c.JSON(http.StatusConflict, models.APIResponse{Success: false, Message: "Failed to start JSON import", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusAccepted, models.APIResponse{Success: true, Message: "JSON import task started", Data: task})
+}
+
+func (ec *EbayImportDraftController) GetJSONImportTask(c *gin.Context) {
+	task, ok := services.GetEbayDraftJSONImportTask(c.Param("taskId"))
+	if !ok {
+		c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "JSON import task not found", Error: "task_not_found"})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "JSON import task status", Data: task})
+}
+
+func (ec *EbayImportDraftController) GetLatestJSONImportTask(c *gin.Context) {
+	task, ok := services.GetLatestEbayDraftJSONImportTask()
+	if !ok {
+		c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "No JSON import task", Data: nil})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Latest JSON import task", Data: task})
+}
+
+func (ec *EbayImportDraftController) PauseJSONImportTask(c *gin.Context) {
+	task, err := services.PauseEbayDraftJSONImportTask(c.Param("taskId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to pause JSON import task", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "JSON import task pause requested", Data: task})
+}
+
+func (ec *EbayImportDraftController) ResumeJSONImportTask(c *gin.Context) {
+	task, err := services.ResumeEbayDraftJSONImportTask(c.Param("taskId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to resume JSON import task", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "JSON import task resumed", Data: task})
+}
+
 func (ec *EbayImportDraftController) List(c *gin.Context) {
 	db := config.GetDB()
 	page, pageSize := utils.ParsePaginationWithMax(c.Query("page"), c.Query("page_size"), 100)
@@ -98,6 +187,29 @@ func (ec *EbayImportDraftController) List(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "eBay import drafts retrieved successfully", Data: res})
+}
+
+func (ec *EbayImportDraftController) SelectionIDs(c *gin.Context) {
+	var req models.EbayImportDraftSelectionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request data", Error: err.Error()})
+		return
+	}
+	ids, err := services.ListEbayImportDraftIDs(config.GetDB(), services.EbayImportDraftFilters{
+		Search:      req.Search,
+		Status:      req.Status,
+		MatchStatus: req.MatchStatus,
+		Brand:       req.Brand,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to fetch draft selection", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{
+		Success: true,
+		Message: "Draft selection retrieved successfully",
+		Data:    models.EbayImportDraftSelectionResponse{IDs: ids, Total: int64(len(ids))},
+	})
 }
 
 func (ec *EbayImportDraftController) Get(c *gin.Context) {
@@ -270,19 +382,38 @@ func (ec *EbayImportDraftController) BulkConfirm(c *gin.Context) {
 		return
 	}
 
-	results := make([]gin.H, 0, len(req.IDs))
-	successCount := 0
 	userID := currentAdminUserID(c)
-	for _, id := range req.IDs {
-		result, statusCode, err := ec.confirmDraftImport(c.Request.Context(), id, req.Action, userID)
-		if err != nil {
-			results = append(results, gin.H{"id": id, "success": false, "status_code": statusCode, "error": err.Error()})
-			continue
-		}
-		successCount++
-		results = append(results, gin.H{"id": id, "success": true, "status_code": http.StatusOK, "data": result})
+
+	confirmFn := func(id uint, action string, uid *uint) (int, error) {
+		_, statusCode, err := ec.confirmDraftImport(context.Background(), id, action, uid)
+		return statusCode, err
 	}
-	c.JSON(http.StatusOK, models.APIResponse{Success: successCount > 0, Message: "Bulk confirm processed", Data: gin.H{"success_count": successCount, "total": len(req.IDs), "results": results}})
+
+	snapshot := services.StartEbayBulkConfirmTask(req.IDs, req.Action, userID, confirmFn)
+	c.JSON(http.StatusAccepted, models.APIResponse{Success: true, Message: "Bulk confirm task started", Data: snapshot})
+}
+
+func (ec *EbayImportDraftController) GetBulkConfirmTask(c *gin.Context) {
+	taskID := strings.TrimSpace(c.Param("taskId"))
+	if taskID == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Missing task ID", Error: "missing_task_id"})
+		return
+	}
+
+	snapshot, ok := services.GetEbayBulkConfirmTaskSnapshot(taskID)
+	if !ok {
+		c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Task not found", Error: "task_not_found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Task status", Data: snapshot})
+}
+
+func (ec *EbayImportDraftController) ConfirmDraftFn() services.EbayDraftConfirmFunc {
+	return func(id uint, action string, userID *uint) (int, error) {
+		_, statusCode, err := ec.confirmDraftImport(context.Background(), id, action, userID)
+		return statusCode, err
+	}
 }
 
 func (ec *EbayImportDraftController) BulkRecheck(c *gin.Context) {
@@ -324,11 +455,36 @@ func (ec *EbayImportDraftController) BulkDelete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request data", Error: err.Error()})
 		return
 	}
-	if err := config.GetDB().Where("id IN ?", req.IDs).Delete(&models.EbayImportDraft{}).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to delete drafts", Error: err.Error()})
+	ids := normalizeBulkDraftIDs(req.IDs)
+	if len(ids) == 0 {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "At least one valid draft ID is required", Error: "ids_required"})
 		return
 	}
-	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Drafts deleted successfully", Data: gin.H{"deleted": len(req.IDs)}})
+	result := config.GetDB().Where("id IN ?", ids).Delete(&models.EbayImportDraft{})
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to delete drafts", Error: result.Error.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Drafts deleted successfully", Data: gin.H{"deleted": result.RowsAffected, "requested": len(ids)}})
+}
+
+// normalizeBulkDraftIDs removes duplicate IDs and ignores zero values before
+// issuing a destructive bulk operation. This keeps the response count tied to
+// the actual records selected by the administrator.
+func normalizeBulkDraftIDs(ids []uint) []uint {
+	seen := make(map[uint]struct{}, len(ids))
+	result := make([]uint, 0, len(ids))
+	for _, id := range ids {
+		if id == 0 {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		result = append(result, id)
+	}
+	return result
 }
 
 func (ec *EbayImportDraftController) confirmDraftImport(ctx context.Context, id uint, requestedAction string, userID *uint) (gin.H, int, error) {

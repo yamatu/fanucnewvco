@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const targetOrigin = (process.argv[2] || process.env.SEO_AUDIT_ORIGIN || 'https://vibocnc.com').replace(/\/+$/, '');
-const canonicalOrigin = (process.env.SEO_CANONICAL_ORIGIN || 'https://vibocnc.com').replace(/\/+$/, '');
+const targetOrigin = (process.argv[2] || process.env.SEO_AUDIT_ORIGIN || 'https://www.vcocncspare.com').replace(/\/+$/, '');
+const canonicalOrigin = (process.env.SEO_CANONICAL_ORIGIN || 'https://www.vcocncspare.com').replace(/\/+$/, '');
 const warningBytes = Number(process.env.SEO_HTML_WARNING_BYTES || 1_500_000);
 const googlebotLimitBytes = 2 * 1024 * 1024;
 
@@ -19,7 +19,7 @@ const routes = [
   { path: '/track-order', indexable: false, hreflang: false },
 ];
 
-const auditedSku = process.env.SEO_AUDIT_SKU || (targetOrigin.includes('vibocnc.com') ? 'A06B-6092-H275#H508' : '');
+const auditedSku = process.env.SEO_AUDIT_SKU || (targetOrigin.includes('vcocncspare.com') ? 'A06B-6092-H275#H508' : '');
 if (auditedSku) {
   const encodedSku = encodeURIComponent(auditedSku).replace(/%2F/gi, '-');
   const canonicalProductPath = `/products/${encodedSku}`;
@@ -133,7 +133,7 @@ for (const route of routes) {
   try {
     const response = await fetch(url, {
       redirect: 'follow',
-      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)' },
     });
     const buffer = Buffer.from(await response.arrayBuffer());
     const html = buffer.toString('utf8');
@@ -166,8 +166,8 @@ for (const route of routes) {
       const canonicalHref = findLinkHref(html, 'canonical');
       const englishHref = findLinkHref(html, 'alternate', 'en');
       const defaultHref = findLinkHref(html, 'alternate', 'x-default');
-      if (!/^vibocnc\b/i.test(title)) errors.push(`homepage title is not brand-first (${title})`);
-      if (!/\bvibocnc\b/i.test(heading)) errors.push(`homepage H1 does not contain Vibocnc (${heading})`);
+      if (!/^vcocnc\b/i.test(title)) errors.push(`homepage title is not brand-first (${title})`);
+      if (!/\bvcocnc\b/i.test(heading)) errors.push(`homepage H1 does not contain Vcocnc (${heading})`);
       if (comparableUrl(canonicalHref) !== comparableUrl(canonicalOrigin)) {
         errors.push(`homepage canonical is not the English root (${canonicalHref || 'missing'})`);
       }
@@ -177,13 +177,13 @@ for (const route of routes) {
       if (comparableUrl(defaultHref) !== comparableUrl(canonicalOrigin)) {
         errors.push(`homepage x-default hreflang is not the English root (${defaultHref || 'missing'})`);
       }
-      const website = websiteNodes.find((node) => node.name === 'Vibocnc');
+      const website = websiteNodes.find((node) => node.name === 'Vcocnc');
       const faqPages = collectTypedNodes(jsonLdDocuments, 'FAQPage');
       const alternateNames = Array.isArray(website?.alternateName) ? website.alternateName : [website?.alternateName];
-      if (!website) errors.push('homepage is missing the Vibocnc WebSite entity');
-      else if (!alternateNames.includes('vibocnc.com')) errors.push('WebSite entity is missing the vibocnc.com alternateName');
-      if (!html.includes('id="about-vibocnc"')) errors.push('homepage Vibocnc entity section is missing');
-      if (!html.includes('id="vibocnc-faq"')) errors.push('homepage visible Vibocnc FAQ is missing');
+      if (!website) errors.push('homepage is missing the Vcocnc WebSite entity');
+      else if (!alternateNames.includes('vcocncspare.com')) errors.push('WebSite entity is missing the vcocncspare.com alternateName');
+      if (!html.includes('id="about-vcocnc"')) errors.push('homepage Vcocnc entity section is missing');
+      if (!html.includes('id="vcocnc-faq"')) errors.push('homepage visible Vcocnc FAQ is missing');
       if (!faqPages.some((node) => Array.isArray(node.mainEntity) && node.mainEntity.length >= 4)) {
         errors.push('homepage FAQPage data is missing or incomplete');
       }
@@ -230,7 +230,7 @@ for (const route of routes) {
 
 try {
   const robotsResponse = await fetch(`${targetOrigin}/robots.txt`, {
-    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)' },
   });
   const robotsTxt = await robotsResponse.text();
   const contentSignalHeader = robotsResponse.headers.get('content-signal') || '';
@@ -254,7 +254,7 @@ try {
 
 try {
   const sitemapResponse = await fetch(`${targetOrigin}/sitemap.xml`, {
-    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)' },
   });
   const sitemapXml = await sitemapResponse.text();
   const errors = [];
@@ -272,7 +272,7 @@ try {
 
 try {
   const response = await fetch(`${targetOrigin}/sitemap-static.xml`, {
-    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)' },
   });
   const xml = await response.text();
   const errors = [];
@@ -302,7 +302,7 @@ try {
 try {
   const legacyResponse = await fetch(`${targetOrigin}/sitemap-products-index.xml`, {
     redirect: 'manual',
-    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)' },
   });
   const location = legacyResponse.headers.get('location') || '';
   const errors = [];
@@ -321,8 +321,8 @@ for (const locale of ['zh', 'es', 'ar']) {
     const response = await fetch(`${targetOrigin}/${locale}`, {
       redirect: 'follow',
       headers: {
-        cookie: `vibocnc_locale=${locale}`,
-        'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)',
+        cookie: `vcocnc_locale=${locale}`,
+        'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)',
       },
     });
     const html = await response.text();
@@ -345,7 +345,7 @@ for (const locale of ['zh', 'es', 'de', 'fr', 'it', 'pt', 'ja', 'ko', 'ru', 'ar'
   try {
     const response = await fetch(`${targetOrigin}/${locale}/repair-request`, {
       redirect: 'follow',
-      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)' },
     });
     const html = await response.text();
     const expectedLang = locale === 'zh' ? 'zh-CN' : locale;
@@ -368,7 +368,7 @@ for (const locale of ['zh', 'es', 'de', 'fr', 'it', 'pt', 'ja', 'ko', 'ru', 'ar'
   try {
     const response = await fetch(`${targetOrigin}/${locale}/categories`, {
       redirect: 'follow',
-      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)' },
     });
     const html = await response.text();
     const expectedLang = locale === 'zh' ? 'zh-CN' : locale;
@@ -391,7 +391,7 @@ for (const locale of ['zh', 'es', 'de', 'fr', 'it', 'pt', 'ja', 'ko', 'ru', 'ar'
   try {
     const response = await fetch(`${targetOrigin}/${locale}/products`, {
       redirect: 'follow',
-      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)' },
     });
     const html = await response.text();
     const expectedLang = locale === 'zh' ? 'zh-CN' : locale;
@@ -414,9 +414,9 @@ try {
   const response = await fetch(`${targetOrigin}/categories`, {
     redirect: 'follow',
     headers: {
-      cookie: 'vibocnc_locale=zh',
+      cookie: 'vcocnc_locale=zh',
       'accept-language': 'zh-CN,zh;q=0.9',
-      'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)',
+      'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)',
     },
   });
   const html = await response.text();
@@ -437,9 +437,9 @@ try {
   const response = await fetch(`${targetOrigin}/repair-request`, {
     redirect: 'follow',
     headers: {
-      cookie: 'vibocnc_locale=zh',
+      cookie: 'vcocnc_locale=zh',
       'accept-language': 'zh-CN,zh;q=0.9',
-      'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)',
+      'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)',
     },
   });
   const html = await response.text();
@@ -459,7 +459,7 @@ try {
 try {
   const response = await fetch(`${targetOrigin}/zh/repair-request`, {
     redirect: 'follow',
-    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+    headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)' },
   });
   const html = await response.text();
   const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
@@ -478,7 +478,7 @@ try {
 try {
   const response = await fetch(`${targetOrigin}/repair-request?site_locale=es`, {
     redirect: 'follow',
-    headers: { cookie: 'vibocnc_locale=zh', 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+    headers: { cookie: 'vcocnc_locale=zh', 'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)' },
   });
   const html = await response.text();
   const actualLang = html.match(/<html\b[^>]*\blang=["']([^"']+)["']/i)?.[1] || '';
@@ -498,8 +498,8 @@ try {
   const selectionResponse = await fetch(`${targetOrigin}/?site_locale=en`, {
     redirect: 'manual',
     headers: {
-      cookie: 'vibocnc_locale=es',
-      'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)',
+      cookie: 'vcocnc_locale=es',
+      'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)',
     },
   });
   const errors = [];
@@ -509,14 +509,14 @@ try {
     errors.push(`language selection did not redirect (HTTP ${selectionResponse.status})`);
   }
   if (!location) errors.push('language selection redirect is missing Location');
-  if (!/\bvibocnc_locale=en(?:;|$)/i.test(setCookie)) errors.push('language selection did not persist the English locale cookie');
+  if (!/\bvcocnc_locale=en(?:;|$)/i.test(setCookie)) errors.push('language selection did not persist the English locale cookie');
 
   const response = location
     ? await fetch(new URL(location, targetOrigin), {
         redirect: 'follow',
         headers: {
-          cookie: 'vibocnc_locale=en',
-          'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)',
+          cookie: 'vcocnc_locale=en',
+          'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)',
         },
       })
     : selectionResponse;
@@ -537,7 +537,7 @@ try {
   const response = await fetch(`${targetOrigin}/`, {
     redirect: 'manual',
     headers: {
-      cookie: 'vibocnc_locale=zh',
+      cookie: 'vcocnc_locale=zh',
       'accept-language': 'zh-CN,zh;q=0.9',
       'user-agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
     },
@@ -564,7 +564,7 @@ for (const legacyEnglishPath of ['/en', '/en/products']) {
   try {
     const response = await fetch(`${targetOrigin}${legacyEnglishPath}`, {
       redirect: 'manual',
-      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)' },
     });
     const expectedPath = legacyEnglishPath.slice(3) || '/';
     const location = response.headers.get('location') || '';
@@ -590,7 +590,7 @@ if (targetUrl.hostname === canonicalUrl.hostname && !['localhost', '127.0.0.1', 
   try {
     const response = await fetch(`${alternateOrigin}/`, {
       redirect: 'manual',
-      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vibocnc-SEO-Audit/1.0)' },
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; Vcocnc-SEO-Audit/1.0)' },
     });
     const location = response.headers.get('location') || '';
     const errors = [];

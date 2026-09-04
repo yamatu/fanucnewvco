@@ -1,9 +1,11 @@
 import { apiClient } from '@/lib/api';
+import type { AxiosProgressEvent } from 'axios';
 import {
   APIResponse,
   EbayImportDraftDetail,
   EbayImportDraftListResponse,
   EbayImportDraftUpdateRequest,
+  EbayBulkConfirmTaskSnapshot,
   Product,
 } from '@/types';
 
@@ -36,6 +38,44 @@ export interface EbayImportDraftBulkConfirmResponse {
   results: EbayImportDraftBulkConfirmResultItem[];
 }
 
+export interface EbayImportDraftSelectionResponse {
+  ids: number[];
+  total: number;
+}
+
+export interface EbayImportDraftUploadResult {
+  draft_id?: number;
+  title: string;
+  match_status: string;
+  status: string;
+  errors?: string[];
+}
+
+export interface EbayImportDraftUploadResponse {
+  total: number;
+  success_count: number;
+  error_count: number;
+  results: EbayImportDraftUploadResult[];
+}
+
+export interface EbayImportDraftJSONTaskSnapshot {
+  id: string;
+  status: 'queued' | 'processing' | 'paused' | 'completed' | 'failed';
+  filename: string;
+  file_size: number;
+  progress_pct: number;
+  processed: number;
+  created: number;
+  skipped: number;
+  failed: number;
+  message?: string;
+  errors?: string[];
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+  updated_at: string;
+}
+
 export class EbayImportDraftService {
   static async list(filters: EbayImportDraftFilters = {}): Promise<EbayImportDraftListResponse> {
     const params = new URLSearchParams();
@@ -55,6 +95,78 @@ export class EbayImportDraftService {
     }
 
     throw new Error(response.data.message || 'Failed to fetch eBay import drafts');
+  }
+
+  static async selectionIds(filters: EbayImportDraftFilters = {}): Promise<EbayImportDraftSelectionResponse> {
+    const response = await apiClient.post<APIResponse<EbayImportDraftSelectionResponse>>(
+      '/admin/ebay-import-drafts/selection-ids',
+      {
+        search: filters.search || '',
+        status: filters.status || '',
+        match_status: filters.match_status || '',
+        brand: filters.brand || '',
+      }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to fetch draft selection');
+  }
+
+  static async upload(items: Record<string, unknown>[]): Promise<EbayImportDraftUploadResponse> {
+    const response = await apiClient.post<APIResponse<EbayImportDraftUploadResponse>>(
+      '/admin/ebay-import-drafts/upload',
+      { items }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to import eBay draft JSON');
+  }
+
+  static async startJSONImport(file: File, onUploadProgress?: (progressPct: number) => void): Promise<EbayImportDraftJSONTaskSnapshot> {
+    const response = await apiClient.post<APIResponse<EbayImportDraftJSONTaskSnapshot>>(
+      `/admin/ebay-import-drafts/json-import?filename=${encodeURIComponent(file.name)}`,
+      file,
+      {
+        headers: { 'Content-Type': file.type || 'application/json' },
+        timeout: 0,
+        onUploadProgress: (event: AxiosProgressEvent) => {
+          if (!onUploadProgress || !event.total) return;
+          onUploadProgress(Math.min(100, Math.max(0, Math.round((event.loaded * 100) / event.total))));
+        },
+      }
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to start JSON import task');
+  }
+
+  static async getJSONImportTask(taskId: string): Promise<EbayImportDraftJSONTaskSnapshot> {
+    const response = await apiClient.get<APIResponse<EbayImportDraftJSONTaskSnapshot>>(
+      `/admin/ebay-import-drafts/json-import/tasks/${encodeURIComponent(taskId)}`
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to fetch JSON import task');
+  }
+
+  static async getLatestJSONImportTask(): Promise<EbayImportDraftJSONTaskSnapshot | null> {
+    const response = await apiClient.get<APIResponse<EbayImportDraftJSONTaskSnapshot | null>>(
+      '/admin/ebay-import-drafts/json-import/tasks/latest'
+    );
+    if (response.data.success) return response.data.data || null;
+    throw new Error(response.data.message || 'Failed to fetch latest JSON import task');
+  }
+
+  static async pauseJSONImportTask(taskId: string): Promise<EbayImportDraftJSONTaskSnapshot> {
+    const response = await apiClient.post<APIResponse<EbayImportDraftJSONTaskSnapshot>>(
+      `/admin/ebay-import-drafts/json-import/tasks/${encodeURIComponent(taskId)}/pause`
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to pause JSON import task');
+  }
+
+  static async resumeJSONImportTask(taskId: string): Promise<EbayImportDraftJSONTaskSnapshot> {
+    const response = await apiClient.post<APIResponse<EbayImportDraftJSONTaskSnapshot>>(
+      `/admin/ebay-import-drafts/json-import/tasks/${encodeURIComponent(taskId)}/resume`
+    );
+    if (response.data.success && response.data.data) return response.data.data;
+    throw new Error(response.data.message || 'Failed to resume JSON import task');
   }
 
   static async get(id: number): Promise<EbayImportDraftDetail> {
@@ -92,15 +204,25 @@ export class EbayImportDraftService {
     throw new Error(response.data.message || 'Failed to confirm eBay import draft');
   }
 
-  static async bulkConfirm(ids: number[], action?: string): Promise<EbayImportDraftBulkConfirmResponse> {
-    const response = await apiClient.post<APIResponse<EbayImportDraftBulkConfirmResponse>>(
+  static async bulkConfirm(ids: number[], action?: string): Promise<EbayBulkConfirmTaskSnapshot> {
+    const response = await apiClient.post<APIResponse<EbayBulkConfirmTaskSnapshot>>(
       '/admin/ebay-import-drafts/bulk-confirm',
       { ids, action }
     );
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
-    throw new Error(response.data.message || 'Failed to bulk confirm eBay import drafts');
+    throw new Error(response.data.message || 'Failed to start bulk confirm task');
+  }
+
+  static async getBulkConfirmTask(taskId: string): Promise<EbayBulkConfirmTaskSnapshot> {
+    const response = await apiClient.get<APIResponse<EbayBulkConfirmTaskSnapshot>>(
+      `/admin/ebay-import-drafts/bulk-confirm/tasks/${taskId}`
+    );
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    throw new Error(response.data.message || 'Failed to get bulk confirm task status');
   }
 
   static async bulkRecheck(ids: number[]): Promise<{ updated: number; total: number }> {
@@ -122,9 +244,10 @@ export class EbayImportDraftService {
   }
 
   static async bulkDelete(ids: number[]): Promise<{ deleted: number }> {
-    const response = await apiClient.delete<APIResponse<{ deleted: number }>>('/admin/ebay-import-drafts/bulk', {
-      data: { ids },
-    });
+    // Use the POST compatibility endpoint because some reverse proxies strip
+    // or reject JSON request bodies on DELETE. The legacy DELETE endpoint
+    // remains available for older clients.
+    const response = await apiClient.post<APIResponse<{ deleted: number }>>('/admin/ebay-import-drafts/bulk-delete', { ids });
     if (response.data.success && response.data.data) {
       return response.data.data;
     }

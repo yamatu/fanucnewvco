@@ -23,8 +23,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = translatePublicMessage(locale, 'about.title');
   return {
     title,
-    description: 'Founded in 2007, Vibocnc supplies CNC and industrial automation parts across 20+ brands from a 3,500 sqm facility in Kunshan, China.',
-    keywords: 'Vibocnc, about Vibocnc, industrial automation parts supplier China, CNC parts supplier, PLC HMI servo parts, Kunshan automation company',
+    description: 'Founded in 2007, Vcocnc supplies CNC and industrial automation parts across 20+ brands from a 3,500 sqm facility in Kunshan, China.',
+    keywords: 'Vcocnc, about Vcocnc, industrial automation parts supplier China, CNC parts supplier, PLC HMI servo parts, Kunshan automation company',
     alternates: { canonical, languages },
     openGraph: {
       title: withSiteName(title),
@@ -49,12 +49,12 @@ export default async function About() {
     "@context": "https://schema.org",
     "@type": "AboutPage",
     "name": translatePublicMessage(locale, 'about.title'),
-    "description": "Learn about Vibocnc, a multi-brand industrial automation parts supplier founded in China in 2007.",
+    "description": "Learn about Vcocnc, a multi-brand industrial automation parts supplier founded in China in 2007.",
     "url": localizedAboutUrl,
     "mainEntity": {
       "@type": "Organization",
       "@id": `${baseUrl}/#organization`,
-      "name": "Vibocnc",
+      "name": "Vcocnc",
       "url": baseUrl,
       "foundingDate": "2007",
       "foundingLocation": {
@@ -139,7 +139,7 @@ export default async function About() {
             <div className="relative">
               <Image
                 src="https://s2.loli.net/2025/09/01/G1JcoeXWNTdpIfZ.jpg"
-                alt="Vibocnc Company Building"
+                alt="Vcocnc Company Building"
                 width={600}
                 height={400}
                 className="w-full rounded-lg shadow-lg"

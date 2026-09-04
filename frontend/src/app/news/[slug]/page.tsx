@@ -61,7 +61,7 @@ export async function generateMetadata({
     const metaDescription =
       (article.meta_description || '').trim() ||
       article.summary ||
-      `${article.title} - Read the latest from Vibocnc.`;
+      `${article.title} - Read the latest from Vcocnc.`;
     const metaKeywords =
       (article.meta_keywords || '').trim() ||
       [article.title, 'industrial automation', 'CNC parts', 'PLC HMI drives', 'automation news'].join(', ');

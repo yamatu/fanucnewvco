@@ -16,7 +16,7 @@ import {
 import { DEFAULT_PUBLIC_LOCALE, PUBLIC_LOCALE_SELECTION_PARAM, localizePublicPath } from '@/lib/i18n/config';
 import { buildProductSeoDescription, buildProductSeoKeywords, inferProductTypeLabel } from '@/lib/product-seo';
 
-const DEFAULT_SITE_NAME = 'Vibocnc';
+const DEFAULT_SITE_NAME = 'Vcocnc';
 
 export const revalidate = 3600; // ISR: revalidate every hour
 
@@ -192,7 +192,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         title: socialTitle,
         description: metaDescription,
         images: images.map(i => i.url),
-        creator: '@vibocnc',
+        creator: '@vcocnc',
       },
       other: {
         ...(product.price > 0 ? {

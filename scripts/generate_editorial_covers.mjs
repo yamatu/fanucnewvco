@@ -62,7 +62,7 @@ function graphic(kind) {
 function renderCover([, eyebrow, lineOne, lineTwo, kind]) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title description">
   <title id="title">${escapeXml(`${lineOne} ${lineTwo}`)}</title>
-  <desc id="description">Vibocnc technical editorial cover for ${escapeXml(`${lineOne} ${lineTwo}`)}.</desc>
+  <desc id="description">Vcocnc technical editorial cover for ${escapeXml(`${lineOne} ${lineTwo}`)}.</desc>
   <rect width="1600" height="900" fill="#f4f7fa"/>
   <rect x="0" y="0" width="860" height="900" fill="#07182b"/>
   <path d="M860 0h740v900H760c92-148 138-300 138-456C898 280 885 132 860 0z" fill="#0e3153"/>
@@ -70,7 +70,7 @@ function renderCover([, eyebrow, lineOne, lineTwo, kind]) {
   <text x="105" y="228" fill="#f5c400" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700">${escapeXml(eyebrow)}</text>
   <text x="105" y="390" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700">${escapeXml(lineOne)}</text>
   <text x="105" y="492" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700">${escapeXml(lineTwo)}</text>
-  <text x="108" y="675" fill="#b9c9d7" font-family="Arial, Helvetica, sans-serif" font-size="29">Industrial automation insight | Vibocnc</text>
+  <text x="108" y="675" fill="#b9c9d7" font-family="Arial, Helvetica, sans-serif" font-size="29">Industrial automation insight | Vcocnc</text>
   ${graphic(kind)}
   <circle cx="1510" cy="90" r="28" fill="#f5c400"/>
 </svg>`;

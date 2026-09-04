@@ -112,7 +112,7 @@ func (oc *OrderController) RefundOrder(c *gin.Context) {
 		return
 	}
 
-	requestID := fmt.Sprintf("vibocnc-refund-%d-%d", order.ID, refund.ID)
+	requestID := fmt.Sprintf("vcocnc-refund-%d-%d", order.ID, refund.ID)
 	result, refundErr := payPalClient.RefundCapture(c.Request.Context(), refund.CaptureID, refund.Amount, refund.Currency, requestID)
 	if refundErr != nil {
 		db.Model(&refund).Updates(map[string]interface{}{
