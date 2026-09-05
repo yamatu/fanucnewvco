@@ -3,6 +3,10 @@ import PublicLayout from '@/components/layout/PublicLayout';
 import CategoriesDirectory from '@/components/categories/CategoriesDirectory';
 
 export const revalidate = 300;
+// The backend service is only resolvable at runtime in Docker Compose. Avoid
+// baking an empty category list into the static build when the API is not
+// available during `docker-compose build`.
+export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Product Categories | FANUC Automation Parts', description: 'Browse FANUC and industrial automation parts by product category.', alternates: { canonical: '/categories' } };
 type Category = { id: number; name: string; slug: string; path?: string; description?: string; image_url?: string; product_count?: number; children?: Category[] };
 
