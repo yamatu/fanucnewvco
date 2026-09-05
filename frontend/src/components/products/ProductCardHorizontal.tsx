@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ShoppingCartIcon, EyeIcon } from '@heroicons/react/24/outline';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 
 type Product = {
@@ -84,7 +84,7 @@ export default function ProductCardHorizontal({ product }: { product: Product })
         <div className="mt-auto pt-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-baseline gap-2">
-              <span className="text-lg font-bold text-yellow-700">{formatCurrency(product.price)}</span>
+              <span className="text-lg font-bold text-yellow-700">{hasProductPrice(product) ? formatCurrency(product.price) : 'Contact for B2B quote'}</span>
               {product.compare_price && product.compare_price > product.price ? (
                 <span className="text-sm text-gray-500 line-through">{formatCurrency(product.compare_price)}</span>
               ) : null}
@@ -96,14 +96,14 @@ export default function ProductCardHorizontal({ product }: { product: Product })
               <EyeIcon className="h-4 w-4" />
               View
             </span>
-            <button
+            {hasProductPrice(product) ? <button
               onClick={handleAddToCart}
               disabled={isLoading}
               className="inline-flex items-center gap-1 rounded-md bg-yellow-500 px-3 py-2 text-sm font-semibold text-black hover:bg-yellow-600 disabled:opacity-60"
             >
               <ShoppingCartIcon className="h-4 w-4" />
               {isLoading ? 'Adding' : 'Add'}
-            </button>
+            </button> : <a href={`/contact?sku=${encodeURIComponent(product.sku)}`} className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800">B2B Contact</a>}
           </div>
         </div>
       </div>

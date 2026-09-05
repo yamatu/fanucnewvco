@@ -81,12 +81,17 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 			})
 			return
 		}
-
-		// Use price from frontend if provided, otherwise use product price
-		unitPrice := item.UnitPrice
-		if unitPrice <= 0 {
-			unitPrice = product.Price
+		if product.Price <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": fmt.Sprintf("Product %s requires a B2B quotation before ordering", product.SKU),
+				"error": "quote_required",
+			})
+			return
 		}
+
+		// Product prices are authoritative; never trust a browser-submitted unit price.
+		unitPrice := product.Price
 
 		itemTotal := unitPrice * float64(item.Quantity)
 		subtotalAmount += itemTotal

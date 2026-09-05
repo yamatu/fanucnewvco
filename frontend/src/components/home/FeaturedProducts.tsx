@@ -11,7 +11,7 @@ import {
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { useCart } from '@/store/cart.store';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { DEFAULT_FEATURED_PRODUCTS_SECTION_DATA } from '@/lib/homepage-defaults';
 
 type FeaturedProduct = Pick<Product, 'id' | 'name' | 'sku' | 'price' | 'stock_quantity' | 'image_urls'>
@@ -190,7 +190,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                     <EyeIcon className="h-5 w-5" />
                   </Link>
                   
-                  {(product.stock_quantity ?? 0) > 0 && (
+                  {(product.stock_quantity ?? 0) > 0 && hasProductPrice(product) && (
                     <button
                       onClick={() => handleAddToCart(product)}
                       className="bg-yellow-500 text-black p-3 rounded-full hover:bg-yellow-600 transition-colors"
@@ -250,7 +250,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <span className="text-2xl font-bold text-gray-900">
-                      {formatCurrency(product.price)}
+                      {hasProductPrice(product) ? formatCurrency(product.price) : 'Contact for B2B quote'}
                     </span>
                     {product.compare_price && product.compare_price > product.price && (
                       <span className="text-lg text-gray-500 line-through">
@@ -263,20 +263,22 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                     {(product.stock_quantity ?? 0) > 0 ? `In Stock: ${product.stock_quantity}` : 'Out of Stock'}
                   </div>
 
-                  {(product.stock_quantity ?? 0) > 0 ? (
+                  {(product.stock_quantity ?? 0) > 0 && hasProductPrice(product) ? (
                     <button
                       onClick={() => handleAddToCart(product)}
                       className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg font-medium transition-colors duration-300"
                     >
                       Add to Cart
                     </button>
-                  ) : (
+                  ) : hasProductPrice(product) ? (
                     <button
                       disabled
                       className="bg-gray-300 text-gray-500 px-4 py-2 rounded-lg font-medium cursor-not-allowed"
                     >
                       Out of Stock
                     </button>
+                  ) : (
+                    <a href={`/contact?sku=${encodeURIComponent(product.sku)}`} className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-800">B2B Contact</a>
                   )}
                 </div>
               </div>

@@ -9,7 +9,7 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 
 interface Product {
@@ -97,7 +97,7 @@ export default function ProductCard({
 
         {/* Favorite Button */}
         {showFavorite && (
-          <button
+          {hasProductPrice(product) ? <button
             onClick={toggleFavorite}
             className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow z-10"
           >
@@ -106,7 +106,7 @@ export default function ProductCard({
             ) : (
               <HeartIcon className="h-5 w-5 text-gray-400 hover:text-red-500" />
             )}
-          </button>
+          </button> : <a href={`/contact?sku=${encodeURIComponent(product.sku)}`} className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-800 bg-white hover:bg-gray-50">B2B Contact</a>}
         )}
 
         {/* Featured Badge */}
