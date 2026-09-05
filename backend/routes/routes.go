@@ -186,10 +186,10 @@ func SetupRoutes(r *gin.Engine) {
 				categories.GET("/:id", categoryController.GetCategory)
 				categories.POST("", categoryController.CreateCategory)
 				categories.PUT("/reorder", categoryController.ReorderCategories)
-			categories.PUT("/:id", categoryController.UpdateCategory)
-			categories.GET("/:id/deletion-impact", categoryController.GetCategoryDeletionImpact)
-			categories.POST("/cleanup/preview", middleware.AdminOnly(), categoryController.PreviewCategoryCleanup)
-			categories.POST("/cleanup/apply", middleware.AdminOnly(), categoryController.ApplyCategoryCleanup)
+				categories.PUT("/:id", categoryController.UpdateCategory)
+				categories.GET("/:id/deletion-impact", categoryController.GetCategoryDeletionImpact)
+				categories.POST("/cleanup/preview", middleware.AdminOnly(), categoryController.PreviewCategoryCleanup)
+				categories.POST("/cleanup/apply", middleware.AdminOnly(), categoryController.ApplyCategoryCleanup)
 				categories.DELETE("/:id", middleware.AdminOnly(), categoryController.DeleteCategory)
 			}
 
@@ -206,7 +206,6 @@ func SetupRoutes(r *gin.Engine) {
 				products.PUT("/bulk-update", productController.BulkUpdateProducts)
 				products.POST("/selection-ids", productController.GetBulkProductSelectionIDs)
 				products.POST("/import/csv", productController.ImportProductsQuoteCSV)
-				products.GET("/import/xlsx/tasks/:id", productController.GetProductImportTask)
 				products.POST("/standardize-titles", middleware.AdminOnly(), productOptimizationController.StandardizeProductTitles)
 				products.POST("/classification-audit", middleware.AdminOnly(), productOptimizationController.AuditProductClassifications)
 				products.POST("/auto-optimize-categories", middleware.AdminOnly(), productOptimizationController.AutoOptimizeProductCategories)
