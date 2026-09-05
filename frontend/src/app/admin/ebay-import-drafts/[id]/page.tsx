@@ -69,6 +69,9 @@ export default function EbayImportDraftDetailPage() {
     queryKey: queryKeys.categories.admin(),
     queryFn: () => CategoryService.getAdminCategories(),
   });
+  const activeLeafCategories = categories.filter((category) =>
+    category.is_active && !categories.some((candidate) => candidate.is_active && candidate.parent_id === category.id)
+  );
 
   const [form, setForm] = useState({
     normalized_title: '',
@@ -190,7 +193,7 @@ export default function EbayImportDraftDetailPage() {
             </Link>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{draft.normalized_title || draft.title_raw}</h1>
-              <p className="mt-1 text-sm text-gray-500">#{draft.id} · {draft.status}</p>
+              <p className="mt-1 text-sm text-gray-500">#{draft.id} · {draft.status} · {draft.source_site || 'ebay'}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -279,8 +282,8 @@ export default function EbayImportDraftDetailPage() {
                   </div>
                   <select value={form.suggested_category_id} onChange={(e) => setForm((prev) => ({ ...prev, suggested_category_id: e.target.value }))} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     <option value="">{locale === 'zh' ? '请选择分类' : 'Select category'}</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>{category.name}</option>
+                    {activeLeafCategories.map((category) => (
+                      <option key={category.id} value={category.id}>{category.path ? category.path.split('/').join(' > ') : category.name}</option>
                     ))}
                   </select>
                   {isCategoryMissing ? (

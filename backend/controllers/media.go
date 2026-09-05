@@ -20,6 +20,13 @@ import (
 
 type MediaController struct{}
 
+type rotateMediaRequest struct {
+	AssetID *uint  `json:"asset_id"`
+	URL     string `json:"url"`
+	Folder  string `json:"folder"`
+	Degrees int    `json:"degrees" binding:"required"`
+}
+
 func getUploadRoot() string {
 	p := os.Getenv("UPLOAD_PATH")
 	if strings.TrimSpace(p) == "" {
@@ -45,11 +52,18 @@ func (mc *MediaController) List(c *gin.Context) {
 
 	q := strings.TrimSpace(c.Query("q"))
 	folder := strings.TrimSpace(c.Query("folder"))
+	includeGenerated := strings.EqualFold(strings.TrimSpace(c.Query("include_generated")), "true") || strings.TrimSpace(c.Query("include_generated")) == "1"
 
 	query := db.Model(&models.MediaAsset{})
+	// SKU fallback images are implementation cache entries, not user-managed
+	// library assets. Keep legacy rows out of the default gallery while still
+	// allowing an explicit folder search or opt-in inspection.
+	if folder == "" && !includeGenerated {
+		query = query.Where("folder IS NULL OR folder <> ?", "watermarked-default")
+	}
 	if q != "" {
 		like := "%" + q + "%"
-		query = query.Where("original_name LIKE ? OR sha256 LIKE ? OR title LIKE ?", like, like, like)
+		query = query.Where("original_name LIKE ? OR sha256 LIKE ? OR title LIKE ? OR alt_text LIKE ? OR folder LIKE ? OR tags LIKE ?", like, like, like, like, like, like)
 	}
 	if folder != "" {
 		query = query.Where("folder = ?", folder)
@@ -108,6 +122,12 @@ type mediaUploadResponse struct {
 	SuccessCount int                     `json:"success_count"`
 	ErrorCount   int                     `json:"error_count"`
 	Results      []mediaUploadItemResult `json:"results"`
+}
+
+type mediaCleanupMissingResponse struct {
+	Scanned int      `json:"scanned"`
+	Deleted int      `json:"deleted"`
+	Errors  []string `json:"errors,omitempty"`
 }
 
 // Upload handles batch image upload for the admin media library.
@@ -292,6 +312,81 @@ func (mc *MediaController) Upload(c *gin.Context) {
 	})
 }
 
+func (mc *MediaController) Rotate(c *gin.Context) {
+	var req rotateMediaRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid rotation request", Error: err.Error()})
+		return
+	}
+	asset, err := services.RotateMediaAsset(config.GetDB(), services.RotateMediaRequest{
+		AssetID: req.AssetID,
+		URL:     req.URL,
+		Folder:  req.Folder,
+		Degrees: req.Degrees,
+	})
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to rotate media", Error: err.Error()})
+		return
+	}
+	response := asset.ToResponse()
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Media rotated successfully", Data: response})
+}
+
+func (mc *MediaController) CleanupMissing(c *gin.Context) {
+	db := config.GetDB()
+
+	var assets []models.MediaAsset
+	if err := db.Select("id", "relative_path").Find(&assets).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
+			Success: false,
+			Message: "Failed to query media assets",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	uploadRoot := getUploadRoot()
+	missingIDs := make([]uint, 0)
+	errorsList := make([]string, 0)
+
+	for _, asset := range assets {
+		diskPath, ok := mediaAssetDiskPath(uploadRoot, asset.RelativePath)
+		if !ok {
+			missingIDs = append(missingIDs, asset.ID)
+			continue
+		}
+
+		if _, err := os.Stat(diskPath); err == nil {
+			continue
+		} else if os.IsNotExist(err) {
+			missingIDs = append(missingIDs, asset.ID)
+		} else {
+			errorsList = append(errorsList, "id "+strconv.FormatUint(uint64(asset.ID), 10)+": "+err.Error())
+		}
+	}
+
+	if len(missingIDs) > 0 {
+		if err := db.Where("id IN ?", missingIDs).Delete(&models.MediaAsset{}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, models.APIResponse{
+				Success: false,
+				Message: "Failed to delete missing media records",
+				Error:   err.Error(),
+			})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, models.APIResponse{
+		Success: true,
+		Message: "Missing media records cleaned successfully",
+		Data: mediaCleanupMissingResponse{
+			Scanned: len(assets),
+			Deleted: len(missingIDs),
+			Errors:  errorsList,
+		},
+	})
+}
+
 func (mc *MediaController) Update(c *gin.Context) {
 	db := config.GetDB()
 
@@ -423,6 +518,35 @@ func (mc *MediaController) BatchUpdate(c *gin.Context) {
 	})
 }
 
+func mediaAssetDiskPath(uploadRoot string, relativePath string) (string, bool) {
+	trimmed := strings.TrimSpace(relativePath)
+	if trimmed == "" || filepath.IsAbs(trimmed) {
+		return "", false
+	}
+
+	rootAbs, err := filepath.Abs(uploadRoot)
+	if err != nil {
+		return "", false
+	}
+
+	cleanRel := filepath.Clean(filepath.FromSlash(trimmed))
+	if cleanRel == "." || cleanRel == ".." || strings.HasPrefix(cleanRel, ".."+string(os.PathSeparator)) {
+		return "", false
+	}
+
+	assetAbs, err := filepath.Abs(filepath.Join(rootAbs, cleanRel))
+	if err != nil {
+		return "", false
+	}
+
+	relToRoot, err := filepath.Rel(rootAbs, assetAbs)
+	if err != nil || relToRoot == ".." || strings.HasPrefix(relToRoot, ".."+string(os.PathSeparator)) {
+		return "", false
+	}
+
+	return assetAbs, true
+}
+
 func (mc *MediaController) BatchDelete(c *gin.Context) {
 	db := config.GetDB()
 
@@ -458,8 +582,9 @@ func (mc *MediaController) BatchDelete(c *gin.Context) {
 	uploadRoot := getUploadRoot()
 	// Best-effort file deletion.
 	for _, a := range assets {
-		p := filepath.Join(uploadRoot, filepath.FromSlash(a.RelativePath))
-		_ = os.Remove(p)
+		if p, ok := mediaAssetDiskPath(uploadRoot, a.RelativePath); ok {
+			_ = os.Remove(p)
+		}
 	}
 
 	c.JSON(http.StatusOK, models.APIResponse{

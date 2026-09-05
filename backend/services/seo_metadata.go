@@ -1,6 +1,9 @@
 package services
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 const (
 	MetaTitleMinLength       = 20
@@ -65,9 +68,18 @@ func BuildSafeMetaTitle(candidates ...string) string {
 }
 
 func BuildSafeMetaDescription(candidates ...string) string {
+	// Prefer a complete candidate that already fits the limit. This prevents a
+	// long first candidate from winning after it has been clipped into fragments
+	// such as "and fast." while a complete fallback is available.
+	for _, candidate := range candidates {
+		raw := normalizeWhitespace(candidate)
+		if len(raw) >= MetaDescriptionMinLength && len(raw) <= MetaDescriptionMaxLength && !looksLikeTruncatedMetaDescription(raw) {
+			return raw
+		}
+	}
 	for _, candidate := range candidates {
 		desc := NormalizeMetaDescription(candidate)
-		if len(desc) >= MetaDescriptionMinLength {
+		if len(desc) >= MetaDescriptionMinLength && !looksLikeTruncatedMetaDescription(desc) {
 			return desc
 		}
 	}
@@ -78,6 +90,12 @@ func BuildSafeMetaDescription(candidates ...string) string {
 		}
 	}
 	return ""
+}
+
+var truncatedMetaEndingRe = regexp.MustCompile(`(?i)(?:\band\s+(?:fast|global|worldwide)|[,;:]|\bwith)[.!?]?$`)
+
+func looksLikeTruncatedMetaDescription(value string) bool {
+	return truncatedMetaEndingRe.MatchString(strings.TrimSpace(value))
 }
 
 func normalizeWhitespace(input string) string {

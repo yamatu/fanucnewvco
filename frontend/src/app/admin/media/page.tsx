@@ -1,10 +1,12 @@
 'use client';
 
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import {
   ArrowUpTrayIcon,
+  ArrowPathIcon,
+  EyeIcon,
   MagnifyingGlassIcon,
   PencilIcon,
   SparklesIcon,
@@ -12,17 +14,27 @@ import {
   TrashIcon,
   XMarkIcon,
   PhotoIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
+  PauseIcon,
+  PlayIcon,
+  LinkIcon,
 } from '@heroicons/react/24/outline';
 
 import AdminLayout from '@/components/admin/AdminLayout';
+import MediaUsageModal from '@/components/admin/MediaUsageModal';
+import ProductImageGovernancePanel from '@/components/admin/ProductImageGovernancePanel';
 import { CategoryService, MediaService, ProductService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
-import type { MediaAsset, MediaUploadResponse } from '@/services/media.service';
+import type { MediaAsset, MediaCleanupMissingResponse, MediaUploadResponse } from '@/services/media.service';
+import type { ProductImageAutofillJob } from '@/services/product.service';
 import type { Category } from '@/types';
 import { useAdminI18n } from '@/lib/admin-i18n';
 
 type MediaAssetUpdates = Partial<Pick<MediaAsset, 'folder' | 'tags' | 'title' | 'alt_text'>>;
 type BatchUpdatePayload = { ids: number[]; folder?: string; tags?: string };
+const imageAutofillJobQueryKey = ['media', 'image-autofill', 'latest'] as const;
+const imageAutofillBrandsQueryKey = ['media', 'image-autofill', 'brands'] as const;
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -48,6 +60,7 @@ export default function AdminMediaPage() {
   const [folderInput, setFolderInput] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(24);
+  const [includeGenerated, setIncludeGenerated] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
@@ -69,11 +82,14 @@ export default function AdminMediaPage() {
   const [showBatchEditModal, setShowBatchEditModal] = useState(false);
   const [batchFolder, setBatchFolder] = useState('');
   const [batchTags, setBatchTags] = useState('');
-  const [applyBrand, setApplyBrand] = useState('fanuc');
+  const [applyBrand, setApplyBrand] = useState('');
   const [applyCategoryId, setApplyCategoryId] = useState('');
   const [applyMode, setApplyMode] = useState<'fill_empty' | 'replace_all'>('fill_empty');
+  const [autofillProductStatus, setAutofillProductStatus] = useState<'active' | 'inactive' | 'all'>('all');
 
   const [editingAsset, setEditingAsset] = useState<MediaAsset | null>(null);
+  const [previewAsset, setPreviewAsset] = useState<MediaAsset | null>(null);
+  const [usageAsset, setUsageAsset] = useState<MediaAsset | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editAlt, setEditAlt] = useState('');
   const [editFolder, setEditFolder] = useState('');
@@ -86,7 +102,7 @@ export default function AdminMediaPage() {
     setPage(1);
   }, [q, folder]);
 
-  const filters = useMemo(() => ({ q, folder, page, pageSize }), [q, folder, page, pageSize]);
+  const filters = useMemo(() => ({ q, folder, page, pageSize, includeGenerated }), [q, folder, page, pageSize, includeGenerated]);
 
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: queryKeys.media.list(filters),
@@ -96,6 +112,7 @@ export default function AdminMediaPage() {
         folder: folder || undefined,
         page,
         page_size: pageSize,
+        include_generated: includeGenerated,
       }),
     placeholderData: previousData => previousData,
     retry: 1,
@@ -118,6 +135,22 @@ export default function AdminMediaPage() {
     queryFn: () => CategoryService.getAdminCategories(),
   });
   const categories = Array.isArray(categoriesData) ? (categoriesData as Category[]) : [];
+
+  const { data: autofillBrands = [] } = useQuery({
+    queryKey: imageAutofillBrandsQueryKey,
+    queryFn: () => ProductService.listProductImageAutofillBrands(),
+    retry: 1,
+  });
+
+  const { data: imageAutofillJob } = useQuery({
+    queryKey: imageAutofillJobQueryKey,
+    queryFn: () => ProductService.getLatestProductImageAutofillJob(),
+    retry: 1,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === 'queued' || status === 'running' || status === 'paused' ? 2000 : 10000;
+    },
+  });
 
   useEffect(() => {
     // If filters changed and current page is out of range, reset.
@@ -166,6 +199,40 @@ export default function AdminMediaPage() {
     onError: (error: unknown) => toast.error(getErrorMessage(error, t('media.toast.deleteFailed', locale === 'zh' ? '删除失败' : 'Failed to delete'))),
   });
 
+  const cleanupMissingMutation = useMutation({
+    mutationFn: () => MediaService.cleanupMissing(),
+    onSuccess: (res: MediaCleanupMissingResponse) => {
+      if (res.deleted > 0) {
+        toast.success(
+          t(
+            'media.toast.cleanupMissingDone',
+            locale === 'zh' ? `已清理 ${res.deleted} 条缺失图片记录` : `Cleaned ${res.deleted} missing media record(s)`
+          )
+        );
+      } else {
+        toast.success(
+          t(
+            'media.toast.cleanupMissingNone',
+            locale === 'zh' ? `已扫描 ${res.scanned} 条记录，没有发现缺失文件` : `Scanned ${res.scanned} record(s); no missing files found`
+          )
+        );
+      }
+      if (res.errors?.length) {
+        toast.error(
+          t(
+            'media.toast.cleanupMissingPartial',
+            locale === 'zh' ? `有 ${res.errors.length} 条记录检查失败，请稍后重试` : `${res.errors.length} record(s) could not be checked`
+          )
+        );
+      }
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: queryKeys.media.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.media.watermarkSettings() });
+    },
+    onError: (error: unknown) =>
+      toast.error(getErrorMessage(error, t('media.toast.cleanupMissingFailed', locale === 'zh' ? '清理缺失图片记录失败' : 'Failed to clean missing media records'))),
+  });
+
   const batchUpdateMutation = useMutation({
     mutationFn: (payload: BatchUpdatePayload) =>
       MediaService.batchUpdate(payload.ids, {
@@ -193,6 +260,23 @@ export default function AdminMediaPage() {
     onError: (error: unknown) => toast.error(getErrorMessage(error, t('common.saveFailed', locale === 'zh' ? '保存失败' : 'Failed to save'))),
   });
 
+  const rotateMutation = useMutation({
+    mutationFn: (payload: { asset: MediaAsset; degrees: 90 | 180 | 270 }) =>
+      MediaService.rotate({ asset_id: payload.asset.id, degrees: payload.degrees }),
+    onSuccess: (asset) => {
+      toast.success(t('media.toast.rotated', locale === 'zh' ? '旋转后的图片已保存到图库' : 'Rotated image saved to the media library'));
+      setEditingAsset(asset);
+      setPreviewAsset((current) => (current ? asset : null));
+      setEditTitle(asset.title || '');
+      setEditAlt(asset.alt_text || '');
+      setEditFolder(asset.folder || '');
+      setEditTags(asset.tags || '');
+      queryClient.invalidateQueries({ queryKey: queryKeys.media.lists() });
+    },
+    onError: (error: unknown) =>
+      toast.error(getErrorMessage(error, t('media.toast.rotateFailed', locale === 'zh' ? '图片旋转失败' : 'Failed to rotate image'))),
+  });
+
   const watermarkSettingsMutation = useMutation({
     mutationFn: (payload: { enabled?: boolean; watermark_position?: string; base_media_asset_id?: number | null }) =>
       MediaService.updateWatermarkSettings(payload),
@@ -204,7 +288,7 @@ export default function AdminMediaPage() {
   });
 
   const watermarkMutation = useMutation({
-    mutationFn: (payload: { asset_id: number; text_source: 'sku' | 'custom'; sku?: string; text?: string }) =>
+    mutationFn: (payload: { asset_id: number; text_source: 'sku' | 'custom'; sku?: string; text?: string; watermark_position?: string }) =>
       MediaService.watermarkAsset(payload),
     onSuccess: (asset) => {
       toast.success(t('media.toast.watermarkedCreated', locale === 'zh' ? '水印图片已生成' : 'Watermarked image created'));
@@ -235,6 +319,38 @@ export default function AdminMediaPage() {
     onError: (error: unknown) => toast.error(getErrorMessage(error, t('media.toast.categoryImageApplyFailed', locale === 'zh' ? '批量换图失败' : 'Failed to apply image to products'))),
   });
 
+  const imageAutofillMutation = useMutation({
+    mutationFn: () => ProductService.startProductImageAutofill({
+      brand: applyBrand || undefined,
+      category_id: applyCategoryId ? Number(applyCategoryId) : undefined,
+      include_descendants: Boolean(applyCategoryId),
+      product_status: autofillProductStatus,
+      batch_size: 250,
+    }),
+    onSuccess: (job: ProductImageAutofillJob) => {
+      toast.success(locale === 'zh'
+        ? `SKU 空图后台任务已启动，将扫描 ${job.total.toLocaleString()} 个产品`
+        : `SKU image autofill started for ${job.total.toLocaleString()} products`);
+      queryClient.setQueryData(imageAutofillJobQueryKey, job);
+    },
+    onError: (error: unknown) => toast.error(getErrorMessage(error, locale === 'zh' ? '启动 SKU 空图补全任务失败' : 'Failed to start SKU image autofill')),
+  });
+
+  const imageAutofillControlMutation = useMutation({
+    mutationFn: (payload: { id: string; action: 'pause' | 'resume' }) => (
+      payload.action === 'pause'
+        ? ProductService.pauseProductImageAutofillJob(payload.id)
+        : ProductService.resumeProductImageAutofillJob(payload.id)
+    ),
+    onSuccess: (job: ProductImageAutofillJob) => {
+      queryClient.setQueryData(imageAutofillJobQueryKey, job);
+      toast.success(job.status === 'paused'
+        ? (locale === 'zh' ? '任务已暂停' : 'Task paused')
+        : (locale === 'zh' ? '任务已继续' : 'Task resumed'));
+    },
+    onError: (error: unknown) => toast.error(getErrorMessage(error, locale === 'zh' ? '更新任务状态失败' : 'Failed to update task')),
+  });
+
   const toggleSelected = (id: number) => {
     setSelectedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
   };
@@ -250,6 +366,14 @@ export default function AdminMediaPage() {
 
   const clearSelection = () => setSelectedIds([]);
 
+  const handleProductsChanged = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
+  }, [queryClient]);
+
+  const handleMediaChanged = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.media.lists() });
+  }, [queryClient]);
+
   const addFiles = (files: FileList | File[]) => {
     const list = Array.isArray(files) ? files : Array.from(files);
     const onlyImages = list.filter(f => f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|avif|bmp|tiff?|heic|heif)$/i.test(f.name));
@@ -260,6 +384,23 @@ export default function AdminMediaPage() {
     setUploadFiles(prev => [...prev, ...onlyImages]);
   };
 
+  useEffect(() => {
+    if (!showUploadModal) return;
+    const handlePaste = (event: ClipboardEvent) => {
+      const files = Array.from(event.clipboardData?.files || []);
+      if (!files.length) return;
+      event.preventDefault();
+      const onlyImages = files.filter(file => file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|avif|bmp|tiff?|heic|heif)$/i.test(file.name));
+      if (!onlyImages.length) {
+        toast.error(t('media.toast.onlyImages', locale === 'zh' ? '请选择图片文件' : 'Please select image files'));
+        return;
+      }
+      setUploadFiles(prev => [...prev, ...onlyImages]);
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [showUploadModal, locale, t]);
+
   const openEdit = (asset: MediaAsset) => {
     setEditingAsset(asset);
     setEditTitle(asset.title || '');
@@ -269,6 +410,13 @@ export default function AdminMediaPage() {
   };
 
   const canBatch = selectedIds.length > 0;
+  const imageAutofillFinished = imageAutofillJob?.status === 'completed' || imageAutofillJob?.status === 'completed_with_errors';
+  const imageAutofillProgress = imageAutofillFinished
+    ? 100
+    : imageAutofillJob && imageAutofillJob.total > 0
+      ? Math.min(100, Math.round((imageAutofillJob.processed / imageAutofillJob.total) * 100))
+      : 0;
+  const imageAutofillActive = imageAutofillJob?.status === 'queued' || imageAutofillJob?.status === 'running' || imageAutofillJob?.status === 'paused';
 
   if (isLoading && !data) {
     return (
@@ -306,20 +454,46 @@ export default function AdminMediaPage() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{t('nav.media', 'Media Library')}</h1>
             <p className="mt-1 text-sm text-gray-500">
               {t('media.subtitle', locale === 'zh' ? '上传并管理图片（按 SHA-256 去重）' : 'Upload and manage images (deduplicated by SHA-256)')}
             </p>
           </div>
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
-            {t('media.upload', locale === 'zh' ? '上传图片' : 'Upload Images')}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={cleanupMissingMutation.isPending}
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    t(
+                      'media.confirm.cleanupMissing',
+                      locale === 'zh'
+                        ? '将删除数据库中存在、但文件已不存在的图库记录。不会删除仍存在的图片文件。继续吗？'
+                        : 'Delete media database records whose files no longer exist on disk? Existing files will not be deleted.'
+                    )
+                  )
+                )
+                  return;
+                cleanupMissingMutation.mutate();
+              }}
+              className="inline-flex items-center px-4 py-2 border border-red-200 rounded-md text-sm font-medium text-red-700 bg-white hover:bg-red-50 disabled:opacity-50"
+            >
+              <TrashIcon className="h-4 w-4 mr-2" />
+              {cleanupMissingMutation.isPending
+                ? t('common.processing', locale === 'zh' ? '处理中...' : 'Processing...')
+                : t('media.cleanupMissing', locale === 'zh' ? '清理缺失记录' : 'Clean Missing Records')}
+            </button>
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
+              {t('media.upload', locale === 'zh' ? '上传图片' : 'Upload Images')}
+            </button>
+          </div>
         </div>
 
         {/* Watermark Settings */}
@@ -412,6 +586,153 @@ export default function AdminMediaPage() {
           </div>
         </div>
 
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="flex flex-col gap-5">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">
+                {locale === 'zh' ? 'SKU 空图自动补全' : 'Automatic SKU Image Autofill'}
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                {locale === 'zh'
+                  ? '后台扫描所选品牌和分类，只给没有任何图片的产品添加“底图＋完整 SKU”图片，绝不会覆盖真实产品图。图片在首次访问时生成并缓存，因此 2 万以上产品也不会让页面请求超时。'
+                  : 'Scans the selected brand/category in the background and assigns a base-image plus full-SKU fallback only to products with no images. Real product images are never overwritten; JPEGs are rendered lazily and cached.'}
+              </p>
+            </div>
+
+            {(!watermarkSettings?.enabled || !watermarkSettings?.base_media_asset_id) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {locale === 'zh'
+                  ? '请先在上方启用默认产品图片，并从图库选择一张底图。'
+                  : 'Enable the default product image and select a base image above before starting.'}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {locale === 'zh' ? '品牌范围' : 'Brand scope'}
+                </label>
+                <select
+                  value={applyBrand}
+                  onChange={(event) => setApplyBrand(event.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="">{locale === 'zh' ? '全部品牌' : 'All brands'}</option>
+                  {autofillBrands.map((brand) => (
+                    <option key={brand.name.toLowerCase()} value={brand.name}>
+                      {brand.name} ({brand.count.toLocaleString()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {locale === 'zh' ? '分类范围' : 'Category scope'}
+                </label>
+                <select
+                  value={applyCategoryId}
+                  onChange={(event) => setApplyCategoryId(event.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="">{locale === 'zh' ? '全部分类' : 'All categories'}</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={String(category.id)}>{category.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {locale === 'zh' ? '产品状态' : 'Product status'}
+                </label>
+                <select
+                  value={autofillProductStatus}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setAutofillProductStatus(value === 'active' || value === 'inactive' ? value : 'all');
+                  }}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="all">{locale === 'zh' ? '全部产品' : 'All products'}</option>
+                  <option value="active">{locale === 'zh' ? '仅启用产品' : 'Active only'}</option>
+                  <option value="inactive">{locale === 'zh' ? '仅未启用产品' : 'Inactive only'}</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  disabled={Boolean(imageAutofillActive) || imageAutofillMutation.isPending || !watermarkSettings?.enabled || !watermarkSettings?.base_media_asset_id}
+                  onClick={() => imageAutofillMutation.mutate()}
+                  className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  <SparklesIcon className="h-4 w-4 mr-2" />
+                  {imageAutofillMutation.isPending
+                    ? (locale === 'zh' ? '正在创建任务...' : 'Starting task...')
+                    : (locale === 'zh' ? '开始后台自动补全' : 'Start background autofill')}
+                </button>
+              </div>
+            </div>
+
+            {imageAutofillJob && (
+              <div className={`rounded-lg border p-4 ${
+                imageAutofillJob.status === 'failed'
+                  ? 'border-red-200 bg-red-50'
+                  : imageAutofillJob.status === 'completed' || imageAutofillJob.status === 'completed_with_errors'
+                    ? 'border-emerald-200 bg-emerald-50'
+                    : 'border-blue-200 bg-blue-50'
+              }`}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">
+                      {locale === 'zh' ? '最近一次 SKU 补图任务' : 'Latest SKU autofill task'} · {imageAutofillJob.status}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-600">
+                      {locale === 'zh'
+                        ? `已扫描 ${imageAutofillJob.processed.toLocaleString()} / ${imageAutofillJob.total.toLocaleString()}，补全 ${imageAutofillJob.updated.toLocaleString()}，已有图片跳过 ${imageAutofillJob.skipped.toLocaleString()}，失败 ${imageAutofillJob.failed.toLocaleString()}`
+                        : `Scanned ${imageAutofillJob.processed.toLocaleString()} / ${imageAutofillJob.total.toLocaleString()}; filled ${imageAutofillJob.updated.toLocaleString()}, skipped ${imageAutofillJob.skipped.toLocaleString()}, failed ${imageAutofillJob.failed.toLocaleString()}`}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(imageAutofillJob.status === 'queued' || imageAutofillJob.status === 'running') && (
+                      <button
+                        type="button"
+                        disabled={imageAutofillControlMutation.isPending}
+                        onClick={() => imageAutofillControlMutation.mutate({ id: imageAutofillJob.id, action: 'pause' })}
+                        className="inline-flex items-center rounded-md border border-blue-200 bg-white px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+                      >
+                        <PauseIcon className="h-4 w-4 mr-1" />
+                        {locale === 'zh' ? '暂停' : 'Pause'}
+                      </button>
+                    )}
+                    {imageAutofillJob.status === 'paused' && (
+                      <button
+                        type="button"
+                        disabled={imageAutofillControlMutation.isPending}
+                        onClick={() => imageAutofillControlMutation.mutate({ id: imageAutofillJob.id, action: 'resume' })}
+                        className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        <PlayIcon className="h-4 w-4 mr-1" />
+                        {locale === 'zh' ? '继续' : 'Resume'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                  <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${imageAutofillProgress}%` }} />
+                </div>
+                {imageAutofillJob.error && <div className="mt-2 text-xs text-red-700">{imageAutofillJob.error}</div>}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <ProductImageGovernancePanel
+          locale={locale}
+          categories={categories}
+          brands={autofillBrands}
+          onProductsChanged={handleProductsChanged}
+          onMediaChanged={handleMediaChanged}
+        />
+
         {/* Filters */}
         <div className="bg-white shadow rounded-lg p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
@@ -455,6 +776,20 @@ export default function AdminMediaPage() {
               </select>
             </div>
           </div>
+          <label className="mt-4 inline-flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={includeGenerated}
+              onChange={(event) => {
+                setIncludeGenerated(event.target.checked);
+                setPage(1);
+              }}
+              className="h-4 w-4"
+            />
+            {locale === 'zh'
+              ? '显示旧版自动生成的 SKU 缓存图（默认隐藏，避免图库被型号图片淹没）'
+              : 'Show legacy generated SKU cache images (hidden by default)'}
+          </label>
         </div>
 
         <div className="bg-white shadow rounded-lg p-6">
@@ -478,10 +813,10 @@ export default function AdminMediaPage() {
                   onChange={(e) => setApplyBrand(e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md"
                 >
-                  <option value="fanuc">FANUC</option>
-                  <option value="mitsubishi">Mitsubishi</option>
-                  <option value="siemens">Siemens</option>
-                  <option value="abb">ABB</option>
+                  <option value="">{locale === 'zh' ? '全部品牌' : 'All brands'}</option>
+                  {autofillBrands.map((brand) => (
+                    <option key={brand.name.toLowerCase()} value={brand.name}>{brand.name}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -527,7 +862,7 @@ export default function AdminMediaPage() {
                       batch_size: 500,
                     });
                   }}
-                  className="inline-flex items-center justify-center w-full px-4 py-2 text-sm rounded-md bg-fuchsia-600 text-white hover:bg-fuchsia-700 disabled:opacity-50"
+                  className="inline-flex items-center justify-center w-full px-4 py-2 text-sm rounded-md bg-slate-800 text-white hover:bg-slate-900 disabled:opacity-50"
                 >
                   <PhotoIcon className="h-4 w-4 mr-2" />
                   {bulkCategoryImageMutation.isPending
@@ -658,15 +993,34 @@ export default function AdminMediaPage() {
                         <PencilIcon className="h-4 w-4 text-gray-700" />
                       </button>
 
-                      <div className="aspect-square bg-gray-50">
+                      <button
+                        type="button"
+                        onClick={() => setUsageAsset(asset)}
+                        className="absolute top-2 right-12 z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity h-8 w-8 rounded bg-white/90 border border-gray-200 flex items-center justify-center hover:bg-white"
+                        aria-label={locale === 'zh' ? '查看使用此图片的产品' : 'Find products using this image'}
+                        title={locale === 'zh' ? '查看使用产品' : 'Find product usage'}
+                      >
+                        <LinkIcon className="h-4 w-4 text-slate-700" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPreviewAsset(asset)}
+                        className="relative block aspect-square w-full bg-gray-50 p-2"
+                        aria-label={t('media.preview', locale === 'zh' ? '放大预览' : 'Preview')}
+                      >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={asset.url}
+                          src={asset.thumbnail_url || asset.url}
                           alt={asset.alt_text || asset.original_name}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-contain"
                           loading="lazy"
+                          decoding="async"
                         />
-                      </div>
+                        <span className="absolute bottom-2 right-2 rounded bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                          <EyeIcon className="h-4 w-4" />
+                        </span>
+                      </button>
                       <div className="p-2">
                         <div className="text-xs font-medium text-gray-900 truncate" title={asset.original_name}>
                           {asset.original_name}
@@ -694,23 +1048,54 @@ export default function AdminMediaPage() {
                       </span>
                     ) : null}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage(1)}
+                    className="rounded-md border border-gray-200 p-2 text-gray-700 disabled:opacity-50 hover:bg-gray-50"
+                    title={locale === 'zh' ? '第一页' : 'First page'}
+                    aria-label={locale === 'zh' ? '第一页' : 'First page'}
+                  >
+                    <ChevronDoubleLeftIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
                     disabled={page <= 1}
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
                   >
                     {t('common.prev', locale === 'zh' ? '上一页' : 'Prev')}
                   </button>
-                  <div className="text-sm text-gray-700">
-                    {t('common.page', locale === 'zh' ? '第 {page} 页 / 共 {pages} 页' : 'Page {page} / {pages}', { page, pages: totalPages })}
-                  </div>
+                  <label className="flex items-center gap-1 text-sm text-gray-700">
+                    <input
+                      type="number"
+                      min={1}
+                      max={totalPages}
+                      value={page}
+                      onChange={(event) => setPage(Math.min(totalPages, Math.max(1, Number(event.target.value) || 1)))}
+                      className="w-16 rounded-md border border-gray-200 px-2 py-2 text-center text-sm"
+                      aria-label={locale === 'zh' ? '跳转页码' : 'Jump to page'}
+                    />
+                    <span>/ {totalPages}</span>
+                  </label>
                   <button
+                    type="button"
                     disabled={page >= totalPages}
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
                   >
                     {t('common.next', locale === 'zh' ? '下一页' : 'Next')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage(totalPages)}
+                    className="rounded-md border border-gray-200 p-2 text-gray-700 disabled:opacity-50 hover:bg-gray-50"
+                    title={locale === 'zh' ? '最后一页' : 'Last page'}
+                    aria-label={locale === 'zh' ? '最后一页' : 'Last page'}
+                  >
+                    <ChevronDoubleRightIcon className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -787,7 +1172,7 @@ export default function AdminMediaPage() {
                       value={watermarkText}
                       onChange={(e) => setWatermarkText(e.target.value)}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder={t('media.watermark.textPh', locale === 'zh' ? '例如：Vcocnc' : 'e.g. Vcocnc')}
+                      placeholder={t('media.watermark.textPh', locale === 'zh' ? '例如：Vibocnc' : 'e.g. Vibocnc')}
                     />
                   </div>
                 )}
@@ -886,7 +1271,7 @@ export default function AdminMediaPage() {
                 }}
               >
                 <PhotoIcon className="mx-auto h-10 w-10 text-gray-300" />
-                <p className="mt-2 text-sm text-gray-700">{t('media.upload.drop', locale === 'zh' ? '拖拽图片到此处' : 'Drag & drop images here')}</p>
+                <p className="mt-2 text-sm text-gray-700">{t('media.upload.drop', locale === 'zh' ? '拖拽图片到此处，或直接粘贴图片' : 'Drag & drop or paste images here')}</p>
                 <p className="mt-1 text-xs text-gray-500">{t('common.or', locale === 'zh' ? '或' : 'or')}</p>
                 <button
                   type="button"
@@ -1065,10 +1450,11 @@ export default function AdminMediaPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="border rounded-lg overflow-hidden bg-gray-50">
+                <button type="button" onClick={() => setPreviewAsset(editingAsset)} className="relative border rounded-lg overflow-hidden bg-gray-50 p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={editingAsset.url} alt={editingAsset.alt_text || editingAsset.original_name} className="w-full h-auto" />
-                </div>
+                  <img src={editingAsset.url} alt={editingAsset.alt_text || editingAsset.original_name} className="h-80 w-full object-contain" />
+                  <span className="absolute bottom-3 right-3 rounded bg-black/60 p-1.5 text-white"><EyeIcon className="h-5 w-5" /></span>
+                </button>
                 <div className="space-y-4">
                   <div className="text-sm">
                     <div className="text-gray-900 font-medium truncate" title={editingAsset.original_name}>{editingAsset.original_name}</div>
@@ -1111,6 +1497,29 @@ export default function AdminMediaPage() {
                       onChange={(e) => setEditTags(e.target.value)}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
+                  </div>
+                  <div>
+                    <div className="mb-2 text-sm font-medium text-gray-700">{locale === 'zh' ? '图片方向' : 'Image orientation'}</div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={rotateMutation.isPending}
+                        onClick={() => rotateMutation.mutate({ asset: editingAsset, degrees: 270 })}
+                        className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
+                      >
+                        <ArrowPathIcon className="mr-1 h-4 w-4 -scale-x-100" />
+                        {locale === 'zh' ? '左转 90°' : 'Left 90°'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={rotateMutation.isPending}
+                        onClick={() => rotateMutation.mutate({ asset: editingAsset, degrees: 90 })}
+                        className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
+                      >
+                        <ArrowPathIcon className="mr-1 h-4 w-4" />
+                        {locale === 'zh' ? '右转 90°' : 'Right 90°'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1162,6 +1571,18 @@ export default function AdminMediaPage() {
           </div>
         </div>
       )}
+
+      {previewAsset && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4" onClick={() => setPreviewAsset(null)}>
+          <button type="button" onClick={() => setPreviewAsset(null)} className="absolute right-5 top-5 rounded-full bg-white/90 p-2 text-gray-800">
+            <XMarkIcon className="h-6 w-6" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={previewAsset.url} alt={previewAsset.alt_text || previewAsset.original_name} className="max-h-[90vh] max-w-[94vw] object-contain" onClick={(event) => event.stopPropagation()} />
+        </div>
+      )}
+
+      {usageAsset && <MediaUsageModal asset={usageAsset} locale={locale} onClose={() => setUsageAsset(null)} />}
     </AdminLayout>
   );
 }

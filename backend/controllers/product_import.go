@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"fanuc-backend/config"
@@ -29,6 +30,38 @@ func (pc *ProductController) DownloadImportTemplate(c *gin.Context) {
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", b)
+}
+
+// Admin: POST /api/v1/admin/products/import/csv
+// Accepts quote exports with 品牌/型号/价格/交期 (or English aliases).
+func (pc *ProductController) ImportProductsQuoteCSV(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 25<<20)
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Missing CSV file", Error: err.Error()})
+		return
+	}
+	if file.Size <= 0 || file.Size > 25<<20 {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "CSV file must be between 1 byte and 25 MB", Error: "invalid_file_size"})
+		return
+	}
+	if !strings.EqualFold(filepath.Ext(file.Filename), ".csv") {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Only .csv files are supported", Error: "invalid_file_type"})
+		return
+	}
+	src, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Failed to read CSV file", Error: err.Error()})
+		return
+	}
+	defer src.Close()
+
+	task, err := services.StartProductQuoteCSVImportTask(c.Request.Context(), config.GetDB(), src, file.Filename)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "CSV import failed", Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusAccepted, models.APIResponse{Success: true, Message: "CSV import started", Data: task})
 }
 
 // Admin: POST /api/v1/admin/products/import/xlsx

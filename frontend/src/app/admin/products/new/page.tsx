@@ -7,16 +7,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import {
   ArrowLeftIcon,
-  PhotoIcon,
-  XMarkIcon,
-  PlusIcon,
-  LinkIcon
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
-import MediaPickerModal from '@/components/admin/MediaPickerModal';
+import ProductImageManager, { type ManagedProductImage } from '@/components/admin/ProductImageManager';
 import SeoPreview from '@/components/admin/SeoPreview';
 import CategoryCombobox from '@/components/admin/CategoryCombobox';
 import ShippingQuoteCalculator from '@/components/admin/ShippingQuoteCalculator';
+import TranslationEditor from '@/components/admin/TranslationEditor';
 import { ProductService, CategoryService } from '@/services';
 import { ProductCreateRequest } from '@/types';
 import { queryKeys } from '@/lib/react-query';
@@ -76,10 +74,10 @@ function buildDefaultSeoValues(input: {
   const model = sku || partNumber || normalizeWhitespace(input.name);
   const categoryName = normalizeWhitespace(input.categoryName) || 'Industrial Automation Part';
   const titleBase = [brand, model, categoryName].filter(Boolean).join(' ') || normalizeWhitespace(input.name) || 'Product';
-  const metaTitle = trimMetaTitle(`${titleBase} | Vcocnc`);
+  const metaTitle = trimMetaTitle(`${titleBase} | Vibocnc`);
   const subject = [brand, model].filter(Boolean).join(' ') || model || normalizeWhitespace(input.name) || 'This product';
   const metaDescription = trimMetaDescription(
-    `${subject} ${categoryName} for industrial automation repair and replacement. Compatibility support, 12-month warranty, and fast worldwide shipping from Vcocnc.`
+    `${subject} ${categoryName} for industrial automation repair and replacement. Compatibility support, 12-month warranty, and fast worldwide shipping from Vibocnc.`
   );
   const metaKeywords = [
     normalizeWhitespace(input.sku),
@@ -88,7 +86,7 @@ function buildDefaultSeoValues(input: {
     [brand, categoryName].filter(Boolean).join(' '),
     brand ? `${brand} parts` : 'industrial automation parts',
     'CNC replacement parts',
-    'Vcocnc',
+    'Vibocnc',
   ]
     .map(normalizeWhitespace)
     .filter(Boolean)
@@ -102,10 +100,7 @@ export default function NewProductPage() {
   const { locale, t } = useAdminI18n();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [imageUrl, setImageUrl] = useState<string>('');
-  const [images, setImages] = useState<Array<{url: string; alt_text?: string; is_primary?: boolean}>>([]);
-  const [showImageForm, setShowImageForm] = useState<boolean>(false);
-  const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [images, setImages] = useState<ManagedProductImage[]>([]);
 
   const {
     register,
@@ -119,7 +114,10 @@ export default function NewProductPage() {
       is_featured: false,
       stock_quantity: 0,
       brand: '',
+      warranty_period: '12 months',
+      lead_time: '3-7 days',
       disable_auto_seo: false,
+      translations: [],
     }
   });
 
@@ -146,38 +144,6 @@ export default function NewProductPage() {
     },
   });
 
-  // Image management functions
-  const handleAddImage = () => {
-    if (!imageUrl.trim()) {
-      toast.error(t('products.toast.imageUrlInvalid', 'Please enter a valid image URL'));
-      return;
-    }
-
-    // Basic URL validation
-    try {
-      new URL(imageUrl);
-    } catch {
-      toast.error(t('products.toast.urlInvalid', 'Please enter a valid URL'));
-      return;
-    }
-
-    const newImage = {
-      url: imageUrl.trim(),
-      alt_text: '',
-      is_primary: false
-    };
-
-    setImages([...images, newImage]);
-    setImageUrl('');
-    setShowImageForm(false);
-    toast.success(t('products.toast.imageAdded', 'Image added successfully!'));
-  };
-
-  const removeImage = (index: number) => {
-    const newImages = images.filter((_, i) => i !== index);
-    setImages(newImages);
-  };
-
   const onSubmit = async (data: ProductFormData) => {
     try {
       // Validate category selection against fetched categories
@@ -201,6 +167,8 @@ export default function NewProductPage() {
 		brand: (data.brand || '').trim(),
 		model: (data.model || data.sku).trim(),
 		part_number: (data.part_number || data.sku).trim(),
+		warranty_period: (data.warranty_period || '12 months').trim(),
+		lead_time: (data.lead_time || '3-7 days').trim(),
         category_id: catId,
         is_active: data.is_active,
         is_featured: data.is_featured,
@@ -208,9 +176,15 @@ export default function NewProductPage() {
         meta_description: data.meta_description || '',
         meta_keywords: data.meta_keywords || '',
         disable_auto_seo: toBooleanFlag((data as any).disable_auto_seo),
-        images: images, // Add images to the request
+        images: images.map((image, index) => ({
+          url: image.url,
+          alt_text: image.alt_text || '',
+          is_primary: index === 0,
+          sort_order: index,
+          source: image.source,
+        })),
         attributes: [],
-        translations: [],
+        translations: data.translations || [],
       };
 
       await createProductMutation.mutateAsync(productData);
@@ -266,7 +240,7 @@ export default function NewProductPage() {
               {/* Basic Information */}
               <div className="bg-white shadow rounded-lg p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">{t('products.basic.title', locale === 'zh' ? '基础信息' : 'Basic Information')}</h3>
-                
+
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -307,7 +281,7 @@ export default function NewProductPage() {
                         <span className="text-gray-500 sm:text-sm">$</span>
                       </div>
                       <input
-                        {...register('price', { 
+                        {...register('price', {
                           required: t('products.validation.priceRequired', locale === 'zh' ? '请输入价格' : 'Price is required'),
                           min: { value: 0, message: t('products.validation.pricePositive', locale === 'zh' ? '价格必须大于等于 0' : 'Price must be positive') }
                         })}
@@ -397,6 +371,30 @@ export default function NewProductPage() {
                       placeholder={locale === 'zh' ? '例如：MR-J2S-200B' : 'e.g., MR-J2S-200B'}
                     />
                   </div>
+
+				  <div>
+					<label htmlFor="warranty_period" className="block text-sm font-medium text-gray-700 mb-1">
+						{locale === 'zh' ? '质保期' : 'Warranty Period'}
+					</label>
+					<input
+						{...register('warranty_period')}
+						type="text"
+						className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+						placeholder={locale === 'zh' ? '例如：12 months' : 'e.g., 12 months'}
+					/>
+				  </div>
+
+				  <div>
+					<label htmlFor="lead_time" className="block text-sm font-medium text-gray-700 mb-1">
+						{locale === 'zh' ? '交货期' : 'Lead Time'}
+					</label>
+					<input
+						{...register('lead_time')}
+						type="text"
+						className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+						placeholder={locale === 'zh' ? '例如：3-7 days' : 'e.g., 3-7 days'}
+					/>
+				  </div>
 
 				  <div>
 					<label htmlFor="weight" className="block text-sm font-medium text-gray-700 mb-1">
@@ -515,126 +513,14 @@ export default function NewProductPage() {
                 />
               </div>
 
-              {/* Product Images */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('products.images.title', locale === 'zh' ? '产品图片' : 'Product Images')}</h3>
-                
-                <div className="space-y-4">
+              <ProductImageManager images={images} onChange={setImages} sku={watch('sku')} />
 
-
-                  {/* External Images Section */}
-                  <div className="border-t pt-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-sm font-medium text-gray-700">{t('products.images.urlsTitle', locale === 'zh' ? '图片（链接）' : 'Images (URLs)')}</h4>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setShowMediaPicker(true)}
-                          className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          <PhotoIcon className="h-4 w-4 mr-1" />
-                          {t('products.images.chooseFromLibrary', locale === 'zh' ? '从图库选择' : 'Choose From Library')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowImageForm(!showImageForm)}
-                          className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          <LinkIcon className="h-4 w-4 mr-1" />
-                          {t('products.images.addUrl', locale === 'zh' ? '添加图片链接' : 'Add Image URL')}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Image Form */}
-                    {showImageForm && (
-                      <div className="mb-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                        <div className="space-y-3">
-                          <div>
-                            <label htmlFor="image-url" className="block text-sm font-medium text-gray-700 mb-1">
-                              {t('products.images.imageUrl', locale === 'zh' ? '图片链接 *' : 'Image URL *')}
-                            </label>
-                            <input
-                              id="image-url"
-                              type="url"
-                              value={imageUrl}
-                              onChange={(e) => setImageUrl(e.target.value)}
-                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
-                              placeholder={t('products.images.imageUrlPh', locale === 'zh' ? '例如：https://example.com/image.jpg' : 'https://example.com/image.jpg')}
-                            />
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              type="button"
-                              onClick={handleAddImage}
-                              disabled={!imageUrl.trim()}
-                              className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <PlusIcon className="h-4 w-4 mr-1" />
-                              {t('products.images.addImage', locale === 'zh' ? '添加图片' : 'Add Image')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowImageForm(false);
-                                setImageUrl('');
-                              }}
-                              className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                            >
-                              {t('common.cancel', locale === 'zh' ? '取消' : 'Cancel')}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* External Images Display */}
-                    {images.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">{t('products.images.external', locale === 'zh' ? '外链图片' : 'External Images')}</h4>
-                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                          {images.map((image, index) => (
-                            <div key={index} className="relative">
-                              <div className="relative h-24 w-full">
-                                <img
-                                  src={image.url}
-                                  alt={image.alt_text || t('products.images.externalAlt', locale === 'zh' ? `外链图片 ${index + 1}` : `External image ${index + 1}`)}
-                                  className="h-24 w-full object-cover rounded-lg"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src = '/images/placeholder-image.png';
-                                  }}
-                                />
-                              </div>
-                              <div className="absolute top-1 left-1">
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                  <LinkIcon className="h-3 w-3 mr-1" />
-                                  {t('products.images.urlTag', locale === 'zh' ? '链接' : 'URL')}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => removeImage(index)}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                              >
-                                <XMarkIcon className="h-4 w-4" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {images.length === 0 && !showImageForm && (
-                      <div className="text-center py-6 text-gray-500 text-sm">
-                        {t('products.images.empty', locale === 'zh'
-						? '还没有添加外链图片。点击“添加图片链接”从 URL 添加图片。'
-						: 'No external images added yet. Click "Add Image URL" to add images from URLs.')}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <TranslationEditor
+                kind="product"
+                locale={locale}
+                value={watch('translations') || []}
+                onChange={(translations) => setValue('translations', translations, { shouldDirty: true })}
+              />
             </div>
 
             {/* Sidebar */}
@@ -642,7 +528,7 @@ export default function NewProductPage() {
               {/* Status */}
               <div className="bg-white shadow rounded-lg p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">{t('products.status.title', locale === 'zh' ? '状态' : 'Status')}</h3>
-                
+
                 <div className="space-y-4">
                   <div className="flex items-center">
                     <input
@@ -704,26 +590,6 @@ export default function NewProductPage() {
           </div>
         </form>
 
-        <MediaPickerModal
-          open={showMediaPicker}
-          onClose={() => setShowMediaPicker(false)}
-          multiple={true}
-		  title={t('products.images.pickerTitle', locale === 'zh' ? '选择产品图片' : 'Select product images')}
-          onSelect={(assets) => {
-            setImages((prev) => {
-              const existing = new Set(prev.map((p) => p.url));
-              const next = [...prev];
-              for (const a of assets) {
-                if (!existing.has(a.url)) {
-                  next.push({ url: a.url, alt_text: a.alt_text || '' });
-                  existing.add(a.url);
-                }
-              }
-              return next;
-            });
-            toast.success(t('products.toast.addedFromLibrary', locale === 'zh' ? '已从图库添加' : 'Added from media library'));
-          }}
-        />
       </div>
     </AdminLayout>
   );

@@ -84,6 +84,9 @@ export interface Product {
   meta_description: string;
   meta_keywords: string;
   disable_auto_seo?: boolean;
+  ai_seo_status?: '' | 'optimized' | 'running' | 'failed';
+  ai_seo_optimized_at?: string;
+  ai_seo_optimization_job_id?: string;
   image_urls: string[];
   // Enhanced fields
   warranty_period?: string;
@@ -332,6 +335,36 @@ export interface EbayImportDraftUpdateRequest {
   status?: string;
 }
 
+export interface EbayBulkConfirmItemResult {
+  id: number;
+  success: boolean;
+  skipped?: boolean;
+  status_code: number;
+  error?: string;
+}
+
+export interface EbayBulkConfirmTaskSnapshot {
+  id: string;
+  status: 'queued' | 'processing' | 'paused' | 'completed' | 'failed';
+  total: number;
+  processed: number;
+  success_count: number;
+  failed_count: number;
+  skipped_count: number;
+  duplicate_count: number;
+  needs_review_count: number;
+  already_processed_count: number;
+  missing_identifier_count: number;
+  progress_pct: number;
+  message?: string;
+  current_id?: number;
+  results?: EbayBulkConfirmItemResult[];
+  started_at?: string;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Category Types
 export interface Category {
   id: number;
@@ -347,6 +380,9 @@ export interface Category {
   children?: Category[];
   sort_order: number;
   is_active: boolean;
+  // Active products in this category and all descendants. Present on the
+  // public tree endpoint.
+  product_count?: number;
   created_at: string;
   updated_at: string;
   products?: Product[];
@@ -379,6 +415,9 @@ export interface Order {
   payment_status: string;
   payment_method: string;
   payment_id: string;
+  refunded_amount?: number;
+  refunded_at?: string;
+  stock_restored_at?: string;
 
   tracking_number?: string;
   shipping_carrier?: string;
@@ -394,6 +433,21 @@ export interface Order {
   currency: string;
   notes: string;
   items?: OrderItem[];
+  refunds?: Refund[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Refund {
+  id: number;
+  order_id: number;
+  provider_refund_id?: string;
+  capture_id: string;
+  amount: number;
+  currency: string;
+  reason?: string;
+  status: string;
+  requested_by?: number;
   created_at: string;
   updated_at: string;
 }
@@ -492,12 +546,28 @@ export interface CompanyProfile {
   updated_at: string;
 }
 
+export interface SocialMediaSettings {
+  id: number;
+  x_url: string;
+  facebook_url: string;
+  instagram_url: string;
+  linkedin_url: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type SocialMediaSettingsRequest = Pick<
+  SocialMediaSettings,
+  'x_url' | 'facebook_url' | 'instagram_url' | 'linkedin_url'
+>;
+
 // Image Request Type
 export interface ImageReq {
   url: string;
   alt_text?: string;
   is_primary?: boolean;
   sort_order?: number;
+  source?: 'media' | 'admin_external' | 'archive';
 }
 
 // Request Types
@@ -649,6 +719,9 @@ export interface Article {
   slug: string;
   summary: string;
   content: string;
+  content_type: 'news' | 'blog';
+  custom_path?: string;
+  public_path?: string;
   featured_image: string;
   image_urls: string[] | string;
   is_published: boolean;
@@ -684,10 +757,14 @@ export interface ArticleTranslation {
 export interface ArticleCreateRequest {
   title: string;
   slug?: string;
+  custom_path?: string;
   summary?: string;
   content: string;
+  content_type?: 'news' | 'blog';
   featured_image?: string;
+  featured_media_id?: number;
   image_urls?: string[];
+  gallery_media_ids?: number[];
   is_published: boolean;
   is_featured: boolean;
   meta_title?: string;
@@ -696,6 +773,22 @@ export interface ArticleCreateRequest {
   sort_order?: number;
   translations?: ArticleTranslationReq[];
 }
+
+export interface SitePage {
+  id: number;
+  page_key: string;
+  title: string;
+  summary: string;
+  content: string;
+  meta_title: string;
+  meta_description: string;
+  meta_keywords: string;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SitePageRequest = Pick<SitePage, 'title' | 'summary' | 'content' | 'meta_title' | 'meta_description' | 'meta_keywords' | 'is_published'>;
 
 export interface ArticleTranslationReq {
   language_code: string;

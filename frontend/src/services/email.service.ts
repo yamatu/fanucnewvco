@@ -25,6 +25,10 @@ export interface EmailSettings {
 
   resend_api_key?: string;
   resend_webhook_secret?: string;
+  alimail_endpoint?: string;
+  alimail_client_id?: string;
+  alimail_client_secret?: string;
+  alimail_account_email?: string;
   verification_enabled: boolean;
   marketing_enabled: boolean;
   shipping_notifications_enabled?: boolean;
@@ -39,6 +43,25 @@ export interface EmailSettings {
   code_resend_seconds: number;
   has_smtp_password?: boolean;
   has_resend_api_key?: boolean;
+  has_alimail_client_secret?: boolean;
+}
+
+export interface MailboxFolder {
+  id: string;
+  key: string;
+  name: string;
+  label: string;
+}
+
+export interface MailboxConfig {
+  enabled: boolean;
+  provider: string;
+  account_email: string;
+  from_email: string;
+  from_name: string;
+  reply_to: string;
+  folders: MailboxFolder[];
+  can_read: boolean;
 }
 
 export class EmailService {
@@ -84,6 +107,39 @@ export class EmailService {
   static async send(payload: { to: string; subject: string; html?: string; text?: string }): Promise<void> {
     const res = await apiClient.post<APIResponse<void>>('/admin/email/send', payload);
     if (!res.data.success) throw new Error(res.data.message || res.data.error || 'Failed to send');
+  }
+
+  static async mailboxConfig(): Promise<MailboxConfig> {
+    const res = await apiClient.get<APIResponse<MailboxConfig>>('/admin/email/mailbox/config');
+    if (res.data.success && res.data.data) return res.data.data;
+    throw new Error(res.data.message || res.data.error || 'Failed to load mailbox config');
+  }
+
+  static async mailboxMessages(folderId: string, params?: { cursor?: string; size?: number }): Promise<any> {
+    const res = await apiClient.get<APIResponse<any>>(`/admin/email/mailbox/folders/${encodeURIComponent(folderId)}/messages`, { params });
+    if (res.data.success) return res.data.data || {};
+    throw new Error(res.data.message || res.data.error || 'Failed to load messages');
+  }
+
+  static async mailboxMessage(messageId: string): Promise<any> {
+    const res = await apiClient.get<APIResponse<any>>(`/admin/email/mailbox/messages/${encodeURIComponent(messageId)}`);
+    if (res.data.success) return res.data.data || {};
+    throw new Error(res.data.message || res.data.error || 'Failed to load message');
+  }
+
+  static async mailboxAttachments(messageId: string): Promise<any> {
+    const res = await apiClient.get<APIResponse<any>>(`/admin/email/mailbox/messages/${encodeURIComponent(messageId)}/attachments`);
+    if (res.data.success) return res.data.data || {};
+    throw new Error(res.data.message || res.data.error || 'Failed to load attachments');
+  }
+
+  static async downloadAttachment(messageId: string, attachmentId: string): Promise<{ blob: Blob; filename: string }> {
+    const res = await apiClient.get(`/admin/email/mailbox/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}/download`, {
+      responseType: 'blob',
+    });
+    const disposition = String(res.headers?.['content-disposition'] || '');
+    const match = disposition.match(/filename="?([^"]+)"?/i);
+    return { blob: res.data, filename: match?.[1] || 'attachment' };
   }
 
   static async resendWebhooksList(): Promise<any> {

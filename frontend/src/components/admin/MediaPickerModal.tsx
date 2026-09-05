@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { XMarkIcon, MagnifyingGlassIcon, PhotoIcon, ArrowUpTrayIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, MagnifyingGlassIcon, PhotoIcon, ArrowUpTrayIcon, TrashIcon, EyeIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from '@heroicons/react/24/outline';
 import { MediaService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import type { MediaAsset } from '@/services/media.service';
@@ -31,6 +31,7 @@ export default function MediaPickerModal({ open, onClose, onSelect, multiple = f
   const [page, setPage] = useState(1);
   const pageSize = 24;
   const [selected, setSelected] = useState<MediaAsset[]>([]);
+  const [previewAsset, setPreviewAsset] = useState<MediaAsset | null>(null);
 
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadFolder, setUploadFolder] = useState('');
@@ -45,8 +46,9 @@ export default function MediaPickerModal({ open, onClose, onSelect, multiple = f
     setFolder(initialFolder);
     setPage(1);
     setSelected([]);
+    setPreviewAsset(null);
     setUploadFiles([]);
-    setUploadFolder('');
+    setUploadFolder(initialFolder);
     setUploadTags('');
     setIsDragging(false);
   }, [open, initialFolder, initialQuery]);
@@ -85,6 +87,25 @@ export default function MediaPickerModal({ open, onClose, onSelect, multiple = f
     }
     setUploadFiles((prev) => [...prev, ...onlyImages]);
   };
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePaste = (event: ClipboardEvent) => {
+      const files = Array.from(event.clipboardData?.files || []);
+      if (!files.length) return;
+      event.preventDefault();
+      const onlyImages = files.filter(
+        (file) => file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|avif|bmp|tiff?|heic|heif)$/i.test(file.name)
+      );
+      if (!onlyImages.length) {
+        toast.error(t('media.picker.onlyImages', 'Please select image files'));
+        return;
+      }
+      setUploadFiles((prev) => [...prev, ...onlyImages]);
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [open, t]);
 
   const uploadMutation = useMutation({
     mutationFn: () =>
@@ -291,24 +312,27 @@ export default function MediaPickerModal({ open, onClose, onSelect, multiple = f
                 {items.map((asset) => {
                   const sel = isSelected(asset.id);
                   return (
-                    <button
-                      type="button"
+                    <div
                       key={asset.id}
-                      onClick={() => toggle(asset)}
-                      className={`text-left border rounded-lg overflow-hidden bg-white hover:border-gray-300 ${
+                      className={`relative text-left border rounded-lg overflow-hidden bg-white hover:border-gray-300 ${
                         sel ? 'ring-2 ring-blue-500 border-blue-300' : 'border-gray-200'
                       }`}
                       title={asset.original_name}
                     >
-                      <div className="aspect-square bg-gray-50">
+                      <button type="button" onClick={() => toggle(asset)} className="block w-full text-left">
+                      <div className="aspect-square bg-gray-50 p-1">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={asset.url} alt={asset.alt_text || asset.original_name} className="h-full w-full object-cover" loading="lazy" />
+                        <img src={asset.thumbnail_url || asset.url} alt={asset.alt_text || asset.original_name} className="h-full w-full object-contain" loading="lazy" decoding="async" />
                       </div>
                       <div className="p-2">
                         <div className="text-xs font-medium text-gray-900 truncate">{asset.original_name}</div>
                         <div className="text-[11px] text-gray-500 truncate">{asset.folder ? `/${asset.folder}` : '—'}</div>
                       </div>
-                    </button>
+                      </button>
+                      <button type="button" onClick={() => setPreviewAsset(asset)} className="absolute right-1 top-1 rounded bg-white/90 p-1 text-gray-700 shadow" title={t('media.preview', 'Preview')}>
+                        <EyeIcon className="h-4 w-4" />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -319,26 +343,65 @@ export default function MediaPickerModal({ open, onClose, onSelect, multiple = f
             <div className="text-sm text-gray-600">
               {t('media.picker.total', 'Total: {total}', { total })}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+                className="rounded-md border border-gray-200 p-2 text-gray-700 disabled:opacity-50 hover:bg-gray-50"
+                title={t('media.picker.first', 'First page')}
+                aria-label={t('media.picker.first', 'First page')}
+              >
+                <ChevronDoubleLeftIcon className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
               >
                 {t('media.picker.prev', 'Prev')}
               </button>
-              <div className="text-sm text-gray-700">
-                {t('common.page', 'Page {page} / {pages}', { page, pages: totalPages })}
-              </div>
+              <label className="flex items-center gap-1 text-sm text-gray-700">
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={page}
+                  onChange={(event) => setPage(Math.min(totalPages, Math.max(1, Number(event.target.value) || 1)))}
+                  className="w-16 rounded-md border border-gray-200 px-2 py-2 text-center text-sm"
+                  aria-label={t('media.picker.jump', 'Jump to page')}
+                />
+                <span>/ {totalPages}</span>
+              </label>
               <button
+                type="button"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 className="px-3 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-50 hover:bg-gray-50"
               >
                 {t('media.picker.next', 'Next')}
               </button>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+                className="rounded-md border border-gray-200 p-2 text-gray-700 disabled:opacity-50 hover:bg-gray-50"
+                title={t('media.picker.last', 'Last page')}
+                aria-label={t('media.picker.last', 'Last page')}
+              >
+                <ChevronDoubleRightIcon className="h-4 w-4" />
+              </button>
             </div>
           </div>
+
+          {previewAsset ? (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4" onClick={() => setPreviewAsset(null)}>
+              <button type="button" onClick={() => setPreviewAsset(null)} className="absolute right-5 top-5 rounded-full bg-white/90 p-2 text-gray-800"><XMarkIcon className="h-6 w-6" /></button>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={previewAsset.url} alt={previewAsset.alt_text || previewAsset.original_name} className="max-h-[90vh] max-w-[94vw] object-contain" onClick={(event) => event.stopPropagation()} />
+            </div>
+          ) : null}
 
           <div className="mt-6 flex justify-end gap-2">
             <button onClick={onClose} className="px-4 py-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50">

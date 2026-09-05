@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"golang.org/x/image/draw"
 )
 
 // Image optimization goals:
@@ -19,7 +21,7 @@ import (
 // - Preserve GIF as-is (animated gifs)
 //
 // Defaults can be overridden via env:
-// - MEDIA_MAX_DIM: max width/height (default 1600)
+// - MEDIA_MAX_DIM: max width/height (default 1440)
 // - MEDIA_JPEG_QUALITY: 1..100 (default 82)
 // - MEDIA_PNG_COMPRESSION: 0..3 (default 2) (0=best speed, 3=best compression)
 
@@ -71,21 +73,10 @@ func resizeNearest(img image.Image, maxDim int) image.Image {
 		dh = 1
 	}
 
-	// Use RGBA output.
+	// ApproxBiLinear is considerably faster than per-pixel Set calls while
+	// preserving product-label detail better than nearest-neighbour scaling.
 	dst := image.NewRGBA(image.Rect(0, 0, dw, dh))
-	for y := 0; y < dh; y++ {
-		sy := int(float64(y) / float64(dh) * float64(sh))
-		if sy >= sh {
-			sy = sh - 1
-		}
-		for x := 0; x < dw; x++ {
-			sx := int(float64(x) / float64(dw) * float64(sw))
-			if sx >= sw {
-				sx = sw - 1
-			}
-			dst.Set(x, y, img.At(b.Min.X+sx, b.Min.Y+sy))
-		}
-	}
+	draw.ApproxBiLinear.Scale(dst, dst.Bounds(), img, b, draw.Over, nil)
 	return dst
 }
 
@@ -117,7 +108,7 @@ func OptimizeImage(r io.Reader, extHint string) ([]byte, string, error) {
 	}
 	_ = format
 
-	maxDim := envInt("MEDIA_MAX_DIM", 1600)
+	maxDim := envInt("MEDIA_MAX_DIM", 1440)
 	maxDim = clampInt(maxDim, 300, 6000)
 	img = resizeNearest(img, maxDim)
 

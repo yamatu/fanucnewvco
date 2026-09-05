@@ -27,7 +27,8 @@ import {
   ChartBarIcon,
   NewspaperIcon,
   ClipboardDocumentListIcon,
-  ShareIcon
+  ShareIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth, useLogout } from '@/hooks/useAuth';
@@ -59,6 +60,8 @@ const navigation = [
   { key: 'nav.indexnow', name: 'IndexNow / Bing', href: '/admin/indexnow', icon: BellIcon },
   { key: 'nav.analytics', name: 'Visitor Analytics', href: '/admin/analytics', icon: ChartBarIcon },
   { key: 'nav.homepage', name: 'Homepage Content', href: '/admin/homepage', icon: DocumentTextIcon },
+  { key: 'nav.aiAssistant', name: 'AI Assistant', href: '/admin/ai-assistant', icon: SparklesIcon },
+  { key: 'nav.aiSeo', name: 'AI SEO', href: '/admin/ai-seo', icon: SparklesIcon },
   { key: 'nav.news', name: 'News & Articles', href: '/admin/news', icon: NewspaperIcon },
 ];
 

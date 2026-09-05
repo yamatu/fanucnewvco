@@ -85,8 +85,24 @@ func validateProductCategory(db *gorm.DB, categoryID uint) *ProductUpsertError {
 }
 
 func CreateProductFromRequest(db *gorm.DB, req models.ProductCreateRequest) (*ProductUpsertResult, *ProductUpsertError) {
-	if err := validateProductCategory(db, req.CategoryID); err != nil {
-		return nil, err
+	return createProductFromRequest(db, req, false)
+}
+
+// CreateUncategorizedProductDraftFromRequest is reserved for trusted import
+// workflows. It stores category_id=0 as an AI-classification placeholder and
+// always keeps the product unpublished.
+func CreateUncategorizedProductDraftFromRequest(db *gorm.DB, req models.ProductCreateRequest) (*ProductUpsertResult, *ProductUpsertError) {
+	req.CategoryID = 0
+	req.IsActive = false
+	req.IsFeatured = false
+	return createProductFromRequest(db, req, true)
+}
+
+func createProductFromRequest(db *gorm.DB, req models.ProductCreateRequest, allowUncategorized bool) (*ProductUpsertResult, *ProductUpsertError) {
+	if !allowUncategorized || req.CategoryID != 0 {
+		if err := validateProductCategory(db, req.CategoryID); err != nil {
+			return nil, err
+		}
 	}
 
 	var existingProduct models.Product
@@ -143,6 +159,10 @@ func CreateProductFromRequest(db *gorm.DB, req models.ProductCreateRequest) (*Pr
 		tx.Rollback()
 		return nil, &ProductUpsertError{Code: "db_error", Message: "Failed to create product", Err: err}
 	}
+	if err := SyncExplicitProductImageTrust(tx, product.ID, req.Images, 0); err != nil {
+		tx.Rollback()
+		return nil, &ProductUpsertError{Code: "db_error", Message: "Failed to record trusted product images", Err: err}
+	}
 
 	for _, attr := range req.Attributes {
 		attribute := models.ProductAttribute{
@@ -158,6 +178,9 @@ func CreateProductFromRequest(db *gorm.DB, req models.ProductCreateRequest) (*Pr
 	}
 
 	for _, trans := range req.Translations {
+		if !isCompleteProductTranslationRequest(trans) {
+			continue
+		}
 		translation := models.ProductTranslation{
 			ProductID:        product.ID,
 			LanguageCode:     trans.LanguageCode,
@@ -267,6 +290,10 @@ func UpdateProductFromRequest(db *gorm.DB, productID uint, req models.ProductCre
 		tx.Rollback()
 		return nil, &ProductUpsertError{Code: "db_error", Message: "Failed to update product", Err: err}
 	}
+	if err := SyncExplicitProductImageTrust(tx, product.ID, req.Images, 0); err != nil {
+		tx.Rollback()
+		return nil, &ProductUpsertError{Code: "db_error", Message: "Failed to record trusted product images", Err: err}
+	}
 
 	if err := tx.Where("product_id = ?", product.ID).Delete(&models.ProductAttribute{}).Error; err != nil {
 		tx.Rollback()
@@ -290,6 +317,9 @@ func UpdateProductFromRequest(db *gorm.DB, productID uint, req models.ProductCre
 		return nil, &ProductUpsertError{Code: "db_error", Message: "Failed to clear product translations", Err: err}
 	}
 	for _, trans := range req.Translations {
+		if !isCompleteProductTranslationRequest(trans) {
+			continue
+		}
 		translation := models.ProductTranslation{
 			ProductID:        product.ID,
 			LanguageCode:     trans.LanguageCode,
@@ -321,4 +351,10 @@ func UpdateProductFromRequest(db *gorm.DB, productID uint, req models.ProductCre
 		OldPath: oldPath,
 		NewPath: BuildProductPublicPath(product.SKU),
 	}, nil
+}
+
+func isCompleteProductTranslationRequest(trans models.ProductTranslationReq) bool {
+	return normalizePublicLocaleCode(trans.LanguageCode) != "" &&
+		strings.TrimSpace(trans.Name) != "" &&
+		(strings.TrimSpace(trans.Description) != "" || strings.TrimSpace(trans.ShortDescription) != "")
 }

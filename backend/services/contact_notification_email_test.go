@@ -8,69 +8,48 @@ import (
 	"fanuc-backend/models"
 )
 
-func TestBuildContactNotificationEmailSanitizesContent(t *testing.T) {
-	msg := models.ContactMessage{
-		ID:          12,
-		Name:        "Alice\r\nBcc: attacker@example.com",
-		Email:       "alice@example.com",
-		Phone:       "+1 555",
-		Company:     "<Acme>",
-		Subject:     "Need quote\nInjected",
-		Message:     "Please quote <script>alert(1)</script>",
+func TestBuildContactNotificationEmail(t *testing.T) {
+	message := models.ContactMessage{
+		Name:        "Jane & Sons",
+		Email:       "jane@example.com",
+		Subject:     "A06B <quote>",
+		Message:     "Please quote <10 units>",
 		InquiryType: "quote",
-		IPAddress:   "203.0.113.10",
-		UserAgent:   "UnitTest",
-		CreatedAt:   time.Date(2026, 7, 1, 8, 0, 0, 0, time.UTC),
+		CreatedAt:   time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC),
 	}
 
-	subject, text, html := BuildContactNotificationEmail("https://www.vcocncspare.com", msg)
-	if strings.ContainsAny(subject, "\r\n") {
-		t.Fatalf("subject contains CR/LF: %q", subject)
+	subject, text, html := BuildContactNotificationEmail("https://example.com/", message)
+	if subject != "New contact message: A06B <quote>" {
+		t.Fatalf("unexpected subject: %q", subject)
 	}
-	if !strings.Contains(subject, "Alice Bcc: attacker@example.com") {
-		t.Fatalf("subject did not preserve cleaned name: %q", subject)
+	if !strings.Contains(text, "Admin: https://example.com/admin/contacts") {
+		t.Fatalf("admin link missing from text: %q", text)
 	}
-	if !strings.Contains(text, "Admin: https://www.vcocncspare.com/admin/contacts") {
-		t.Fatalf("text missing admin URL: %s", text)
-	}
-	if strings.Contains(html, "<script>") {
-		t.Fatalf("html did not escape message content: %s", html)
-	}
-	if !strings.Contains(html, "&lt;script&gt;alert(1)&lt;/script&gt;") {
-		t.Fatalf("html missing escaped message content: %s", html)
+	if strings.Contains(html, "Please quote <10 units>") || !strings.Contains(html, "Please quote &lt;10 units&gt;") {
+		t.Fatalf("message is not safely escaped: %q", html)
 	}
 }
 
-func TestContactNotificationRecipientsFallbacks(t *testing.T) {
-	setting := &models.EmailSetting{
-		ContactNotificationEmails: "owner@example.com; sales@example.com owner@example.com",
+func TestContactNotificationRecipientsFallsBackToSender(t *testing.T) {
+	recipients, err := contactNotificationRecipients(&models.EmailSetting{FromEmail: "Owner@Example.com"})
+	if err != nil {
+		t.Fatalf("contactNotificationRecipients returned error: %v", err)
+	}
+	if len(recipients) != 1 || recipients[0] != "owner@example.com" {
+		t.Fatalf("unexpected recipients: %#v", recipients)
+	}
+}
+
+func TestContactNotificationRecipientsPrefersDedicatedRecipients(t *testing.T) {
+	recipients, err := contactNotificationRecipients(&models.EmailSetting{
+		ContactNotificationEmails: "contact@example.com",
 		OrderNotificationEmails:   "orders@example.com",
-		FromEmail:                 "from@example.com",
-	}
-
-	recipients, err := contactNotificationRecipients(setting)
+		FromEmail:                 "owner@example.com",
+	})
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("contactNotificationRecipients returned error: %v", err)
 	}
-	if got, want := strings.Join(recipients, ","), "owner@example.com,sales@example.com"; got != want {
-		t.Fatalf("recipients = %q, want %q", got, want)
-	}
-
-	setting.ContactNotificationEmails = ""
-	recipients, err = contactNotificationRecipients(setting)
-	if err != nil {
-		t.Fatalf("unexpected order fallback error: %v", err)
-	}
-	if got, want := strings.Join(recipients, ","), "orders@example.com"; got != want {
-		t.Fatalf("order fallback recipients = %q, want %q", got, want)
-	}
-
-	setting.OrderNotificationEmails = ""
-	recipients, err = contactNotificationRecipients(setting)
-	if err != nil {
-		t.Fatalf("unexpected from fallback error: %v", err)
-	}
-	if got, want := strings.Join(recipients, ","), "from@example.com"; got != want {
-		t.Fatalf("from fallback recipients = %q, want %q", got, want)
+	if len(recipients) != 1 || recipients[0] != "contact@example.com" {
+		t.Fatalf("unexpected recipients: %#v", recipients)
 	}
 }

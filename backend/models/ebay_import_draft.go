@@ -93,6 +93,19 @@ type EbayImportDraftBulkDeleteRequest struct {
 	IDs []uint `json:"ids" binding:"required,min=1"`
 }
 
+type EbayImportDraftSelectionRequest struct {
+	Search       string `json:"search"`
+	Status       string `json:"status"`
+	MatchStatus  string `json:"match_status"`
+	Brand        string `json:"brand"`
+	EligibleOnly bool   `json:"eligible_only"`
+}
+
+type EbayImportDraftSelectionResponse struct {
+	IDs   []uint `json:"ids"`
+	Total int64  `json:"total"`
+}
+
 type EbayImportDraftBulkRecheckRequest struct {
 	IDs []uint `json:"ids" binding:"required,min=1"`
 }

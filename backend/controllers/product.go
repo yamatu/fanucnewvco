@@ -61,6 +61,8 @@ func withProductPreloads(db *gorm.DB) *gorm.DB {
 // lighter preloads for public product endpoints (reduce extra queries)
 func withPublicProductPreloads(db *gorm.DB) *gorm.DB {
 	q := db.Preload("Category").
+		Preload("Category.Translations").
+		Preload("Translations").
 		Preload("PurchaseLinks", "is_active = ?", true).
 		Preload("Reviews", "is_approved = ?", true)
 	if hasProductFAQsTable() {
@@ -203,6 +205,7 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 	search := c.Query("search")
 	isActive := c.Query("is_active")
 	isFeatured := c.Query("is_featured")
+	aiSEOStatus := strings.TrimSpace(c.Query("ai_seo_status"))
 	sortBy := strings.TrimSpace(strings.ToLower(c.Query("sort_by")))
 	sortDir := strings.TrimSpace(strings.ToLower(c.Query("sort_dir")))
 	if sortDir != "asc" {
@@ -213,7 +216,10 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 	isPublic := strings.Contains(c.FullPath(), "/public/")
 	var query *gorm.DB
 	if isPublic {
-		query = db.Model(&models.Product{}).Preload("Category")
+		query = db.Model(&models.Product{}).
+			Preload("Category").
+			Preload("Category.Translations").
+			Preload("Translations")
 		if hasImagesTable() {
 			query = query.Preload("Images")
 		}
@@ -256,6 +262,13 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 
 	if isFeatured != "" {
 		query = query.Where("is_featured = ?", isFeatured == "true")
+	}
+
+	switch aiSEOStatus {
+	case "optimized", "failed", "running":
+		query = query.Where("ai_seo_status = ?", aiSEOStatus)
+	case "not_optimized":
+		query = query.Where("ai_seo_status IS NULL OR ai_seo_status = ''")
 	}
 
 	orderColumn := "id"
@@ -522,20 +535,29 @@ func (pc *ProductController) AutoImportSEO(c *gin.Context) {
 			product.Description = product.Description + "\n\n" + extracted.DescriptionHTML
 		}
 	}
-	// Auto category
-	if autoCategory && strings.TrimSpace(extracted.CategoryGuess) != "" {
-		db := config.GetDB()
-		catName := strings.TrimSpace(extracted.CategoryGuess)
-		slug := utils.GenerateSlug(catName)
-		var cat models.Category
-		if err := db.Where("slug = ?", slug).First(&cat).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				cat = models.Category{Name: catName, Slug: slug, Description: catName, IsActive: true}
-				_ = db.Create(&cat).Error
-			}
+	// Auto category is read-only and database-authoritative. A web source may
+	// suggest a label, but it cannot create a taxonomy node or publish an
+	// unverified product.
+	if autoCategory {
+		model := services.NormalizeProductModel(product.Model)
+		if model == "" {
+			model = services.NormalizeProductModel(product.PartNumber)
 		}
-		if cat.ID != 0 {
-			product.CategoryID = cat.ID
+		if model == "" {
+			model = services.NormalizeProductModel(product.SKU)
+		}
+		classification, _, _ := services.ResolveProductCategoryWithWebEvidence(c.Request.Context(), product.Brand, model)
+		if services.NormalizeBrandKey(product.Brand) == "" && classification.BrandKey != "" {
+			product.Brand = services.CanonicalBrandName(classification.BrandKey)
+		}
+		categoryID, categoryErr := services.ResolveExistingCategoryForInference(db, classification, extracted.CategoryGuess)
+		if categoryErr != nil {
+			product.IsActive = false
+			suggestion["classification_status"] = "unresolved"
+			suggestion["classification_message"] = categoryErr.Error()
+		} else {
+			product.CategoryID = categoryID
+			suggestion["classification_status"] = "verified_existing_category"
 		}
 	}
 	if err := db.Save(&product).Error; err != nil {
@@ -1024,7 +1046,8 @@ func (pc *ProductController) DeleteProduct(c *gin.Context) {
 	}
 
 	// Delete related records first to avoid foreign key constraints
-	// Note: Images are now stored in JSON field, so no separate image table to clean up
+	// Product images are primarily stored in the JSON field; legacy relations and
+	// explicit external-image trust are cleaned separately where applicable.
 
 	// Delete product attributes
 	if err := db.Where("product_id = ?", id).Delete(&models.ProductAttribute{}).Error; err != nil {
@@ -1053,6 +1076,11 @@ func (pc *ProductController) DeleteProduct(c *gin.Context) {
 			Message: "Failed to delete purchase links",
 			Error:   err.Error(),
 		})
+		return
+	}
+
+	if err := services.ClearExplicitProductImageTrust(db, product.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to delete product image trust records", Error: err.Error()})
 		return
 	}
 
@@ -1144,13 +1172,31 @@ func (pc *ProductController) AddImage(c *gin.Context) {
 		return
 	}
 
-	product.ImageURLs = string(imageURLsBytes)
-	if err := db.Save(&product).Error; err != nil {
+	tx := db.Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
+			Success: false,
+			Message: "Failed to start product image update",
+			Error:   tx.Error.Error(),
+		})
+		return
+	}
+	if err := tx.Model(&models.Product{}).Where("id = ?", product.ID).Update("image_urls", string(imageURLsBytes)).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to update product images",
 			Error:   err.Error(),
 		})
+		return
+	}
+	if err := services.MarkExplicitProductImageTrusted(tx, product.ID, req.URL, req.Source, c.GetUint("user_id")); err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to record product image source", Error: err.Error()})
+		return
+	}
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to commit product image update", Error: err.Error()})
 		return
 	}
 
@@ -1267,6 +1313,7 @@ func (pc *ProductController) DeleteImage(c *gin.Context) {
 	}
 
 	// Remove image at index
+	removedURL := currentURLs[index]
 	currentURLs = append(currentURLs[:index], currentURLs[index+1:]...)
 
 	// Update product
@@ -1280,13 +1327,27 @@ func (pc *ProductController) DeleteImage(c *gin.Context) {
 		return
 	}
 
-	product.ImageURLs = string(imageURLsBytes)
-	if err := db.Save(&product).Error; err != nil {
+	tx := db.Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to start product image update", Error: tx.Error.Error()})
+		return
+	}
+	if err := tx.Model(&models.Product{}).Where("id = ?", product.ID).Update("image_urls", string(imageURLsBytes)).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to update product",
 			Error:   err.Error(),
 		})
+		return
+	}
+	if err := services.RemoveExplicitProductImageTrust(tx, product.ID, removedURL); err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to update product image trust", Error: err.Error()})
+		return
+	}
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to commit product image update", Error: err.Error()})
 		return
 	}
 
@@ -1400,19 +1461,26 @@ func (pc *ProductController) BulkAutoImportSEO(c *gin.Context) {
 					product.Description += "\n\n" + extracted.DescriptionHTML
 				}
 			}
-			if req.AutoCategory && strings.TrimSpace(extracted.CategoryGuess) != "" {
-				catName := strings.TrimSpace(extracted.CategoryGuess)
-				slug := utils.GenerateSlug(catName)
-				var cat models.Category
-				if err := db.Where("slug = ?", slug).First(&cat).Error; err != nil {
-					if err == gorm.ErrRecordNotFound {
-						_ = db.Create(&models.Category{Name: catName, Slug: slug, Description: catName, IsActive: true}).Error
-						_ = db.Where("slug = ?", slug).First(&cat).Error
-					}
+			if req.AutoCategory {
+				model := services.NormalizeProductModel(product.Model)
+				if model == "" {
+					model = services.NormalizeProductModel(product.PartNumber)
 				}
-				if cat.ID != 0 {
-					product.CategoryID = cat.ID
+				if model == "" {
+					model = services.NormalizeProductModel(product.SKU)
 				}
+				classification, _, _ := services.ResolveProductCategoryWithWebEvidence(c.Request.Context(), product.Brand, model)
+				if services.NormalizeBrandKey(product.Brand) == "" && classification.BrandKey != "" {
+					product.Brand = services.CanonicalBrandName(classification.BrandKey)
+				}
+				categoryID, categoryErr := services.ResolveExistingCategoryForInference(db, classification, extracted.CategoryGuess)
+				if categoryErr != nil {
+					product.IsActive = false
+					_ = db.Save(&product).Error
+					results = append(results, map[string]interface{}{"product_id": t.ID, "sku": t.SKU, "status": "unresolved", "classification_message": categoryErr.Error(), "source_url": candidate})
+					continue
+				}
+				product.CategoryID = categoryID
 			}
 			_ = db.Save(&product).Error
 		}

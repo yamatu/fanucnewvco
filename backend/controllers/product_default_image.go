@@ -35,6 +35,26 @@ func defaultImageURLForSKU(sku string) string {
 	return "/api/v1/public/products/default-image?sku=" + url.QueryEscape(s)
 }
 
+func isDefaultImageURLForSKU(rawURL, sku string) bool {
+	value := strings.TrimSpace(rawURL)
+	if value == "" {
+		return false
+	}
+	base := defaultImageURLForSKU(sku)
+	if value == base || value == "/api/v1/public/products/default-image/"+url.PathEscape(strings.TrimSpace(sku)) {
+		return true
+	}
+	parsedValue := value
+	if strings.HasPrefix(parsedValue, "//") {
+		parsedValue = "https:" + parsedValue
+	}
+	parsed, err := url.Parse(parsedValue)
+	if err != nil || parsed.Path != "/api/v1/public/products/default-image" {
+		return false
+	}
+	return strings.TrimSpace(parsed.Query().Get("sku")) == strings.TrimSpace(sku)
+}
+
 func staticDefaultImageURLForSKU(db *gorm.DB, sku string) (string, error) {
 	s := strings.TrimSpace(sku)
 	if s == "" {
@@ -155,6 +175,7 @@ func (pc *ProductController) BulkApplyDefaultImage(c *gin.Context) {
 	}
 
 	db := config.GetDB()
+	imageVersion := currentWatermarkImageVersion(db)
 	selector := db.Model(&models.Product{}).Select("id", "sku", "image_urls")
 	if len(req.IDs) > 0 {
 		selector = selector.Where("id IN ?", req.IDs)
@@ -177,11 +198,14 @@ func (pc *ProductController) BulkApplyDefaultImage(c *gin.Context) {
 				skipped++
 				continue
 			}
-			defURL, err := staticDefaultImageURLForSKU(db, p.SKU)
-			if err != nil {
+			// Assign the SKU endpoint immediately. The JPEG is rendered and cached
+			// only when a customer or crawler first requests it, avoiding request
+			// timeouts for catalogues with tens of thousands of empty products.
+			defURL := defaultImageURLForSKUVersion(p.SKU, imageVersion)
+			if err := db.Model(&models.Product{}).Where("id = ?", p.ID).Update("image_urls", toImageURLsJSON([]string{defURL})).Error; err != nil {
 				return err
 			}
-			if err := db.Model(&models.Product{}).Where("id = ?", p.ID).Update("image_urls", toImageURLsJSON([]string{defURL})).Error; err != nil {
+			if err := services.ClearExplicitProductImageTrust(db, p.ID); err != nil {
 				return err
 			}
 			updated++
@@ -241,7 +265,7 @@ func (pc *ProductController) BulkRemoveDefaultImage(c *gin.Context) {
 			out := make([]string, 0, len(urls))
 			changed := false
 			for _, u := range urls {
-				if strings.TrimSpace(u) == defURL {
+				if strings.TrimSpace(u) == defURL || isDefaultImageURLForSKU(u, p.SKU) {
 					changed = true
 					removed++
 					continue
@@ -277,6 +301,70 @@ func (pc *ProductController) BulkRemoveDefaultImage(c *gin.Context) {
 
 	if updated > 0 {
 		services.InvalidatePublicCaches(c.Request.Context(), "product:bulk-default-image:remove", nil)
+	}
+
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: gin.H{"updated": updated, "removed": removed, "skipped": skipped}})
+}
+
+// Admin: PUT /api/v1/admin/products/bulk-images/clear
+// Clears product image URLs so imported broken paths are treated as empty images.
+func (pc *ProductController) BulkClearImages(c *gin.Context) {
+	var req bulkDefaultImageReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIResponse{Success: false, Message: "Invalid request", Error: err.Error()})
+		return
+	}
+	batchSize := req.BatchSize
+	if batchSize <= 0 {
+		batchSize = 500
+	}
+
+	db := config.GetDB()
+	selector := db.Model(&models.Product{}).Select("id", "sku", "image_urls")
+	if len(req.IDs) > 0 {
+		selector = selector.Where("id IN ?", req.IDs)
+	}
+	if len(req.SKUs) > 0 {
+		selector = selector.Or("sku IN ?", req.SKUs)
+	}
+	if len(req.IDs) == 0 && len(req.SKUs) == 0 {
+		selector = buildProductSelector(selector, req)
+	}
+
+	updated := int64(0)
+	skipped := int64(0)
+	removed := int64(0)
+
+	var batch []models.Product
+	if err := selector.FindInBatches(&batch, batchSize, func(txBatch *gorm.DB, _ int) error {
+		for _, p := range batch {
+			rawImageURLs := strings.TrimSpace(p.ImageURLs)
+			if rawImageURLs == "" || rawImageURLs == "[]" || strings.EqualFold(rawImageURLs, "null") {
+				skipped++
+				continue
+			}
+			urls := parseImageURLsJSON(rawImageURLs)
+			if err := db.Model(&models.Product{}).Where("id = ?", p.ID).Update("image_urls", "[]").Error; err != nil {
+				return err
+			}
+			if err := services.ClearExplicitProductImageTrust(db, p.ID); err != nil {
+				return err
+			}
+			updated++
+			removedCount := len(urls)
+			if removedCount == 0 {
+				removedCount = 1
+			}
+			removed += int64(removedCount)
+		}
+		return nil
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to clear product images", Error: err.Error()})
+		return
+	}
+
+	if updated > 0 {
+		services.InvalidatePublicCaches(c.Request.Context(), "product:bulk-images:clear", nil)
 	}
 
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: gin.H{"updated": updated, "removed": removed, "skipped": skipped}})

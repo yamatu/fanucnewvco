@@ -46,6 +46,7 @@ func SetupRoutes(r *gin.Engine) {
 	productOptimizationController := &controllers.ProductOptimizationController{}
 	indexNowController := &controllers.IndexNowController{}
 	ebayImportDraftController := &controllers.EbayImportDraftController{}
+	aiAgentController := &controllers.AIAgentController{}
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -137,6 +138,36 @@ func SetupRoutes(r *gin.Engine) {
 		admin := v1.Group("/admin")
 		admin.Use(middleware.AuthMiddleware())
 		{
+			aiAgent := admin.Group("/ai-agent")
+			aiAgent.Use(middleware.EditorOrAdmin())
+			{
+				aiAgent.GET("/status", aiAgentController.Status)
+				aiAgent.POST("/chat", aiAgentController.Chat)
+				aiAgent.POST("/article-draft", aiAgentController.GenerateArticleDraft)
+				aiAgent.POST("/prices/preview", aiAgentController.PreviewPrices)
+				aiAgent.POST("/apply", aiAgentController.Apply)
+				aiAgent.POST("/seo/jobs", aiAgentController.StartSelectedSEO)
+				aiAgent.POST("/seo/candidates", aiAgentController.StartCandidateSEO)
+				aiAgent.POST("/seo/category-jobs", middleware.AdminOnly(), aiAgentController.StartCategoryOptimizationJob)
+				aiAgent.POST("/seo/audit", aiAgentController.SEOAudit)
+				aiAgent.POST("/seo/auto-fix", aiAgentController.StartSEOAutoFix)
+				aiAgent.POST("/category-seo", middleware.AdminOnly(), aiAgentController.OptimizeCategorySEO)
+				aiAgent.GET("/seo/jobs", aiAgentController.ListSEOJobs)
+				aiAgent.GET("/seo/jobs/:id", aiAgentController.GetSEOJob)
+				aiAgent.GET("/seo/jobs/:id/items", aiAgentController.ListSEOJobItems)
+				aiAgent.POST("/seo/jobs/:id/pause", aiAgentController.PauseSEOJob)
+				aiAgent.POST("/seo/jobs/:id/resume", aiAgentController.ResumeSEOJob)
+				aiAgent.POST("/seo/jobs/:id/end", aiAgentController.EndPausedSEOJob)
+				aiAgent.GET("/seo/stats", aiAgentController.GetSEOStats)
+				aiAgent.GET("/settings", middleware.AdminOnly(), aiAgentController.GetSettings)
+				aiAgent.PUT("/settings", middleware.AdminOnly(), aiAgentController.UpdateSettings)
+				aiAgent.GET("/profiles", middleware.AdminOnly(), aiAgentController.ListProfiles)
+				aiAgent.POST("/profiles", middleware.AdminOnly(), aiAgentController.CreateProfile)
+				aiAgent.PUT("/profiles/:id", middleware.AdminOnly(), aiAgentController.UpdateProfile)
+				aiAgent.DELETE("/profiles/:id", middleware.AdminOnly(), aiAgentController.DeleteProfile)
+				aiAgent.POST("/profiles/:id/activate", middleware.AdminOnly(), aiAgentController.ActivateProfile)
+				aiAgent.POST("/test-connection", middleware.AdminOnly(), aiAgentController.TestProfileConnection)
+			}
 			// Dashboard statistics (admin and editor access)
 			dashboard := admin.Group("/dashboard")
 			dashboard.Use(middleware.EditorOrAdmin())
@@ -155,7 +186,10 @@ func SetupRoutes(r *gin.Engine) {
 				categories.GET("/:id", categoryController.GetCategory)
 				categories.POST("", categoryController.CreateCategory)
 				categories.PUT("/reorder", categoryController.ReorderCategories)
-				categories.PUT("/:id", categoryController.UpdateCategory)
+			categories.PUT("/:id", categoryController.UpdateCategory)
+			categories.GET("/:id/deletion-impact", categoryController.GetCategoryDeletionImpact)
+			categories.POST("/cleanup/preview", middleware.AdminOnly(), categoryController.PreviewCategoryCleanup)
+			categories.POST("/cleanup/apply", middleware.AdminOnly(), categoryController.ApplyCategoryCleanup)
 				categories.DELETE("/:id", middleware.AdminOnly(), categoryController.DeleteCategory)
 			}
 
@@ -171,9 +205,11 @@ func SetupRoutes(r *gin.Engine) {
 				// Bulk update is_active / is_featured
 				products.PUT("/bulk-update", productController.BulkUpdateProducts)
 				products.POST("/selection-ids", productController.GetBulkProductSelectionIDs)
-				products.PUT("/bulk-auto-categorize", productController.BulkAutoCategorizeProducts)
-				products.PUT("/bulk-categorize-optimize", productController.BulkCategorizeAndOptimizeProducts)
-				products.PUT("/bulk-disable-auto-seo", productController.BulkDisableAutoSEO)
+				products.POST("/import/csv", productController.ImportProductsQuoteCSV)
+				products.GET("/import/xlsx/tasks/:id", productController.GetProductImportTask)
+				products.POST("/standardize-titles", middleware.AdminOnly(), productOptimizationController.StandardizeProductTitles)
+				products.POST("/classification-audit", middleware.AdminOnly(), productOptimizationController.AuditProductClassifications)
+				products.POST("/auto-optimize-categories", middleware.AdminOnly(), productOptimizationController.AutoOptimizeProductCategories)
 				products.GET("/optimization-status", productOptimizationController.GetOptimizationStatus)
 				products.POST("/optimize", productOptimizationController.OptimizeProduct)
 				products.POST("/bulk-optimize", productOptimizationController.BulkOptimizeProducts)
@@ -203,6 +239,19 @@ func SetupRoutes(r *gin.Engine) {
 				ebayImportDrafts.POST("/upload", ebayImportDraftController.Upload)
 				ebayImportDrafts.GET("", ebayImportDraftController.List)
 				ebayImportDrafts.POST("/bulk-confirm", ebayImportDraftController.BulkConfirm)
+				ebayImportDrafts.POST("/json-import", ebayImportDraftController.StartJSONImport)
+				ebayImportDrafts.POST("/json-import/tasks", ebayImportDraftController.CreateJSONImportTask)
+				ebayImportDrafts.GET("/json-import/tasks/latest", ebayImportDraftController.GetLatestJSONImportTask)
+				ebayImportDrafts.GET("/json-import/tasks/:taskId", ebayImportDraftController.GetJSONImportTask)
+				ebayImportDrafts.PUT("/json-import/tasks/:taskId/chunk", ebayImportDraftController.UploadJSONImportChunk)
+				ebayImportDrafts.POST("/json-import/tasks/:taskId/complete", ebayImportDraftController.CompleteJSONImportTask)
+				ebayImportDrafts.POST("/json-import/tasks/:taskId/pause", ebayImportDraftController.PauseJSONImportTask)
+				ebayImportDrafts.POST("/json-import/tasks/:taskId/resume", ebayImportDraftController.ResumeJSONImportTask)
+				ebayImportDrafts.DELETE("/json-import/tasks/:taskId", ebayImportDraftController.CancelJSONImportTask)
+				ebayImportDrafts.GET("/bulk-confirm/tasks/latest", ebayImportDraftController.GetLatestBulkConfirmTask)
+				ebayImportDrafts.GET("/bulk-confirm/tasks/:taskId", ebayImportDraftController.GetBulkConfirmTask)
+				ebayImportDrafts.POST("/bulk-confirm/tasks/:taskId/pause", ebayImportDraftController.PauseBulkConfirmTask)
+				ebayImportDrafts.POST("/bulk-confirm/tasks/:taskId/resume", ebayImportDraftController.ResumeBulkConfirmTask)
 				ebayImportDrafts.POST("/bulk-recheck", ebayImportDraftController.BulkRecheck)
 				ebayImportDrafts.DELETE("/bulk", ebayImportDraftController.BulkDelete)
 				ebayImportDrafts.GET("/:id", ebayImportDraftController.Get)
@@ -281,12 +330,22 @@ func SetupRoutes(r *gin.Engine) {
 			{
 				media.GET("", mediaController.List)
 				media.POST("/upload", mediaController.Upload)
+				media.POST("/rotate", mediaController.Rotate)
 				media.PUT("/batch", mediaController.BatchUpdate)
 				media.DELETE("/batch", mediaController.BatchDelete)
 				media.PUT("/:id", mediaController.Update)
 				media.GET("/watermark/settings", watermarkController.GetSettings)
 				media.PUT("/watermark/settings", watermarkController.UpdateSettings)
 				media.POST("/watermark", watermarkController.GenerateFromMedia)
+				media.GET("/:id/products", mediaController.ProductsUsingMedia)
+				media.POST("/sku-archive/jobs", middleware.AdminOnly(), mediaController.StartSKUImageArchive)
+				media.GET("/sku-archive/jobs/latest", middleware.AdminOnly(), mediaController.GetLatestSKUImageArchiveJob)
+				media.GET("/sku-archive/jobs/:id", middleware.AdminOnly(), mediaController.GetSKUImageArchiveJob)
+				media.PUT("/sku-archive/jobs/:id/chunk", middleware.AdminOnly(), mediaController.UploadSKUImageArchiveChunk)
+				media.POST("/sku-archive/jobs/:id/complete", middleware.AdminOnly(), mediaController.CompleteSKUImageArchive)
+				media.POST("/sku-archive/jobs/:id/pause", middleware.AdminOnly(), mediaController.PauseSKUImageArchiveJob)
+				media.POST("/sku-archive/jobs/:id/resume", middleware.AdminOnly(), mediaController.ResumeSKUImageArchiveJob)
+				media.DELETE("/sku-archive/jobs/:id", middleware.AdminOnly(), mediaController.CancelSKUImageArchiveJob)
 			}
 
 			// Backup & restore (admin only)
@@ -297,6 +356,16 @@ func SetupRoutes(r *gin.Engine) {
 				backup.POST("/db/restore", backupController.RestoreDBBackup)
 				backup.GET("/media", backupController.DownloadMediaBackup)
 				backup.POST("/media/restore", backupController.RestoreMediaBackup)
+				backup.GET("/products/export", backupController.DownloadProductCatalog)
+				backup.POST("/products/import/jobs", backupController.CreateProductCatalogImportJob)
+				backup.PUT("/products/import/jobs/:id/chunk", backupController.UploadProductCatalogChunk)
+				backup.POST("/products/import/jobs/:id/complete", backupController.CompleteProductCatalogImportUpload)
+				backup.GET("/products/import/jobs/:id", backupController.GetProductCatalogImportJob)
+				backup.GET("/products/import/jobs/:id/preview", backupController.GetProductCatalogImportPreview)
+				backup.POST("/products/import/jobs/:id/apply", backupController.ApplyProductCatalogImport)
+				backup.POST("/products/import/jobs/:id/pause", backupController.PauseProductCatalogImport)
+				backup.POST("/products/import/jobs/:id/resume", backupController.ResumeProductCatalogImport)
+				backup.DELETE("/products/import/jobs/:id", backupController.CancelProductCatalogImport)
 			}
 
 			// Cache & CDN (admin only)
@@ -427,6 +496,7 @@ func SetupRoutes(r *gin.Engine) {
 				contacts.GET("", contactHandler.GetContacts)
 				contacts.GET("/stats", contactHandler.GetContactStats)
 				contacts.GET("/:id", contactHandler.GetContact)
+				contacts.POST("/:id/notify", contactHandler.RetryContactNotification)
 				contacts.PUT("/:id", contactHandler.UpdateContactStatus)
 				contacts.DELETE("/:id", middleware.AdminOnly(), contactHandler.DeleteContact)
 			}
@@ -504,6 +574,7 @@ func SetupRoutes(r *gin.Engine) {
 	}
 
 	// Serve static files (uploaded images)
+	r.GET("/media-thumb/*path", mediaController.Thumbnail)
 	uploads := r.Group("/uploads")
 	uploads.Use(middleware.HotlinkProtectionMiddleware())
 	uploads.StaticFS("/", http.Dir("./uploads"))

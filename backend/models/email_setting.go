@@ -5,7 +5,7 @@ import "time"
 // EmailSetting stores outbound email configuration.
 // This is a single-row table (ID=1) managed from the admin panel.
 //
-// Provider currently supports "smtp" (works with Poste.io, AliMail, etc.).
+// Provider currently supports "smtp", "resend", and "alimail".
 // Secrets (smtp_password) are stored in DB; if SETTINGS_ENCRYPTION_KEY is set,
 // the backend will store them encrypted.
 type EmailSetting struct {
@@ -14,7 +14,7 @@ type EmailSetting struct {
 	Enabled  bool   `json:"enabled" gorm:"default:false"`
 	Provider string `json:"provider" gorm:"size:32;default:'smtp'"`
 
-	FromName  string `json:"from_name" gorm:"size:128;default:'Vcocnc'"`
+	FromName  string `json:"from_name" gorm:"size:128;default:'Vibocnc'"`
 	FromEmail string `json:"from_email" gorm:"size:255;default:''"`
 	ReplyTo   string `json:"reply_to" gorm:"size:255;default:''"`
 
@@ -31,6 +31,13 @@ type EmailSetting struct {
 	// Optional: used to verify inbound webhook signatures.
 	ResendWebhookSecret string `json:"resend_webhook_secret" gorm:"type:text"`
 
+	// AliMail API provider (Alibaba Mail API Open Platform)
+	AliMailEndpoint     string `json:"alimail_endpoint" gorm:"size:255;default:'https://alimail-cn.aliyuncs.com'"`
+	AliMailClientID     string `json:"alimail_client_id" gorm:"size:255;default:''"`
+	AliMailClientSecret string `json:"alimail_client_secret" gorm:"type:text"`
+	// Optional mailbox account used in /v2/users/{email}/messages. Defaults to FromEmail.
+	AliMailAccountEmail string `json:"alimail_account_email" gorm:"size:255;default:''"`
+
 	VerificationEnabled          bool `json:"verification_enabled" gorm:"default:false"`
 	MarketingEnabled             bool `json:"marketing_enabled" gorm:"default:false"`
 	ShippingNotificationsEnabled bool `json:"shipping_notifications_enabled" gorm:"default:true"`
@@ -44,8 +51,7 @@ type EmailSetting struct {
 	OrderNotificationEmails string `json:"order_notification_emails" gorm:"type:text"`
 
 	ContactNotificationsEnabled bool `json:"contact_notifications_enabled" gorm:"default:true"`
-	// Admin contact message notification recipients (comma/newline separated emails).
-	// Falls back to order_notification_emails, then from_email, when empty.
+	// Admin contact notification recipients (comma/newline separated emails). If blank, order recipients are reused.
 	ContactNotificationEmails string `json:"contact_notification_emails" gorm:"type:text"`
 
 	CodeExpiryMinutes int `json:"code_expiry_minutes" gorm:"default:10"`

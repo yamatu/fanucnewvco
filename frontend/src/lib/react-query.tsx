@@ -133,6 +133,12 @@ export const queryKeys = {
     adminContents: () => [...queryKeys.homepage.all(), 'admin', 'contents'] as const,
   },
 
+  socialMedia: {
+    all: () => ['social-media'] as const,
+    public: () => [...queryKeys.socialMedia.all(), 'public'] as const,
+    admin: () => [...queryKeys.socialMedia.all(), 'admin'] as const,
+  },
+
   // Settings
   // Dashboard
   dashboard: {
