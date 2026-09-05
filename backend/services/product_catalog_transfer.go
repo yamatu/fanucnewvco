@@ -939,6 +939,19 @@ func prepareCatalogCategories(db *gorm.DB, source []ProductCatalogCategory, opti
 	return resolved, nil
 }
 
+func ensureCatalogFallbackCategory(db *gorm.DB) (uint, error) {
+	const slug = "imported-products-review"
+	var category models.Category
+	err := db.Where("slug = ?", slug).First(&category).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		category = models.Category{Name: "Imported Products (Review)", Slug: slug, Description: "Products imported without a source category path; review and classify them.", IsActive: true}
+		if err := db.Create(&category).Error; err != nil { return 0, err }
+		return category.ID, nil
+	}
+	if err != nil { return 0, err }
+	return category.ID, nil
+}
+
 func restoreCatalogLocalFile(extractedPath, rawURL string, overwrite bool) (bool, error) {
 	rel, ok := localUploadRelative(rawURL)
 	if !ok {
@@ -1164,6 +1177,12 @@ func runProductCatalogImport(db *gorm.DB, id string) {
 	categoryIDs, err := prepareCatalogCategories(db, catalog.Categories, options)
 	if err != nil {
 		finishProductCatalogJob(db, id, token, "failed", err.Error())
+		return
+	}
+	if fallbackID, fallbackErr := ensureCatalogFallbackCategory(db); fallbackErr == nil {
+		categoryIDs[""] = fallbackID
+	} else {
+		finishProductCatalogJob(db, id, token, "failed", fallbackErr.Error())
 		return
 	}
 	if categoryRestored > 0 {
