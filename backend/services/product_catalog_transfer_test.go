@@ -57,3 +57,18 @@ func TestSafeCatalogArchiveNameRejectsTraversal(t *testing.T) {
 		t.Fatalf("safe archive name rejected: %q, %v", actual, ok)
 	}
 }
+
+func TestNormalizeJSONDocumentForLegacyEmptyValues(t *testing.T) {
+	if got := normalizeJSONDocument("", "{}"); got != "{}" {
+		t.Fatalf("empty JSON = %q", got)
+	}
+	if got := normalizeJSONDocument("null", "[]"); got != "[]" {
+		t.Fatalf("null JSON = %q", got)
+	}
+	if got := normalizeJSONDocument("not-json", "{}"); got != "{}" {
+		t.Fatalf("invalid JSON = %q", got)
+	}
+	if got := normalizeJSONDocument(`{"type":"servo"}`, "{}"); got != `{"type":"servo"}` {
+		t.Fatalf("valid JSON changed: %q", got)
+	}
+}

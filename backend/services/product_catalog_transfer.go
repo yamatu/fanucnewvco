@@ -178,6 +178,17 @@ type ProductCatalogPreview struct {
 	Warnings          []string               `json:"warnings"`
 }
 
+// normalizeJSONDocument keeps imports compatible with MySQL JSON columns.
+// Legacy exports commonly represented an empty JSON field as "" or null,
+// which MySQL rejects during UPDATE even though the product text is valid.
+func normalizeJSONDocument(value, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || value == "null" || !json.Valid([]byte(value)) {
+		return fallback
+	}
+	return value
+}
+
 func productCatalogRoot() (string, error) {
 	root := strings.TrimSpace(os.Getenv("UPLOAD_PATH"))
 	if root == "" {
@@ -852,11 +863,11 @@ func prepareCatalogCategories(db *gorm.DB, source []ProductCatalogCategory, opti
 					name = mapCatalogBrand(name, options.BrandMap)
 				}
 				updates := map[string]any{
-					"name": name,
+					"name":        name,
 					"description": replaceCatalogText(item.Description, options.TextReplacements),
-					"image_url": replaceCatalogText(item.ImageURL, options.TextReplacements),
-					"sort_order": item.SortOrder,
-					"is_active": item.IsActive,
+					"image_url":   replaceCatalogText(item.ImageURL, options.TextReplacements),
+					"sort_order":  item.SortOrder,
+					"is_active":   item.IsActive,
 				}
 				if err := db.Model(&models.Category{}).Where("id = ?", id).Updates(updates).Error; err != nil {
 					return nil, err
@@ -865,18 +876,26 @@ func prepareCatalogCategories(db *gorm.DB, source []ProductCatalogCategory, opti
 					row := models.CategoryTranslation{}
 					findErr := db.Where("category_id = ? AND language_code = ?", id, translation.LanguageCode).First(&row).Error
 					translationUpdates := map[string]any{
-						"name": replaceCatalogText(translation.Name, options.TextReplacements),
-						"slug": translation.Slug,
+						"name":        replaceCatalogText(translation.Name, options.TextReplacements),
+						"slug":        translation.Slug,
 						"description": replaceCatalogText(translation.Description, options.TextReplacements),
 					}
 					if errors.Is(findErr, gorm.ErrRecordNotFound) {
 						row = models.CategoryTranslation{CategoryID: id, LanguageCode: translation.LanguageCode}
 						for key, value := range translationUpdates {
-							if key == "name" { row.Name = value.(string) }
-							if key == "slug" { row.Slug = value.(string) }
-							if key == "description" { row.Description = value.(string) }
+							if key == "name" {
+								row.Name = value.(string)
+							}
+							if key == "slug" {
+								row.Slug = value.(string)
+							}
+							if key == "description" {
+								row.Description = value.(string)
+							}
 						}
-						if err := db.Create(&row).Error; err != nil { return nil, err }
+						if err := db.Create(&row).Error; err != nil {
+							return nil, err
+						}
 					} else if findErr != nil {
 						return nil, findErr
 					} else if err := db.Model(&row).Updates(translationUpdates).Error; err != nil {
@@ -1043,12 +1062,12 @@ func applyCatalogProduct(tx *gorm.DB, item ProductCatalogProduct, categoryID uin
 	product.MinimumOrderQuantity = item.MinimumOrderQuantity
 	product.PackagingInfo = item.PackagingInfo
 	product.Certifications = item.Certifications
-	product.TechnicalSpecs = item.TechnicalSpecs
+	product.TechnicalSpecs = normalizeJSONDocument(item.TechnicalSpecs, "{}")
 	product.CompatibilityInfo = item.CompatibilityInfo
 	product.InstallationGuide = item.InstallationGuide
 	product.MaintenanceTips = item.MaintenanceTips
-	product.RelatedProducts = item.RelatedProducts
-	product.VideoURLs = item.VideoURLs
+	product.RelatedProducts = normalizeJSONDocument(item.RelatedProducts, "[]")
+	product.VideoURLs = normalizeJSONDocument(item.VideoURLs, "[]")
 	product.DatasheetURL = item.DatasheetURL
 	product.ManualURL = item.ManualURL
 	product.PopularityScore = item.PopularityScore
