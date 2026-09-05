@@ -47,6 +47,8 @@ func SetupRoutes(r *gin.Engine) {
 	indexNowController := &controllers.IndexNowController{}
 	ebayImportDraftController := &controllers.EbayImportDraftController{}
 	aiAgentController := &controllers.AIAgentController{}
+	// Resume durable product catalog imports after a backend restart.
+	services.StartProductCatalogImportDaemon(db)
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
