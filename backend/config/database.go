@@ -100,7 +100,9 @@ func ConnectDatabase() {
 		// of settings and SEO job history. Repair those additive fields first so
 		// a benign error in the broader migration cannot leave a partial schema.
 		if err := migrateAIAgentProfileSchema(DB); err != nil {
-			log.Fatalf("Failed to migrate required AI profile schema: %v", err)
+			// AI profiles are an optional extension. A legacy database must still
+			// serve the catalog if this additive migration needs manual repair.
+			log.Printf("AI profile schema migration deferred: %v", err)
 		}
 
 		// Some hosted MySQLs have legacy constraints/index names that cause GORM to try dropping
@@ -195,15 +197,16 @@ func ConnectDatabase() {
 			// never gets created. To keep startup reliable, we proactively create missing tables first.
 			if !DB.Migrator().HasTable(m) {
 				if e := DB.Migrator().CreateTable(m); e != nil {
-					DB.Exec("SET FOREIGN_KEY_CHECKS=1;")
-					log.Fatalf("Failed to create table for %T: %v", m, e)
+					log.Printf("Schema table creation deferred for %T: %v", m, e)
+					continue
 				}
 			}
 
 			if e := DB.AutoMigrate(m); !ignoreDropErr(e) {
-				// Re-enable FK checks before exiting
-				DB.Exec("SET FOREIGN_KEY_CHECKS=1;")
-				log.Fatalf("Failed to migrate schema for %T: %v", m, e)
+				// Keep the legacy API online. The affected optional feature will
+				// report its own missing-table error until migration is repaired.
+				log.Printf("Schema migration deferred for %T: %v", m, e)
+				continue
 			}
 		}
 		DB.Exec("SET FOREIGN_KEY_CHECKS=1;")
