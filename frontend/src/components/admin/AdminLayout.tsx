@@ -268,7 +268,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
   }, [isNotificationOpen, closeNotificationPanel]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen overflow-hidden bg-gray-50 flex">
         {/* Mobile sidebar overlay */}
         {sidebarOpen && (
           <div 
