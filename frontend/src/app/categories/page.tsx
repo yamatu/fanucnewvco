@@ -3,7 +3,7 @@ import PublicLayout from '@/components/layout/PublicLayout';
 import CategoriesDirectory from '@/components/categories/CategoriesDirectory';
 
 export const revalidate = 300;
-export const metadata: Metadata = { title: 'Product Categories | Vcocnc', description: 'Browse FANUC and industrial automation parts by product category.', alternates: { canonical: '/categories' } };
+export const metadata: Metadata = { title: 'Product Categories | FANUC Automation Parts', description: 'Browse FANUC and industrial automation parts by product category.', alternates: { canonical: '/categories' } };
 type Category = { id: number; name: string; slug: string; path?: string; description?: string; image_url?: string; product_count?: number; children?: Category[] };
 
 async function getCategories(): Promise<Category[]> {
