@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Clarity from "@/components/analytics/Clarity";
 import { SocialLinksProvider } from "@/components/social/SocialLinksProvider";
 import DeferredToaster from "@/components/ui/DeferredToaster";
 import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
@@ -150,7 +149,6 @@ export default async function RootLayout({
       </head>
       <body className={`${inter.className} antialiased`}>
         <SocialLinksProvider initialConfig={socialLinks}>
-          <Clarity />
           {children}
           <DeferredToaster />
         </SocialLinksProvider>
