@@ -10,6 +10,7 @@ import {
   type SocialLinksPublicConfig,
 } from "@/lib/social-links";
 import { getSiteUrl } from "@/lib/url";
+import TrackingCode, { type PublicTrackingConfig } from "@/components/analytics/TrackingCode";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -26,6 +27,21 @@ async function getSocialLinksConfig(): Promise<SocialLinksPublicConfig | null> {
       success?: boolean;
       data?: SocialLinksPublicConfig;
     };
+    return payload.success && payload.data ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getTrackingConfig(): Promise<PublicTrackingConfig | null> {
+  try {
+    const backendUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '');
+    const response = await fetch(`${backendUrl}/api/v1/public/analytics/config`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json() as { success?: boolean; data?: PublicTrackingConfig };
     return payload.success && payload.data ? payload.data : null;
   } catch {
     return null;
@@ -98,6 +114,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const socialLinks = await getSocialLinksConfig();
+  const trackingConfig = await getTrackingConfig();
   const siteUrl = getSiteUrl();
   const normalizedSiteUrl = siteUrl.replace(/\/$/, '');
   const socialURLs = getConfiguredSocialURLs(socialLinks);
@@ -115,6 +132,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <head>
+        <TrackingCode config={trackingConfig} />
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png" />
         <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png" />

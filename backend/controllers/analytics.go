@@ -300,6 +300,27 @@ type updateAnalyticsSettingsRequest struct {
 	RetentionDays      *int  `json:"retention_days"`
 	AutoCleanupEnabled *bool `json:"auto_cleanup_enabled"`
 	TrackingEnabled    *bool `json:"tracking_enabled"`
+	TrackingCodeEnabled *bool   `json:"tracking_code_enabled"`
+	TrackingCode        *string `json:"tracking_code"`
+}
+
+// GetTrackingCode exposes only the explicitly enabled public tracking snippet.
+func (ac *AnalyticsController) GetTrackingCode(c *gin.Context) {
+	db := config.GetDB()
+	if db == nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database not initialized"})
+		return
+	}
+	s, err := services.GetOrCreateAnalyticsSetting(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to load tracking code", Error: err.Error()})
+		return
+	}
+	code := ""
+	if s.TrackingCodeEnabled {
+		code = strings.TrimSpace(s.TrackingCode)
+	}
+	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "OK", Data: gin.H{"enabled": code != "", "code": code}})
 }
 
 func (ac *AnalyticsController) UpdateSettings(c *gin.Context) {
@@ -330,6 +351,12 @@ func (ac *AnalyticsController) UpdateSettings(c *gin.Context) {
 	}
 	if req.TrackingEnabled != nil {
 		updates["tracking_enabled"] = *req.TrackingEnabled
+	}
+	if req.TrackingCodeEnabled != nil {
+		updates["tracking_code_enabled"] = *req.TrackingCodeEnabled
+	}
+	if req.TrackingCode != nil {
+		updates["tracking_code"] = strings.TrimSpace(*req.TrackingCode)
 	}
 
 	if len(updates) > 0 {

@@ -96,6 +96,7 @@ func SetupRoutes(r *gin.Engine) {
 
 			// Company Profile (public read access) - cached
 			public.GET("/company-profile", middleware.CachePublicGET(middleware.CacheTTLHomepage(), "cache:public:company_profile:"), companyProfileController.GetCompanyProfile)
+			public.GET("/analytics/config", analyticsController.GetTrackingCode)
 
 			// Contact form submission (public access)
 			public.POST("/contact", contactHandler.SubmitContact)
