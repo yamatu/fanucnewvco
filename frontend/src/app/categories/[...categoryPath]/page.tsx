@@ -7,6 +7,7 @@ import CategorySidebarTree from '@/components/categories/CategorySidebarTree';
 import ScrollRestorer from '@/components/common/ScrollRestorer';
 import { CategoryService } from '@/services';
 import { getSiteUrl } from '@/lib/url';
+import type { Category, CategoryNavigationNode } from '@/types';
 
 interface CategoryPathPageProps {
   params: Promise<{ categoryPath: string[] }>;
@@ -33,12 +34,34 @@ function getCategoryMetaDescription(categoryName: string, baseDescription?: stri
   };
 
   for (const [key, template] of Object.entries(templates)) {
-    if (name.includes(key)) return template;
+    if (name.includes(key)) return trimMetaText(template, 160);
   }
 
-  if (baseDescription && baseDescription.length > 50) return baseDescription;
+  if (baseDescription && baseDescription.length > 50) return trimMetaText(baseDescription, 160);
 
-  return `Browse ${categoryName} from Vcocnc. Quality FANUC CNC spare parts, tested with 12-month warranty. Fast worldwide shipping via DHL & FedEx.`;
+  return trimMetaText(`Browse ${categoryName} from Vcocnc. Quality FANUC CNC spare parts, tested with 12-month warranty. Fast worldwide shipping via DHL & FedEx.`, 160);
+}
+
+function trimMetaText(value: string, maxLength: number): string {
+  const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) return normalized;
+  const cut = normalized.slice(0, maxLength);
+  const boundary = cut.lastIndexOf(' ');
+  return (boundary >= 24 ? cut.slice(0, boundary) : cut).trim();
+}
+
+function toNavigationCategory(category: Category): CategoryNavigationNode {
+  return {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    path: category.path,
+    description: category.description,
+    image_url: category.image_url,
+    sort_order: category.sort_order,
+    product_count: category.product_count,
+    children: category.children?.map(toNavigationCategory),
+  };
 }
 
 export async function generateMetadata({ params }: CategoryPathPageProps): Promise<Metadata> {
@@ -50,11 +73,11 @@ export async function generateMetadata({ params }: CategoryPathPageProps): Promi
     const urlPath = category.path ? `/categories/${category.path}` : `/categories/${path}`;
     const metaDescription = getCategoryMetaDescription(category.name, category.description);
     return {
-      title: `${category.name} - FANUC CNC Parts | Buy Online | Vcocnc`,
-      description: metaDescription,
+      title: { absolute: trimMetaText(`${category.name} - FANUC CNC Parts | Buy Online | Vcocnc`, 58) },
+      description: trimMetaText(metaDescription, 160),
       openGraph: {
-        title: `${category.name} - FANUC CNC Parts | Vcocnc`,
-        description: metaDescription,
+        title: trimMetaText(`${category.name} - FANUC CNC Parts | Vcocnc`, 58),
+        description: trimMetaText(metaDescription, 160),
         type: 'website',
         url: `${baseUrl}${urlPath}`,
       },
@@ -172,7 +195,7 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
     permanentRedirect(`/categories/${resolved.category.path}`);
   }
 
-  const tree = await CategoryService.getCategories();
+  const tree = (await CategoryService.getCategories()).map(toNavigationCategory);
   const breadcrumbIds = (resolved.breadcrumb || [])
     .map((c: any) => Number(c.id))
     .filter((n: number) => Number.isFinite(n) && n > 0);

@@ -389,6 +389,20 @@ export interface Category {
   translations?: CategoryTranslation[];
 }
 
+// Fields needed by public category navigation. Keeping this payload small
+// avoids serializing database metadata into every category page response.
+export interface CategoryNavigationNode {
+  id: number;
+  name: string;
+  slug: string;
+  path?: string;
+  description?: string;
+  image_url?: string;
+  sort_order?: number;
+  product_count?: number;
+  children?: CategoryNavigationNode[];
+}
+
 export interface CategoryTranslation {
   id: number;
   category_id: number;

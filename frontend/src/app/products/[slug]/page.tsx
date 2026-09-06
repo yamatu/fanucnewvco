@@ -86,8 +86,15 @@ function toAbsoluteUrl(url: string | undefined, baseUrl: string): string {
   return `${baseUrl}${value.startsWith('/') ? value : `/${value}`}`;
 }
 
+function getProductImageFallback(product: Product, baseUrl: string): string {
+  const sku = normalizeWhitespace(product.sku);
+  if (!sku) return `${baseUrl}/images/default-product.svg`;
+  const safeSku = sku.replace(/[\\/]+/g, '-').replace(/\s+/g, '-');
+  return `${baseUrl}/api/v1/public/products/default-image/${encodeURIComponent(safeSku)}?sku=${encodeURIComponent(sku)}`;
+}
+
 function buildMetadataTitle(product: Product): string {
-  const explicit = trimMetaTitle(product.meta_title || '', 69);
+  const explicit = trimMetaTitle(product.meta_title || '', 58);
   if (explicit) return explicit;
 
   const brand = getProductBrand(product);
@@ -104,7 +111,7 @@ function buildMetadataTitle(product: Product): string {
   if (!title) {
     title = [product.sku, product.category?.name || 'industrial automation part'].filter(Boolean).join(' ');
   }
-  return trimMetaTitle(`${title} | Vcocnc`, 69);
+  return trimMetaTitle(title, 58);
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -142,7 +149,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       product.image_urls && product.image_urls.length > 0
         ? product.image_urls
         : (product.images || []);
-    const images = productImages.map((img) => ({
+    const imageSources = productImages.length > 0 ? productImages : [getProductImageFallback(product, baseUrl)];
+    const images = imageSources.map((img) => ({
       url: toAbsoluteUrl(typeof img === 'string' ? img : img?.url || '/images/default-product.svg', baseUrl),
       width: 800,
       height: 600,
@@ -169,7 +177,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const title = buildMetadataTitle(product);
 
     return {
-      title,
+      title: { absolute: title },
       description: metaDescription || enhancedDescription,
       keywords: metaKeywords || [product.name, product.sku, product.brand, product.category?.name].filter(Boolean).join(', '),
       category: product.category?.name || 'Industrial Automation',

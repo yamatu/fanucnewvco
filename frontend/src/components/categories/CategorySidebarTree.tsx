@@ -2,17 +2,17 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import type { Category } from '@/types';
+import type { CategoryNavigationNode } from '@/types';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 type Props = {
-  tree: Category[];
+  tree: CategoryNavigationNode[];
   activeCategoryId: number;
   defaultOpenIds?: number[];
   storageKey?: string;
 };
 
-function nodeHref(node: Category): string {
+function nodeHref(node: CategoryNavigationNode): string {
   return `/categories/${node.path || node.slug}`;
 }
 
@@ -83,7 +83,7 @@ export default function CategorySidebarTree({
     });
   };
 
-  const renderNode = (node: Category, depth: number) => {
+  const renderNode = (node: CategoryNavigationNode, depth: number) => {
     const hasChildren = Array.isArray(node.children) && node.children.length > 0;
     const isOpen = openIds.has(node.id);
     const isActive = node.id === activeCategoryId;

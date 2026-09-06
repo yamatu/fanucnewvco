@@ -59,6 +59,15 @@ function toAbsoluteUrl(url: string | undefined, baseUrl: string): string {
   return `${baseUrl}${value.startsWith('/') ? value : `/${value}`}`;
 }
 
+// Use the backend-generated SKU image when a product has no uploaded media.
+// The legacy /images/default-product.jpg file is not deployed and returns 404.
+function getProductImageFallback(product: Product, baseUrl: string): string {
+  const sku = normalizeText(product.sku);
+  if (!sku) return `${baseUrl}/images/default-product.svg`;
+  const safeSku = sku.replace(/[\\/]+/g, '-').replace(/\s+/g, '-');
+  return `${baseUrl}/api/v1/public/products/default-image/${encodeURIComponent(safeSku)}?sku=${encodeURIComponent(sku)}`;
+}
+
 function normalizeText(value?: string): string {
   return String(value || '').trim();
 }
@@ -98,9 +107,11 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
   const answerFirstSummary = buildAnswerFirstSummary(product, category);
 
   // Build image array
-  const imageUrls = (product.images?.map(img => typeof img === 'string' ? img : img.url) ||
+  const imageSources = product.images?.map(img => typeof img === 'string' ? img : img.url) ||
     product.image_urls ||
-    [`${baseUrl}/images/default-product.jpg`]).map((url) => toAbsoluteUrl(url, baseUrl));
+    [];
+  const imageUrls = (imageSources.length > 0 ? imageSources : [getProductImageFallback(product, baseUrl)])
+    .map((url) => toAbsoluteUrl(url, baseUrl));
 
   // Reviews & aggregate rating
   const approvedReviews = product.reviews?.filter(r => r.is_approved) || [];
@@ -124,6 +135,11 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     "value": String(attribute.attribute_value),
   })) || [];
   const additionalProperties = [...specProperties, ...attributeProperties];
+
+  // A zero-price quote-only record cannot satisfy Google's Product rich-result
+  // requirements. Keep its WebPage, breadcrumb and FAQ markup, but omit the
+  // invalid Product node until an offer or approved review exists.
+  const hasProductRichResultData = product.price > 0 || hasReviews;
 
   // Generate rich structured data for the product
   const structuredData: { [key: string]: JsonLdValue } = {
@@ -158,7 +174,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
       "@type": "Audience",
       "audienceType": "CNC maintenance buyers and industrial automation service teams"
     },
-    "offers": {
+    "offers": product.price > 0 ? {
       "@type": "Offer",
       "url": productUrl,
       "price": product.price,
@@ -170,44 +186,8 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
         "@type": "Organization",
         "name": "Vcocnc",
         "url": baseUrl
-      },
-      "eligibleQuantity": product.minimum_order_quantity ? {
-        "@type": "QuantitativeValue",
-        "minValue": product.minimum_order_quantity
-      } : undefined,
-      "priceValidUntil": new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      "itemCondition": mapConditionType(product.condition_type),
-      "hasMerchantReturnPolicy": {
-        "@type": "MerchantReturnPolicy",
-        "applicableCountry": "US",
-        "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
-        "merchantReturnDays": 30,
-        "returnMethod": "https://schema.org/ReturnByMail",
-        "returnFees": "https://schema.org/FreeReturn"
-      },
-      "shippingDetails": {
-        "@type": "OfferShippingDetails",
-        "shippingDestination": {
-          "@type": "DefinedRegion",
-          "name": "Worldwide"
-        },
-        "deliveryTime": {
-          "@type": "ShippingDeliveryTime",
-          "handlingTime": {
-            "@type": "QuantitativeValue",
-            "minValue": 1,
-            "maxValue": 3,
-            "unitCode": "d"
-          },
-          "transitTime": {
-            "@type": "QuantitativeValue",
-            "minValue": 3,
-            "maxValue": 10,
-            "unitCode": "d"
-          }
-        }
       }
-    }
+    } : undefined
   };
 
   // Add aggregate rating if reviews exist
@@ -365,9 +345,13 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
       "name": DEFAULT_SITE_NAME,
       "url": baseUrl,
     },
-    "about": {
-      "@id": productId,
-    },
+    "about": hasProductRichResultData
+      ? { "@id": productId }
+      : {
+          "@type": "Thing",
+          "name": product.name,
+          "identifier": product.sku,
+        },
     "speakable": {
       "@type": "SpeakableSpecification",
       "cssSelector": ["h1", ".product-summary", ".product-description", ".product-specs"]
@@ -376,13 +360,14 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
 
   return (
     <>
-      {/* Product Structured Data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData)
-        }}
-      />
+      {hasProductRichResultData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData)
+          }}
+        />
+      )}
 
       {/* Breadcrumb Structured Data */}
       <script

@@ -5,7 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { MagnifyingGlassIcon, ArrowRightIcon, ChevronDownIcon, CubeIcon } from '@heroicons/react/24/outline';
 
-type Category = { id: number; name: string; slug: string; path?: string; description?: string; image_url?: string; product_count?: number; children?: Category[] };
+import type { CategoryNavigationNode } from '@/types';
+
+type Category = CategoryNavigationNode;
 function flatten(nodes: Category[], parentPath = ''): Category[] { return nodes.flatMap((node) => { const path = node.path || (parentPath ? `${parentPath}/${node.slug}` : node.slug); return [{ ...node, path }, ...flatten(node.children || [], path)]; }); }
 function totalCount(category: Category): number { return Number(category.product_count || 0) + (category.children || []).reduce((sum, child) => sum + totalCount(child), 0); }
 
