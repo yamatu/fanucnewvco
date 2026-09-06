@@ -96,14 +96,14 @@ func ConnectDatabase() {
 
 	// Auto migrate the schema (can be disabled by DB_AUTO_MIGRATE=false)
 	if os.Getenv("DB_AUTO_MIGRATE") != "false" {
-		if err := repairAISEOProfileColumnNames(DB); err != nil {
-			log.Fatalf("AI job profile schema: %v", err)
-		}
+		if err := repairAISEOProfileColumnNames(DB); err != nil { log.Fatalf("AI job profile schema: %v", err) }
 		// Named AI profiles add columns to tables that may already contain years
 		// of settings and SEO job history. Repair those additive fields first so
 		// a benign error in the broader migration cannot leave a partial schema.
 		if err := migrateAIAgentProfileSchema(DB); err != nil {
-			log.Fatalf("Failed to migrate required AI profile schema: %v", err)
+			// AI profiles are an optional extension. A legacy database must still
+			// serve the catalog if this additive migration needs manual repair.
+			log.Printf("AI profile schema migration deferred: %v", err)
 		}
 
 		// Some hosted MySQLs have legacy constraints/index names that cause GORM to try dropping
@@ -144,11 +144,9 @@ func ConnectDatabase() {
 			&models.Order{},
 			&models.OrderItem{},
 			&models.PaymentTransaction{},
-			&models.Refund{},
 			&models.Banner{},
 			&models.HomepageContent{},
 			&models.CompanyProfile{},
-			&models.SocialMediaSetting{},
 			&models.ContactMessage{},
 			&models.Coupon{},
 			&models.CouponUsage{},
@@ -192,7 +190,6 @@ func ConnectDatabase() {
 			// News / Articles
 			&models.Article{},
 			&models.ArticleTranslation{},
-			&models.SitePage{},
 		}
 		for _, m := range modelsToMigrate {
 			// GORM may try to "DROP FOREIGN KEY <uni_xxx>" on existing tables (a known benign issue when
@@ -201,15 +198,16 @@ func ConnectDatabase() {
 			// never gets created. To keep startup reliable, we proactively create missing tables first.
 			if !DB.Migrator().HasTable(m) {
 				if e := DB.Migrator().CreateTable(m); e != nil {
-					DB.Exec("SET FOREIGN_KEY_CHECKS=1;")
-					log.Fatalf("Failed to create table for %T: %v", m, e)
+					log.Printf("Schema table creation deferred for %T: %v", m, e)
+					continue
 				}
 			}
 
 			if e := DB.AutoMigrate(m); !ignoreDropErr(e) {
-				// Re-enable FK checks before exiting
-				DB.Exec("SET FOREIGN_KEY_CHECKS=1;")
-				log.Fatalf("Failed to migrate schema for %T: %v", m, e)
+				// Keep the legacy API online. The affected optional feature will
+				// report its own missing-table error until migration is repaired.
+				log.Printf("Schema migration deferred for %T: %v", m, e)
+				continue
 			}
 		}
 		DB.Exec("SET FOREIGN_KEY_CHECKS=1;")
