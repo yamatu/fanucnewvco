@@ -3,8 +3,6 @@ package controllers
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"fanuc-backend/config"
@@ -155,55 +153,29 @@ func (wc *WatermarkController) GenerateFromMedia(c *gin.Context) {
 }
 
 // Public: GET /api/v1/public/products/default-image/:sku
-// Returns a PNG for products with no images (watermarked with SKU if enabled).
+// Renders the fallback image in memory; no per-SKU file or media row is created.
 func (wc *WatermarkController) DefaultProductImage(c *gin.Context) {
 	sku := strings.TrimSpace(c.Param("sku"))
-	if sku == "" {
-		sku = strings.TrimSpace(c.Query("sku"))
-	}
-	// prevent path traversal / super long
-	if len(sku) > 80 {
-		sku = sku[:80]
-	}
-	if sku == "" {
-		sku = "PRODUCT"
-	}
-
+	if sku == "" { sku = strings.TrimSpace(c.Query("sku")) }
+	if len(sku) > 80 { sku = sku[:80] }
+	if sku == "" { sku = "PRODUCT" }
 	db := config.GetDB()
 	s, err := services.GetOrCreateWatermarkSetting(db)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to load settings", Error: err.Error()})
 		return
 	}
-
 	var baseID *uint
-	if s.Enabled {
-		baseID = s.BaseMediaAssetID
+	if s.Enabled { baseID = s.BaseMediaAssetID }
+	imageBytes, mimeType, etag, err := services.RenderWatermarkedImage(db, services.WatermarkRequest{BaseAssetID: baseID, Text: sku, Position: s.WatermarkPosition})
+	if err != nil && baseID != nil {
+		imageBytes, mimeType, etag, err = services.RenderWatermarkedImage(db, services.WatermarkRequest{Text: sku, Position: s.WatermarkPosition})
 	}
-	wm, err := services.GenerateWatermarkedMediaAsset(db, services.WatermarkRequest{BaseAssetID: baseID, Text: sku, Folder: "watermarked-default", Position: s.WatermarkPosition})
 	if err != nil {
-		// If base image is not decodable (e.g., SVG), fallback to built-in base.
-		if baseID != nil {
-			wm, err = services.GenerateWatermarkedMediaAsset(db, services.WatermarkRequest{BaseAssetID: nil, Text: sku, Folder: "watermarked-default", Position: s.WatermarkPosition})
-		}
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to generate image", Error: err.Error()})
-			return
-		}
-	}
-
-	uploadRoot := os.Getenv("UPLOAD_PATH")
-	if strings.TrimSpace(uploadRoot) == "" {
-		uploadRoot = "./uploads"
-	}
-	full := filepath.Join(uploadRoot, filepath.FromSlash(wm.Asset.RelativePath))
-	b, err := os.ReadFile(full)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to read image", Error: err.Error()})
+		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to generate image", Error: err.Error()})
 		return
 	}
-
-	c.Header("Cache-Control", "public, max-age=31536000, immutable")
-	c.Header("ETag", fmt.Sprintf("\"%s\"", wm.SHA256))
-	c.Data(http.StatusOK, wm.Asset.MimeType, b)
+	c.Header("Cache-Control", "public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000")
+	c.Header("ETag", fmt.Sprintf("\"%s\"", etag))
+	c.Data(http.StatusOK, mimeType, imageBytes)
 }
