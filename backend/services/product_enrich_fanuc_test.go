@@ -52,6 +52,27 @@ func TestFanucEnrichProducesSEOContent(t *testing.T) {
 	}
 }
 
+func TestFanucDescriptionDoesNotDuplicateDedicatedSections(t *testing.T) {
+	enriched := FanucEnrich("A06B-0123-B077")
+
+	// "Key details" and the compatibility/ordering block are rendered by the Part
+	// Details panel and the Compatibility Information section, so the body copy
+	// must not repeat them.
+	for _, header := range []string{"Key details", "Compatibility and ordering guidance"} {
+		if strings.Contains(enriched.Description, header) {
+			t.Fatalf("description must not repeat %q:\n%s", header, enriched.Description)
+		}
+	}
+	for _, section := range []string{"Typical applications", "Why buy from Vibocnc"} {
+		if !strings.Contains(enriched.Description, section) {
+			t.Fatalf("expected %q in description:\n%s", section, enriched.Description)
+		}
+	}
+	if !strings.Contains(enriched.CompatibilityInfo, fanucSelectionGuidance(enriched.PartType)) {
+		t.Fatalf("selection guidance must move to the compatibility section:\n%s", enriched.CompatibilityInfo)
+	}
+}
+
 func TestNonFanucA06BModelDoesNotUseFanucClassifier(t *testing.T) {
 	got := InferProductCategory("Siemens", "A06B-6092-TEST")
 	if got.BrandKey != "siemens" {

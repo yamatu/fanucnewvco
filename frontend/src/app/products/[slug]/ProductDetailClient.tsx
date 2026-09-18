@@ -25,6 +25,7 @@ import type { ShippingRatePublic, ShippingQuote } from '@/services/shipping-rate
 import type { PaginationResponse, Product, ProductFAQ, ProductImage, ProductReview, Category } from '@/types';
 import { queryKeys } from '@/lib/react-query';
 import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
+import { stripDuplicateGeneratedSections } from '@/lib/product-description';
 import { useCartStore } from '@/store/cart.store';
 import { useRouter } from 'next/navigation';
 
@@ -356,16 +357,23 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
     return key ? templates[key] : `${brandName ? brandName + ' ' : ''}${sku} ${categoryName} for CNC and industrial automation. ${stockText}`;
   };
 
-  const descriptionToShow = product.description && product.description.trim().length > 0
+  const specs = parseTechnicalSpecs(product.technical_specs);
+  const rawDescription = product.description && product.description.trim().length > 0
     ? product.description
     : getFallbackDescription();
+  // Legacy generated copy repeated facts that already have their own sections.
+  // Strip those blocks here so an old product stops showing them twice; the
+  // stored description is never modified.
+  const descriptionToShow = stripDuplicateGeneratedSections(rawDescription, {
+    hasSpecifications: !!specs,
+    hasCompatibility: !!product.compatibility_info?.trim(),
+  });
   const introBrandPrefix = brandName ? `${brandName} ` : '';
   const introParagraph = `${computedHeading} is a ${introBrandPrefix}${categoryName.toLowerCase()} supplied by Vcocnc for CNC maintenance, replacement, and industrial automation support. ${product.stock_quantity > 0 ? 'This item is in stock and ready to ship worldwide.' : `This item is available to order with ${product.lead_time || '3-7 days'} lead time.`}`.replace(/\s+/g, ' ').trim();
   const normalizedIntro = normalizeComparisonText(introParagraph);
   const normalizedDescription = normalizeComparisonText(descriptionToShow);
   const shouldRenderIntroParagraph = normalizedIntro !== '' && !normalizedDescription.includes(normalizedIntro);
   const categoryHref = resolveCategoryHref();
-  const specs = parseTechnicalSpecs(product.technical_specs);
   const activeFaqs: Array<{ id?: number; question: string; answer: string }> =
     product.faqs && product.faqs.filter((f: ProductFAQ) => f.is_active).length > 0
       ? product.faqs.filter((f: ProductFAQ) => f.is_active)

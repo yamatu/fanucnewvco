@@ -189,36 +189,16 @@ func inferFanucTypeAndCategory(model string) (partType string, categorySlug stri
 
 func buildFanucDescription(model, partType string) string {
 	application := fanucApplicationSummary(partType)
-	selection := fanucSelectionGuidance(partType)
-	seriesHint := fanucSeriesHint(model)
 
+	// The storefront renders brand/model/condition/warranty in the "Part
+	// Details" panel, the compatibility guidance in "Compatibility
+	// Information" and the parameter table in its own section. Repeating those
+	// blocks here published the same facts two or three times on one page, so
+	// the body copy keeps only the narrative, applications and supplier notes.
 	lines := []string{
 		fmt.Sprintf("FANUC %s %s", model, partType),
 		"",
 		fmt.Sprintf("FANUC %s is a %s used in CNC machine maintenance, retrofit, and industrial automation support. %s It is commonly sourced for replacement projects where stable operation, compatibility verification, and fast delivery matter.", model, strings.ToLower(partType), application),
-		"",
-		"Key details",
-		fmt.Sprintf("- Brand: FANUC"),
-		fmt.Sprintf("- Part No.: %s", model),
-		fmt.Sprintf("- Type: %s", partType),
-		"- Condition: New / Refurbished / Used (please confirm before ordering)",
-		"- Warranty: 12 months",
-		"- Lead time: 3-7 days",
-		"- Shipping: Worldwide",
-		"",
-		"Compatibility and ordering guidance",
-		"- Compatibility depends on the CNC series, machine builder configuration, and option code.",
-		fmt.Sprintf("- %s", selection),
-		"- Send your controller model, machine model, and original part label for verification before shipment.",
-	}
-
-	if seriesHint != "" {
-		lines = append(lines,
-			fmt.Sprintf("- Typical series family: %s", seriesHint),
-		)
-	}
-
-	lines = append(lines,
 		"",
 		"Typical applications",
 		fmt.Sprintf("- %s", application),
@@ -230,7 +210,7 @@ func buildFanucDescription(model, partType string) string {
 		"- Stocked inventory and fast handling",
 		"- International shipping support",
 		"- Technical confirmation before dispatch when needed",
-	)
+	}
 	return strings.Join(lines, "\n")
 }
 
@@ -243,11 +223,19 @@ func buildFanucShortDescription(model, partType string) string {
 }
 
 func buildFanucCompatibilityInfo(model, partType string) string {
-	return fmt.Sprintf(
-		"Compatibility for FANUC %s %s should be checked against the original part number, CNC series, amplifier or controller model, and machine builder option code. Share your existing nameplate photo or alarm information before ordering so we can confirm interchangeability.",
-		model,
-		partType,
-	)
+	lines := []string{
+		fmt.Sprintf(
+			"Compatibility for FANUC %s %s should be checked against the original part number, CNC series, amplifier or controller model, and machine builder option code. Share your existing nameplate photo or alarm information before ordering so we can confirm interchangeability.",
+			model,
+			partType,
+		),
+		fanucSelectionGuidance(partType),
+		"Send your controller model, machine model, and original part label for verification before shipment.",
+	}
+	if seriesHint := fanucSeriesHint(model); seriesHint != "" {
+		lines = append(lines, fmt.Sprintf("Typical series family: %s", seriesHint))
+	}
+	return strings.Join(lines, "\n")
 }
 
 func buildFanucInstallationGuide(model, partType string) string {
