@@ -491,6 +491,9 @@ function CategoriesDropdown() {
   const [shouldLoad, setShouldLoad] = useState(false);
   const categories = useCategoryTree(shouldLoad);
   const [hoverPath, setHoverPath] = useState<number[]>([]);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const columnContainer = useRef<HTMLDivElement>(null);
 
   const byId = useMemo(() => {
     const m = new Map<number, Category>();
@@ -503,6 +506,18 @@ function CategoriesDropdown() {
     walk(categories);
     return m;
   }, [categories]);
+
+  const matches = useMemo(() => {
+    const query = categorySearch.trim().toLowerCase();
+    return query
+      ? [...byId.values()].filter((category) => `${category.name} ${category.path || ''}`.toLowerCase().includes(query))
+      : [];
+  }, [byId, categorySearch]);
+
+  useEffect(() => {
+    const panel = columnContainer.current;
+    if (panel) panel.scrollLeft = panel.scrollWidth;
+  }, [hoverPath.length]);
 
   const columns = useMemo(() => {
     const out: Category[][] = [];
@@ -521,12 +536,17 @@ function CategoriesDropdown() {
 
   return (
     <div
-      className="relative group"
-      onPointerEnter={() => setShouldLoad(true)}
-      onFocusCapture={() => setShouldLoad(true)}
+      className="relative"
+      onMouseEnter={() => { setShouldLoad(true); setMenuOpen(true); }}
+      onMouseLeave={() => setMenuOpen(false)}
+      onFocusCapture={() => { setShouldLoad(true); setMenuOpen(true); }}
+      onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false); }}
+      onKeyDown={(event) => { if (event.key === 'Escape') { setMenuOpen(false); event.stopPropagation(); } }}
     >
       <Link
         href="/categories"
+        aria-expanded={menuOpen}
+        aria-controls="desktop-category-menu"
         className="text-gray-700 hover:text-yellow-600 font-medium transition-colors duration-200 py-2 px-1 block"
       >
         Categories
@@ -536,40 +556,75 @@ function CategoriesDropdown() {
       {/* Dropdown Panel */}
       {Array.isArray(categories) && categories.length > 0 && (
         <div
-          className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 ease-in-out transform group-hover:translate-y-0 translate-y-1 absolute left-0 top-full mt-1 w-[720px] max-h-[80vh] overflow-auto rounded-xl border border-gray-100 bg-white shadow-2xl z-50 p-4 backdrop-blur-sm"
-          onMouseLeave={() => setHoverPath([])}
+          id="desktop-category-menu"
+          hidden={!menuOpen}
+          className="absolute left-0 top-full z-50 mt-1 w-[min(760px,65vw)] overflow-hidden rounded-xl border border-gray-100 bg-white p-4 shadow-2xl"
         >
-          <div className="mb-3 pb-2 border-b border-gray-100">
+          <div className="mb-3 flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
             <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">Product Categories</h3>
+            <input
+              type="search"
+              value={categorySearch}
+              onChange={(event) => setCategorySearch(event.target.value)}
+              aria-label="Search categories"
+              placeholder="Search categories"
+              className="min-w-0 w-48 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-200"
+            />
           </div>
-          <div className="flex gap-3">
-            {columns.map((col, level) => (
-              <div key={level} className="min-w-[220px]">
-                <ul className="space-y-0.5">
-                  {col.map((cat) => {
-                    const hasChildren = Array.isArray(cat.children) && cat.children.length > 0;
-                    const isActive = hoverPath[level] === cat.id;
-                    return (
-                      <li key={cat.id}>
-                        <Link
-                          href={`/categories/${cat.path || cat.slug}`}
-                          onMouseEnter={() => setHoverAtLevel(level, cat.id)}
-                          scroll={false}
-                          className={cn(
-                            'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                            isActive ? 'bg-yellow-100 text-yellow-900' : 'text-gray-800 hover:bg-yellow-50 hover:text-yellow-800'
-                          )}
-                        >
-                          <span className="min-w-0 flex-1 truncate">{cat.name}</span>
-                          {hasChildren ? <ChevronRightIcon className="h-4 w-4 text-gray-400" /> : null}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ))}
-          </div>
+          {categorySearch.trim() ? (
+            <ul className="h-[min(480px,60vh)] space-y-1 overflow-y-auto overscroll-contain">
+              {matches.map((category) => (
+                <li key={category.id}>
+                  <Link
+                    prefetch={false}
+                    href={`/categories/${category.path || category.slug}`}
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-md px-3 py-2 text-sm text-gray-800 hover:bg-yellow-50"
+                  >
+                    <span className="block font-medium">{category.name}</span>
+                    <span className="block break-words text-xs text-gray-500">{category.path}</span>
+                  </Link>
+                </li>
+              ))}
+              {matches.length === 0 && <li className="p-3 text-sm text-gray-500">No matching categories</li>}
+            </ul>
+          ) : (
+            <div ref={columnContainer} className="flex gap-3 overflow-x-auto overscroll-contain">
+              {columns.map((col, level) => (
+                <div
+                  key={`${level}-${hoverPath[level - 1] || 'root'}`}
+                  data-category-level={level}
+                  className="h-[min(480px,60vh)] w-60 shrink-0 overflow-y-auto overscroll-contain border-r border-gray-100 pr-2 last:border-0"
+                >
+                  <ul className="space-y-0.5">
+                    {col.map((cat) => {
+                      const hasChildren = Array.isArray(cat.children) && cat.children.length > 0;
+                      const isActive = hoverPath[level] === cat.id;
+                      return (
+                        <li key={cat.id}>
+                          <Link
+                            href={`/categories/${cat.path || cat.slug}`}
+                            onMouseEnter={() => setHoverAtLevel(level, cat.id)}
+                            onFocus={() => setHoverAtLevel(level, cat.id)}
+                            onClick={() => setMenuOpen(false)}
+                            prefetch={false}
+                            scroll={false}
+                            className={cn(
+                              'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                              isActive ? 'bg-yellow-100 text-yellow-900' : 'text-gray-800 hover:bg-yellow-50 hover:text-yellow-800'
+                            )}
+                          >
+                            <span className="min-w-0 flex-1 truncate">{cat.name}</span>
+                            {hasChildren ? <ChevronRightIcon className="h-4 w-4 text-gray-400" /> : null}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
