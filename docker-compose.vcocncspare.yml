@@ -1,0 +1,25 @@
+services:
+  mysql:
+    container_name: vcocncspare_mysql
+    volumes:
+      - vcocncspare_mysql_data:/var/lib/mysql
+  redis:
+    container_name: vcocncspare_redis
+    volumes:
+      - vcocncspare_redis_data:/data
+  backend:
+    container_name: vcocncspare_backend
+    ports:
+      - "127.0.0.1:8081:8080"
+    environment:
+      # 禁止旧版品牌清洗，避免启动时把 Vcocnc 文案改写回 Vibocnc
+      DISABLE_LEGACY_BRAND_SANITIZE: "true"
+    volumes:
+      - /root/vcocncspare/backend/uploads:/app/uploads
+  frontend:
+    container_name: vcocncspare_frontend
+    ports:
+      - "127.0.0.1:3001:3000"
+volumes:
+  vcocncspare_mysql_data:
+  vcocncspare_redis_data:
