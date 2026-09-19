@@ -104,6 +104,12 @@ const nextConfig: NextConfig = {
           source: '/uploads/:path*',
           destination: `${apiBase}/uploads/:path*`,
         },
+        // Gallery thumbnails (/media-thumb/*) are generated and cached by the
+        // backend. Proxy them too, otherwise the media library grid 404s.
+        {
+          source: '/media-thumb/:path*',
+          destination: `${apiBase}/media-thumb/:path*`,
+        },
         {
           source: '/api/:path*',
           destination: `${apiBase}/api/:path*`,
