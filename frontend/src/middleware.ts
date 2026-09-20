@@ -38,6 +38,30 @@ function getBackendBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://backend:8080').replace(/\/+$/, '');
 }
 
+// decodeJwtExpiryMs reads the exp claim without verifying the signature —
+// verification stays on the backend; this only improves routing so an
+// expired cookie is treated as "not logged in" instead of bouncing the user
+// between the login page and a 401-storming admin page.
+function decodeJwtExpiryMs(token: string): number | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const claims = JSON.parse(atob(normalized));
+    return typeof claims.exp === 'number' ? claims.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+function isAuthTokenUsable(token: string | undefined): boolean {
+  if (!token) return false;
+  const expiry = decodeJwtExpiryMs(token);
+  // Unparseable tokens are treated as expired so the user reaches the login form.
+  if (expiry === null) return false;
+  return expiry > Date.now();
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('auth_token')?.value;
@@ -138,20 +162,39 @@ export async function middleware(request: NextRequest) {
   // Check if the current path is an auth route
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
 
-  // If accessing a protected route without a token, redirect to login
-  if (isProtectedRoute && !token) {
+  // A cookie that is present but expired/unparseable must not count as a
+  // session: the client-side guard (authUtils.isAuthenticated + /auth/profile)
+  // treats it as logged out, so counting it here would ping-pong the browser
+  // between /admin and /admin/login. Normalise the disagreement by clearing
+  // the stale cookie and letting the login page render.
+  const tokenUsable = isAuthTokenUsable(token);
+  const isStaleAuthSession = Boolean(token) && !tokenUsable;
+
+  // If accessing a protected route without a usable token, redirect to login
+  // and drop the stale cookie so the login page is reachable immediately.
+  if (isProtectedRoute && !tokenUsable) {
     const loginUrl = new URL('/admin/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+    const redirectResponse = NextResponse.redirect(loginUrl);
+    if (isStaleAuthSession) {
+      redirectResponse.cookies.delete('auth_token');
+    }
+    return redirectResponse;
   }
 
-  // If accessing auth route with a token, redirect to admin dashboard
-  if (isAuthRoute && token) {
+  // If accessing auth route with a usable token, redirect to admin dashboard
+  if (isAuthRoute && tokenUsable) {
     return NextResponse.redirect(new URL('/admin', request.url));
   }
 
   // Create response with SEO optimizations
   const response = NextResponse.next();
+
+  // The stale cookie reached the login page: clear it on this response so the
+  // next login starts from a clean slate.
+  if (isAuthRoute && isStaleAuthSession) {
+    response.cookies.delete('auth_token');
+  }
 
   // Special handling for search engine crawlers
   if (isSearchEngineCrawler(userAgent)) {
