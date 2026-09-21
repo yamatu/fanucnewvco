@@ -11,27 +11,9 @@ import {
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
+import type { Product } from '@/types';
 
-interface Product {
-  id: number;
-  sku: string;
-  name: string;
-  slug: string;
-  short_description?: string;
-  description?: string;
-  price: number;
-  compare_price?: number;
-  brand?: string;
-  model?: string;
-  part_number?: string;
-  category_id: number;
-  is_active: boolean;
-  is_featured: boolean;
-  images?: any[];
-  image_urls?: string[];
-  created_at: string;
-  updated_at: string;
-}
+/* Product shape is shared with cart and API services. */
 
 interface ProductCardProps {
   product: Product;
@@ -97,16 +79,25 @@ export default function ProductCard({
 
         {/* Favorite Button */}
         {showFavorite && (
-          {hasProductPrice(product) ? <button
-            onClick={toggleFavorite}
-            className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow z-10"
-          >
-            {isFavorite ? (
-              <HeartIconSolid className="h-5 w-5 text-red-500" />
-            ) : (
-              <HeartIcon className="h-5 w-5 text-gray-400 hover:text-red-500" />
-            )}
-          </button> : <a href={`/contact?sku=${encodeURIComponent(product.sku)}`} className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-800 bg-white hover:bg-gray-50">B2B Contact</a>}
+          hasProductPrice(product) ? (
+            <button
+              onClick={toggleFavorite}
+              className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow z-10"
+            >
+              {isFavorite ? (
+                <HeartIconSolid className="h-5 w-5 text-red-500" />
+              ) : (
+                <HeartIcon className="h-5 w-5 text-gray-400 hover:text-red-500" />
+              )}
+            </button>
+          ) : (
+            <a
+              href={`/contact?sku=${encodeURIComponent(product.sku)}`}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-800 bg-white hover:bg-gray-50"
+            >
+              B2B Contact
+            </a>
+          )
         )}
 
         {/* Featured Badge */}
