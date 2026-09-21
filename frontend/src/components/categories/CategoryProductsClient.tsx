@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ProductService, CategoryService } from '@/services';
+import type { ProductFilters as ProductServiceFilters } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import ProductFilters from '@/components/products/ProductFilters';
 import Pagination from '@/components/common/Pagination';
@@ -23,6 +24,19 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 
+type CategoryProductFilters = Required<Pick<ProductServiceFilters, 'page' | 'page_size' | 'category_id' | 'include_descendants' | 'sort_by' | 'sort_dir' | 'search' | 'is_active'>> & {
+  min_price: string;
+  max_price: string;
+};
+
+function normalizeSortBy(value: string | null): CategoryProductFilters['sort_by'] {
+  return value === 'name' || value === 'price' || value === 'updated_at' ? value : 'created_at';
+}
+
+function normalizeSortDirection(value: string | null): CategoryProductFilters['sort_dir'] {
+  return value === 'asc' ? 'asc' : 'desc';
+}
+
 interface CategoryProductsClientProps {
   category: any;
   initialSearchParams: { [key: string]: string | string[] | undefined };
@@ -39,13 +53,13 @@ export default function CategoryProductsClient({
   // Filter states
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<CategoryProductFilters>({
     page: 1,
     page_size: 12,
-    category_id: category.id,
+    category_id: String(category.id),
     include_descendants: 'true',
     sort_by: 'created_at',
-    sort_order: 'desc',
+    sort_dir: 'desc',
     min_price: '',
     max_price: '',
     search: '',
@@ -57,10 +71,10 @@ export default function CategoryProductsClient({
     const urlFilters = {
       page: parseInt(searchParams.get('page') || '1'),
       page_size: parseInt(searchParams.get('page_size') || '12'),
-      category_id: category.id,
+      category_id: String(category.id),
       include_descendants: 'true',
-      sort_by: searchParams.get('sort_by') || 'created_at',
-      sort_order: searchParams.get('sort_order') || 'desc',
+      sort_by: normalizeSortBy(searchParams.get('sort_by')),
+      sort_dir: normalizeSortDirection(searchParams.get('sort_dir')),
       min_price: searchParams.get('min_price') || '',
       max_price: searchParams.get('max_price') || '',
       search: searchParams.get('search') || '',
@@ -125,34 +139,34 @@ export default function CategoryProductsClient({
 
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
-    let sort_by = 'created_at';
-    let sort_order = 'desc';
+    let sort_by: CategoryProductFilters['sort_by'] = 'created_at';
+    let sort_dir: CategoryProductFilters['sort_dir'] = 'desc';
     switch (val) {
-      case 'name': sort_by = 'name'; sort_order = 'asc'; break;
-      case 'name_desc': sort_by = 'name'; sort_order = 'desc'; break;
-      case 'price_asc': sort_by = 'price'; sort_order = 'asc'; break;
-      case 'price_desc': sort_by = 'price'; sort_order = 'desc'; break;
-      case 'created_at': sort_by = 'created_at'; sort_order = 'desc'; break;
+      case 'name': sort_by = 'name'; sort_dir = 'asc'; break;
+      case 'name_desc': sort_by = 'name'; sort_dir = 'desc'; break;
+      case 'price_asc': sort_by = 'price'; sort_dir = 'asc'; break;
+      case 'price_desc': sort_by = 'price'; sort_dir = 'desc'; break;
+      case 'created_at': sort_by = 'created_at'; sort_dir = 'desc'; break;
     }
-    handleFilterChange({ sort_by, sort_order });
+    handleFilterChange({ sort_by, sort_dir });
   };
 
   const sortValue = (() => {
-    if (filters.sort_by === 'name' && filters.sort_order === 'asc') return 'name';
-    if (filters.sort_by === 'name' && filters.sort_order === 'desc') return 'name_desc';
-    if (filters.sort_by === 'price' && filters.sort_order === 'asc') return 'price_asc';
-    if (filters.sort_by === 'price' && filters.sort_order === 'desc') return 'price_desc';
+    if (filters.sort_by === 'name' && filters.sort_dir === 'asc') return 'name';
+    if (filters.sort_by === 'name' && filters.sort_dir === 'desc') return 'name_desc';
+    if (filters.sort_by === 'price' && filters.sort_dir === 'asc') return 'price_asc';
+    if (filters.sort_by === 'price' && filters.sort_dir === 'desc') return 'price_desc';
     return 'created_at';
   })();
 
   const clearFilters = () => {
-    const clearedFilters = {
+    const clearedFilters: CategoryProductFilters = {
       page: 1,
       page_size: 12,
-      category_id: category.id,
+      category_id: String(category.id),
       include_descendants: 'true',
       sort_by: 'created_at',
-      sort_order: 'desc',
+      sort_dir: 'desc',
       min_price: '',
       max_price: '',
       search: '',

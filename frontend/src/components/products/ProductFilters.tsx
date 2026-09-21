@@ -8,7 +8,7 @@ interface FilterProps {
     search: string;
     min_price: string;
     max_price: string;
-    category_id?: number;
+    category_id?: string;
     [key: string]: any;
   };
   categories?: any[];
@@ -55,7 +55,7 @@ export default function ProductFilters({
       search: '',
       min_price: '',
       max_price: '',
-      category_id: showCategoryFilter ? '' : filters.category_id
+      category_id: showCategoryFilter ? '' : (filters.category_id || '')
     };
     setLocalFilters(clearedFilters);
     onFilterChange(clearedFilters);

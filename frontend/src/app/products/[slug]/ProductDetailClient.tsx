@@ -131,10 +131,10 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
   });
 
   // Fetch related products
-  const { data: relatedProducts = { data: [] } as PaginationResponse<Product> } = useQuery<PaginationResponse<Product>>({
+  const { data: relatedProducts = { data: [] } as unknown as PaginationResponse<Product> } = useQuery<PaginationResponse<Product>>({
     queryKey: queryKeys.products.list({ category: product?.category_id }),
     queryFn: () => ProductService.getProducts({
-      category_id: product?.category_id,
+      category_id: product?.category_id ? String(product.category_id) : undefined,
       page_size: 4
     }),
     enabled: !!product?.category_id,

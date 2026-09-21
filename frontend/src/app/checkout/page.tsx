@@ -32,7 +32,7 @@ const checkoutSchema = yup.object({
   shipping_address: yup.string().required('Shipping address is required'),
   shipping_country: yup.string().required('Shipping country is required'),
   billing_address: yup.string().required('Billing address is required'),
-  notes: yup.string(),
+  notes: yup.string().defined().default(''),
 });
 
 export type CheckoutFormData = yup.InferType<typeof checkoutSchema>;
@@ -335,7 +335,8 @@ export default function CheckoutPage() {
                     valid: true,
                     code: currentOrder.coupon_code,
                     discount_amount: currentOrder.discount_amount,
-                    final_amount: currentOrder.total_amount
+                    final_amount: currentOrder.total_amount,
+                    message: ''
                   } : null}
                   readonly
                 />

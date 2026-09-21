@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { ContactService } from '@/services';
+import type { ContactCreateRequest } from '@/services';
 import PublicLayout from '@/components/layout/PublicLayout';
 import {
   MapPinIcon,
@@ -59,7 +60,7 @@ const breadcrumbSchema = {
 
 function ContactContent() {
   const searchParams = useSearchParams();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ContactCreateRequest>({
     name: '',
     email: '',
     company: '',

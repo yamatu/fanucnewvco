@@ -9,7 +9,7 @@ import { AdminUser } from '@/types';
 export default function UserDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const userId = params.id as string;
+  const userId = Number(params.id);
   
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<AdminUser | null>(null);
@@ -21,8 +21,8 @@ export default function UserDetailPage() {
   const fetchUser = async () => {
     try {
       setLoading(true);
-      const response = await UserService.getUser(userId);
-      setUser(response.data);
+      const userData = await UserService.getUser(userId);
+      setUser(userData);
     } catch (error: any) {
       console.error('获取用户失败:', error);
       toast.error('获取用户信息失败');
@@ -135,10 +135,7 @@ export default function UserDetailPage() {
             <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
               <dt className="text-sm font-medium text-gray-500">姓名</dt>
               <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                {user.first_name || user.last_name 
-                  ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
-                  : '未设置'
-                }
+                {user.full_name || '未设置'}
               </dd>
             </div>
             <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">

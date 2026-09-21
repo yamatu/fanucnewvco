@@ -274,9 +274,9 @@ export default function WorkshopEditor({
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Icon</label>
                       <select {...register(`facilities.${idx}.icon` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                        {FACILITY_ICON_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
+                        {FACILITY_ICON_OPTIONS.map((value) => (
+                          <option key={value} value={value}>
+                            {facilityIconLabel(value)}
                           </option>
                         ))}
                       </select>
@@ -354,9 +354,9 @@ export default function WorkshopEditor({
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Icon</label>
                       <select {...register(`capabilities.${idx}.icon` as const)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                        {CAP_ICON_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
+                        {CAP_ICON_OPTIONS.map((value) => (
+                          <option key={value} value={value}>
+                            {capIconLabel(value)}
                           </option>
                         ))}
                       </select>

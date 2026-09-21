@@ -9,7 +9,7 @@ import { AdminUser, AdminUserUpdateRequest } from '@/types';
 export default function EditUserPage() {
   const router = useRouter();
   const params = useParams();
-  const userId = params.id as string;
+  const userId = Number(params.id);
   
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
@@ -33,14 +33,14 @@ export default function EditUserPage() {
   const fetchUser = async () => {
     try {
       setFetchLoading(true);
-      const response = await UserService.getUser(userId);
-      const userData = response.data;
+      const userData = await UserService.getUser(userId);
       setUser(userData);
+      const nameParts = (userData.full_name || '').trim().split(/\s+/).filter(Boolean);
       setFormData({
         username: userData.username,
         email: userData.email,
-        first_name: userData.first_name || '',
-        last_name: userData.last_name || '',
+        first_name: nameParts[0] || '',
+        last_name: nameParts.slice(1).join(' '),
         role: userData.role,
         is_active: userData.is_active,
       });

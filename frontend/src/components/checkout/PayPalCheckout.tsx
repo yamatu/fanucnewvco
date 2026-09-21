@@ -33,6 +33,7 @@ function PayPalButtonsWrapper({ amount, currency = 'USD', onSuccess, onError, di
         hasCreatedOrder.current = true;
 
         return actions.order.create({
+          intent: 'CAPTURE',
           purchase_units: [
             {
               amount: {
@@ -63,7 +64,7 @@ function PayPalButtonsWrapper({ amount, currency = 'USD', onSuccess, onError, di
             orderID: data.orderID,
             payerID: data.payerID,
             details: orderDetails,
-            paymentSource: data.paymentSource,
+            paymentSource: (data as { paymentSource?: unknown }).paymentSource,
           });
         } catch (error) {
           console.error('PayPal capture error:', error);
@@ -81,7 +82,7 @@ function PayPalButtonsWrapper({ amount, currency = 'USD', onSuccess, onError, di
       onCancel={(data) => {
         console.log('PayPal payment cancelled:', data);
         hasCreatedOrder.current = false;
-        toast.info('Payment was cancelled');
+        toast('Payment was cancelled');
       }}
       style={{
         layout: 'vertical',

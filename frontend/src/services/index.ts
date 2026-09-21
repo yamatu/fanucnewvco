@@ -53,7 +53,6 @@ export type { ProductFilters } from './product.service';
 export type { OrderCreateRequest, OrderFilters, PaymentRequest } from './order.service';
 export type { UserCreateRequest, UserUpdateRequest, UserFilters } from './user.service';
 export type { BannerCreateRequest } from './banner.service';
-export type { CompanyProfileRequest } from './company.service';
 export type { HomepageContentRequest, HomepageSection } from './homepage.service';
 export type { BatchUploadResponse, UploadProgress } from './upload.service';
 export type { 

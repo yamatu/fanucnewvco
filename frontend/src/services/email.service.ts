@@ -134,7 +134,7 @@ export class EmailService {
   }
 
   static async downloadAttachment(messageId: string, attachmentId: string): Promise<{ blob: Blob; filename: string }> {
-    const res = await apiClient.get(`/admin/email/mailbox/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}/download`, {
+    const res = await apiClient.get<Blob>(`/admin/email/mailbox/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}/download`, {
       responseType: 'blob',
     });
     const disposition = String(res.headers?.['content-disposition'] || '');
