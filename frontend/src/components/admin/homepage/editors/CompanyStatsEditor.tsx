@@ -120,6 +120,21 @@ export default function CompanyStatsEditor({
     });
   };
 
+  const iconLabel = (value: string) => {
+    const key = String(value || '').toLowerCase();
+    const map: Record<string, string> = {
+      calendar: t('homepage.icon.calendar', locale === 'zh' ? '日历' : 'Calendar'),
+      building: t('homepage.icon.building', locale === 'zh' ? '大楼' : 'Building'),
+      users: t('homepage.icon.users', locale === 'zh' ? '用户' : 'Users'),
+      shield: t('homepage.icon.shield', locale === 'zh' ? '盾牌' : 'Shield'),
+      cog: t('homepage.icon.cog', locale === 'zh' ? '齿轮' : 'Cog'),
+      truck: t('homepage.icon.truck', locale === 'zh' ? '卡车' : 'Truck'),
+      globe: t('homepage.icon.globe', locale === 'zh' ? '地球' : 'Globe'),
+      clock: t('homepage.icon.clock', locale === 'zh' ? '时钟' : 'Clock'),
+    };
+    return map[key] || value;
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <div className="lg:col-span-5">
@@ -318,17 +333,3 @@ export default function CompanyStatsEditor({
     </div>
   );
 }
-  const iconLabel = (value: string) => {
-    const key = String(value || '').toLowerCase();
-    const map: Record<string, string> = {
-      calendar: t('homepage.icon.calendar', locale === 'zh' ? '日历' : 'Calendar'),
-      building: t('homepage.icon.building', locale === 'zh' ? '大楼' : 'Building'),
-      users: t('homepage.icon.users', locale === 'zh' ? '用户' : 'Users'),
-      shield: t('homepage.icon.shield', locale === 'zh' ? '盾牌' : 'Shield'),
-      cog: t('homepage.icon.cog', locale === 'zh' ? '齿轮' : 'Cog'),
-      truck: t('homepage.icon.truck', locale === 'zh' ? '卡车' : 'Truck'),
-      globe: t('homepage.icon.globe', locale === 'zh' ? '地球' : 'Globe'),
-      clock: t('homepage.icon.clock', locale === 'zh' ? '时钟' : 'Clock'),
-    };
-    return map[key] || value;
-  };
