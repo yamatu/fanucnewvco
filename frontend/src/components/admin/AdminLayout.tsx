@@ -38,6 +38,7 @@ import { queryKeys } from '@/lib/react-query';
 import { Order } from '@/types';
 import { OrderService } from '@/services';
 import { formatCurrency } from '@/lib/utils';
+import AIAgentAssistant from '@/components/admin/AIAgentAssistant';
 
 const navigation = [
   { key: 'nav.dashboard', name: 'Dashboard', href: '/admin', icon: HomeIcon },
@@ -501,6 +502,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
 	              {children}
 	            </div>
 	        </main>
+	        <AIAgentAssistant />
 	        </div>
 	      </div>
 	  );

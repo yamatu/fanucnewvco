@@ -16,12 +16,20 @@ import (
 
 // ProductCategoryOptimizationOptions controls the explicit administrator-only
 // taxonomy repair flow. Category creation is deliberately opt-in and is not
-// used by imports, ordinary AI SEO jobs, or the AI assistant. The dedicated
-// administrator category-only background job is the sole queued caller.
+// used by imports or ordinary AI SEO jobs. It is reached through two
+// administrator-approved callers only: the dedicated category-only background
+// job, and review proposals the AI assistant attaches for the administrator to
+// apply (the assistant itself can never create a category).
 type ProductCategoryOptimizationOptions struct {
 	UseWebSearch            bool
 	CreateMissingCategories bool
 	ActivateResolved        bool
+	// AllowNewProductTypes permits creating a brand/type leaf that no existing
+	// category vocabulary covers. It is deliberately separate from
+	// CreateMissingCategories: creating a known type under an existing brand is
+	// taxonomy upkeep, while inventing a new public type name from model text is
+	// an editorial decision.
+	AllowNewProductTypes bool
 	// BeforeWrite is used by background jobs to fence writes after a task was
 	// cancelled or superseded. It is called inside the same transaction that
 	// performs each category/product mutation.
@@ -142,7 +150,7 @@ func applyConfirmedCategoryInference(ctx context.Context, db *gorm.DB, product m
 	categoryID, err := ResolveExistingCategoryForInference(db.WithContext(ctx), inference, product.Category.Name)
 	created := false
 	if (err != nil || categoryID == 0) && opts.CreateMissingCategories {
-		categoryID, created, err = resolveOrCreateCategoryForInferenceWithGuard(db.WithContext(ctx), inference, opts.BeforeWrite)
+		categoryID, created, err = resolveOrCreateCategoryForInferenceWithGuard(db.WithContext(ctx), inference, opts.BeforeWrite, opts.AllowNewProductTypes)
 	}
 	if err != nil || categoryID == 0 {
 		reason := fmt.Sprintf("no active category matches verified brand %q and product type %q", inference.BrandName, inference.PartType)
@@ -205,12 +213,13 @@ func applyConfirmedCategoryInference(ctx context.Context, db *gorm.DB, product m
 // ResolveOrCreateCategoryForInference is intentionally reserved for the
 // explicit administrator category-optimization endpoint. It creates at most a
 // canonical brand root and one verified type child. Existing inactive exact
-// nodes are reactivated instead of duplicated.
+// nodes are reactivated instead of duplicated. It is also the only entry point
+// allowed to introduce a product type the taxonomy has never seen.
 func ResolveOrCreateCategoryForInference(db *gorm.DB, inference ProductCategoryInference) (uint, bool, error) {
-	return resolveOrCreateCategoryForInferenceWithGuard(db, inference, nil)
+	return resolveOrCreateCategoryForInferenceWithGuard(db, inference, nil, true)
 }
 
-func resolveOrCreateCategoryForInferenceWithGuard(db *gorm.DB, inference ProductCategoryInference, beforeWrite func(*gorm.DB) error) (uint, bool, error) {
+func resolveOrCreateCategoryForInferenceWithGuard(db *gorm.DB, inference ProductCategoryInference, beforeWrite func(*gorm.DB) error, allowNewTypes bool) (uint, bool, error) {
 	if db == nil {
 		return 0, false, errors.New("database is nil")
 	}
@@ -224,6 +233,9 @@ func resolveOrCreateCategoryForInferenceWithGuard(db *gorm.DB, inference Product
 	partType := canonicalCategoryTypeName(inference.PartType)
 	if brandName == "" || partType == "" || strings.EqualFold(partType, "Spare Part") {
 		return 0, false, errors.New("verified brand and specific product type are required before creating a category")
+	}
+	if !allowNewTypes && !IsKnownProductTypeName(db, inference.PartType) {
+		return 0, false, fmt.Errorf("product type %q is not part of the existing category vocabulary; administrator approval is required to add it", partType)
 	}
 
 	categoryID := uint(0)
@@ -415,7 +427,37 @@ func productClassificationModel(product models.Product) string {
 }
 
 func canonicalCategoryTypeName(value string) string {
-	return strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
+	return CanonicalProductType(value)
+}
+
+// IsKnownProductTypeName reports whether a product type already belongs to the
+// catalog's vocabulary: either a canonical dictionary entry or a node name or
+// slug that exists anywhere in the tree. The check is deliberately tree-wide,
+// so a type proven under one manufacturer can be reused for another instead of
+// spawning a duplicate node under a second parent.
+func IsKnownProductTypeName(db *gorm.DB, partType string) bool {
+	name := canonicalCategoryTypeName(partType)
+	if strings.TrimSpace(name) == "" {
+		return false
+	}
+	for _, canonical := range ProductTypeDictionary {
+		if strings.EqualFold(canonicalCategoryTypeName(canonical), name) {
+			return true
+		}
+	}
+	if db == nil {
+		return false
+	}
+	slugs := []string{utils.GenerateSlug(name)}
+	if extra := utils.GenerateSlug(partType); extra != slugs[0] {
+		slugs = append(slugs, extra)
+	}
+	var count int64
+	if err := db.Model(&models.Category{}).Where("name = ? OR slug IN ?", name, slugs).Count(&count).Error; err != nil {
+		// A transient database error must not silently authorise a new node.
+		return false
+	}
+	return count > 0
 }
 
 func categorySlugForBrandType(brandKey, inferredSlug, partType string) string {
@@ -539,4 +581,51 @@ func uniqueCategorySlug(db *gorm.DB, base string) (string, error) {
 func uintPtrForCategoryOptimization(value uint) *uint {
 	copy := value
 	return &copy
+}
+
+// ResolveOrCreateCategoryForAdministrator is the administrator-approved entry
+// point for creating a category node from a verified inference. allowNewTypes
+// must be explicitly requested by the administrator (an AI proposal carries it
+// only when the administrator asked for a new type); without it the product
+// type must already belong to the catalog vocabulary. Creation reuses the
+// same guard as the category optimization job, so it stays serialized and
+// duplicate-safe.
+func ResolveOrCreateCategoryForAdministrator(db *gorm.DB, inference ProductCategoryInference, allowNewTypes bool) (uint, bool, error) {
+	return resolveOrCreateCategoryForInferenceWithGuard(db, inference, nil, allowNewTypes)
+}
+
+// BuildAdministratorCategoryInference constructs the classification inference
+// used when an administrator-approved flow creates a category from a
+// brand/product-type pair. The synthetic rule keeps the decision auditable: it
+// never claims web or AI verification the request does not have, and it only
+// passes for brands on the verified brand registry. Every other brand must go
+// through the web-verified category optimization task instead.
+func BuildAdministratorCategoryInference(brand, productType string) (ProductCategoryInference, error) {
+	brandKey := NormalizeBrandKey(brand)
+	if brandKey == "" || strings.EqualFold(brandKey, "unknown") {
+		return ProductCategoryInference{}, errors.New("brand could not be identified")
+	}
+	brandName := CanonicalBrandName(brandKey)
+	if brandName == "" {
+		brandName = strings.TrimSpace(brand)
+	}
+	typeName := CanonicalProductType(productType)
+	if strings.TrimSpace(typeName) == "" || IsGenericProductType(typeName) {
+		return ProductCategoryInference{}, errors.New("a specific product type is required; generic placeholders cannot become categories")
+	}
+	slug := utils.GenerateSlug(typeName)
+	if slug == "" {
+		return ProductCategoryInference{}, errors.New("the product type could not be converted into a URL slug")
+	}
+	rule := "admin-category:" + slug
+	if !isClassificationBrandAllowed(brandKey, rule) {
+		return ProductCategoryInference{}, fmt.Errorf("brand %q is not on the verified brand list; use the web-verified category optimization task instead", strings.TrimSpace(brand))
+	}
+	return ProductCategoryInference{
+		BrandKey:     brandKey,
+		BrandName:    brandName,
+		PartType:     typeName,
+		CategorySlug: slug,
+		MatchRule:    rule,
+	}, nil
 }
