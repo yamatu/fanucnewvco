@@ -83,6 +83,9 @@ services:
       # 是否自动迁移（生产环境建议配合备份谨慎开启）
       DB_AUTO_MIGRATE: ${DB_AUTO_MIGRATE:-true}
 
+      # 备用站专用：禁止旧版品牌清洗，防止启动时把 Vcocnc 文案改写回 Vibocnc
+      DISABLE_LEGACY_BRAND_SANITIZE: "true"
+
       # 默认管理员（生产环境建议首次初始化后关闭 SEED_DEFAULT_ADMIN）
       SEED_DEFAULT_ADMIN: ${SEED_DEFAULT_ADMIN:-false}
       DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-admin}

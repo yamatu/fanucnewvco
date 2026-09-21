@@ -44,3 +44,4 @@ backend/*_backup*.json
 
 # 前端历史压缩包（体积大，不建议入库）
 frontend/frontend历史/
+*.yaws-backup-*
