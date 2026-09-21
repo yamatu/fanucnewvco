@@ -124,3 +124,23 @@ func newPublicHTTPClient(timeout time.Duration) *http.Client {
 func NewPublicHTTPClient(timeout time.Duration) *http.Client {
 	return newPublicHTTPClient(timeout)
 }
+
+// NewPublicStreamHTTPClient returns a client for streaming third-party
+// responses (for example SSE chat completions). It carries no overall timeout,
+// because a stream must be allowed to outlive the non-streaming budget;
+// callers bound each request with a context deadline instead. The SSRF guard
+// is the same as NewPublicHTTPClient.
+func NewPublicStreamHTTPClient() *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	transport.DialContext = publicDialContext
+	return &http.Client{
+		Transport: transport,
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+			if _, err := validatePublicHTTPURL(req.URL.String()); err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+}
