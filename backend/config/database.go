@@ -163,6 +163,7 @@ func ConnectDatabase() {
 			&models.AIAgentSEOJobItem{},
 			&models.AIAgentConversation{},
 			&models.AIAgentConversationMessage{},
+			&models.AIAgentPromptPreset{},
 			&models.HotlinkProtectionSetting{},
 			&models.PayPalSetting{},
 			&models.EmailSetting{},
@@ -282,6 +283,7 @@ func migrateLegacyAIAgentProfile() {
 			setting = models.AIAgentSetting{
 				ID: 1, BaseURL: "https://api.openai.com/v1", Model: "gpt-5.6-terra", APIMode: "standard_chat",
 				ReasoningEffort: "medium", TimeoutSeconds: 75, SEOJobConcurrency: 2, SEOCandidateLimit: 30000,
+				MaxConcurrentJobs: 4, AgentHistoryLimit: 24, AutoPublishNewProducts: true,
 				DefaultWarrantyPeriod: "12 months", DefaultLeadTime: "3-7 days",
 			}
 			if err := tx.Create(&setting).Error; err != nil {

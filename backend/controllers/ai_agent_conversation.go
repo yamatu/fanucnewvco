@@ -42,16 +42,16 @@ import (
 const (
 	// Turns are assistant<->tool exchanges. Four is enough for the patterns the
 	// assistant is designed for (locate -> inspect -> aggregate -> answer).
-	aiAgentMaxToolTurns = 4
+	aiAgentMaxToolTurns = 12
 	// Parallel tool calls are supported by the provider protocol but the
 	// assistant only ever needs a few lookups per turn.
 	aiAgentMaxToolCallsPerTurn = 4
 	// Total tool output injected back into the conversation. Catalog rows are
 	// compact, so this is roughly a dozen full lookups.
-	aiAgentMaxToolPayloadBytes = 48 << 10
+	aiAgentMaxToolPayloadBytes = 192 << 10
 	// Tool arguments come from the model and are therefore untrusted; a long
 	// argument must not be able to blow up the request payload.
-	aiAgentMaxToolArgumentBytes = 2 << 10
+	aiAgentMaxToolArgumentBytes = 128 << 10
 )
 
 var errAIAgentToolsUnsupported = errors.New("the configured AI provider does not support tool calls")
@@ -65,6 +65,7 @@ Write tools (review proposals): assign_product_category, create_category, start_
 - Call list_categories before proposing a category_id, and get_product before proposing a change to an existing product.
 - Use list_uncategorized_products to inspect the unclassified backlog, and start_category_optimization for bulk category work (it creates missing categories after verification). Do not emit many single-product proposals when one task covers the scope.
 - After a write tool attaches a proposal, do not repeat that same proposal in your own suggestions array; explain it in the reply instead. Never claim a proposal was applied; the administrator confirms it in the UI.
+- When the administrator pastes a model list, or asks to add/import/上架 a list of models, call import_pasted_models once with no model list in the arguments: the models are read from the administrator's own message. Never ask the administrator to split a long list, never ask them to paste the models one at a time, and do not also emit create_product or create_products proposals for those models. Every model whose brand or product type cannot be verified is skipped and counted by the tool, so report created_count and skipped_count instead of promising that everything was added.
 - If a lookup returns nothing, say so and ask one concise question instead of proposing a change.
 - When you have enough evidence, answer with the single JSON object required by the system prompt and make no tool call.
 - While you are still gathering data you may write one short progress sentence in Chinese before your tool calls; it is shown to the administrator as a grey status line. Your final answer must still be the single JSON object with no surrounding text.`
@@ -243,6 +244,18 @@ func runAIAgentConversationWithEvents(ctx context.Context, setting *models.AIAge
 	return content, trace, err
 }
 
+// lastUserMessageContent returns the administrator's most recent message. The
+// tool loop uses it so a tool can read input the model must not echo back, such
+// as a pasted list of a thousand model numbers.
+func lastUserMessageContent(messages []aiChatMessage) string {
+	for index := len(messages) - 1; index >= 0; index-- {
+		if strings.EqualFold(strings.TrimSpace(messages[index].Role), "user") {
+			return messages[index].Content
+		}
+	}
+	return ""
+}
+
 // runAIAgentConversationCore is the loop implementation. When sink is
 // non-nil it receives live progress; when stream is true each provider call
 // uses SSE streaming (falling back to non-streamed calls happens in the
@@ -250,7 +263,7 @@ func runAIAgentConversationWithEvents(ctx context.Context, setting *models.AIAge
 // value carries the review proposals the write tools attached during the run.
 func runAIAgentConversationCore(ctx context.Context, setting *models.AIAgentSetting, apiKey string, messages []aiChatMessage, maxTokens int, client *http.Client, db *gorm.DB, sink aiAgentEventSink, stream bool) (string, []aiToolTrace, []aiAction, error) {
 	trace := make([]aiToolTrace, 0, 4)
-	session := &aiAgentToolSession{}
+	session := &aiAgentToolSession{setting: setting, userMessage: lastUserMessageContent(messages)}
 	conversation := make([]aiChatMessage, 0, len(messages)+8)
 	conversation = append(conversation, messages...)
 	toolPayloadBytes := 0

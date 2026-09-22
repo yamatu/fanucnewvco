@@ -37,10 +37,16 @@ import (
 var errAIAgentConversationNotFound = errors.New("conversation not found")
 
 const (
-	aiAgentConversationHistoryLimit = 8
-	aiAgentConversationListLimit    = 50
-	aiAgentRunTimeout               = 15 * time.Minute
-	aiAgentRunBufferTTL             = 30 * time.Minute
+	// aiAgentConversationHistoryDefault is the replay window used when
+	// agent_history_limit has never been saved. The live value comes from
+	// AIAgentSetting.AgentHistoryLimit: one instruction often refers to a model
+	// list pasted several turns earlier, so a fixed window of 8 was too small.
+	aiAgentConversationHistoryDefault = 24
+	aiAgentConversationHistoryMin     = 4
+	aiAgentConversationHistoryMax     = 80
+	aiAgentConversationListLimit      = 50
+	aiAgentRunTimeout                 = 15 * time.Minute
+	aiAgentRunBufferTTL               = 30 * time.Minute
 )
 
 // aiAgentStreamStep is one tool execution of a run, kept with the persisted
@@ -321,12 +327,28 @@ func aiAgentPersistMessage(db *gorm.DB, conversationID uint, role, content strin
 // aiAgentLoadHistory returns the recent user/assistant turns of a conversation
 // for the model prompt. The just-persisted user message is excluded because the
 // request wraps it with the catalog context itself.
+func aiAgentHistoryLimit(db *gorm.DB) int {
+	raw := 0
+	if db != nil {
+		db.Model(&models.AIAgentSetting{}).Order("id ASC").Limit(1).Pluck("agent_history_limit", &raw)
+	}
+	switch {
+	case raw < aiAgentConversationHistoryMin:
+		return aiAgentConversationHistoryDefault
+	case raw > aiAgentConversationHistoryMax:
+		return aiAgentConversationHistoryMax
+	default:
+		return raw
+	}
+}
+
 func aiAgentLoadHistory(db *gorm.DB, conversationID uint, excludeMessageID uint) []aiChatMessage {
 	if db == nil {
 		return nil
 	}
+	limit := aiAgentHistoryLimit(db)
 	var rows []models.AIAgentConversationMessage
-	if err := db.Where("conversation_id = ?", conversationID).Order("id DESC").Limit(aiAgentConversationHistoryLimit + 1).Find(&rows).Error; err != nil {
+	if err := db.Where("conversation_id = ?", conversationID).Order("id DESC").Limit(limit + 1).Find(&rows).Error; err != nil {
 		return nil
 	}
 	history := make([]aiChatMessage, 0, len(rows))
@@ -345,8 +367,8 @@ func aiAgentLoadHistory(db *gorm.DB, conversationID uint, excludeMessageID uint)
 		}
 		history = append(history, aiChatMessage{Role: role, Content: truncateRunes(content, 1800)})
 	}
-	if len(history) > aiAgentConversationHistoryLimit {
-		history = history[len(history)-aiAgentConversationHistoryLimit:]
+	if len(history) > limit {
+		history = history[len(history)-limit:]
 	}
 	return history
 }
