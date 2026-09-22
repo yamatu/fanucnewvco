@@ -39,7 +39,7 @@ const SUGGESTED_PROMPTS = [
 
 // Shell-style input recall. The list is mirrored into localStorage so a pasted
 // model list is still one ArrowUp away after a page reload.
-const INPUT_HISTORY_KEY = 'vibocnc.ai-assistant.input-history';
+const INPUT_HISTORY_KEY = 'vcocncspare.ai-assistant.input-history';
 const INPUT_HISTORY_LIMIT = 100;
 
 const actionLabels: Record<string, { zh: string; en: string }> = {
