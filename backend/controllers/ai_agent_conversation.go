@@ -151,6 +151,12 @@ func looksLikeUnsupportedTools(err error) bool {
 // models occasionally answer with only reasoning_content, which the callers
 // fall back to.
 func requestAIAgentMessage(ctx context.Context, setting *models.AIAgentSetting, apiKey string, request openAIChatRequest, client *http.Client) (aiChatMessage, error) {
+	// One global provider request slot is taken here, at the point where the
+	// request is actually issued. The task ceiling is enforced by
+	// dispatchQueuedAISEOJobs; this only bounds how many requests the running
+	// tasks may have in flight together (see ai_task_limiter.go).
+	releaseAITaskSlot := acquireAITaskSlotForRequest(nil)
+	defer releaseAITaskSlot()
 	payload, err := json.Marshal(request)
 	if err != nil {
 		return aiChatMessage{}, err

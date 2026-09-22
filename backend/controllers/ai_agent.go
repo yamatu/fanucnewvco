@@ -985,6 +985,12 @@ func buildAIPricePreview(rows []aiPriceImportRow, products []models.Product) aiP
 }
 
 func requestAIAgentCompletion(ctx context.Context, setting *models.AIAgentSetting, apiKey string, messages []aiChatMessage, maxTokens int) (string, error) {
+	// One global provider request slot is taken here, at the point where the
+	// request is actually issued. The task ceiling is enforced by
+	// dispatchQueuedAISEOJobs; this only bounds how many requests the running
+	// tasks may have in flight together (see ai_task_limiter.go).
+	releaseAITaskSlot := acquireAITaskSlotForRequest(nil)
+	defer releaseAITaskSlot()
 	payload, err := json.Marshal(buildOpenAIChatRequest(setting, messages, maxTokens))
 	if err != nil {
 		return "", err
@@ -1095,7 +1101,7 @@ func (ac *AIAgentController) Apply(c *gin.Context) {
 	// after it has committed, so a rolled-back batch can never launch a task.
 	for _, result := range results {
 		if jobID, ok := result["job_id"].(string); ok && jobID != "" {
-			go processAIAgentSEOJob(jobID)
+			dispatchQueuedAISEOJobsAsync()
 		}
 	}
 	productIDs, skus := appliedAIProductReferences(results)

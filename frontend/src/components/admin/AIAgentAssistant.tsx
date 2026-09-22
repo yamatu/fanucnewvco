@@ -521,8 +521,8 @@ export default function AIAgentAssistant() {
                 {status?.task_gate && (
                   <p className="mt-0.5 text-[10px] text-violet-200">
                     {zh
-                      ? `AI 任务 ${status.task_gate.active}/${status.task_gate.limit}${status.task_gate.queued_jobs > 0 ? ` · 排队 ${status.task_gate.queued_jobs}` : ''}`
-                      : `AI tasks ${status.task_gate.active}/${status.task_gate.limit}${status.task_gate.queued_jobs > 0 ? ` · ${status.task_gate.queued_jobs} queued` : ''}`}
+                      ? `优化任务 ${status.task_gate.active}/${status.task_gate.limit} · AI 请求 ${status.task_gate.requests_active}/${status.task_gate.requests_limit}${status.task_gate.queued_jobs > 0 ? ` · 排队 ${status.task_gate.queued_jobs}` : ''}`
+                      : `${status.task_gate.active}/${status.task_gate.limit} tasks · ${status.task_gate.requests_active}/${status.task_gate.requests_limit} AI requests${status.task_gate.queued_jobs > 0 ? ` · ${status.task_gate.queued_jobs} queued` : ''}`}
                   </p>
                 )}
               </div>

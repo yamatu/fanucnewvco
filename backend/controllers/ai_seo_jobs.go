@@ -195,7 +195,7 @@ func (ac *AIAgentController) StartSelectedSEO(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to create AI SEO job", Error: err.Error()})
 		return
 	}
-	go processAIAgentSEOJob(job.ID)
+	dispatchQueuedAISEOJobsAsync()
 	c.JSON(http.StatusAccepted, models.APIResponse{Success: true, Message: "AI SEO job started", Data: job})
 }
 
@@ -255,7 +255,7 @@ func (ac *AIAgentController) StartCandidateSEO(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Failed to create AI SEO candidate job", Error: err.Error()})
 		return
 	}
-	go processAIAgentSEOJob(job.ID)
+	dispatchQueuedAISEOJobsAsync()
 	c.JSON(http.StatusAccepted, models.APIResponse{Success: true, Message: "AI SEO candidate job started", Data: job})
 }
 
@@ -530,7 +530,7 @@ func (ac *AIAgentController) ResumeSEOJob(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "AI SEO job was resumed but could not be reloaded", Error: err.Error()})
 		return
 	}
-	go processAIAgentSEOJob(jobID)
+	dispatchQueuedAISEOJobsAsync()
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "AI SEO job resumed", Data: job})
 }
 
@@ -603,25 +603,22 @@ func (ac *AIAgentController) GetSEOStats(c *gin.Context) {
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Data: stats})
 }
 
+// processAIAgentSEOJob claims a queued job and runs it. Prefer
+// dispatchQueuedAISEOJobs, which takes a task slot first and leaves the job
+// queued when all of them are taken.
 func processAIAgentSEOJob(jobID string) {
+	workerToken, claimed := claimAIAgentSEOJob(jobID)
+	if !claimed {
+		return
+	}
+	runAIAgentSEOJob(jobID, workerToken)
+}
+
+// runAIAgentSEOJob runs one already-claimed job. The worker token is the fence:
+// a pause, a resume or a container restart takes the job over, and this worker's
+// writes stop being applied.
+func runAIAgentSEOJob(jobID, workerToken string) {
 	db := config.GetDB()
-	// Global AI task gate: at most max_concurrent_jobs tasks run at once across
-	// every task kind. The slot is taken before the claim, so a job that has to
-	// wait stays queued in the database - the row is the queue, and a restart
-	// re-dispatches it - instead of holding a worker token while it is idle.
-	releaseTaskSlot, taskSlotAcquired := acquireGlobalAITaskSlot(context.Background(), db)
-	if !taskSlotAcquired {
-		return
-	}
-	defer releaseTaskSlot()
-	now := time.Now().UTC()
-	workerToken := uuid.NewString()
-	claim := db.Model(&models.AIAgentSEOJob{}).
-		Where("id = ? AND status = ?", jobID, "queued").
-		Updates(map[string]interface{}{"status": "running", "started_at": &now, "worker_token": workerToken})
-	if claim.Error != nil || claim.RowsAffected == 0 {
-		return
-	}
 	var claimedJob models.AIAgentSEOJob
 	if err := db.Select("selection_mode", "prompt").First(&claimedJob, "id = ?", jobID).Error; err != nil {
 		finishAIAgentSEOJob(jobID, workerToken, "failed", err.Error())
@@ -910,14 +907,10 @@ func ResumeAIAgentSEOJobs() {
 	if err := db.Model(&models.AIAgentSEOJob{}).Where("status = ?", "running").Updates(map[string]interface{}{"status": "queued", "worker_token": ""}).Error; err != nil {
 		return
 	}
-	var jobs []models.AIAgentSEOJob
-	if err := db.Where("status IN ?", []string{"queued", "running"}).Order("created_at ASC").Find(&jobs).Error; err != nil {
-		return
-	}
-	for _, job := range jobs {
-		jobID := job.ID
-		go processAIAgentSEOJob(jobID)
-	}
+	// The dispatcher starts as many jobs as the task-slot ceiling allows and
+	// leaves the rest queued; releasing a slot wakes it again, so nothing needs
+	// a restart to be picked up.
+	dispatchQueuedAISEOJobs()
 }
 
 type aiSEOCategoryReference struct {

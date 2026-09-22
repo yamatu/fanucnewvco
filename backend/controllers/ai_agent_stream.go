@@ -575,6 +575,12 @@ func requestAIAgentMessageStream(ctx context.Context, setting *models.AIAgentSet
 }
 
 func doRequestAIAgentMessageStream(ctx context.Context, endpoint, apiKey string, payload []byte, client *http.Client, onContent func(string)) (aiChatMessage, bool, error) {
+	// One global provider request slot is taken here, at the point where the
+	// request is actually issued. The task ceiling is enforced by
+	// dispatchQueuedAISEOJobs; this only bounds how many requests the running
+	// tasks may have in flight together (see ai_task_limiter.go).
+	releaseAITaskSlot := acquireAITaskSlotForRequest(nil)
+	defer releaseAITaskSlot()
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return aiChatMessage{}, false, fmt.Errorf("invalid AI provider URL: %w", err)

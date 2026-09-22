@@ -69,12 +69,18 @@ export interface AIAgentSettings {
 
 /** Live occupancy of the global AI task gate, shown in the assistant header. */
 export interface AIAgentTaskGate {
+  /** Optimization tasks allowed to run side by side (max_concurrent_jobs). */
   limit: number;
+  /** Optimization tasks running right now. */
   active: number;
   available: number;
   queued_jobs: number;
   running_jobs: number;
   generating_chats: number;
+  /** Provider requests allowed in flight at once (tasks x per-task workers). */
+  requests_limit: number;
+  /** Provider requests in flight right now. */
+  requests_active: number;
 }
 
 /** One saved instruction of the assistant prompt library. */
