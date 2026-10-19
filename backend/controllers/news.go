@@ -102,6 +102,21 @@ func getArticlePublicPath(article models.Article) string {
 	return "/news/" + article.Slug
 }
 
+// defaultArticleCustomPath keeps the unique custom_path index usable for
+// articles without a custom URL: MySQL rejects a second '' in a unique index
+// ("Duplicate entry '' for key 'articles.idx_articles_custom_path'"). The value
+// is the same canonical path getArticlePublicPath returns for an empty field.
+func defaultArticleCustomPath(slug string) string {
+	return "news/" + strings.Trim(slug, "/")
+}
+
+// isGeneratedArticleCustomPath tells an automatically assigned path apart from
+// a deliberate custom URL, so editing the slug can move the generated one.
+func isGeneratedArticleCustomPath(path, slug string) bool {
+	return normalizeCustomPath(path) == defaultArticleCustomPath(slug)
+}
+
+
 func parseStringArrayJSON(raw string) []string {
 	if strings.TrimSpace(raw) == "" {
 		return []string{}
@@ -479,9 +494,10 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 	slug = ensureUniqueSlug(db, slugify(slug), 0)
 
 	customPath := normalizeCustomPath(req.CustomPath)
-	if customPath != "" {
-		customPath = ensureUniqueCustomPath(db, customPath, 0)
+	if customPath == "" {
+		customPath = defaultArticleCustomPath(slug)
 	}
+	customPath = ensureUniqueCustomPath(db, customPath, 0)
 
 	featuredImage := strings.TrimSpace(req.FeaturedImage)
 	imageURLs := req.ImageURLs
@@ -507,13 +523,9 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 		}
 	}
 
-	userID, _ := c.Get("userID")
 	authorID := uint(0)
-	switch v := userID.(type) {
-	case uint:
-		authorID = v
-	case float64:
-		authorID = uint(v)
+	if uid := currentAdminUserID(c); uid != nil {
+		authorID = *uid
 	}
 
 	var publishedAt *time.Time
@@ -608,9 +620,12 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 	slug = ensureUniqueSlug(db, slugify(slug), article.ID)
 
 	customPath := normalizeCustomPath(req.CustomPath)
-	if customPath != "" {
-		customPath = ensureUniqueCustomPath(db, customPath, article.ID)
+	// The admin form submits the stored path; a generated default follows the
+	// (possibly edited) slug, and an empty value must never be stored as ''.
+	if customPath == "" || isGeneratedArticleCustomPath(customPath, article.Slug) {
+		customPath = defaultArticleCustomPath(slug)
 	}
+	customPath = ensureUniqueCustomPath(db, customPath, article.ID)
 
 	featuredImage := strings.TrimSpace(req.FeaturedImage)
 	imageURLs := req.ImageURLs
