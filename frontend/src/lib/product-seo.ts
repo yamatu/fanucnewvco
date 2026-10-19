@@ -19,6 +19,18 @@ export function stripProductMarkup(value?: string): string {
   return normalizeWhitespace(String(value || '').replace(/<[^>]*>/g, ' '));
 }
 
+// Generated copy was built from a slugified model field, so an operator note
+// such as "(ACS355 Series)" ended up as "MODEL-(ACS355-SERIES)" in titles and
+// descriptions. Drops that note; the bare model is left intact.
+export function stripModelNoteArtifacts(value: string): string {
+  return value.replace(/-\((?:[A-Z0-9]+-?)+\)/g, '');
+}
+
+// Titles were also clipped mid-suffix ("... Drive |"); strip both artifacts.
+export function cleanTitleArtifacts(value?: string): string {
+  return normalizeWhitespace(stripModelNoteArtifacts(String(value || '')).replace(/[\s|:,\-–—]+$/, ''));
+}
+
 /**
  * Infer a customer-facing product family while legacy catalogue records still
  * carry a broad category. These rules only affect rendered SEO copy.
@@ -64,7 +76,7 @@ export function buildSemanticProductName(product: Product): string {
 }
 
 export function buildProductSeoDescription(product: Product, maxLength = 160): string {
-  const explicit = stripProductMarkup(product.meta_description);
+  const explicit = stripModelNoteArtifacts(stripProductMarkup(product.meta_description));
   const brand = normalizeWhitespace(product.brand);
   const brandPattern = brand ? escapeRegExp(brand) : '';
   const brokenEnding = /(?:\band\s+(?:fast|global|worldwide)|[,;:]|\bwith)[.!?]?$/i.test(explicit);

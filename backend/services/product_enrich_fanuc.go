@@ -38,7 +38,7 @@ var (
 
 func FanucEnrich(model string) EnrichedProduct {
 	model = strings.TrimSpace(model)
-	upper := NormalizeProductModel(model)
+	upper := stripModelAnnotation(NormalizeProductModel(model))
 
 	inference := inferFanucCategoryInference(upper)
 	partType := inference.PartType
@@ -339,6 +339,20 @@ func fanucSeriesHint(model string) string {
 	default:
 		return ""
 	}
+}
+
+var modelAnnotationRe = regexp.MustCompile(`[-\s]*\([^)]*\)`)
+
+// stripModelAnnotation drops parenthesised notes such as "(ACS355 Series)" or
+// "(ABB Code: 3AU...)" that operators type into the model field. Once the model
+// is slugified they read as "MODEL-(ACS355-SERIES)" in every generated name,
+// title and description. A model that is only a note is returned unchanged.
+func stripModelAnnotation(model string) string {
+	cleaned := strings.Trim(strings.TrimSpace(modelAnnotationRe.ReplaceAllString(model, "")), "-")
+	if cleaned == "" {
+		return strings.TrimSpace(model)
+	}
+	return cleaned
 }
 
 func dedupeStrings(in []string) []string {

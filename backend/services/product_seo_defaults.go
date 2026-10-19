@@ -23,6 +23,7 @@ func BuildDefaultProductSEO(product *models.Product) EnrichedProduct {
 	if model == "" {
 		model = strings.TrimSpace(product.SKU)
 	}
+	model = stripModelAnnotation(model)
 
 	inference := InferProductCategory(brand, model)
 	partType := inference.PartType

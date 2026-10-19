@@ -2,6 +2,8 @@
 
 import { Product, Category } from '@/types';
 import { toProductPathId } from '@/lib/utils';
+import { stripModelNoteArtifacts } from '@/lib/product-seo';
+import { buildProductFaqs } from '@/lib/product-content';
 
 const DEFAULT_SITE_NAME = 'Vcocnc';
 const GENERIC_BRAND_LABEL = 'industrial automation';
@@ -50,6 +52,12 @@ function stripHtml(text?: string): string {
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+// JSON-LD is inlined in a <script> element: escape "<" so product text such as
+// "</script>" can never terminate the block. The output is still valid JSON.
+function toJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, '\\u003c');
 }
 
 function toAbsoluteUrl(url: string | undefined, baseUrl: string): string {
@@ -102,7 +110,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
   const productId = `${productUrl}#product`;
   const brandLabel = getBrandLabel(product);
   const manufacturerName = getManufacturerName(product);
-  const description = stripHtml(product.meta_description || product.short_description || product.description)
+  const description = stripModelNoteArtifacts(stripHtml(product.meta_description || product.short_description || product.description))
     || `${product.name} industrial automation spare part from ${brandLabel}.`;
   const answerFirstSummary = buildAnswerFirstSummary(product, category);
 
@@ -169,6 +177,8 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     },
     "itemCondition": mapConditionType(product.condition_type),
     "countryOfOrigin": product.origin_country || undefined,
+    "datePublished": product.created_at || undefined,
+    "dateModified": product.updated_at || undefined,
     "keywords": [product.sku, product.part_number, product.brand, category?.name].filter(Boolean).join(', '),
     "audience": {
       "@type": "Audience",
@@ -179,11 +189,15 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
       "url": productUrl,
       "price": product.price,
       "priceCurrency": "USD",
+      "itemCondition": mapConditionType(product.condition_type),
+      // Out-of-stock parts are still orderable with a lead time (the page says
+      // "Available to Order"), which is BackOrder rather than OutOfStock.
       "availability": product.stock_quantity > 0
         ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
+        : "https://schema.org/BackOrder",
       "seller": {
         "@type": "Organization",
+        "@id": `${baseUrl}/#organization`,
         "name": "Vcocnc",
         "url": baseUrl
       }
@@ -242,7 +256,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
   // Speakable for AI search engines
   structuredData.speakable = {
     "@type": "SpeakableSpecification",
-    "cssSelector": ["h1", ".product-summary", ".product-description", ".product-specs"]
+    "cssSelector": ["h1", ".product-description", ".product-specs"]
   };
 
   // Generate breadcrumb structured data
@@ -277,53 +291,15 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     ]
   };
 
-  // Generate FAQ structured data - prefer database FAQs, fall back to generic
-  const dbFaqs = product.faqs?.filter(f => f.is_active) || [];
-  const faqEntities = dbFaqs.length > 0
-    ? dbFaqs.map(f => ({
-        "@type": "Question",
-        "name": f.question,
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": f.answer
-        }
-      }))
-    : [
-        {
-          "@type": "Question",
-          "name": `What is the ${product.sku} used for?`,
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": `The ${product.name} (${product.sku}) is a ${brandLabel} industrial automation component used in CNC machines, control cabinets, and related automation systems.`
-          }
-        },
-        {
-          "@type": "Question",
-          "name": `Is the ${product.sku} compatible with my CNC system?`,
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": product.compatibility_info
-              ? `${product.compatibility_info} Contact our technical team at sales@vcocncspare.com for further compatibility verification.`
-              : `The ${product.name} should be matched against the original machine, controller, and option configuration before ordering. Contact our technical team at sales@vcocncspare.com for compatibility verification.`
-          }
-        },
-        {
-          "@type": "Question",
-          "name": `What is the warranty for ${product.sku}?`,
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": `We provide a ${product.warranty_period || '12-month'} warranty for the ${product.name}. All products are quality tested before shipment.`
-          }
-        },
-        {
-          "@type": "Question",
-          "name": `How long does shipping take for ${product.sku}?`,
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": `We offer worldwide shipping for the ${product.name} via DHL, FedEx, and UPS. Delivery typically takes 3-7 business days for express shipping. ${product.stock_quantity > 0 ? 'This item is currently in stock and ready to ship.' : 'Contact us for availability and estimated delivery time.'}`
-          }
-        }
-      ];
+  // Same FAQ set as the visible accordion (structured data must match the page).
+  const faqEntities = buildProductFaqs(product).map((faq) => ({
+    "@type": "Question",
+    "name": faq.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": faq.answer
+    }
+  }));
 
   const faqData = {
     "@context": "https://schema.org",
@@ -338,10 +314,13 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     "url": productUrl,
     "name": product.name,
     "description": description,
-    "dateModified": product.updated_at,
+    "datePublished": product.created_at || undefined,
+    "dateModified": product.updated_at || undefined,
     "inLanguage": "en",
+    // Same @id as the homepage WebSite node so the graphs merge into one entity.
     "isPartOf": {
       "@type": "WebSite",
+      "@id": `${baseUrl}/#website`,
       "name": DEFAULT_SITE_NAME,
       "url": baseUrl,
     },
@@ -354,7 +333,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
         },
     "speakable": {
       "@type": "SpeakableSpecification",
-      "cssSelector": ["h1", ".product-summary", ".product-description", ".product-specs"]
+      "cssSelector": ["h1", ".product-description", ".product-specs"]
     }
   };
 
@@ -364,7 +343,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(structuredData)
+            __html: toJsonLd(structuredData)
           }}
         />
       )}
@@ -373,7 +352,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(breadcrumbData)
+          __html: toJsonLd(breadcrumbData)
         }}
       />
 
@@ -381,14 +360,14 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(faqData)
+          __html: toJsonLd(faqData)
         }}
       />
 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(webPageData)
+          __html: toJsonLd(webPageData)
         }}
       />
     </>

@@ -15,7 +15,7 @@ func EnrichProductByBrand(brand string, model string) (EnrichedProduct, error) {
 		return FanucEnrich(model), nil
 	case "mitsubishi":
 		inference := InferProductCategory(b, model)
-		upper := NormalizeProductModel(model)
+		upper := stripModelAnnotation(NormalizeProductModel(model))
 		name := strings.TrimSpace(fmt.Sprintf("%s %s %s", inference.BrandName, upper, inference.PartType))
 		shortDesc := limitLen(fmt.Sprintf("%s %s %s for industrial automation. Worldwide shipping available.", inference.BrandName, upper, inference.PartType), 200)
 		desc := strings.Join([]string{
@@ -45,7 +45,7 @@ func EnrichProductByBrand(brand string, model string) (EnrichedProduct, error) {
 		}, nil
 	default:
 		inference := InferProductCategory(b, model)
-		upper := NormalizeProductModel(model)
+		upper := stripModelAnnotation(NormalizeProductModel(model))
 		name := strings.TrimSpace(fmt.Sprintf("%s %s %s", inference.BrandName, upper, inference.PartType))
 		shortDesc := limitLen(fmt.Sprintf("%s %s %s for industrial automation. Worldwide shipping available.", inference.BrandName, upper, inference.PartType), 200)
 		return EnrichedProduct{
@@ -65,7 +65,7 @@ func EnrichProductByBrand(brand string, model string) (EnrichedProduct, error) {
 }
 
 func GenericEnrich(model string) EnrichedProduct {
-	upper := NormalizeProductModel(model)
+	upper := stripModelAnnotation(NormalizeProductModel(model))
 	inference := InferProductCategory("", upper)
 	if upper == "" {
 		upper = "Industrial Automation Part"

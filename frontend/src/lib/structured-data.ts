@@ -1,5 +1,6 @@
 import { getSiteUrl } from '@/lib/url';
 import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from '@/lib/seo';
+import { SITE_FAQ_ENTRIES } from '@/lib/faq-content';
 
 export function generateOrganizationSchema() {
   const baseUrl = getSiteUrl();
@@ -104,46 +105,57 @@ export function generateWebsiteSchema() {
       "name": "Vcocnc",
       "url": baseUrl
     },
+    // Sitelinks search box: lets search and answer engines query the catalogue
+    // directly (the products page reads ?search=).
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": `${baseUrl}/products?search={search_term_string}`
+      },
+      "query-input": "required name=search_term_string"
+    },
+    // Hub pages that always exist; category slugs change with the catalogue.
     "mainEntity": {
       "@type": "ItemList",
-      "name": "FANUC Parts Categories",
-      "description": "Main product categories available at Vcocnc",
+      "name": "Vcocnc Catalogue and Support Pages",
+      "description": "Main product, news and support pages available at Vcocnc",
       "itemListElement": [
         {
           "@type": "ListItem",
           "position": 1,
-          "name": "PCB Boards",
-          "url": `${baseUrl}/categories/pcb-boards`
+          "name": "FANUC Parts & Industrial Automation Components",
+          "url": `${baseUrl}/products`
         },
         {
           "@type": "ListItem",
           "position": 2,
-          "name": "I/O Modules",
-          "url": `${baseUrl}/categories/io-modules`
+          "name": "Product Categories",
+          "url": `${baseUrl}/categories`
         },
         {
           "@type": "ListItem",
           "position": 3,
-          "name": "Servo Motors",
-          "url": `${baseUrl}/categories/servo-motors`
+          "name": "Company News",
+          "url": `${baseUrl}/news`
         },
         {
           "@type": "ListItem",
           "position": 4,
-          "name": "Control Units",
-          "url": `${baseUrl}/categories/control-units`
+          "name": "Technical Support",
+          "url": `${baseUrl}/technical-support`
         },
         {
           "@type": "ListItem",
           "position": 5,
-          "name": "Power Supplies",
-          "url": `${baseUrl}/categories/power-supplies`
+          "name": "FAQ",
+          "url": `${baseUrl}/faq`
         },
         {
           "@type": "ListItem",
           "position": 6,
-          "name": "Other Components",
-          "url": `${baseUrl}/categories/other-components`
+          "name": "Contact Vcocnc",
+          "url": `${baseUrl}/contact`
         }
       ]
     },
@@ -194,91 +206,19 @@ export function generateBreadcrumbSchema(items: Array<{name: string, url: string
 }
 
 export function generateFAQSchema() {
+  // Delegates to the same list the FAQ page renders, so the markup can never
+  // claim an answer that is not visible on the page.
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "mainEntity": [
-      {
-        "@type": "Question",
-        "name": "What FANUC parts do you stock?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "We stock over 100,000 FANUC parts including PCB boards, I/O modules, servo motors, control units, power supplies, and other automation components. All parts are genuine FANUC or compatible alternatives clearly marked for your convenience."
-        }
+    "mainEntity": SITE_FAQ_ENTRIES.map((entry) => ({
+      "@type": "Question",
+      "name": entry.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": entry.answer,
       },
-      {
-        "@type": "Question",
-        "name": "Do you ship worldwide?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Yes, we ship FANUC parts worldwide. We offer express shipping options via DHL, FedEx, and UPS, and can deliver to most countries within 3-10 business days."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Are your FANUC parts genuine?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "We supply both genuine FANUC parts and high-quality compatible alternatives. All parts are clearly marked and come with our quality guarantee. Genuine parts include manufacturer documentation and certificates."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "What is your warranty policy?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "We offer a comprehensive warranty on all FANUC parts. Genuine parts come with manufacturer warranty (typically 12-24 months), while compatible parts include our 12-month guarantee covering defects and performance issues."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "How can I get technical support?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Our technical support team is available via email at sales@vcocncspare.com or phone at +86-13348028050. We provide installation guidance, troubleshooting, compatibility assistance, and replacement recommendations."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "How do I place an order?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "You can place orders directly on our website, via email, or by phone. We accept PayPal, bank transfers, and major credit cards. For large orders, we offer flexible payment terms for established customers."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Do you offer quantity discounts?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Yes, we offer competitive quantity discounts for bulk orders. Contact our sales team for custom pricing on large quantities or long-term supply agreements."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "How do I know if a part is compatible with my system?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Our technical team can help verify compatibility. Provide your system model, current part number, and application details. We maintain extensive compatibility databases and can suggest alternatives if needed."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "What payment methods do you accept?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "We accept PayPal, wire transfers, major credit cards (Visa, MasterCard, American Express), and for established customers, we offer terms payments and purchase orders."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "How do I track my order?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Once your order ships, you'll receive tracking information via email. You can also log into your account on our website to view order status and tracking details in real-time."
-        }
-      }
-    ]
+    })),
   };
 }
 

@@ -4,6 +4,8 @@ import { CategoryService } from '@/services/category.service';
 import { getProductBySkuCached, searchFirstProduct } from '@/services/product.server';
 import { getSiteUrl } from '@/lib/url';
 import { toProductPathId } from '@/lib/utils';
+import { cleanTitleArtifacts, stripModelNoteArtifacts } from '@/lib/product-seo';
+import { customCompatibilityInfo, resolveLeadTime, withoutGeneratedContent } from '@/lib/product-content';
 import type { Category, Product, ProductImage } from '@/types';
 import ProductDetailClient from './ProductDetailClient';
 import { ReactQueryProvider } from '@/lib/react-query';
@@ -67,16 +69,16 @@ function normalizeWhitespace(text?: string): string {
 }
 
 function trimMetaTitle(text: string, maxLength: number): string {
-  const value = normalizeWhitespace(text);
+  const value = cleanTitleArtifacts(text);
   if (!value) return '';
   if (value.length <= maxLength) return value;
   const cut = value.slice(0, maxLength);
   const idx = cut.lastIndexOf(' ');
-  return normalizeWhitespace(idx >= 24 ? cut.slice(0, idx) : cut);
+  return cleanTitleArtifacts(idx >= 24 ? cut.slice(0, idx) : cut);
 }
 
 function trimMetaDescription(text: string, maxLength: number): string {
-  const value = normalizeWhitespace(text);
+  const value = normalizeWhitespace(stripModelNoteArtifacts(text));
   if (!value) return '';
   if (value.length <= maxLength) return value;
   const cut = value.slice(0, maxLength);
@@ -161,11 +163,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       || `${product.name} (${product.sku}) ${brandLabel} spare part.`;
     const availabilityText = product.stock_quantity > 0
       ? 'In stock and ready for worldwide shipping.'
-      : `Available to order with ${product.lead_time || '3-7 days'} lead time.`;
+      : `Available to order with ${resolveLeadTime(product)} lead time.`;
     const supportingText = [
       product.part_number && product.part_number !== product.sku ? `Part number ${product.part_number}.` : '',
       product.category?.name ? `${product.category.name} for CNC and industrial automation systems.` : 'Industrial automation component.',
-      product.compatibility_info ? 'Compatibility guidance available on the product page.' : '',
+      // Generated template text is not rendered, so only operator-written guidance counts.
+      customCompatibilityInfo(product) ? 'Compatibility guidance available on the product page.' : '',
       `Source from Vcocnc, professional ${supplierLabel} since 2005.`,
     ].filter(Boolean).join(' ');
     const enhancedDescription = trimMetaDescription(`${baseDescription} ${availabilityText} ${supportingText}`, 160);
@@ -245,14 +248,19 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     redirect(`/products/${canonicalId}`);
   }
 
+  // Template compatibility/installation/maintenance/FAQ copy is hidden on the
+  // page; drop it from the serialized payload too.
+  const pageProduct = withoutGeneratedContent(initialProduct);
+
   const context = await loadProductPageContext(initialProduct);
 
   return (
     <>
       <ReactQueryProvider>
         <ProductDetailClient
-          productSku={initialProduct?.sku || sku}
-          initialProduct={initialProduct}
+          productSku={pageProduct.sku || sku}
+          initialProduct={pageProduct}
+          siteUrl={getSiteUrl()}
           initialCategory={context.category}
           initialCategoryBreadcrumb={context.breadcrumb}
           initialRelatedProducts={context.related}

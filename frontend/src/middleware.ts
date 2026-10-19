@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { PUBLIC_CONTENT_SIGNAL_POLICY, isPrivateRobotsPath } from '@/lib/robots';
 
 // Define protected routes
 const protectedRoutes = ['/admin'];
@@ -213,6 +214,12 @@ export async function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'origin-when-cross-origin');
 
   // Let per-page metadata control robots; avoid overriding here
+
+  // Content-usage policy for search and AI crawlers on public pages only
+  // (same private list as robots.txt).
+  if (!isPrivateRobotsPath(pathname)) {
+    response.headers.set('Content-Signal', PUBLIC_CONTENT_SIGNAL_POLICY);
+  }
 
   return response;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -24,10 +24,19 @@ import { ProductService } from '@/services/product.service';
 import { CategoryService } from '@/services/category.service';
 import { ShippingRateService } from '@/services/shipping-rate.service';
 import type { ShippingRatePublic, ShippingQuote } from '@/services/shipping-rate.service';
-import type { PaginationResponse, Product, ProductFAQ, ProductImage, ProductReview, Category } from '@/types';
+import type { PaginationResponse, Product, ProductImage, ProductReview, Category } from '@/types';
 import { queryKeys } from '@/lib/react-query';
 import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { stripDuplicateGeneratedSections } from '@/lib/product-description';
+import {
+  buildProductFaqs,
+  customCompatibilityInfo,
+  customInstallationGuide,
+  customMaintenanceTips,
+  extraSpecRows,
+  resolveLeadTime,
+  resolveWarrantyPeriod,
+} from '@/lib/product-content';
 import { useCartStore } from '@/store/cart.store';
 import { useRouter } from 'next/navigation';
 
@@ -40,6 +49,8 @@ interface ProductDetailClientProps {
   initialRelatedProducts?: PaginationResponse<Product>;
   // null = the server looked the category up and it has no nested path.
   initialCategoryPath?: string | null;
+  // Canonical site origin (same source as the page's canonical URL).
+  siteUrl?: string;
 }
 
 function parseTechnicalSpecs(raw?: string): Record<string, string> | null {
@@ -53,28 +64,16 @@ function parseTechnicalSpecs(raw?: string): Record<string, string> | null {
   return null;
 }
 
-function stripHtml(text?: string): string {
-  return String(text || '')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function normalizeComparisonText(text?: string): string {
-  return stripHtml(text)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 function FAQAccordionItem({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false);
+  const answerId = useId();
   return (
     <div>
       <button
         type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-controls={answerId}
         className="flex w-full items-center justify-between px-6 py-4 text-left text-sm font-medium text-gray-900 hover:bg-gray-50"
       >
         <span>{question}</span>
@@ -82,11 +81,17 @@ function FAQAccordionItem({ question, answer }: { question: string; answer: stri
           className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
-      {open && (
-        <div className="px-6 pb-4 text-sm text-gray-700 leading-relaxed">
-          {answer}
-        </div>
-      )}
+      {/*
+        The answer stays in the server-rendered HTML (only hidden while
+        collapsed) so the visible FAQ matches the FAQPage structured data.
+      */}
+      <div
+        id={answerId}
+        hidden={!open}
+        className="px-6 pb-4 text-sm text-gray-700 leading-relaxed"
+      >
+        {answer}
+      </div>
     </div>
   );
 }
@@ -98,6 +103,7 @@ export default function ProductDetailClient({
   initialCategoryBreadcrumb,
   initialRelatedProducts,
   initialCategoryPath,
+  siteUrl,
 }: ProductDetailClientProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity] = useState(1);
@@ -342,7 +348,6 @@ export default function ProductDetailClient({
 
   const categoryName = product.category?.name || 'Part';
   const brandName = (product.brand || '').trim();
-  const brandLabel = brandName || 'industrial automation';
   const computedHeading = product.name || `${brandName} ${product.sku || ''} ${categoryName}`.trim();
 
   const getFallbackDescription = () => {
@@ -366,61 +371,26 @@ export default function ProductDetailClient({
     : getFallbackDescription();
   // Legacy generated copy repeated facts that already have their own sections.
   // Strip those blocks here so an old product stops showing them twice; the
-  // stored description is never modified.
+  // stored description is never modified. Generated spec/compatibility blocks
+  // inside old descriptions are always template copy: the details table covers
+  // the specs and the FAQ covers fitment.
   const descriptionToShow = stripDuplicateGeneratedSections(rawDescription, {
-    hasSpecifications: !!specs,
-    hasCompatibility: !!product.compatibility_info?.trim(),
+    hasSpecifications: true,
+    hasCompatibility: true,
   });
-  const introBrandPrefix = brandName ? `${brandName} ` : '';
-  const introParagraph = `${computedHeading} is a ${introBrandPrefix}${categoryName.toLowerCase()} supplied by Vcocnc for CNC maintenance, replacement, and industrial automation support. ${product.stock_quantity > 0 ? 'This item is in stock and ready to ship worldwide.' : `This item is available to order with ${product.lead_time || '3-7 days'} lead time.`}`.replace(/\s+/g, ' ').trim();
-  const normalizedIntro = normalizeComparisonText(introParagraph);
-  const normalizedDescription = normalizeComparisonText(descriptionToShow);
-  const shouldRenderIntroParagraph = normalizedIntro !== '' && !normalizedDescription.includes(normalizedIntro);
   const categoryHref = resolveCategoryHref();
-  const activeFaqs: Array<{ id?: number; question: string; answer: string }> =
-    product.faqs && product.faqs.filter((f: ProductFAQ) => f.is_active).length > 0
-      ? product.faqs.filter((f: ProductFAQ) => f.is_active)
-      : [
-          {
-            question: `What is ${product.sku} used for?`,
-            answer: `${computedHeading} is used in CNC and industrial automation systems for stable control, replacement, or maintenance needs.`,
-          },
-          {
-            question: `Is ${product.sku} in stock?`,
-            answer: product.stock_quantity > 0
-              ? `${product.sku} is currently in stock and ready for shipment.`
-              : `${product.sku} is available to order with ${product.lead_time || '3-7 days'} lead time.`,
-          },
-          {
-            question: `How can I confirm compatibility for ${product.sku}?`,
-            answer: product.compatibility_info
-              ? `${stripHtml(product.compatibility_info)} Contact sales@vcocncspare.com for final compatibility confirmation before ordering.`
-              : `Share your machine model or original part number with sales@vcocncspare.com and we will verify compatibility before shipment.`,
-          },
-        ];
-  const partHighlights = [
-    product.part_number && product.part_number !== product.sku ? `Part number: ${product.part_number}` : '',
-    categoryName ? `Category: ${categoryName}` : '',
-    product.condition_type ? `Condition: ${product.condition_type}` : 'Condition: new',
-    product.warranty_period ? `Warranty: ${product.warranty_period}` : 'Warranty: 12 months',
-    product.lead_time ? `Lead time: ${product.lead_time}` : 'Lead time: 3-7 days',
-    product.origin_country ? `Origin: ${product.origin_country}` : '',
-  ].filter(Boolean);
+  const shownWarranty = resolveWarrantyPeriod(product);
+  const shownLeadTime = resolveLeadTime(product);
+  // Same builder as the FAQPage JSON-LD in ProductSEO.
+  const activeFaqs = buildProductFaqs(product);
+  const compatibilityText = customCompatibilityInfo(product);
+  const installationText = customInstallationGuide(product);
+  const maintenanceText = customMaintenanceTips(product);
+  const extraSpecs = extraSpecRows(specs, product);
   const resourceLinks = [
     product.datasheet_url ? { href: product.datasheet_url, label: 'Datasheet' } : null,
     product.manual_url ? { href: product.manual_url, label: 'Manual' } : null,
   ].filter(Boolean) as Array<{ href: string; label: string }>;
-  const productSummarySubject = brandName ? `${brandName} ${product.sku}` : product.sku;
-  const productSummaryPoints = [
-    `${productSummarySubject} is supplied for CNC maintenance, replacement, and industrial automation support.`,
-    product.stock_quantity > 0
-      ? 'Current status: in stock and ready for worldwide shipment.'
-      : `Current status: available to order with ${product.lead_time || '3-7 days'} lead time.`,
-    `Standard supply terms: ${product.warranty_period || '12 months'} warranty and technical confirmation on request.`,
-    product.compatibility_info
-      ? 'Compatibility information is available for this part. Share your machine model or original part number for final confirmation before ordering.'
-      : `Compatibility should be checked against your original part number, controller model, and machine configuration before ordering.`,
-  ].filter(Boolean);
 
   return (
     <Layout>
@@ -429,6 +399,7 @@ export default function ProductDetailClient({
         product={product}
         category={category}
         categoryBreadcrumb={categoryBreadcrumb}
+        baseUrl={siteUrl}
       />
 
       <div className="min-h-screen bg-gray-50">
@@ -528,11 +499,11 @@ export default function ProductDetailClient({
                 </div>
                 <div className="text-sm">
                   <div className="text-xs text-gray-500">Warranty</div>
-                  <div className="font-medium text-gray-900">{product.warranty_period || '12 months'}</div>
+                  <div className="font-medium text-gray-900">{shownWarranty}</div>
                 </div>
                 <div className="text-sm">
                   <div className="text-xs text-gray-500">Lead time</div>
-                  <div className="font-medium text-gray-900">{product.lead_time || '3-7 days'}</div>
+                  <div className="font-medium text-gray-900">{shownLeadTime}</div>
                 </div>
               </div>
 
@@ -643,7 +614,7 @@ export default function ProductDetailClient({
                     <>
                       <ClockIcon className="h-4 w-4 text-yellow-600 mr-2 flex-shrink-0" />
                       <span className="text-yellow-700 font-medium">Available to Order</span>
-                      <span className="text-gray-500 ml-1">— {product.lead_time || '3-7 days'} lead time</span>
+                      <span className="text-gray-500 ml-1">— {shownLeadTime} lead time</span>
                     </>
                   )}
                 </div>
@@ -657,7 +628,7 @@ export default function ProductDetailClient({
               <div className="mt-6 grid grid-cols-3 gap-3">
                 <div className="flex flex-col items-center text-center p-3 rounded-lg bg-gray-50">
                   <ShieldCheckIcon className="h-6 w-6 text-yellow-600 mb-1" />
-                  <span className="text-xs font-medium text-gray-700">{product.warranty_period || '12 Month'} Warranty</span>
+                  <span className="text-xs font-medium text-gray-700">{shownWarranty} Warranty</span>
                 </div>
                 <div className="flex flex-col items-center text-center p-3 rounded-lg bg-gray-50">
                   <GlobeAltIcon className="h-6 w-6 text-yellow-600 mb-1" />
@@ -673,32 +644,6 @@ export default function ProductDetailClient({
 
           {/* Product Description — full width below the grid */}
           <div className="mt-12 space-y-8">
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">About This Part</h2>
-              <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
-                <div className="product-summary rounded-lg bg-yellow-50 border border-yellow-100 p-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Quick Answer</h3>
-                  <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-                    {productSummaryPoints.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-                {shouldRenderIntroParagraph && (
-                  <p className="text-base text-gray-700 leading-relaxed">
-                    {introParagraph}
-                  </p>
-                )}
-                {partHighlights.length > 0 && (
-                  <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-                    {partHighlights.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </section>
-
             {/* Main Description */}
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Description</h2>
@@ -709,28 +654,10 @@ export default function ProductDetailClient({
               </div>
             </section>
 
-            {/* Technical Specifications */}
-            {specs && (
-              <section>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Technical Specifications</h2>
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden product-specs">
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {Object.entries(specs).map(([key, value], idx) => (
-                        <tr key={key} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                          <td className="px-6 py-3 font-medium text-gray-900 w-1/3">{key}</td>
-                          <td className="px-6 py-3 text-gray-700">{String(value)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-
+            {/* Part details + any specification rows they don't already cover */}
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Part Details</h2>
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Technical Specifications</h2>
+              <div className="bg-white rounded-lg border border-gray-200 p-6 product-specs">
                 <dl className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <dt className="text-sm text-gray-500">SKU</dt>
@@ -754,7 +681,7 @@ export default function ProductDetailClient({
                   </div>
                   <div>
                     <dt className="text-sm text-gray-500">Warranty</dt>
-                    <dd className="mt-1 text-sm font-medium text-gray-900">{product.warranty_period || '12 months'}</dd>
+                    <dd className="mt-1 text-sm font-medium text-gray-900">{shownWarranty}</dd>
                   </div>
                   {product.origin_country && (
                     <div>
@@ -768,36 +695,42 @@ export default function ProductDetailClient({
                       <dd className="mt-1 text-sm font-medium text-gray-900">{product.certifications}</dd>
                     </div>
                   )}
+                  {extraSpecs.map(([key, value]) => (
+                    <div key={key}>
+                      <dt className="text-sm text-gray-500">{key}</dt>
+                      <dd className="mt-1 text-sm font-medium text-gray-900 break-words">{value}</dd>
+                    </div>
+                  ))}
                 </dl>
               </div>
             </section>
 
-            {/* Compatibility Info */}
-            {product.compatibility_info && (
+            {/* Only operator-written guidance; generated template text is hidden. */}
+            {compatibilityText && (
               <section>
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Compatibility Information</h2>
                 <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <p className="text-base text-gray-700 whitespace-pre-line leading-relaxed">{product.compatibility_info}</p>
+                  <p className="text-base text-gray-700 whitespace-pre-line leading-relaxed">{compatibilityText}</p>
                 </div>
               </section>
             )}
 
             {/* Installation Guide */}
-            {product.installation_guide && (
+            {installationText && (
               <section>
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Installation Guide</h2>
                 <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <p className="text-base text-gray-700 whitespace-pre-line leading-relaxed">{product.installation_guide}</p>
+                  <p className="text-base text-gray-700 whitespace-pre-line leading-relaxed">{installationText}</p>
                 </div>
               </section>
             )}
 
             {/* Maintenance Tips */}
-            {product.maintenance_tips && (
+            {maintenanceText && (
               <section>
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Maintenance Tips</h2>
                 <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <p className="text-base text-gray-700 whitespace-pre-line leading-relaxed">{product.maintenance_tips}</p>
+                  <p className="text-base text-gray-700 whitespace-pre-line leading-relaxed">{maintenanceText}</p>
                 </div>
               </section>
             )}
