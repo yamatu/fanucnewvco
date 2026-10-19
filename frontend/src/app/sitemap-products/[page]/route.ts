@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getRequestBaseUrl } from '@/lib/request-url'
-import { ProductService } from '@/services/product.service'
 import { toProductPathId } from '@/lib/utils'
+import { fetchProductSitemapPage, sitemapUnavailable, type ProductSitemapEntry } from '@/lib/product-sitemap'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 1800 // 30 minutes
@@ -13,20 +13,17 @@ export async function GET(
   try {
     const baseUrl = await getRequestBaseUrl()
     const { page } = await context.params
-    const pageNumber = Math.max(1, parseInt(page || '1', 10) || 1)
+    const pageNumber = Number(page)
+    if (!Number.isSafeInteger(pageNumber) || pageNumber < 1) {
+      return new NextResponse('Invalid product sitemap page', { status: 404 })
+    }
 
-    const response = await ProductService.getProducts({
-      page: pageNumber,
-      page_size: 100,
-      is_active: 'true',
-    })
-
-    const products = response.data || []
-    if (!Array.isArray(products) || products.length === 0) {
+    const { data: products } = await fetchProductSitemapPage(pageNumber)
+    if (products.length === 0) {
       return new NextResponse(`No products found for sitemap page ${pageNumber}`, { status: 404 })
     }
 
-    const urls = products.map((product: any) => ({
+    const urls = products.map((product: ProductSitemapEntry) => ({
       url: `${baseUrl}/products/${toProductPathId(product.sku)}`,
       lastModified: product.updated_at ? new Date(product.updated_at).toISOString() : new Date().toISOString(),
       changeFrequency: product.stock_quantity === 0 ? 'monthly' : product.stock_quantity < 10 ? 'daily' : 'weekly',
@@ -58,6 +55,6 @@ export async function GET(
     })
   } catch (error) {
     console.error('Error generating dynamic product sitemap:', error)
-    return new NextResponse('Error generating sitemap', { status: 500 })
+    return sitemapUnavailable()
   }
 }

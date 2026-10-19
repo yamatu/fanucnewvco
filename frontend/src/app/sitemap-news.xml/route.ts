@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getRequestBaseUrl } from '@/lib/request-url'
 import { NewsService } from '@/services/news.service'
+import type { Article } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 3600 // 1 hour
@@ -8,15 +9,15 @@ export const revalidate = 3600 // 1 hour
 export async function GET() {
   const baseUrl = await getRequestBaseUrl()
   try {
-    // Fetch all published articles (news typically has fewer items than products,
-    // so a single sitemap with a generous page_size is sufficient)
-    const response = await NewsService.getArticles({
-      page: 1,
-      page_size: 1000,
-      is_published: 'true',
-    })
-
-    const articles = response.data || []
+    // The news API caps page_size at 100 (larger values fall back to 20), so
+    // walk every page instead of asking for one oversized page.
+    const articles: Article[] = []
+    for (let page = 1; page <= 200; page++) {
+      const response = await NewsService.getArticles({ page, page_size: 100, is_published: 'true' })
+      const batch = response.data || []
+      articles.push(...batch)
+      if (batch.length < 100 || page >= (response.total_pages || 0)) break
+    }
 
     const urls = [
       // News listing page
@@ -27,7 +28,7 @@ export async function GET() {
         priority: '0.8',
       },
       // Individual article pages
-      ...articles.map((article: any) => ({
+      ...articles.map((article) => ({
         url: `${baseUrl}/news/${article.slug}`,
         lastModified: article.updated_at
           ? new Date(article.updated_at).toISOString()
