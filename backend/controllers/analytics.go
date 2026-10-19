@@ -366,6 +366,9 @@ func (ac *AnalyticsController) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	// Every public page embeds the tracking snippet and is ISR-cached by Next.
+	services.TriggerNextRevalidateTag("analytics-config")
+
 	// Reload
 	s, _ = services.GetOrCreateAnalyticsSetting(db)
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Settings updated", Data: s})

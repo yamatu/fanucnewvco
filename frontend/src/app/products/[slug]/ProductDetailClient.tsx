@@ -20,7 +20,9 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import Layout from '@/components/layout/Layout';
 import ProductImageViewer from '@/components/product/ProductImageViewer';
 import ProductSEO from '@/components/seo/ProductSEO';
-import { ProductService, CategoryService, ShippingRateService } from '@/services';
+import { ProductService } from '@/services/product.service';
+import { CategoryService } from '@/services/category.service';
+import { ShippingRateService } from '@/services/shipping-rate.service';
 import type { ShippingRatePublic, ShippingQuote } from '@/services/shipping-rate.service';
 import type { PaginationResponse, Product, ProductFAQ, ProductImage, ProductReview, Category } from '@/types';
 import { queryKeys } from '@/lib/react-query';
@@ -32,6 +34,12 @@ import { useRouter } from 'next/navigation';
 interface ProductDetailClientProps {
   productSku: string;
   initialProduct?: Product;
+  // Server-rendered context; when absent the client fetches it after hydration.
+  initialCategory?: Category;
+  initialCategoryBreadcrumb?: Category[];
+  initialRelatedProducts?: PaginationResponse<Product>;
+  // null = the server looked the category up and it has no nested path.
+  initialCategoryPath?: string | null;
 }
 
 function parseTechnicalSpecs(raw?: string): Record<string, string> | null {
@@ -83,13 +91,18 @@ function FAQAccordionItem({ question, answer }: { question: string; answer: stri
   );
 }
 
-export default function ProductDetailClient({ productSku, initialProduct }: ProductDetailClientProps) {
+export default function ProductDetailClient({
+  productSku,
+  initialProduct,
+  initialCategory,
+  initialCategoryBreadcrumb,
+  initialRelatedProducts,
+  initialCategoryPath,
+}: ProductDetailClientProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity] = useState(1);
 
   const [shippingCountry, setShippingCountry] = useState('');
-  const [shippingCountries, setShippingCountries] = useState<ShippingRatePublic[]>([]);
-  const [freeShippingCodes, setFreeShippingCodes] = useState<Set<string>>(new Set());
   const [shippingQuote, setShippingQuote] = useState<ShippingQuote | null>(null);
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingError, setShippingError] = useState('');
@@ -114,21 +127,17 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
     retry: false,
   });
 
-  // Fetch product category details
-  const { data: category } = useQuery({
-    queryKey: ['category', product?.category_id],
-    queryFn: () => CategoryService.getCategory(product!.category_id),
-    enabled: !!product?.category_id,
+  // Category + breadcrumb normally come from the server; the trail endpoint is
+  // a small fallback (never the full category tree or the category's products).
+  const { data: fetchedTrail } = useQuery({
+    queryKey: ['categoryTrail', product?.category_id],
+    queryFn: () => CategoryService.getCategoryTrail(product!.category_id),
+    enabled: !!product?.category_id && !initialCategory,
     staleTime: 300000,
   });
-
-  // Fetch category breadcrumb
-  const { data: categoryBreadcrumb } = useQuery({
-    queryKey: ['categoryBreadcrumb', product?.category_id],
-    queryFn: () => CategoryService.getCategoryBreadcrumb(product!.category_id),
-    enabled: !!product?.category_id,
-    staleTime: 300000,
-  });
+  const category = initialCategory ?? fetchedTrail?.category;
+  const categoryBreadcrumb = initialCategoryBreadcrumb ?? fetchedTrail?.breadcrumb;
+  const categoryPath = initialCategoryPath !== undefined ? initialCategoryPath : fetchedTrail?.category.path;
 
   // Fetch related products
   const { data: relatedProducts = { data: [] } as unknown as PaginationResponse<Product> } = useQuery<PaginationResponse<Product>>({
@@ -137,54 +146,48 @@ export default function ProductDetailClient({ productSku, initialProduct }: Prod
       category_id: product?.category_id ? String(product.category_id) : undefined,
       page_size: 4
     }),
-    enabled: !!product?.category_id,
-  });
-
-  // Fetch all categories for internal linking
-  const { data: allCategories } = useQuery({
-    queryKey: ['categories'],
-    queryFn: () => CategoryService.getCategories(),
-    staleTime: 600000,
+    enabled: !!product?.category_id && !initialRelatedProducts,
+    initialData: initialRelatedProducts,
   });
 
   const resolveCategoryHref = () => {
-    const tree: Category[] = Array.isArray(allCategories) ? allCategories : [];
-    const targetId = product?.category_id;
-    if (!targetId) return null;
-    const findById = (nodes: Category[]): Category | null => {
-      for (const n of nodes) {
-        if (Number(n.id) === Number(targetId)) return n;
-        if (Array.isArray(n.children) && n.children.length > 0) {
-          const hit = findById(n.children);
-          if (hit) return hit;
-        }
-      }
-      return null;
-    };
-    const node = findById(tree);
-    if (node?.path) return `/categories/${node.path}`;
+    if (!product?.category_id) return null;
+    if (categoryPath) return `/categories/${categoryPath}`;
     if (product?.category?.slug) return `/categories/${product.category.slug}`;
     return null;
   };
 
-  // Fetch shipping countries + free shipping list on mount
+  // Shipping countries are identical for every product: load them once the
+  // browser is idle (off the hydration/LCP path) and reuse them across product
+  // views. On failure the calculator just stays hidden.
+  const [shippingDataEnabled, setShippingDataEnabled] = useState(false);
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [countries, freeCountries] = await Promise.all([
-          ShippingRateService.publicCountries(),
-          ShippingRateService.publicFreeShippingCountries(),
-        ]);
-        if (cancelled) return;
-        setShippingCountries(countries);
-        setFreeShippingCodes(new Set(freeCountries.map(c => c.country_code)));
-      } catch {
-        // silently fail — calculator just won't show countries
-      }
-    })();
-    return () => { cancelled = true; };
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    if (idleWindow.requestIdleCallback) {
+      const handle = idleWindow.requestIdleCallback(() => setShippingDataEnabled(true), { timeout: 2000 });
+      return () => idleWindow.cancelIdleCallback?.(handle);
+    }
+    const timer = window.setTimeout(() => setShippingDataEnabled(true), 800);
+    return () => window.clearTimeout(timer);
   }, []);
+  const { data: shippingData } = useQuery({
+    queryKey: ['shipping-rates', 'public-countries'],
+    queryFn: async () => {
+      const [countries, freeCountries] = await Promise.all([
+        ShippingRateService.publicCountries(),
+        ShippingRateService.publicFreeShippingCountries(),
+      ]);
+      return { countries, freeCodes: freeCountries.map((c) => c.country_code) };
+    },
+    enabled: shippingDataEnabled,
+    staleTime: 30 * 60 * 1000,
+    retry: false,
+  });
+  const shippingCountries = useMemo<ShippingRatePublic[]>(() => shippingData?.countries ?? [], [shippingData]);
+  const freeShippingCodes = useMemo(() => new Set(shippingData?.freeCodes ?? []), [shippingData]);
 
   // Auto-calculate shipping when country changes
   useEffect(() => {

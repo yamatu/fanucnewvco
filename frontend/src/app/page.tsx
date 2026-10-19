@@ -45,19 +45,27 @@ const PRIMARY_HOME_SECTIONS: Array<{ key: string; defaultSort: number }> = [
   { key: 'services_section', defaultSort: 50 },
 ];
 
+// The homepage is ISR-cached. If the content request fails we must throw so
+// Next keeps serving the last good page; resolving to [] would render the
+// hard-coded default sections and cache them as if they were real content.
+// The only exception is `next build` (the Docker build has no backend): there
+// the defaults are rendered, and the page is re-rendered on the first request
+// because the runtime cache handler (cache-handler.js) starts empty.
 async function getHomepageContentList(): Promise<HomepageContent[]> {
+  const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
   try {
-    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
     // Fetch inactive too so the public page can respect the admin "is_active" toggle (hide sections).
     const res = await fetch(`${backendUrl}/api/v1/public/homepage-content?include_inactive=1`, {
       next: { revalidate: 300, tags: ['homepage-content'] },
+      signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) return [];
+    if (!res.ok) throw new Error(`Homepage content request failed: ${res.status}`);
     const data = await res.json();
-    if (!Array.isArray(data)) return [];
+    if (!Array.isArray(data)) throw new Error('Homepage content response is not an array');
     return data as HomepageContent[];
-  } catch {
-    return [];
+  } catch (error) {
+    if (process.env.NEXT_PHASE === 'phase-production-build') return [];
+    throw error;
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Layout from '@/components/layout/Layout';
-import { EmailService } from '@/services';
+import { EmailService } from '@/services/email.service';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 

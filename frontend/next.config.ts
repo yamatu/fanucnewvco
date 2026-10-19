@@ -53,6 +53,13 @@ const excludeLegacyPolyfillFromManifestPlugin = {
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+
+  // ISR pages and the fetch Data Cache live in a bounded in-memory LRU instead
+  // of being written to .next/ on disk forever (see cache-handler.js). Size via
+  // NEXT_CACHE_MAX_MB. Next's own memory cache is disabled so entries are not
+  // held twice.
+  cacheHandler: path.join(__dirname, 'cache-handler.js'),
+  cacheMaxMemorySize: 0,
   compress: true,
   generateEtags: true,
 

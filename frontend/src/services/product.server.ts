@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import type { Product } from '@/types';
 
 // Minimal types to avoid circular imports
 interface APIResponse<T> {
@@ -20,50 +21,40 @@ const buildProductSkuTag = (sku: string) => {
   return `product-${trimmed.replace(/[^a-z0-9]/g, '-')}`;
 };
 
-// Use server-only fetch with per-request memoization to dedupe calls
-// Supports ISR via cache tags for on-demand revalidation
-export const getProductBySkuCached = cache(async (sku: string) => {
+// Product pages are ISR-cached: a backend outage (5xx or network error) must
+// throw so the previously generated page keeps being served, rather than
+// resolve to "not found", which would be cached as a 404.
+async function fetchBackend(url: string, tags: string[]): Promise<Response | null> {
+  const res = await fetch(url, {
+    next: { revalidate: 3600, tags },
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (res.status >= 500) throw new Error(`Backend ${res.status} for ${url}`);
+  return res.ok ? res : null;
+}
+
+export const searchFirstProduct = cache(async (term: string): Promise<Product | null> => {
+  const trimmed = term?.trim() || '';
+  if (!trimmed) return null;
+  const searchUrl = `${getApiBaseUrl()}/public/products?search=${encodeURIComponent(trimmed)}&is_active=true&page=1&page_size=1`;
+  const res = await fetchBackend(searchUrl, [buildProductSkuTag(trimmed), 'all-products']);
+  if (!res) return null;
+  const json = (await res.json()) as APIResponse<{ data?: Product[] } | Product[]>;
+  const payload = json.data;
+  return (Array.isArray(payload) ? payload[0] : payload?.data?.[0]) || null;
+});
+
+// Per-request memoized and stored in the Data Cache, tagged so the backend can
+// revalidate it on demand.
+export const getProductBySkuCached = cache(async (sku: string): Promise<Product | null> => {
   const trimmed = sku?.trim() || '';
-  const baseUrl = getApiBaseUrl();
+  if (!trimmed) return null;
   // Use query param endpoint to support SKUs containing '/'
-  const url = `${baseUrl}/public/products/sku?sku=${encodeURIComponent(trimmed)}`;
-
-  // Build a tag from the SKU for on-demand revalidation
-  const skuTag = buildProductSkuTag(trimmed);
-
-  try {
-    const res = await fetch(url, {
-      next: { revalidate: 3600, tags: [skuTag, 'all-products'] },
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    if (res.ok) {
-      const json = (await res.json()) as APIResponse<any>;
-      if (json?.success && json?.data) {
-        return json.data;
-      }
-    } else {
-      // Try to extract API error payload for more context (non-fatal here)
-      try { await res.json(); } catch (_) {}
-    }
-  } catch (_) {
-    // Network error: fall through to search-based fallback
+  const url = `${getApiBaseUrl()}/public/products/sku?sku=${encodeURIComponent(trimmed)}`;
+  const res = await fetchBackend(url, [buildProductSkuTag(trimmed), 'all-products']);
+  if (res) {
+    const json = (await res.json()) as APIResponse<Product>;
+    if (json?.success && json?.data) return json.data;
   }
-
-  // Fallback: try search endpoint to find the product by term
-  try {
-    const searchUrl = `${baseUrl}/public/products?search=${encodeURIComponent(trimmed)}&is_active=true&page_size=1`;
-    const res2 = await fetch(searchUrl, {
-      next: { revalidate: 3600, tags: [skuTag, 'all-products'] },
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (res2.ok) {
-      const json2 = (await res2.json()) as APIResponse<{ data: any[] }>;
-      const first = (json2 as any)?.data?.data?.[0] || (json2 as any)?.data?.[0];
-      if (first) return first;
-    }
-  } catch (_) {}
-
-  // As a final fallback, return null to avoid crashing SSR
-  return null as any;
+  return searchFirstProduct(trimmed);
 });

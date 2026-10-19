@@ -1,11 +1,15 @@
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import { getSiteUrl } from '@/lib/url';
-import { NewsService } from '@/services/news.service';
+import { getArticleBySlug } from '@/services/news.server';
 import ArticleDetailClient from './ArticleDetailClient';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// ISR: the backend revalidates the article path and the 'news' tag on change.
+export const revalidate = 900;
+
+// Nothing is prerendered at build time (the Docker build has no backend).
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({
   params,
@@ -14,7 +18,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const article = await NewsService.getArticleBySlug(slug);
+    const article = await getArticleBySlug(slug);
     const baseUrl = getSiteUrl();
     const canonicalUrl = `${baseUrl}/news/${article.slug}`;
 
@@ -66,12 +70,7 @@ export default async function ArticlePage({
 }) {
   const { slug } = await params;
 
-  let article;
-  try {
-    article = await NewsService.getArticleBySlug(slug);
-  } catch {
-    notFound();
-  }
+  const article = await getArticleBySlug(slug);
 
   const baseUrl = getSiteUrl();
   const structuredData = {

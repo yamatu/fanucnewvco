@@ -340,6 +340,12 @@ func (nc *NewsController) GetPublicArticleBySlug(c *gin.Context) {
 	slug := c.Param("slug")
 	var article models.Article
 	if err := withArticlePreloads(db).Where("slug = ? AND is_published = ?", slug, true).First(&article).Error; err != nil {
+		// Only a missing article is a 404: the article page is ISR-cached and
+		// would otherwise cache a database outage as "not found".
+		if err != gorm.ErrRecordNotFound {
+			c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database error"})
+			return
+		}
 		c.JSON(http.StatusNotFound, models.APIResponse{Success: false, Message: "Article not found"})
 		return
 	}
@@ -562,6 +568,9 @@ func (nc *NewsController) CreateArticle(c *gin.Context) {
 
 	withArticlePreloads(db).First(&article, article.ID)
 	services.InvalidatePublicCaches(c.Request.Context(), "news:create", []string{"/news", getArticlePublicPath(article)})
+	// Article pages are ISR-cached by Next and read the API through its Data Cache.
+	services.TriggerNextRevalidate(nil, []string{"/news", getArticlePublicPath(article), "/sitemap-news.xml"}, false)
+	services.TriggerNextRevalidateTag("news")
 
 	c.JSON(http.StatusCreated, models.APIResponse{Success: true, Message: "Article created", Data: toArticleResponse(article)})
 }
@@ -687,6 +696,8 @@ func (nc *NewsController) UpdateArticle(c *gin.Context) {
 		createSEORedirect(db, oldPath, newPath)
 	}
 	services.InvalidatePublicCaches(c.Request.Context(), "news:update", []string{"/news", oldPath, newPath})
+	services.TriggerNextRevalidate(nil, []string{"/news", oldPath, newPath, "/sitemap-news.xml"}, false)
+	services.TriggerNextRevalidateTag("news")
 
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Article updated", Data: toArticleResponse(article)})
 }
@@ -714,6 +725,8 @@ func (nc *NewsController) DeleteArticle(c *gin.Context) {
 	db.Where("article_id = ?", article.ID).Delete(&models.ArticleTranslation{})
 	db.Delete(&article)
 	services.InvalidatePublicCaches(c.Request.Context(), "news:delete", []string{"/news", oldPath})
+	services.TriggerNextRevalidate(nil, []string{"/news", oldPath, "/sitemap-news.xml"}, false)
+	services.TriggerNextRevalidateTag("news")
 
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Article deleted"})
 }

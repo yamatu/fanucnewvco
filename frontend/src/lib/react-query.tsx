@@ -16,8 +16,9 @@ function makeQueryClient() {
           if (error?.response?.status >= 400 && error?.response?.status < 500) {
             return false;
           }
-          // Retry up to 3 times for other errors
-          return failureCount < 3;
+          // One retry covers transient blips; three (with backoff) left the UI
+          // spinning ~7s before showing an error when the backend is down.
+          return failureCount < 1;
         },
         refetchOnWindowFocus: false,
       },

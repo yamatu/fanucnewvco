@@ -3,8 +3,8 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { ContactService } from '@/services';
-import type { ContactCreateRequest } from '@/services';
+import ContactService from '@/services/contact.service';
+import type { ContactCreateRequest } from '@/services/contact.service';
 import PublicLayout from '@/components/layout/PublicLayout';
 import {
   MapPinIcon,

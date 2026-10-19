@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { toast } from 'react-hot-toast';
-import { PayPalService } from '@/services';
+import { PayPalService } from '@/services/paypal.service';
 
 interface PayPalCheckoutProps {
   amount: number;

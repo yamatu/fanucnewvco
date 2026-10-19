@@ -8,7 +8,7 @@ import * as yup from 'yup';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { useCustomer } from '@/store/customer.store';
-import { EmailService } from '@/services';
+import { EmailService } from '@/services/email.service';
 import Layout from '@/components/layout/Layout';
 import {
   UserIcon,

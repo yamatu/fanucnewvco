@@ -36,10 +36,6 @@ export default function SimpleContentSection({
   const imageUrl = content.image_url || '';
   const buttonText = content.button_text || '';
   const buttonUrl = content.button_url || '';
-  // /uploads/* is served by nginx->backend, not by the Next.js container itself.
-  // If we let Next Image optimize it, the optimizer will try to fetch from the Next server
-  // and can 404 in docker. Use unoptimized so the browser loads /uploads directly.
-  const unoptimized = imageUrl.startsWith('/uploads/');
 
   return (
     <section className="py-16 bg-white">
@@ -69,7 +65,7 @@ export default function SimpleContentSection({
 
           {imageUrl ? (
             <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">
-              <Image src={imageUrl} alt={title || 'section image'} fill className="object-cover" unoptimized={unoptimized} />
+              <Image src={imageUrl} alt={title || 'section image'} fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" />
             </div>
           ) : null}
         </div>

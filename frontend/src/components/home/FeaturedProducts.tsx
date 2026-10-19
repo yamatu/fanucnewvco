@@ -166,7 +166,6 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
               <div className="relative h-64 overflow-hidden">
                 {(() => {
                   const src = getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []), getDefaultProductImageWithSku(product.sku));
-                  const unoptimized = typeof src === 'string' && src.startsWith('/uploads/');
                   return (
                 <Image
                   src={src}
@@ -174,7 +173,6 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   className="object-cover group-hover:scale-110 transition-transform duration-500"
-                  unoptimized={unoptimized}
                 />
                   );
                 })()}

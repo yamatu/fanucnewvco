@@ -5,9 +5,12 @@ import PublicLayout from '@/components/layout/PublicLayout';
 import CategoryProductsClient from '@/components/categories/CategoryProductsClient';
 import CategorySidebarTree from '@/components/categories/CategorySidebarTree';
 import ScrollRestorer from '@/components/common/ScrollRestorer';
-import { CategoryService } from '@/services';
+import { CategoryService } from '@/services/category.service';
 import { getSiteUrl } from '@/lib/url';
 import type { Category, CategoryNavigationNode } from '@/types';
+
+// Reads searchParams (pagination/filters), so it must render per request.
+export const dynamic = 'force-dynamic';
 
 interface CategoryPathPageProps {
   params: Promise<{ categoryPath: string[] }>;

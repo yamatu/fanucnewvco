@@ -35,8 +35,10 @@ async function getSocialLinksConfig(): Promise<SocialLinksPublicConfig | null> {
 async function getTrackingConfig(): Promise<PublicTrackingConfig | null> {
   try {
     const backendUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '');
+    // A no-store fetch here made every page on the site dynamic (no ISR). The
+    // backend revalidates the 'analytics-config' tag when tracking settings change.
     const response = await fetch(`${backendUrl}/api/v1/public/analytics/config`, {
-      cache: 'no-store',
+      next: { revalidate: 300, tags: ['analytics-config'] },
       signal: AbortSignal.timeout(3000),
     });
     if (!response.ok) return null;

@@ -1,7 +1,8 @@
 import { Metadata } from 'next';
 import { permanentRedirect } from 'next/navigation';
 import { Suspense } from 'react';
-import { ProductService, CategoryService } from '@/services';
+import { ProductService } from '@/services/product.service';
+import { CategoryService } from '@/services/category.service';
 import type { Category, Product } from '@/types';
 import { getSiteUrl } from '@/lib/url';
 import { toProductPathId } from '@/lib/utils';
@@ -157,6 +158,21 @@ export async function generateMetadata({ searchParams }: {
   };
 }
 
+// The sidebar tree only renders names and nesting. The raw tree carries
+// descriptions, images and translations per node, which would otherwise be
+// serialized into every listing page.
+function toFilterTreeNode(category: Category): Category {
+  return {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    path: category.path,
+    parent_id: category.parent_id,
+    product_count: category.product_count,
+    children: category.children?.map(toFilterTreeNode),
+  } as Category;
+}
+
 // Server-side data fetching for SEO
 async function getServerSideData(searchParams: PageSearchParams): Promise<ProductsPageServerData> {
   const categoryId = getFirstParamValue(searchParams.category_id) || getFirstParamValue(searchParams.category);
@@ -181,7 +197,7 @@ async function getServerSideData(searchParams: PageSearchParams): Promise<Produc
       products: productsData.data || [],
       totalPages: Math.ceil((productsData.total || 0) / 12),
       total: productsData.total || 0,
-      categories: categories || [],
+      categories: (categories || []).map(toFilterTreeNode),
       currentPage: page,
       selectedCategory: categoryId || '',
       searchQuery: search || '',

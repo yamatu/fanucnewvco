@@ -1,9 +1,10 @@
 import { Metadata } from 'next';
-import { ProductService } from '@/services';
-import { getProductBySkuCached } from '@/services/product.server';
+import { ProductService } from '@/services/product.service';
+import { CategoryService } from '@/services/category.service';
+import { getProductBySkuCached, searchFirstProduct } from '@/services/product.server';
 import { getSiteUrl } from '@/lib/url';
 import { toProductPathId } from '@/lib/utils';
-import type { Product, ProductImage } from '@/types';
+import type { Category, Product, ProductImage } from '@/types';
 import ProductDetailClient from './ProductDetailClient';
 import { ReactQueryProvider } from '@/lib/react-query';
 import { redirect, notFound } from 'next/navigation';
@@ -13,6 +14,12 @@ const GENERIC_BRAND_LABEL = 'industrial automation';
 const GENERIC_SUPPLIER_LABEL = 'industrial automation parts supplier';
 
 export const revalidate = 3600; // ISR: revalidate every hour
+
+// Nothing is prerendered at build time (the Docker build has no backend);
+// product pages render on first request and are then served from the ISR cache.
+export async function generateStaticParams() {
+  return [];
+}
 
 function slugToSku(slug: string): string {
   if (!slug) return '';
@@ -119,17 +126,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const { slug } = await params;
     const sku = slugToSku(slug);
 
-    let product: Product | null = null;
-    try {
-      if (sku) product = await getProductBySkuCached(sku);
-    } catch {}
-
-    if (!product) {
-      try {
-        const res = await ProductService.getProducts({ search: slug, is_active: 'true', page: 1, page_size: 1 });
-        product = (res.data || [])[0] || null;
-      } catch {}
-    }
+    const product: Product | null =
+      (sku ? await getProductBySkuCached(sku) : null) || await searchFirstProduct(slug);
 
     if (!product) {
       return {
@@ -232,21 +230,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const { slug } = await params;
   const sku = slugToSku(slug);
 
-  let initialProduct: Product | null = null;
-  try {
-    if (sku) initialProduct = await getProductBySkuCached(sku);
-  } catch (error) {
-    console.error('Error fetching product by SKU from slug:', error);
-  }
-
-  if (!initialProduct) {
-    try {
-      const res = await ProductService.getProducts({ search: slug, is_active: 'true', page: 1, page_size: 1 });
-      initialProduct = (res.data || [])[0] || null;
-    } catch (error) {
-      console.error('Error in fallback search by slug:', error);
-    }
-  }
+  // Backend errors propagate so ISR keeps serving the last good page instead
+  // of caching a 404.
+  const initialProduct: Product | null =
+    (sku ? await getProductBySkuCached(sku) : null) || await searchFirstProduct(slug);
 
   if (!initialProduct) {
     notFound();
@@ -258,11 +245,62 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     redirect(`/products/${canonicalId}`);
   }
 
+  const context = await loadProductPageContext(initialProduct);
+
   return (
     <>
       <ReactQueryProvider>
-        <ProductDetailClient productSku={initialProduct?.sku || sku} initialProduct={initialProduct} />
+        <ProductDetailClient
+          productSku={initialProduct?.sku || sku}
+          initialProduct={initialProduct}
+          initialCategory={context.category}
+          initialCategoryBreadcrumb={context.breadcrumb}
+          initialRelatedProducts={context.related}
+          initialCategoryPath={context.categoryPath}
+        />
       </ReactQueryProvider>
     </>
   );
+}
+
+// Only what the breadcrumb, category link and structured data render. Backend
+// category payloads can be large (children, translations), and every byte here
+// is serialized into each cached product page.
+function compactCategory(category: Category): Category {
+  return {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    path: category.path,
+    parent_id: category.parent_id,
+  } as Category;
+}
+
+// Related-product cards only need identity, name and images; dropping the
+// long descriptions keeps four products from bloating every product page.
+function compactRelatedProduct(product: Product): Product {
+  return {
+    id: product.id,
+    sku: product.sku,
+    name: product.name,
+    image_urls: product.image_urls,
+    images: product.images,
+  } as Product;
+}
+
+// Category trail and related products are cached server reads (small, bounded
+// payloads); on failure the client fetches them after hydration.
+async function loadProductPageContext(product: Product) {
+  const categoryId = product.category_id;
+  if (!categoryId) return {};
+  const [trail, related] = await Promise.all([
+    CategoryService.getCategoryTrail(categoryId).catch(() => undefined),
+    ProductService.getProducts({ category_id: String(categoryId), page_size: 4 }).catch(() => undefined),
+  ]);
+  return {
+    category: trail ? compactCategory(trail.category) : undefined,
+    breadcrumb: trail ? trail.breadcrumb.map(compactCategory) : undefined,
+    related: related ? { ...related, data: (related.data || []).map(compactRelatedProduct) } : undefined,
+    categoryPath: trail ? trail.category.path || null : undefined,
+  };
 }
