@@ -677,10 +677,11 @@ export class ProductService {
     status?: 'active' | 'inactive' | 'all';
     featured?: 'true' | 'false' | '';
     batch_size?: number;
-  }): Promise<void> {
+  }, options: { silentStatuses?: number[] } = {}): Promise<void> {
     const response = await apiClient.put<APIResponse<void>>(
       `/admin/products/bulk-update`,
-      payload
+      payload,
+      { silentStatuses: options.silentStatuses }
     );
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to bulk update products');
@@ -897,6 +898,9 @@ export class ProductService {
     seo_noindex?: 'true' | 'false';
     price_status?: 'priced' | 'inquiry';
     batch_size?: number;
+    sort_by?: 'created_at' | 'updated_at' | 'price' | 'name';
+    sort_dir?: 'asc' | 'desc';
+    limit?: number;
   }): Promise<BulkSelectionIdsResult> {
     const response = await apiClient.post<APIResponse<BulkSelectionIdsResult>>('/admin/products/selection-ids', payload);
     if (response.data.success && response.data.data) return response.data.data;

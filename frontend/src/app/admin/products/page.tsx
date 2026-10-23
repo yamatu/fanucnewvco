@@ -49,6 +49,9 @@ type BulkSelectionPayload = {
   seo_noindex?: 'true' | 'false';
   price_status?: 'priced' | 'inquiry';
   batch_size?: number;
+  sort_by?: 'created_at' | 'updated_at' | 'price' | 'name';
+  sort_dir?: 'asc' | 'desc';
+  limit?: number;
 };
 
 type BulkProgress = {
@@ -89,7 +92,28 @@ const AI_SEO_FOCUS_COPY: Record<AIAgentSEOFocus, { zh: string; en: string; instr
 	content: { zh: '只优化内容', en: 'Content only', instruction: 'Focus on product content: the short description and long description. Keep the product name, taxonomy, and SEO metadata unchanged.' },
 };
 
-const BULK_UPDATE_BATCH_SIZE = 100;
+const SELECT_COUNT_PRESETS = [1000, 5000, 10000, 20000];
+const BULK_UPDATE_BATCH_SIZE = 1000;
+// Keep bulk requests under typical nginx API rate limits (120 req/min per IP).
+const BULK_REQUEST_INTERVAL_MS = 600;
+const THROTTLED_STATUSES = [429, 503];
+const MAX_THROTTLE_RETRIES = 6;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+async function withThrottleRetry<T>(request: () => Promise<T>, onWait: (attempt: number, delayMs: number) => void): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await request();
+    } catch (error) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (!status || !THROTTLED_STATUSES.includes(status) || attempt > MAX_THROTTLE_RETRIES) throw error;
+      const delayMs = Math.min(30000, 2000 * 2 ** (attempt - 1));
+      onWait(attempt, delayMs);
+      await sleep(delayMs);
+    }
+  }
+}
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -487,16 +511,23 @@ function AdminProductsContent() {
 
   // Select the first N products of the current filter scope (ordered like the
   // list), so bulk actions can target an exact count instead of page-or-all.
-  const selectFirstNResults = async () => {
-    const count = Number(customSelectCount);
+  const selectFirstNResults = async (countOverride?: number) => {
+    const count = countOverride ?? Number(customSelectCount);
     if (!Number.isSafeInteger(count) || count < 1) {
       toast.error(locale === 'zh' ? '请输入要选择的产品数量' : 'Enter how many products to select');
       return;
     }
+    if (countOverride) setCustomSelectCount(String(countOverride));
     setSelectingCustomCount(true);
     try {
-      const snapshot = await ProductService.getAdminProductSelectionIds(buildSelectAllPayload());
-      const ids = snapshot.ids.slice(0, count);
+      // The backend applies the list's sort so "first N" is exactly what the table shows first.
+      const snapshot = await ProductService.getAdminProductSelectionIds({
+        ...buildSelectAllPayload(),
+        sort_by: sortBy,
+        sort_dir: sortDir,
+        limit: count,
+      });
+      const ids = snapshot.ids;
       if (ids.length === 0) {
         toast.error(locale === 'zh' ? '当前筛选范围内没有产品' : 'No products match the current filters');
         return;
@@ -504,13 +535,32 @@ function AdminProductsContent() {
       setSelectAllResults(false);
       setSelectedIds(ids);
       toast.success(locale === 'zh'
-        ? `已选择前 ${ids.length.toLocaleString()} 个产品（共 ${snapshot.total.toLocaleString()} 个符合筛选）`
-        : `Selected the first ${ids.length.toLocaleString()} products (${snapshot.total.toLocaleString()} match the filters)`);
+        ? `已按当前排序选择前 ${ids.length.toLocaleString()} 个产品（共 ${totalProducts.toLocaleString()} 个符合筛选）`
+        : `Selected the first ${ids.length.toLocaleString()} products in the current order (${totalProducts.toLocaleString()} match the filters)`);
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, locale === 'zh' ? '选择产品失败' : 'Failed to select products'));
     } finally {
       setSelectingCustomCount(false);
     }
+  };
+
+  // Sends one bulk-update batch, paced under the API rate limit and retried
+  // with backoff when the limit (or a busy upstream) answers 429/503.
+  const sendBulkBatch = async (
+    payload: Parameters<typeof ProductService.bulkUpdateProducts>[0],
+    batchIndex: number,
+    totalBatches: number,
+  ) => {
+    if (batchIndex > 1) await sleep(BULK_REQUEST_INTERVAL_MS);
+    await withThrottleRetry(
+      () => ProductService.bulkUpdateProducts(payload, { silentStatuses: THROTTLED_STATUSES }),
+      (attempt, delayMs) => setBulkUpdateProgress((prev) => ({
+        ...prev,
+        message: locale === 'zh'
+          ? `服务器限流，${Math.round(delayMs / 1000)} 秒后重试第 ${batchIndex}/${totalBatches} 批（第 ${attempt} 次重试）`
+          : `Rate limited; retrying batch ${batchIndex}/${totalBatches} in ${Math.round(delayMs / 1000)}s (retry ${attempt})`,
+      })),
+    );
   };
 
   const openCategoryOptimizationModal = () => {
@@ -901,10 +951,7 @@ function AdminProductsContent() {
             : `Processing batch ${batchIndex}/${totalBatches} (${batchIds.length} products)`,
         }));
 
-        await ProductService.bulkUpdateProducts({
-          ids: batchIds,
-          [field]: value,
-        });
+        await sendBulkBatch({ ids: batchIds, [field]: value }, batchIndex, totalBatches);
 
         const processed = Math.min(start + batchIds.length, total);
         setBulkUpdateProgress({
@@ -1410,58 +1457,68 @@ function AdminProductsContent() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 text-sm">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
               {!selectAllResults ? (
                 <>
                   <span className="text-gray-600 font-medium">
-					{t('common.selected', locale === 'zh' ? '已选择' : 'Selected')}: <span className="text-blue-600">{selectedIds.length}</span>
+					{t('common.selected', locale === 'zh' ? '已选择' : 'Selected')}: <span className="text-blue-600">{selectedIds.length.toLocaleString()}</span>
                   </span>
-                  {totalProducts > 0 && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="text-gray-500">{locale === 'zh' ? '选择前' : 'Select first'}</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={totalProducts}
-                        value={customSelectCount}
-                        onChange={(e) => setCustomSelectCount(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') void selectFirstNResults(); }}
-                        placeholder={String(Math.min(totalProducts, 500))}
-                        className="w-20 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        aria-label={locale === 'zh' ? '自定义选择数量' : 'Custom selection count'}
-                      />
-                      <span className="text-gray-500">{locale === 'zh' ? '条' : ''}</span>
-                      <button
-                        onClick={() => void selectFirstNResults()}
-                        disabled={selectingCustomCount || !customSelectCount}
-                        className="inline-flex items-center px-2.5 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={locale === 'zh' ? '按当前筛选和排序选择前 N 个产品' : 'Select the first N products of the current filter and sort'}
-                      >
-                        {selectingCustomCount ? (locale === 'zh' ? '选择中…' : 'Selecting…') : (locale === 'zh' ? '选择' : 'Select')}
-                      </button>
-                    </span>
-                  )}
                   {filteredProducts.length > 0 && totalProducts > filteredProducts.length && (
                     <button
                       onClick={() => { setSelectAllResults(true); }}
                       className="inline-flex items-center px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors font-medium"
                     >
-						{t('common.selectAll', locale === 'zh' ? `选择全部 ${totalProducts} 条结果` : `Select all ${totalProducts} results`)}
+						{t('common.selectAll', locale === 'zh' ? `选择全部 ${totalProducts.toLocaleString()} 条结果` : `Select all ${totalProducts.toLocaleString()} results`)}
                     </button>
                   )}
                 </>
               ) : (
-                <>
-                  <span className="text-green-700 font-medium bg-green-50 px-3 py-1.5 rounded-md">
-					{t('common.allSelected', locale === 'zh' ? `已选择全部 ${totalProducts} 条结果` : `All ${totalProducts} results selected`)}
-                  </span>
+                <span className="text-green-700 font-medium bg-green-50 px-3 py-1.5 rounded-md">
+				{t('common.allSelected', locale === 'zh' ? `已选择全部 ${totalProducts.toLocaleString()} 条结果` : `All ${totalProducts.toLocaleString()} results selected`)}
+                </span>
+              )}
+              {totalProducts > 0 && (
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  <span className="text-gray-500">{locale === 'zh' ? '自定义选择前' : 'Select first'}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={totalProducts}
+                    value={customSelectCount}
+                    onChange={(e) => setCustomSelectCount(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void selectFirstNResults(); }}
+                    placeholder={String(Math.min(totalProducts, 1000))}
+                    className="w-28 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    aria-label={locale === 'zh' ? '自定义选择数量' : 'Custom selection count'}
+                  />
+                  <span className="text-gray-500">{locale === 'zh' ? '条' : ''}</span>
                   <button
-                    onClick={() => { setSelectAllResults(false); setSelectedIds([]); }}
-                    className="inline-flex items-center px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors font-medium"
+                    onClick={() => void selectFirstNResults()}
+                    disabled={selectingCustomCount || !customSelectCount}
+                    className="inline-flex items-center px-2.5 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={locale === 'zh' ? '按当前筛选和排序选择列表最前面的 N 个产品' : 'Select the first N products of the current filter and sort'}
                   >
-					{t('common.clearSelection', locale === 'zh' ? '清空选择' : 'Clear selection')}
+                    {selectingCustomCount ? (locale === 'zh' ? '选择中…' : 'Selecting…') : (locale === 'zh' ? '选择' : 'Select')}
                   </button>
-                </>
+                  {SELECT_COUNT_PRESETS.filter((n) => n < totalProducts).map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => void selectFirstNResults(n)}
+                      disabled={selectingCustomCount}
+                      className="inline-flex items-center px-2 py-0.5 text-xs text-gray-600 border border-gray-300 hover:border-blue-400 hover:text-blue-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {n.toLocaleString()}
+                    </button>
+                  ))}
+                </span>
+              )}
+              {(selectAllResults || selectedIds.length > 0) && (
+                <button
+                  onClick={() => { setSelectAllResults(false); setSelectedIds([]); }}
+                  className="inline-flex items-center px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors font-medium"
+                >
+					{t('common.clearSelection', locale === 'zh' ? '清空选择' : 'Clear selection')}
+                </button>
               )}
             </div>
           </div>
