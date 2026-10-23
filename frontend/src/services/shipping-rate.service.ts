@@ -11,8 +11,16 @@ export interface ShippingRate {
   is_active: boolean;
   weight_brackets?: number;
   quote_surcharges?: number;
+  pricing_mode?: 'per_kg' | 'brackets';
+  rate_per_kg?: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface WorldCountry {
+  code: string;
+  name: string;
+  name_zh: string;
 }
 
 export interface ShippingRatePublic {
@@ -67,6 +75,14 @@ export interface ShippingFreeSetting {
   updated_at: string;
 }
 
+export interface ShippingMutationResult {
+  count?: number;
+  deleted?: number;
+  countries?: number;
+  created?: number;
+  updated?: number;
+}
+
 export class ShippingRateService {
   static async publicCountries(opts?: { carrier?: string; service?: string }): Promise<ShippingRatePublic[]> {
     const qs = new URLSearchParams();
@@ -114,12 +130,27 @@ export class ShippingRateService {
     if (opts?.carrier) qs.set('carrier', opts.carrier);
     if (opts?.service) qs.set('service', opts.service);
     const suffix = qs.toString() ? `?${qs.toString()}` : '';
-    const res = await apiClient.post<APIResponse<any>>(`/admin/shipping-rates/bulk-delete${suffix}`, payload);
-    if (res.data.success && res.data.data) return res.data.data;
+    const res = await apiClient.post<APIResponse<ShippingMutationResult>>(`/admin/shipping-rates/bulk-delete${suffix}`, payload);
+    if (res.data.success && res.data.data) return { deleted: res.data.data.deleted ?? 0 };
     throw new Error(res.data.message || 'Failed to delete shipping templates');
   }
 
-  static async downloadTemplate(opts?: { type?: 'country' | 'carrier-zone'; carrier?: string; service?: string; currency?: string }): Promise<Blob> {
+  static async worldCountries(): Promise<WorldCountry[]> {
+    const res = await apiClient.get<APIResponse<WorldCountry[]>>('/admin/shipping-rates/world-countries');
+    if (res.data.success && res.data.data) return res.data.data;
+    throw new Error(res.data.message || 'Failed to fetch countries');
+  }
+
+  static async upsertCountryRate(code: string, ratePerKg: number, currency = 'USD'): Promise<void> {
+    const res = await apiClient.put<APIResponse<unknown>>(`/admin/shipping-rates/country/${encodeURIComponent(code)}`, {
+      rate_per_kg: ratePerKg,
+      currency,
+    });
+    if (res.data.success) return;
+    throw new Error(res.data.message || 'Failed to save shipping rate');
+  }
+
+  static async downloadTemplate(opts?: { type?: 'country' | 'country-advanced' | 'carrier-zone'; carrier?: string; service?: string; currency?: string }): Promise<Blob> {
     const qs = new URLSearchParams();
     if (opts?.type) qs.set('type', opts.type);
     if (opts?.carrier) qs.set('carrier', opts.carrier);
@@ -158,13 +189,13 @@ export class ShippingRateService {
   }
 
   static async bulkSetAllowedCountries(countries: Array<{ country_code: string; country_name?: string; sort_order?: number }>): Promise<{ count: number }> {
-    const res = await apiClient.post<APIResponse<any>>('/admin/shipping-rates/allowed-countries/bulk', { countries });
-    if (res.data.success && res.data.data) return res.data.data;
+    const res = await apiClient.post<APIResponse<ShippingMutationResult>>('/admin/shipping-rates/allowed-countries/bulk', { countries });
+    if (res.data.success && res.data.data) return { count: res.data.data.count ?? 0 };
     throw new Error(res.data.message || 'Failed to update allowed countries');
   }
 
   static async removeAllowedCountry(code: string): Promise<void> {
-    const res = await apiClient.delete<APIResponse<any>>(`/admin/shipping-rates/allowed-countries/${encodeURIComponent(code)}`);
+    const res = await apiClient.delete<APIResponse<unknown>>(`/admin/shipping-rates/allowed-countries/${encodeURIComponent(code)}`);
     if (res.data.success) return;
     throw new Error(res.data.message || 'Failed to remove allowed country');
   }
@@ -177,8 +208,8 @@ export class ShippingRateService {
   }
 
   static async setFreeShippingCountries(countries: Array<{ country_code: string; country_name?: string; free_shipping_enabled: boolean }>): Promise<{ count: number }> {
-    const res = await apiClient.post<APIResponse<any>>('/admin/shipping-rates/free-shipping', { countries });
-    if (res.data.success && res.data.data) return res.data.data;
+    const res = await apiClient.post<APIResponse<ShippingMutationResult>>('/admin/shipping-rates/free-shipping', { countries });
+    if (res.data.success && res.data.data) return { count: res.data.data.count ?? 0 };
     throw new Error(res.data.message || 'Failed to update free shipping settings');
   }
 

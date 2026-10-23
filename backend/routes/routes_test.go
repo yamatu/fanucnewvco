@@ -32,6 +32,8 @@ func TestSetupRoutesRegistersAdminEndpointsUsedByFrontend(t *testing.T) {
 		"POST /api/v1/admin/ebay-import-drafts/selection-ids":  false,
 		"POST /api/v1/admin/ebay-import-drafts/bulk-delete":    false,
 		"GET /api/v1/admin/products/bulk-default-image/brands": false,
+		"GET /api/v1/admin/shipping-rates/world-countries":     false,
+		"PUT /api/v1/admin/shipping-rates/country/:code":       false,
 	}
 	for _, route := range router.Routes() {
 		key := route.Method + " " + route.Path
