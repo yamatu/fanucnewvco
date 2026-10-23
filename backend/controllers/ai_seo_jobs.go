@@ -72,6 +72,8 @@ type aiSEOCandidateStartRequest struct {
 	FailedOnly         bool     `json:"failed_only"`
 	IncludeOptimized   bool     `json:"include_optimized"`
 	SEOStatus          string   `json:"ai_seo_status"`
+	SEONoIndex         string   `json:"seo_noindex"`
+	PriceStatus        string   `json:"price_status"`
 	Focus              []string `json:"focus"`
 }
 
@@ -358,6 +360,7 @@ func findAIASEOCandidates(db *gorm.DB, req aiSEOCandidateStartRequest, limit int
 	if req.SEOStatus != "" || !req.IncludeOptimized {
 		query = applyAIASEOCandidateStatusScope(query, req)
 	}
+	query = applyIndexingAndPriceFilters(query, req.SEONoIndex, req.PriceStatus)
 	// Products can remain queued before a worker reaches them. Excluding queued
 	// job items prevents duplicated work even though their product status has not
 	// changed to running yet.
@@ -824,6 +827,7 @@ func processAIAgentSEOItem(ctx context.Context, setting *models.AIAgentSetting, 
 			"ai_seo_optimized_at":        &now,
 			"ai_seo_optimization_job_id": jobID,
 			"last_optimized_at":          &now,
+			"seo_noindex":                false,
 		}
 		if strings.TrimSpace(product.Brand) != "" && strings.TrimSpace(product.Brand) != originalBrand {
 			updates["brand"] = product.Brand

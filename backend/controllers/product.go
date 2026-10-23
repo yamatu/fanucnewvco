@@ -223,6 +223,8 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 	isActive := c.Query("is_active")
 	isFeatured := c.Query("is_featured")
 	aiSEOStatus := strings.TrimSpace(c.Query("ai_seo_status"))
+	seoNoIndex := strings.TrimSpace(c.Query("seo_noindex"))
+	priceStatus := strings.TrimSpace(c.Query("price_status"))
 	sortBy := strings.TrimSpace(strings.ToLower(c.Query("sort_by")))
 	sortDir := strings.TrimSpace(strings.ToLower(c.Query("sort_dir")))
 	if sortDir != "asc" {
@@ -264,16 +266,19 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 	}
 
 	if brand != "" {
-		query = query.Where("LOWER(brand) = LOWER(?)", strings.TrimSpace(brand))
+		// The column collation is case-insensitive; LOWER(brand) would bypass the index.
+		query = query.Where("brand = ?", strings.TrimSpace(brand))
 	}
 
 	if search != "" {
-		like := "%" + search + "%"
-		query = query.Where("sku LIKE ? OR name LIKE ? OR description LIKE ? OR part_number LIKE ? OR model LIKE ?",
-			like, like, like, like, like)
+		query = applyProductSearchFilter(query, search)
 	}
 
-	if isActive != "" {
+	if isPublic {
+		// Storefront listings never expose inactive products; the filter also lets
+		// category queries use idx_products_category_active_created.
+		query = query.Where("is_active = ?", true)
+	} else if isActive != "" {
 		query = query.Where("is_active = ?", isActive == "true")
 	}
 
@@ -288,7 +293,14 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 		query = query.Where("ai_seo_status IS NULL OR ai_seo_status = ''")
 	}
 
+	query = applyIndexingAndPriceFilters(query, seoNoIndex, priceStatus)
+
 	orderColumn := "id"
+	if isPublic && categoryID != "" {
+		// MySQL otherwise walks idx_products_active_id backwards looking for the
+		// category (~1s for large, old categories); created_at follows id order.
+		orderColumn = "created_at"
+	}
 	switch sortBy {
 	case "created_at":
 		orderColumn = "created_at"
@@ -299,7 +311,9 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 	case "name":
 		orderColumn = "name"
 	}
-	query = query.Order(orderColumn + " " + sortDir).Order("id DESC")
+	// The id tie-breaker follows sortDir so (is_active, <column>) indexes can serve
+	// the ORDER BY; a mixed direction forced a filesort of the whole catalogue.
+	query = query.Order(orderColumn + " " + sortDir).Order("id " + sortDir)
 
 	// Get total count
 	var total int64
@@ -741,6 +755,7 @@ func (pc *ProductController) BulkUpdateProducts(c *gin.Context) {
 		SKUs       []string `json:"skus"`
 		IsActive   *bool    `json:"is_active"`
 		IsFeatured *bool    `json:"is_featured"`
+		SEONoIndex *bool    `json:"seo_noindex"`
 		// Optional filters to select all matching records
 		Search             string `json:"search"`
 		CategoryID         string `json:"category_id"`
@@ -769,6 +784,9 @@ func (pc *ProductController) BulkUpdateProducts(c *gin.Context) {
 	}
 	if req.IsFeatured != nil {
 		updates["is_featured"] = *req.IsFeatured
+	}
+	if req.SEONoIndex != nil {
+		updates["seo_noindex"] = *req.SEONoIndex
 	}
 	if len(updates) == 0 {
 		c.JSON(http.StatusBadRequest, models.APIResponse{
@@ -808,8 +826,7 @@ func (pc *ProductController) BulkUpdateProducts(c *gin.Context) {
 			}
 		}
 		if req.Search != "" {
-			like := "%" + req.Search + "%"
-			tx = tx.Where("sku LIKE ? OR name LIKE ? OR description LIKE ? OR part_number LIKE ? OR model LIKE ?", like, like, like, like, like)
+			tx = applyProductSearchFilter(tx, req.Search)
 		}
 		if req.Status == "active" {
 			tx = tx.Where("is_active = ?", true)
@@ -875,8 +892,7 @@ func (pc *ProductController) BulkUpdateProducts(c *gin.Context) {
 		}
 	}
 	if req.Search != "" {
-		like := "%" + req.Search + "%"
-		selector = selector.Where("sku LIKE ? OR name LIKE ? OR description LIKE ? OR part_number LIKE ? OR model LIKE ?", like, like, like, like, like)
+		selector = applyProductSearchFilter(selector, req.Search)
 	}
 	if req.Status == "active" {
 		selector = selector.Where("is_active = ?", true)

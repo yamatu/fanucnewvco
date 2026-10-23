@@ -40,6 +40,8 @@ type aiSEOCategoryJobRequest struct {
 	Status                  string `json:"status"`
 	Featured                string `json:"featured"`
 	AISEOStatus             string `json:"ai_seo_status"`
+	SEONoIndex              string `json:"seo_noindex"`
+	PriceStatus             string `json:"price_status"`
 	UseWebSearch            *bool  `json:"use_web_search"`
 	CreateMissingCategories *bool  `json:"create_missing_categories"`
 	// AllowNewProductTypes permits a product type the taxonomy has never seen to
@@ -256,6 +258,7 @@ func findCategoryOptimizationCandidates(db *gorm.DB, req aiSEOCategoryJobRequest
 	case "failed":
 		query = query.Where("products.ai_seo_status = ?", "failed")
 	}
+	query = applyIndexingAndPriceFilters(query, req.SEONoIndex, req.PriceStatus)
 	pendingIDs := db.Model(&models.AIAgentSEOJobItem{}).
 		Select("product_id").
 		Where("status IN ?", []string{"queued", "running"})
@@ -637,6 +640,7 @@ func repairCategoryJobProductContent(ctx context.Context, jobID, workerToken str
 			"ai_seo_status":              "optimized",
 			"ai_seo_optimized_at":        &now,
 			"ai_seo_optimization_job_id": jobID,
+			"seo_noindex":                false,
 			"short_description":          output.ShortDescription,
 			"description":                output.Description,
 			"last_optimized_at":          &now,

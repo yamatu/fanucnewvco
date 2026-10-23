@@ -317,6 +317,8 @@ export interface AIAgentSEOCandidateOptions {
   /** Include products that already have an AI SEO result in a scoped rewrite. */
   include_optimized?: boolean;
   ai_seo_status?: 'all' | 'optimized' | 'not_optimized' | 'running' | 'failed';
+  seo_noindex?: 'true' | 'false';
+  price_status?: 'priced' | 'inquiry';
   focus?: AIAgentSEOFocus[];
 }
 

@@ -183,10 +183,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       keywords: metaKeywords || [product.name, product.sku, product.brand, product.category?.name].filter(Boolean).join(', '),
       category: product.category?.name || 'Industrial Automation',
       robots: {
-        index: true,
+        index: !product.seo_noindex,
         follow: true,
         googleBot: {
-          index: true,
+          index: !product.seo_noindex,
           follow: true,
           'max-image-preview': 'large',
           'max-snippet': -1,

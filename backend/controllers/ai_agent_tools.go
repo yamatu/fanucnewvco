@@ -276,18 +276,6 @@ func aiAgentToolNames() []string {
 	return names
 }
 
-// applyProductSearchFilter appends the shared product search condition to a
-// query. The predicate mirrors the admin product list so tool results and the
-// administrator's own search can never disagree about which rows match.
-func applyProductSearchFilter(query *gorm.DB, search string) *gorm.DB {
-	search = strings.TrimSpace(search)
-	if search == "" {
-		return query
-	}
-	like := "%" + search + "%"
-	return query.Where("sku LIKE ? OR name LIKE ? OR description LIKE ? OR part_number LIKE ? OR model LIKE ?", like, like, like, like, like)
-}
-
 // aiAgentProductFilter is shared by search_products and count_products so the
 // two tools can never disagree about which rows match.
 type aiAgentProductFilter struct {

@@ -24,6 +24,8 @@ type bulkProductScopeReq struct {
 	Featured           string   `json:"featured"`
 	Brand              string   `json:"brand"`
 	AISEOStatus        string   `json:"ai_seo_status"`
+	SEONoIndex         string   `json:"seo_noindex"`  // "true" | "false" | ""
+	PriceStatus        string   `json:"price_status"` // "priced" | "inquiry" | ""
 	BatchSize          int      `json:"batch_size"`
 }
 
@@ -65,7 +67,7 @@ func buildBulkProductSelector(db *gorm.DB, req bulkProductScopeReq) *gorm.DB {
 	case "not_optimized":
 		selector = selector.Where("ai_seo_status IS NULL OR ai_seo_status = ''")
 	}
-	return selector
+	return applyIndexingAndPriceFilters(selector, req.SEONoIndex, req.PriceStatus)
 }
 
 func ensureProductFAQ(db *gorm.DB, productID uint, question string, answer string, sortOrder int) error {

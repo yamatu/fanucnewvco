@@ -24,13 +24,13 @@ type Category struct {
 
 // Product represents the main product entity with enhanced SEO fields
 type Product struct {
-	ID               uint     `json:"id" gorm:"primaryKey"`
+	ID               uint     `json:"id" gorm:"primaryKey;index:idx_products_active_id,priority:2;index:idx_products_active_noindex_id,priority:3"`
 	SKU              string   `json:"sku" gorm:"size:100;uniqueIndex;not null"`
 	Name             string   `json:"name" gorm:"size:255;not null"`
 	Slug             string   `json:"slug" gorm:"size:255;uniqueIndex;not null"`
 	ShortDescription string   `json:"short_description" gorm:"type:text"`
 	Description      string   `json:"description" gorm:"type:longtext"`
-	Price            float64  `json:"price" gorm:"type:decimal(10,2);default:0.00"`
+	Price            float64  `json:"price" gorm:"type:decimal(10,2);default:0.00;index:idx_products_active_price,priority:2"`
 	ComparePrice     *float64 `json:"compare_price" gorm:"type:decimal(10,2)"`
 	CostPrice        *float64 `json:"cost_price" gorm:"type:decimal(10,2)"`
 	StockQuantity    int      `json:"stock_quantity" gorm:"default:0"`
@@ -40,15 +40,17 @@ type Product struct {
 	Brand            string   `json:"brand" gorm:"size:100;index"`
 	Model            string   `json:"model" gorm:"size:100;index"`
 	PartNumber       string   `json:"part_number" gorm:"size:100;index"`
-	CategoryID       uint     `json:"category_id" gorm:"not null;index"`
+	CategoryID       uint     `json:"category_id" gorm:"not null;index;index:idx_products_category_active,priority:1;index:idx_products_category_active_created,priority:1;index:idx_products_active_category,priority:2"`
 	Category         Category `json:"category" gorm:"foreignKey:CategoryID"`
-	IsActive         bool     `json:"is_active" gorm:"default:true;index"`
-	IsFeatured       bool     `json:"is_featured" gorm:"default:false;index"`
+	IsActive         bool     `json:"is_active" gorm:"default:true;index;index:idx_products_active_id,priority:1;index:idx_products_category_active,priority:2;index:idx_products_active_created,priority:1;index:idx_products_featured_active,priority:2;index:idx_products_active_price,priority:1;index:idx_products_active_noindex_id,priority:1;index:idx_products_category_active_created,priority:2;index:idx_products_active_category,priority:1"`
+	IsFeatured       bool     `json:"is_featured" gorm:"default:false;index;index:idx_products_featured_active,priority:1"`
 	MetaTitle        string   `json:"meta_title" gorm:"size:255"`
 	MetaDescription  string   `json:"meta_description" gorm:"type:text"`
 	MetaKeywords     string   `json:"meta_keywords" gorm:"type:text"`
 	DisableAutoSEO   bool     `json:"disable_auto_seo" gorm:"default:false;index"`
-	ImageURLs        string   `json:"image_urls" gorm:"type:json"`
+	// SEONoIndex keeps a public product out of robots indexing, sitemaps and IndexNow.
+	SEONoIndex bool   `json:"seo_noindex" gorm:"column:seo_noindex;default:false;index:idx_products_active_noindex_id,priority:2"`
+	ImageURLs  string `json:"image_urls" gorm:"type:json"`
 
 	// Enhanced fields for fanucworld.com compatibility
 	WarrantyPeriod          string     `json:"warranty_period" gorm:"size:50;default:'12 months'"`
@@ -78,7 +80,7 @@ type Product struct {
 	IndexNowSubmitCount     int        `json:"indexnow_submit_count" gorm:"default:0"`
 	IndexNowLastSubmitCode  int        `json:"indexnow_last_submit_code" gorm:"default:0"`
 
-	CreatedAt     time.Time            `json:"created_at"`
+	CreatedAt     time.Time            `json:"created_at" gorm:"index:idx_products_active_created,priority:2;index:idx_products_category_active_created,priority:3"`
 	UpdatedAt     time.Time            `json:"updated_at"`
 	Images        []ProductImage       `json:"images,omitempty" gorm:"foreignKey:ProductID"`
 	Attributes    []ProductAttribute   `json:"attributes,omitempty" gorm:"foreignKey:ProductID"`
