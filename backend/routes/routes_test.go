@@ -20,3 +20,28 @@ func TestSetupRoutesAndHealth(t *testing.T) {
 		t.Fatalf("health status = %d, body = %s", response.Code, response.Body.String())
 	}
 }
+
+// Admin pages call these endpoints; a handler without a registered route
+// surfaces in the UI as a bare "Request failed with status code 404".
+func TestSetupRoutesRegistersAdminEndpointsUsedByFrontend(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	SetupRoutes(router)
+
+	want := map[string]bool{
+		"POST /api/v1/admin/ebay-import-drafts/selection-ids":  false,
+		"POST /api/v1/admin/ebay-import-drafts/bulk-delete":    false,
+		"GET /api/v1/admin/products/bulk-default-image/brands": false,
+	}
+	for _, route := range router.Routes() {
+		key := route.Method + " " + route.Path
+		if _, ok := want[key]; ok {
+			want[key] = true
+		}
+	}
+	for route, found := range want {
+		if !found {
+			t.Errorf("route not registered: %s", route)
+		}
+	}
+}

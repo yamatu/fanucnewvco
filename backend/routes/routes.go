@@ -258,6 +258,7 @@ func SetupRoutes(r *gin.Engine) {
 			{
 				ebayImportDrafts.POST("/upload", ebayImportDraftController.Upload)
 				ebayImportDrafts.GET("", ebayImportDraftController.List)
+				ebayImportDrafts.POST("/selection-ids", ebayImportDraftController.SelectionIDs)
 				ebayImportDrafts.POST("/bulk-confirm", ebayImportDraftController.BulkConfirm)
 				ebayImportDrafts.POST("/json-import", ebayImportDraftController.StartJSONImport)
 				ebayImportDrafts.POST("/json-import/tasks", ebayImportDraftController.CreateJSONImportTask)
@@ -273,6 +274,7 @@ func SetupRoutes(r *gin.Engine) {
 				ebayImportDrafts.POST("/bulk-confirm/tasks/:taskId/pause", ebayImportDraftController.PauseBulkConfirmTask)
 				ebayImportDrafts.POST("/bulk-confirm/tasks/:taskId/resume", ebayImportDraftController.ResumeBulkConfirmTask)
 				ebayImportDrafts.POST("/bulk-recheck", ebayImportDraftController.BulkRecheck)
+				ebayImportDrafts.POST("/bulk-delete", ebayImportDraftController.BulkDelete)
 				ebayImportDrafts.DELETE("/bulk", ebayImportDraftController.BulkDelete)
 				ebayImportDrafts.GET("/:id", ebayImportDraftController.Get)
 				ebayImportDrafts.PUT("/:id", ebayImportDraftController.Update)
