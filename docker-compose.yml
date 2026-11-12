@@ -87,7 +87,7 @@ services:
       DISABLE_LEGACY_BRAND_SANITIZE: "true"
 
       # 商品搜索策略：like（默认，%子串% 全表扫描）| fulltext（需先执行
-      # backend/migrations/20260910_add_product_search_fulltext.sql 建 FULLTEXT 索引）
+      # backend/migrations/optional/20260910_add_product_search_fulltext.sql 建 FULLTEXT 索引）
       PRODUCT_SEARCH_MODE: ${PRODUCT_SEARCH_MODE:-like}
 
       # 默认管理员（生产环境建议首次初始化后关闭 SEED_DEFAULT_ADMIN）

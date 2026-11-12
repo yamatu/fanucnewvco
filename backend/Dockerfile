@@ -20,6 +20,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/server .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/bulk-seo-optimize ./cmd/bulk-seo-optimize
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/schema-check ./cmd/schema-check
 
 ARG BASE_REGISTRY=docker.io
 FROM ${BASE_REGISTRY}/library/alpine:3.19 AS runner
@@ -30,6 +31,7 @@ RUN apk add --no-cache ca-certificates tzdata mariadb-client
 
 COPY --from=builder /out/server /app/server
 COPY --from=builder /out/bulk-seo-optimize /app/bulk-seo-optimize
+COPY --from=builder /out/schema-check /app/schema-check
 
 # 上传目录（建议用 volume 挂载）。用 COPY 创建目录，避免低内存环境下再启动一层 RUN 容器。
 RUN mkdir -p /app/uploads
