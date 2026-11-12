@@ -167,6 +167,8 @@ func ConnectDatabase() {
 			&models.HotlinkProtectionSetting{},
 			&models.PayPalSetting{},
 			&models.TurnstileSetting{},
+			&models.HomepageContentDraft{},
+			&models.SocialLinkSetting{},
 			&models.EmailSetting{},
 			&models.IndexNowSetting{},
 			&models.EmailVerificationCode{},

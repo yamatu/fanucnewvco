@@ -46,6 +46,13 @@ const MESSAGES: Record<string, string> = {
   'review.reviewsLink': '{count} reviews',
   'review.purchasedIn': 'Purchased in order {number}',
   'product.reviews': 'Customer Reviews',
+  'review.via': 'Feedback via {source}',
+  'review.source.email': 'email',
+  'review.source.ebay': 'eBay',
+  'review.source.whatsapp': 'WhatsApp',
+  'review.source.phone': 'phone',
+  'review.source.offline': 'offline order',
+  'review.source.other': 'other channel',
 };
 
 function t(key: string, vars?: Record<string, string | number>): string {
@@ -161,12 +168,16 @@ export default function ProductReviews({ productId, reviews }: ProductReviewsPro
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-gray-950">{review.customer_name}</span>
-                    {review.is_verified && (
+                    {review.is_verified ? (
                       <span className="inline-flex items-center rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
                         <CheckBadgeIcon className="mr-0.5 h-3.5 w-3.5" />
                         {t('review.verifiedBuyer')}
                       </span>
-                    )}
+                    ) : review.source ? (
+                      <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                        {t('review.via', { source: t(`review.source.${review.source}`) })}
+                      </span>
+                    ) : null}
                   </div>
                   <time dateTime={review.created_at} className="text-xs text-gray-500">
                     {new Date(review.created_at).toLocaleDateString('en-US')}

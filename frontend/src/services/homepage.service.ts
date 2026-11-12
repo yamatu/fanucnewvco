@@ -80,12 +80,29 @@ export class HomepageService {
   }
 
   // Admin: Upsert by section key (preferred for the visual editor)
+  static async deleteHomepageContent(id: number): Promise<void> {
+    await apiClient.delete(`/admin/homepage-content/${id}`);
+  }
+
   static async upsertAdminBySectionKey(sectionKey: string, contentData: Partial<HomepageContentRequest>): Promise<HomepageContent> {
     const response = await apiClient.put<HomepageContent>(
       `/admin/homepage-content/section/${sectionKey}`,
       contentData
     );
     return response.data;
+  }
+
+  // Admin: unsaved visual-editor drafts (only the admin preview reads them)
+  static async saveDraft(sectionKey: string, payload: unknown): Promise<void> {
+    await apiClient.put(`/admin/homepage-content/drafts/${sectionKey}`, payload);
+  }
+
+  static async deleteDraft(sectionKey: string): Promise<void> {
+    await apiClient.delete(`/admin/homepage-content/drafts/${sectionKey}`);
+  }
+
+  static async clearDrafts(): Promise<void> {
+    await apiClient.delete('/admin/homepage-content/drafts');
   }
 
   // Convenience: Get aggregated content for Admin form

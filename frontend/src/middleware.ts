@@ -209,7 +209,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Add security headers
-  response.headers.set('X-Frame-Options', 'DENY');
+  // Same-origin framing is needed for the admin homepage visual editor preview.
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'origin-when-cross-origin');
 

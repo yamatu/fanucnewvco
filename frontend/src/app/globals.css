@@ -42,3 +42,290 @@ body {
 .admin-sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background-color: #94a3b8;
 }
+
+/* Brand logo carousel (homepage, below the hero). CSS-only marquee: links stay
+   crawlable, nothing runs on the main thread, and it pauses on hover/focus. */
+.brand-carousel {
+  --site-primary: #b7791f;
+  --site-primary-soft: #fef6e0;
+  --site-line: #e5e7eb;
+  --site-ink: #111827;
+  background: linear-gradient(180deg, #ffffff 0%, var(--site-primary-soft) 140%);
+  border-bottom: 1px solid var(--site-line);
+}
+
+.brand-carousel-kicker {
+  background: var(--site-primary-soft);
+  color: var(--site-primary);
+}
+
+.brand-carousel-link {
+  background: #ffffff;
+  border: 1px solid var(--site-line);
+  color: var(--site-primary);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.brand-carousel-link:hover {
+  border-color: var(--site-primary);
+}
+
+.brand-marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+  padding: 0.5rem 0 0.75rem;
+}
+
+.brand-marquee-track {
+  display: flex;
+  gap: 1rem;
+  width: max-content;
+  animation: brand-marquee var(--marquee-duration, 45s) linear infinite;
+}
+
+.brand-marquee[data-reverse] .brand-marquee-track {
+  animation-direction: reverse;
+}
+
+.brand-marquee:hover .brand-marquee-track,
+.brand-marquee:focus-within .brand-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes brand-marquee {
+  to {
+    /* The track holds the list twice; shift by one copy plus half the gap. */
+    transform: translateX(calc(-50% - 0.5rem));
+  }
+}
+
+.brand-tile {
+  background: #ffffff;
+  border: 1px solid var(--site-line);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.brand-tile:hover,
+.brand-tile:focus-visible {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--site-primary) 45%, transparent);
+  box-shadow: 0 12px 28px -14px color-mix(in srgb, var(--site-primary) 55%, transparent);
+}
+
+.brand-tile img {
+  transition: filter 0.25s ease, opacity 0.25s ease;
+}
+
+.brand-tile-mono img {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+.brand-tile-mono:hover img,
+.brand-tile-mono:focus-visible img {
+  filter: none;
+  opacity: 1;
+}
+
+.brand-tile-wordmark {
+  color: var(--site-ink);
+}
+
+.brand-tile:hover .brand-tile-wordmark {
+  color: var(--site-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-marquee {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .brand-marquee-track {
+    animation: none;
+  }
+
+  .brand-marquee-track > [aria-hidden="true"] {
+    display: none;
+  }
+}
+
+/* Theme tokens used by the homepage brand carousel and template blocks. */
+:root {
+  --site-ink: #111827;
+  --site-muted: #4b5563;
+  --site-primary: #b7791f;
+  --site-primary-strong: #92400e;
+  --site-primary-deep: #111827;
+  --site-primary-soft: #fef6e0;
+  --site-accent: #eab308;
+  --site-accent-strong: #ca8a04;
+  --site-accent-soft: #fefce8;
+  --site-line: #e5e7eb;
+}
+
+/* Homepage template sections (admin "block library"). Colours derive from the
+   site theme variables so a re-theme only touches :root. */
+.tpl {
+  --tpl-surface: #ffffff;
+  --tpl-title: var(--site-ink);
+  --tpl-muted: var(--site-muted);
+  --tpl-kicker: var(--site-primary);
+  --tpl-card: #ffffff;
+  --tpl-card-border: var(--site-line);
+  --tpl-btn-bg: var(--site-accent);
+  --tpl-btn-bg-hover: var(--site-accent-strong);
+  --tpl-btn-fg: #ffffff;
+  --tpl-btn2-fg: var(--site-primary);
+  --tpl-btn2-border: color-mix(in srgb, var(--site-primary) 35%, transparent);
+  --tpl-btn-radius: 9999px;
+  background: var(--tpl-surface);
+}
+
+.tpl-bg-white { --tpl-surface: #ffffff; }
+.tpl-bg-light { --tpl-surface: color-mix(in srgb, var(--site-primary-soft) 70%, #ffffff); }
+
+.tpl-bg-brand,
+.tpl-bg-dark,
+.tpl-bg-image {
+  --tpl-title: #ffffff;
+  --tpl-muted: rgba(255, 255, 255, 0.82);
+  --tpl-kicker: #bfdbfe;
+  --tpl-card: rgba(255, 255, 255, 0.08);
+  --tpl-card-border: rgba(255, 255, 255, 0.16);
+  --tpl-btn2-fg: #ffffff;
+  --tpl-btn2-border: rgba(255, 255, 255, 0.55);
+}
+
+.tpl-bg-brand { --tpl-surface: var(--site-primary); background-image: linear-gradient(135deg, var(--site-primary) 0%, var(--site-primary-strong) 100%); }
+.tpl-bg-dark { --tpl-surface: var(--site-primary-deep); }
+.tpl-bg-image { --tpl-surface: var(--site-primary-deep); }
+
+.tpl-title { color: var(--tpl-title); }
+.tpl-text { color: var(--tpl-title); }
+.tpl-muted { color: var(--tpl-muted); }
+.tpl-kicker { color: var(--tpl-kicker); }
+.tpl-link { color: var(--tpl-kicker); }
+.tpl-stat { color: var(--tpl-kicker); }
+
+.tpl-card {
+  background: var(--tpl-card);
+  border: 1px solid var(--tpl-card-border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.tpl-card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+.tpl-card-hover:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--site-primary) 40%, transparent);
+  box-shadow: 0 16px 34px -18px color-mix(in srgb, var(--site-primary) 60%, transparent);
+}
+
+.tpl-logo img { filter: grayscale(1); opacity: 0.75; transition: filter 0.2s ease, opacity 0.2s ease; }
+.tpl-logo:hover img { filter: none; opacity: 1; }
+
+.tpl-check { background: color-mix(in srgb, var(--site-primary) 14%, transparent); color: var(--site-primary); }
+.tpl-bg-brand .tpl-check, .tpl-bg-dark .tpl-check, .tpl-bg-image .tpl-check { background: rgba(255, 255, 255, 0.16); color: #ffffff; }
+
+.tpl-step { background: var(--site-primary); color: #ffffff; box-shadow: 0 8px 18px -10px var(--site-primary); }
+
+.tpl-media { box-shadow: 0 24px 50px -28px rgba(15, 23, 42, 0.45); }
+.tpl-placeholder { background: linear-gradient(135deg, var(--site-primary-soft), color-mix(in srgb, var(--site-primary) 18%, #ffffff)); }
+
+.tpl-cta { background: linear-gradient(135deg, var(--site-primary) 0%, var(--site-primary-strong) 100%); --tpl-title: #ffffff; --tpl-muted: rgba(255,255,255,0.85); --tpl-kicker: #bfdbfe; --tpl-btn2-fg: #ffffff; --tpl-btn2-border: rgba(255,255,255,0.55); }
+.tpl-bg-brand .tpl-cta, .tpl-bg-dark .tpl-cta, .tpl-bg-image .tpl-cta { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); }
+
+.tpl-btn-primary {
+  background: var(--tpl-btn-bg);
+  color: var(--tpl-btn-fg);
+  border-radius: var(--tpl-btn-radius);
+  box-shadow: 0 10px 22px -12px var(--tpl-btn-bg);
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+.tpl-btn-primary:hover { background: var(--tpl-btn-bg-hover); transform: translateY(-1px); }
+
+.tpl-btn-secondary {
+  color: var(--tpl-btn2-fg);
+  border: 1.5px solid var(--tpl-btn2-border);
+  border-radius: var(--tpl-btn-radius);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.tpl-btn-secondary:hover { border-color: var(--tpl-btn2-fg); background: color-mix(in srgb, var(--tpl-btn2-fg) 8%, transparent); }
+
+/* Admin homepage preview (iframe only). */
+.homepage-preview-marker {
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  transition: outline-color 0.15s ease;
+}
+.homepage-preview-marker:hover { outline: 2px dashed #3b82f6; }
+.homepage-preview-marker[data-selected] { outline: 3px solid #2563eb; }
+.homepage-preview-marker-label { opacity: 0; transition: opacity 0.15s ease; }
+.homepage-preview-marker:hover > .homepage-preview-marker-label,
+.homepage-preview-marker[data-selected] > .homepage-preview-marker-label { opacity: 1; }
+.homepage-preview-marker[data-hidden-section] > :not(.homepage-preview-marker-label):not(.pointer-events-none) { opacity: 0.45; }
+
+/* Vcocnc: yellow buttons carry dark text; the brand surface is a yellow gradient. */
+.tpl { --tpl-btn-fg: #111827; }
+.tpl-bg-brand,
+.tpl-cta {
+  --tpl-title: #111827;
+  --tpl-muted: rgba(17, 24, 39, 0.8);
+  --tpl-kicker: #111827;
+  --tpl-btn-bg: #111827;
+  --tpl-btn-bg-hover: #000000;
+  --tpl-btn-fg: #ffffff;
+  --tpl-btn2-fg: #111827;
+  --tpl-btn2-border: rgba(17, 24, 39, 0.45);
+  --tpl-card: rgba(255, 255, 255, 0.45);
+  --tpl-card-border: rgba(17, 24, 39, 0.12);
+}
+.tpl-bg-brand { background-image: linear-gradient(135deg, #facc15 0%, #eab308 100%); }
+.tpl-cta { background: linear-gradient(135deg, #facc15 0%, #eab308 100%); }
+.tpl-bg-dark, .tpl-bg-image { --tpl-kicker: #fde68a; }
+.tpl-bg-dark .tpl-cta, .tpl-bg-image .tpl-cta { --tpl-title: #ffffff; --tpl-muted: rgba(255,255,255,0.85); --tpl-btn2-fg: #ffffff; --tpl-btn2-border: rgba(255,255,255,0.55); }
+.tpl-step { color: #111827; background: #facc15; }
+.tpl-check { background: #fef3c7; color: #92400e; }
+
+/* Admin homepage preview (iframe only). */
+.homepage-preview-marker {
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  transition: outline-color 0.15s ease;
+}
+.homepage-preview-marker:hover { outline: 2px dashed #3b82f6; }
+.homepage-preview-marker[data-selected] { outline: 3px solid #2563eb; }
+.homepage-preview-marker-label { opacity: 0; transition: opacity 0.15s ease; }
+.homepage-preview-marker:hover > .homepage-preview-marker-label,
+.homepage-preview-marker[data-selected] > .homepage-preview-marker-label { opacity: 1; }
+.homepage-preview-marker[data-hidden-section] > :not(.homepage-preview-marker-label):not(.pointer-events-none) { opacity: 0.45; }
+
+.home-deferred-section { content-visibility: auto; contain-intrinsic-size: auto 960px; }
+
+/* Admin on phones: page header rows (title + action buttons) wrap instead of
+   overflowing. row-gap only applies once a row actually wraps. */
+@media (max-width: 767px) {
+  .admin-main .flex.justify-between {
+    flex-wrap: wrap;
+    row-gap: 0.75rem;
+  }
+
+  /* Tables already sit in overflow-x containers; keep headers on one line so
+     narrow screens scroll the table instead of crushing its columns. */
+  .admin-main table th {
+    white-space: nowrap;
+  }
+
+  .admin-main h1.text-2xl,
+  .admin-main h1.text-3xl {
+    font-size: 1.375rem;
+    line-height: 1.75rem;
+    overflow-wrap: anywhere;
+  }
+}

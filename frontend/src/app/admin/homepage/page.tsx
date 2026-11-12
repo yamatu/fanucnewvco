@@ -1,16 +1,36 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Bars3Icon, CheckCircleIcon, DocumentTextIcon, EyeIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowLeftIcon,
+  ArrowTopRightOnSquareIcon,
+  ArrowsPointingInIcon,
+  ArrowsPointingOutIcon,
+  Bars3Icon,
+  EyeIcon,
+  EyeSlashIcon,
+  MagnifyingGlassIcon,
+  PencilSquareIcon,
+  PlusIcon,
+  Squares2X2Icon,
+  TrashIcon,
+  XCircleIcon,
+} from '@heroicons/react/24/outline';
 
 import AdminLayout from '@/components/admin/AdminLayout';
 import { HomepageService } from '@/services';
+import type { HomepageContentRequest } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import type { HomepageContent } from '@/types';
 import { useAdminI18n } from '@/lib/admin-i18n';
+import { useAuth } from '@/hooks/useAuth';
 import { SortableList } from '@/components/admin/homepage/SortableList';
+import VisualEditorCanvas, { type CanvasHandle } from '@/components/admin/homepage/VisualEditorCanvas';
+import TemplateLibraryModal from '@/components/admin/homepage/TemplateLibraryModal';
+import type { SectionPayload } from '@/components/admin/homepage/section-payload';
+import { getTemplateDefinition, readTemplateId, sampleModel, templateModelToPayload, type TemplateId } from '@/lib/section-templates';
 
 import HeroEditor from '@/components/admin/homepage/editors/HeroEditor';
 import CompanyStatsEditor from '@/components/admin/homepage/editors/CompanyStatsEditor';
@@ -18,449 +38,425 @@ import FeaturedProductsEditor from '@/components/admin/homepage/editors/Featured
 import WorkshopEditor from '@/components/admin/homepage/editors/WorkshopEditor';
 import ServicesEditor from '@/components/admin/homepage/editors/ServicesEditor';
 import SimpleSectionEditor from '@/components/admin/homepage/editors/SimpleSectionEditor';
+import BrandCarouselEditor from '@/components/admin/homepage/editors/BrandCarouselEditor';
+import TemplateSectionEditor from '@/components/admin/homepage/editors/TemplateSectionEditor';
 
-type SectionDef = { id: string; key: string; name: string; description: string; predefined?: boolean; sortOrder: number };
+// Sections rendered by default even before an admin saves them; mirrors HomePage.tsx.
+const PRIMARY_SECTIONS: Array<{ key: string; sort: number; zh: string; en: string }> = [
+  { key: 'hero_section', sort: 10, zh: '首屏轮播', en: 'Hero slider' },
+  { key: 'brand_carousel', sort: 15, zh: '品牌 Logo 轮播', en: 'Brand logo carousel' },
+  { key: 'company_stats', sort: 20, zh: '公司数据', en: 'Company stats' },
+  { key: 'featured_products', sort: 30, zh: '推荐产品', en: 'Featured products' },
+  { key: 'workshop_section', sort: 40, zh: '工厂与车间', en: 'Workshop' },
+  { key: 'services_section', sort: 50, zh: '服务', en: 'Services' },
+];
+const PREVIEW_SRC = '/homepage-preview';
+const DRAFT_DEBOUNCE_MS = 450;
 
-const PRIMARY_HOME_SECTION_KEYS = ['hero_section', 'company_stats', 'featured_products', 'workshop_section', 'services_section'] as const;
+type Block = { key: string; id: string; label: string; content: HomepageContent | null; sort: number; active: boolean; primary: boolean };
 
-function getEditorType(key: string):
-  | 'hero'
-  | 'company_stats'
-  | 'featured_products'
-  | 'workshop'
-  | 'services'
-  | 'simple' {
-  if (key === 'hero_section') return 'hero';
-  if (key === 'company_stats') return 'company_stats';
-  if (key === 'featured_products') return 'featured_products';
-  if (key === 'workshop_section') return 'workshop';
-  if (key === 'services_section') return 'services';
-  return 'simple';
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
-export default function AdminHomepageContentPage() {
-  const { locale, t } = useAdminI18n();
+export default function AdminHomepageVisualEditor() {
+  const { locale } = useAdminI18n();
+  const zh = locale === 'zh';
+  const L = useCallback((z: string, e: string) => (zh ? z : e), [zh]);
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const queryClient = useQueryClient();
+  const canvasRef = useRef<CanvasHandle>(null);
 
-  const [selectedKey, setSelectedKey] = useState<string>('hero_section');
-  const [layoutOrder, setLayoutOrder] = useState<SectionDef[]>([]);
-  const [layoutDirty, setLayoutDirty] = useState(false);
+  const [selectedKey, setSelectedKey] = useState('hero_section');
+  const [tab, setTab] = useState<'blocks' | 'edit'>('blocks');
+  const [mobileView, setMobileView] = useState<'panel' | 'preview'>('panel');
+  const [widePanel, setWidePanel] = useState(false);
+  const [search, setSearch] = useState('');
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set());
+  const [order, setOrder] = useState<Block[] | null>(null);
 
-  // Local UI filters to keep large section lists manageable
-  const [sectionSearch, setSectionSearch] = useState('');
-  const [sectionFilter, setSectionFilter] = useState<'all' | 'primary' | 'custom' | 'active' | 'inactive'>('all');
-  const [hideEmptyCustom, setHideEmptyCustom] = useState(true);
-  const [layoutPanelOpen, setLayoutPanelOpen] = useState(false);
-
-  const { data: sections = [], isLoading: sectionsLoading } = useQuery({
-    queryKey: ['homepage', 'sections'],
-    queryFn: () => HomepageService.getAdminSections(),
-    retry: 1,
-  });
-
-  const { data: contents = [], isLoading: contentsLoading, error } = useQuery({
+  const { data: contents = [], isLoading, error } = useQuery({
     queryKey: queryKeys.homepage.adminContents(),
     queryFn: () => HomepageService.getAdminHomepageContents(),
     retry: 1,
   });
 
-  const mergedSections = useMemo<SectionDef[]>(() => {
-    const byKey = Object.fromEntries((contents || []).map((c) => [c.section_key, c]));
-    const predefined = sections.map((s, idx) => {
-      const c = byKey[s.key] as HomepageContent | undefined;
-      const baseSort = (idx + 1) * 100;
+  const blocks = useMemo<Block[]>(() => {
+    const byKey = new Map(contents.map((c) => [c.section_key, c]));
+    const primary = PRIMARY_SECTIONS.map((p) => {
+      const content = byKey.get(p.key) || null;
       return {
-        id: s.key,
-        key: s.key,
-        name: s.name,
-        description: s.description,
-        predefined: true,
-        sortOrder: Number((c as any)?.sort_order ?? baseSort),
+        key: p.key,
+        id: p.key,
+        label: zh ? p.zh : p.en,
+        content,
+        sort: Number(content?.sort_order ?? p.sort),
+        active: content ? content.is_active !== false : true,
+        primary: true,
       };
     });
-    const predefinedKeys = new Set(predefined.map((s) => s.key));
-    const extras = (contents || [])
-      .filter((c) => !predefinedKeys.has(c.section_key))
-      .map((c, idx) => ({
-        id: c.section_key,
-        key: c.section_key,
-        name: c.section_key,
-        description: t('homepage.section.custom', locale === 'zh' ? '自定义区块' : 'Custom section'),
-        predefined: false,
-        sortOrder: Number((c as any)?.sort_order ?? (9000 + idx)),
-      }));
-    return [...predefined, ...extras].sort((a, b) => a.sortOrder - b.sortOrder);
-  }, [sections, contents, locale, t]);
+    const primaryKeys = new Set(PRIMARY_SECTIONS.map((p) => p.key));
+    const custom = contents
+      .filter((c) => !primaryKeys.has(c.section_key))
+      .map((c) => {
+        const def = getTemplateDefinition(readTemplateId(c.data));
+        const typeName = def ? (zh ? def.name.zh : def.name.en) : L('自定义区块', 'Custom block');
+        return {
+          key: c.section_key,
+          id: c.section_key,
+          label: c.title ? `${typeName} · ${c.title}` : typeName,
+          content: c,
+          sort: Number(c.sort_order ?? 999),
+          active: c.is_active !== false,
+          primary: false,
+        };
+      });
+    return [...primary, ...custom].sort((a, b) => a.sort - b.sort);
+  }, [contents, zh, L]);
 
-  const filteredSections = useMemo(() => {
-    const q = sectionSearch.trim().toLowerCase();
-    const byKey = new Map((contents || []).map((c) => [c.section_key, c]));
+  const list = order ?? blocks;
+  useEffect(() => setOrder(null), [blocks]);
 
-    const isEmptyContent = (c?: HomepageContent | null) => {
-      if (!c) return true;
-      const hasText = Boolean(
-        String(c.title || '').trim() ||
-          String(c.subtitle || '').trim() ||
-          String(c.description || '').trim() ||
-          String(c.image_url || '').trim() ||
-          String(c.button_text || '').trim() ||
-          String(c.button_url || '').trim()
-      );
-      if (hasText) return false;
+  const selected = list.find((b) => b.key === selectedKey) || null;
+  const filtered = search.trim()
+    ? list.filter((b) => `${b.label} ${b.key}`.toLowerCase().includes(search.trim().toLowerCase()))
+    : list;
 
-      const raw = (c as any)?.data;
-      if (raw == null) return true;
-      if (typeof raw === 'string') {
-        const s = raw.trim();
-        return s === '' || s === 'null' || s === '{}' || s === '[]';
-      }
-      if (Array.isArray(raw)) return raw.length === 0;
-      if (typeof raw === 'object') return Object.keys(raw).length === 0;
-      return false;
-    };
-
-    return mergedSections.filter((s) => {
-      const c = byKey.get(s.key) || null;
-      const isActive = c ? Boolean((c as any)?.is_active ?? false) : PRIMARY_HOME_SECTION_KEYS.includes(s.key as any);
-      const isPrimary = PRIMARY_HOME_SECTION_KEYS.includes(s.key as any);
-      const isCustom = !isPrimary;
-
-      if (hideEmptyCustom && isCustom && isEmptyContent(c)) return false;
-
-      if (sectionFilter === 'primary' && !isPrimary) return false;
-      if (sectionFilter === 'custom' && !isCustom) return false;
-      if (sectionFilter === 'active' && !isActive) return false;
-      if (sectionFilter === 'inactive' && isActive) return false;
-
-      if (!q) return true;
-      return (
-        s.key.toLowerCase().includes(q) ||
-        s.name.toLowerCase().includes(q) ||
-        (s.description || '').toLowerCase().includes(q)
-      );
-    });
-  }, [mergedSections, contents, sectionSearch, sectionFilter, hideEmptyCustom]);
+  // Start from the published state; leftover drafts from an earlier session would
+  // otherwise make the preview disagree with the editors.
+  useEffect(() => {
+    HomepageService.clearDrafts().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
-    // Keep selection valid when list changes
-    if (mergedSections.length === 0) return;
-    if (!selectedKey) {
-      setSelectedKey(mergedSections[0].key);
+    if (dirtyKeys.size === 0) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirtyKeys]);
+
+  // Draft sync: debounce per section, then soft-refresh the preview.
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const suppressUntil = useRef(new Map<string, number>());
+  const queueDraft = useCallback((key: string, payload: Partial<SectionPayload>) => {
+    if ((suppressUntil.current.get(key) || 0) > Date.now()) return;
+    setDirtyKeys((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+    const existing = timers.current.get(key);
+    if (existing) clearTimeout(existing);
+    timers.current.set(key, setTimeout(async () => {
+      timers.current.delete(key);
+      setSyncing(true);
+      try {
+        await HomepageService.saveDraft(key, payload);
+        canvasRef.current?.refresh();
+      } catch {
+        // The preview simply lags; saving still publishes the editor state.
+      } finally {
+        setSyncing(false);
+      }
+    }, DRAFT_DEBOUNCE_MS));
+  }, []);
+  const onDraftChange = useMemo(() => (payload: Partial<SectionPayload>) => queueDraft(selectedKey, payload), [selectedKey, queueDraft]);
+
+  const settle = useCallback(async (key: string) => {
+    const pending = timers.current.get(key);
+    if (pending) clearTimeout(pending);
+    timers.current.delete(key);
+    // Editors re-emit their state when the saved content reloads; ignore that echo.
+    suppressUntil.current.set(key, Date.now() + 1500);
+    setDirtyKeys((prev) => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+    await HomepageService.deleteDraft(key).catch(() => undefined);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
+    canvasRef.current?.refresh();
+  }, [queryClient]);
+
+  const saveSection = useCallback(async (payload: Partial<HomepageContentRequest>) => {
+    try {
+      await HomepageService.upsertAdminBySectionKey(selectedKey, payload);
+      toast.success(L('已保存', 'Saved'));
+      await settle(selectedKey);
+    } catch (err) {
+      toast.error(errorMessage(err, L('保存失败', 'Failed to save')));
+      throw err;
+    }
+  }, [selectedKey, settle, L]);
+
+  const toggleActive = async (block: Block) => {
+    if (dirtyKeys.has(block.key)) {
+      toast.error(L('该区块有未保存的修改，请先保存或撤销后再切换显示', 'Save or discard this block’s changes before changing its visibility'));
       return;
     }
-    if (!mergedSections.some((s) => s.key === selectedKey)) {
-      setSelectedKey(mergedSections[0].key);
+    try {
+      await HomepageService.upsertAdminBySectionKey(block.key, { is_active: !block.active });
+      toast.success(block.active ? L('已在首页隐藏', 'Hidden from homepage') : L('已在首页显示', 'Shown on homepage'));
+      await queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
+      canvasRef.current?.refresh();
+    } catch (err) {
+      toast.error(errorMessage(err, L('更新失败', 'Update failed')));
     }
-  }, [mergedSections, selectedKey]);
+  };
 
-  const current: HomepageContent | null = useMemo(
-    () => (contents || []).find((c) => c.section_key === selectedKey) || null,
-    [contents, selectedKey]
-  );
-
-  const layoutCandidates = useMemo<SectionDef[]>(() => {
-    const byKey = new Map((contents || []).map((c) => [c.section_key, c]));
-    return mergedSections
-      .filter((s) => PRIMARY_HOME_SECTION_KEYS.includes(s.key as any) || byKey.has(s.key))
-      .sort((a, b) => a.sortOrder - b.sortOrder);
-  }, [mergedSections, contents]);
-
-  useEffect(() => {
-    // Initialize the layout order from the DB order; keep user's drag order until saved.
-    if (layoutDirty) return;
-    setLayoutOrder(layoutCandidates);
-  }, [layoutCandidates, layoutDirty]);
-
-  const saveMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      return HomepageService.upsertAdminBySectionKey(selectedKey, payload);
-    },
-    onSuccess: async () => {
-      toast.success(locale === 'zh' ? '已保存' : 'Saved');
+  const removeBlock = async (block: Block) => {
+    if (!block.content?.id || block.primary) return;
+    if (!window.confirm(L(`确定删除区块「${block.label}」吗？`, `Delete block "${block.label}"?`))) return;
+    try {
+      await HomepageService.deleteHomepageContent(block.content.id);
+      await HomepageService.deleteDraft(block.key).catch(() => undefined);
+      toast.success(L('区块已删除', 'Block deleted'));
+      if (selectedKey === block.key) {
+        setSelectedKey('hero_section');
+        setTab('blocks');
+      }
       await queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
-    },
-    onError: (e: any) => {
-      toast.error(e?.message || (locale === 'zh' ? '保存失败' : 'Failed to save'));
-    },
-  });
+      canvasRef.current?.reload();
+    } catch (err) {
+      toast.error(errorMessage(err, L('删除失败', 'Delete failed')));
+    }
+  };
 
-  const saveLayoutMutation = useMutation({
-    mutationFn: async (nextOrder: SectionDef[]) => {
-      // Persist only the block ordering (sort_order). This also "initializes" missing rows for primary blocks.
-      // Use gaps so future inserts are easier.
-      const updates = nextOrder.map((s, idx) =>
-        HomepageService.upsertAdminBySectionKey(s.key, { sort_order: (idx + 1) * 10 })
-      );
-      await Promise.all(updates);
-    },
-    onSuccess: async () => {
-      setLayoutDirty(false);
-      toast.success(locale === 'zh' ? '布局顺序已保存' : 'Layout saved');
+  const reorder = async (next: Block[]) => {
+    setOrder(next);
+    try {
+      await Promise.all(next.map((b, i) => HomepageService.upsertAdminBySectionKey(b.key, { sort_order: (i + 1) * 10 })));
       await queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
-    },
-    onError: (e: any) => {
-      toast.error(e?.message || (locale === 'zh' ? '保存布局失败' : 'Failed to save layout'));
-    },
-  });
+      canvasRef.current?.refresh();
+    } catch (err) {
+      toast.error(errorMessage(err, L('保存顺序失败', 'Failed to save order')));
+      setOrder(null);
+    }
+  };
 
-  const isLoading = sectionsLoading || contentsLoading;
+  const addBlock = async (template: TemplateId) => {
+    setCreating(true);
+    try {
+      const anchor = selected ?? list[list.length - 1];
+      const key = `block_${template}_${Math.random().toString(36).slice(2, 8)}`;
+      const created = await HomepageService.createHomepageContent({
+        section_key: key,
+        ...templateModelToPayload(sampleModel(template)),
+        sort_order: (anchor?.sort ?? 900) + 5,
+        is_active: false,
+      });
+      // GORM drops a false boolean on create when the column defaults to true, so
+      // hide the new block explicitly: visitors must not see sample content.
+      await HomepageService.upsertAdminBySectionKey(created.section_key, { is_active: false });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.homepage.adminContents() });
+      setLibraryOpen(false);
+      setSelectedKey(created.section_key);
+      setTab('edit');
+      toast.success(L('区块已插入（未发布），编辑后点“在首页显示”发布', 'Block inserted (hidden). Edit it, then show it on the homepage.'));
+      canvasRef.current?.reload();
+      setTimeout(() => canvasRef.current?.select(created.section_key, true), 2500);
+    } catch (err) {
+      toast.error(errorMessage(err, L('添加区块失败', 'Failed to add block')));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const openEditor = useCallback((key: string, fromCanvas = false) => {
+    setSelectedKey(key);
+    setTab('edit');
+    if (!fromCanvas) canvasRef.current?.select(key, true);
+    else setMobileView('panel');
+  }, []);
+  const onCanvasSelect = useCallback((key: string) => openEditor(key, true), [openEditor]);
+
+  const renderEditor = () => {
+    if (!selected) return null;
+    const content = selected.content;
+    const common = { onSave: saveSection, onDraftChange };
+    if (content && readTemplateId(content.data)) {
+      return <TemplateSectionEditor key={selectedKey} content={content} {...common} />;
+    }
+    switch (selectedKey) {
+      case 'hero_section': return <HeroEditor key={selectedKey} content={content} {...common} />;
+      case 'brand_carousel': return <BrandCarouselEditor key={selectedKey} content={content} {...common} />;
+      case 'company_stats': return <CompanyStatsEditor key={selectedKey} content={content} {...common} />;
+      case 'featured_products': return <FeaturedProductsEditor key={selectedKey} content={content} {...common} />;
+      case 'workshop_section': return <WorkshopEditor key={selectedKey} content={content} {...common} />;
+      case 'services_section': return <ServicesEditor key={selectedKey} content={content} {...common} />;
+      default: return <SimpleSectionEditor key={selectedKey} content={content} {...common} />;
+    }
+  };
 
   if (error) {
     return (
       <AdminLayout>
-        <div className="text-center py-20">
-          <XCircleIcon className="h-12 w-12 mx-auto text-red-500" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">
-            {t('homepage.error.title', locale === 'zh' ? '首页内容加载失败' : 'Error loading homepage content')}
-          </h3>
-          <p className="mt-2 text-sm text-gray-500">{(error as any)?.message || t('common.unknownError', locale === 'zh' ? '未知错误' : 'Unknown error')}</p>
+        <div className="py-20 text-center">
+          <XCircleIcon className="mx-auto h-12 w-12 text-red-500" />
+          <h3 className="mt-4 text-lg font-medium text-gray-900">{L('首页内容加载失败', 'Error loading homepage content')}</h3>
+          <p className="mt-2 text-sm text-gray-500">{errorMessage(error, L('未知错误', 'Unknown error'))}</p>
         </div>
       </AdminLayout>
     );
   }
 
-  const editorType = getEditorType(selectedKey);
-
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{t('nav.homepage', 'Homepage Content')}</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {locale === 'zh'
-                ? '可视化编辑首页区块：增删、拖拽排序、图片从图库选择（不需要手写 JSON）'
-                : 'Visual editor for homepage sections: add/remove, drag reorder, pick images from Media Library (no JSON editing)'}
+      <div className="flex flex-col gap-3 lg:h-[calc(100dvh-8rem)]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl">{L('首页可视化编辑', 'Homepage visual editor')}</h1>
+            <p className="hidden text-xs text-gray-500 sm:block">
+              {dirtyKeys.size > 0
+                ? L(`${dirtyKeys.size} 个区块有未发布的修改（预览已实时显示）`, `${dirtyKeys.size} block(s) with unpublished changes (shown in preview)`)
+                : L('在右侧编辑，左侧实时预览；点击预览中的任意区块即可编辑', 'Edit on the right, preview live on the left; click any block in the preview to edit it')}
             </p>
           </div>
-          <a
-            href="/"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
-          >
-            <EyeIcon className="h-5 w-5" />
-            {locale === 'zh' ? '预览首页' : 'Preview Home'}
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 lg:hidden">
+              <button type="button" onClick={() => setMobileView('panel')} className={`rounded-md px-3 py-1.5 text-sm ${mobileView === 'panel' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}>{L('编辑', 'Edit')}</button>
+              <button type="button" onClick={() => setMobileView('preview')} className={`rounded-md px-3 py-1.5 text-sm ${mobileView === 'preview' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}>{L('预览', 'Preview')}</button>
+            </div>
+            <button type="button" onClick={() => setLibraryOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
+              <PlusIcon className="h-4 w-4" />{L('添加区块', 'Add block')}
+            </button>
+            <a href="/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+              <ArrowTopRightOnSquareIcon className="h-4 w-4" /><span className="hidden sm:inline">{L('查看首页', 'View site')}</span>
+            </a>
+          </div>
         </div>
 
-        {isLoading ? (
-          <div className="p-10 text-center bg-white shadow rounded-lg">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto" />
-            <p className="mt-3 text-gray-500 text-sm">{t('common.loading', 'Loading...')}</p>
+        <div className="flex min-h-0 flex-1 gap-4">
+          <div className={`${mobileView === 'preview' ? 'flex' : 'hidden'} h-[78dvh] min-h-0 min-w-0 flex-1 flex-col lg:flex lg:h-auto`}>
+            <VisualEditorCanvas ref={canvasRef} src={PREVIEW_SRC} locale={locale} selectedKey={selectedKey} onSelectSection={onCanvasSelect} savingDraft={syncing} />
           </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Section list */}
-            <div className="lg:col-span-4">
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <DocumentTextIcon className="h-5 w-5 text-gray-400" />
-                    <span className="font-medium text-gray-900">{locale === 'zh' ? '区块' : 'Sections'}</span>
+
+          <aside
+            className={`@container ${mobileView === 'panel' ? 'flex' : 'hidden'} min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:flex ${
+              widePanel ? 'lg:w-[min(760px,55vw)]' : 'lg:w-[440px]'
+            }`}
+          >
+            <div className="flex items-center gap-1 border-b border-gray-200 px-2 py-2">
+              <button type="button" onClick={() => setTab('blocks')} className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'blocks' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <Squares2X2Icon className="h-4 w-4" />{L('区块', 'Blocks')}
+              </button>
+              <button type="button" onClick={() => setTab('edit')} disabled={!selected} className={`inline-flex min-w-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'edit' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <PencilSquareIcon className="h-4 w-4 shrink-0" /><span className="truncate">{L('编辑', 'Edit')}{selected ? ` · ${selected.label}` : ''}</span>
+              </button>
+              <button type="button" onClick={() => setWidePanel((v) => !v)} className="ml-auto hidden rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 lg:inline-flex" title={widePanel ? L('收窄面板', 'Narrow panel') : L('加宽面板', 'Widen panel')}>
+                {widePanel ? <ArrowsPointingInIcon className="h-5 w-5" /> : <ArrowsPointingOutIcon className="h-5 w-5" />}
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {tab === 'blocks' ? (
+                <div className="p-3">
+                  <div className="relative mb-3">
+                    <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={L('搜索区块', 'Search blocks')} className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:ring-blue-500" />
                   </div>
-                  <span className="text-xs text-gray-500">{filteredSections.length}/{mergedSections.length}</span>
+                  {isLoading ? (
+                    <div className="p-6 text-center text-sm text-gray-500">{L('加载中…', 'Loading…')}</div>
+                  ) : search.trim() ? (
+                    filtered.map((block) => <BlockRow key={block.key} block={block} selected={block.key === selectedKey} dirty={dirtyKeys.has(block.key)} L={L} isAdmin={isAdmin} onEdit={() => openEditor(block.key)} onToggle={() => toggleActive(block)} onDelete={() => removeBlock(block)} />)
+                  ) : (
+                    <SortableList items={list} onReorder={reorder}>
+                      {(block, drag) => (
+                        <BlockRow
+                          block={block}
+                          selected={block.key === selectedKey}
+                          dirty={dirtyKeys.has(block.key)}
+                          L={L}
+                          isAdmin={isAdmin}
+                          handle={
+                            <button type="button" ref={drag.setActivatorNodeRef} {...drag.attributes} {...drag.listeners} className="cursor-grab touch-none rounded p-1 text-gray-400 hover:bg-gray-100" aria-label={L('拖动排序', 'Drag to reorder')}>
+                              <Bars3Icon className="h-5 w-5" />
+                            </button>
+                          }
+                          onEdit={() => openEditor(block.key)}
+                          onToggle={() => toggleActive(block)}
+                          onDelete={() => removeBlock(block)}
+                        />
+                      )}
+                    </SortableList>
+                  )}
+                  <button type="button" onClick={() => setLibraryOpen(true)} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-gray-200 py-3 text-sm font-medium text-gray-500 hover:border-blue-300 hover:text-blue-700">
+                    <PlusIcon className="h-4 w-4" />{L('从样式库添加区块', 'Add a block from the library')}
+                  </button>
                 </div>
-
-                {/* Filters */}
-                <div className="px-6 py-4 border-b border-gray-200 space-y-3">
-                  <input
-                    value={sectionSearch}
-                    onChange={(e) => setSectionSearch(e.target.value)}
-                    placeholder={locale === 'zh' ? '搜索：名称 / key / 描述' : 'Search: name / key / description'}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={sectionFilter}
-                      onChange={(e) => setSectionFilter(e.target.value as any)}
-                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="all">{locale === 'zh' ? '全部区块' : 'All sections'}</option>
-                      <option value="primary">{locale === 'zh' ? '核心区块' : 'Primary blocks'}</option>
-                      <option value="custom">{locale === 'zh' ? '自定义区块' : 'Custom blocks'}</option>
-                      <option value="active">{locale === 'zh' ? '已启用' : 'Active'}</option>
-                      <option value="inactive">{locale === 'zh' ? '未启用' : 'Inactive'}</option>
-                    </select>
-
-                    <button
-                      type="button"
-                      onClick={() => setLayoutPanelOpen((v) => !v)}
-                      className={`px-3 py-2 text-sm rounded-md border ${layoutPanelOpen ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-                      title={locale === 'zh' ? '展开/收起布局面板' : 'Toggle layout panel'}
-                    >
-                      {locale === 'zh' ? '布局' : 'Layout'}
+              ) : selected ? (
+                <div className="p-3">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={() => setTab('blocks')} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-gray-600 hover:bg-gray-100">
+                      <ArrowLeftIcon className="h-4 w-4" />{L('全部区块', 'All blocks')}
+                    </button>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${selected.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {selected.active ? L('首页显示中', 'Visible') : L('已隐藏', 'Hidden')}
+                    </span>
+                    <button type="button" onClick={() => toggleActive(selected)} className="ml-auto inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50">
+                      {selected.active ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                      {selected.active ? L('在首页隐藏', 'Hide') : L('在首页显示', 'Show on homepage')}
                     </button>
                   </div>
-
-                  <label className="flex items-center justify-between text-xs text-gray-600">
-                    <span>{locale === 'zh' ? '隐藏空白自定义区块' : 'Hide empty custom blocks'}</span>
-                    <input
-                      type="checkbox"
-                      checked={hideEmptyCustom}
-                      onChange={(e) => setHideEmptyCustom(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
-                  </label>
-
-                  {layoutPanelOpen && (
-                    <div className="pt-2 border-t border-gray-100">
-                      <div className="text-xs font-medium text-gray-700">{locale === 'zh' ? '首页布局顺序' : 'Homepage Layout Order'}</div>
-                      <div className="mt-2 text-xs text-gray-500">
-                        {locale === 'zh'
-                          ? '拖拽下面的区块来调整前台首页的显示顺序，然后保存。'
-                          : 'Drag blocks below to change the public homepage order, then save.'}
-                      </div>
-                      <div className="mt-3">
-                        <SortableList
-                          items={layoutOrder}
-                          onReorder={(next) => {
-                            setLayoutOrder(next);
-                            setLayoutDirty(true);
-                          }}
-                        >
-                          {(s, drag) => (
-                            <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 bg-white">
-                              <button
-                                type="button"
-                                ref={drag.setActivatorNodeRef as any}
-                                {...drag.attributes}
-                                {...drag.listeners}
-                                className="p-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing"
-                                title={locale === 'zh' ? '拖拽排序' : 'Drag to reorder'}
-                              >
-                                <Bars3Icon className="h-5 w-5" />
-                              </button>
-                              <button
-                                type="button"
-                                className="flex-1 text-left min-w-0"
-                                onClick={() => setSelectedKey(s.key)}
-                                title={s.key}
-                              >
-                                <div className="text-sm font-medium text-gray-900 truncate">{s.name}</div>
-                                <div className="text-xs text-gray-500 truncate">{s.key}</div>
-                              </button>
-                            </div>
-                          )}
-                        </SortableList>
-                      </div>
-                      <div className="mt-3 flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLayoutOrder(layoutCandidates);
-                            setLayoutDirty(false);
-                          }}
-                          className="px-3 py-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm"
-                          disabled={!layoutDirty || saveLayoutMutation.isPending}
-                        >
-                          {locale === 'zh' ? '撤销' : 'Reset'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await saveLayoutMutation.mutateAsync(layoutOrder);
-                          }}
-                          className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm disabled:opacity-50"
-                          disabled={!layoutDirty || saveLayoutMutation.isPending}
-                        >
-                          {locale === 'zh' ? '保存顺序' : 'Save Order'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  {renderEditor()}
                 </div>
-
-                <div className="divide-y divide-gray-200">
-                  {filteredSections.map((s) => {
-                    const c = (contents || []).find((x) => x.section_key === s.key);
-                    const isActive = c ? Boolean((c as any)?.is_active ?? false) : PRIMARY_HOME_SECTION_KEYS.includes(s.key as any);
-                    const isSelected = s.key === selectedKey;
-                    return (
-                      <button
-                        key={s.key}
-                        type="button"
-                        onClick={() => setSelectedKey(s.key)}
-                        className={`w-full text-left px-6 py-4 hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : 'bg-white'}`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium text-gray-900 truncate">{s.name}</div>
-                            <div className="text-xs text-gray-500 mt-1 line-clamp-2">{s.description}</div>
-                            <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                              <span className="font-mono">{s.key}</span>
-                              <span>·</span>
-                              <span>sort: {(c as any)?.sort_order ?? '-'}</span>
-                              <span>·</span>
-                              <span>{getEditorType(s.key)}</span>
-                            </div>
-                          </div>
-                          <div className="flex-shrink-0">
-                            {isActive ? (
-                              <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                            ) : (
-                              <XCircleIcon className="h-5 w-5 text-gray-300" />
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              ) : null}
             </div>
-
-            {/* Editor */}
-            <div className="lg:col-span-8 space-y-4">
-
-              {editorType === 'hero' ? (
-                <HeroEditor
-                  content={current}
-                  onSave={async (payload) => {
-                    await saveMutation.mutateAsync(payload);
-                  }}
-                />
-              ) : editorType === 'company_stats' ? (
-                <CompanyStatsEditor
-                  content={current}
-                  onSave={async (payload) => {
-                    await saveMutation.mutateAsync(payload);
-                  }}
-                />
-              ) : editorType === 'featured_products' ? (
-                <FeaturedProductsEditor
-                  content={current}
-                  onSave={async (payload) => {
-                    await saveMutation.mutateAsync(payload);
-                  }}
-                />
-              ) : editorType === 'workshop' ? (
-                <WorkshopEditor
-                  content={current}
-                  onSave={async (payload) => {
-                    await saveMutation.mutateAsync(payload);
-                  }}
-                />
-              ) : editorType === 'services' ? (
-                <ServicesEditor
-                  content={current}
-                  onSave={async (payload) => {
-                    await saveMutation.mutateAsync(payload);
-                  }}
-                />
-              ) : (
-                <SimpleSectionEditor
-                  content={current}
-                  onSave={async (payload) => {
-                    await saveMutation.mutateAsync(payload);
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        )}
+          </aside>
+        </div>
       </div>
+
+      <TemplateLibraryModal open={libraryOpen} locale={locale} creating={creating} onClose={() => setLibraryOpen(false)} onChoose={addBlock} />
     </AdminLayout>
+  );
+}
+
+function BlockRow({
+  block,
+  selected,
+  dirty,
+  handle,
+  isAdmin,
+  L,
+  onEdit,
+  onToggle,
+  onDelete,
+}: {
+  block: Block;
+  selected: boolean;
+  dirty: boolean;
+  handle?: React.ReactNode;
+  isAdmin: boolean;
+  L: (zh: string, en: string) => string;
+  onEdit: () => void;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className={`mb-2 flex items-center gap-1.5 rounded-xl border p-2 transition ${selected ? 'border-blue-400 bg-blue-50/60' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+      {handle}
+      <button type="button" onClick={onEdit} className="min-w-0 flex-1 text-left">
+        <div className={`truncate text-sm font-medium ${block.active ? 'text-gray-900' : 'text-gray-400'}`}>{block.label}</div>
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+          <span className="truncate font-mono">{block.key}</span>
+          {dirty ? <span className="shrink-0 rounded bg-amber-100 px-1 text-amber-700">{L('未发布', 'Unpublished')}</span> : null}
+          {!block.active ? <span className="shrink-0 rounded bg-gray-100 px-1 text-gray-500">{L('隐藏', 'Hidden')}</span> : null}
+        </div>
+      </button>
+      <button type="button" onClick={onToggle} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title={block.active ? L('隐藏', 'Hide') : L('显示', 'Show')}>
+        {block.active ? <EyeIcon className="h-5 w-5" /> : <EyeSlashIcon className="h-5 w-5" />}
+      </button>
+      <button type="button" onClick={onEdit} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-blue-700" title={L('编辑', 'Edit')}>
+        <PencilSquareIcon className="h-5 w-5" />
+      </button>
+      {!block.primary && isAdmin ? (
+        <button type="button" onClick={onDelete} className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" title={L('删除', 'Delete')}>
+          <TrashIcon className="h-5 w-5" />
+        </button>
+      ) : null}
+    </div>
   );
 }

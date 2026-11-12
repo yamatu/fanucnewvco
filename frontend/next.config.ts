@@ -223,9 +223,18 @@ const nextConfig: NextConfig = {
           { key: 'Expires', value: '0' },
         ],
       },
+      // The admin visual-editor preview renders the signed-in admin's drafts:
+      // it must never be stored by the browser or a shared cache.
+      {
+        source: '/homepage-preview',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store, max-age=0' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+        ],
+      },
       // Short cache for main pages
       {
-        source: '/((?!api|_next|products|sitemap).*)',
+        source: '/((?!api|_next|products|sitemap|homepage-preview).*)',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=300, stale-while-revalidate=86400' },
         ],
