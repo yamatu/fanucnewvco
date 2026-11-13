@@ -7,7 +7,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ProductService } from '@/services/product.service';
 import { CategoryService } from '@/services/category.service';
-import type { ProductFilters as ProductServiceFilters } from '@/services/product.service';
+import type { PaginationResponse, Product } from '@/types';
+import { categoryFiltersFromParams, sameCategoryFilters, type CategoryProductFilters } from '@/lib/category-listing';
 import { queryKeys } from '@/lib/react-query';
 import ProductFilters from '@/components/products/ProductFilters';
 import Pagination from '@/components/common/Pagination';
@@ -25,27 +26,16 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 
-type CategoryProductFilters = Required<Pick<ProductServiceFilters, 'page' | 'page_size' | 'category_id' | 'include_descendants' | 'sort_by' | 'sort_dir' | 'search' | 'is_active'>> & {
-  min_price: string;
-  max_price: string;
-};
-
-function normalizeSortBy(value: string | null): CategoryProductFilters['sort_by'] {
-  return value === 'name' || value === 'price' || value === 'updated_at' ? value : 'created_at';
-}
-
-function normalizeSortDirection(value: string | null): CategoryProductFilters['sort_dir'] {
-  return value === 'asc' ? 'asc' : 'desc';
-}
-
 interface CategoryProductsClientProps {
   category: any;
   initialSearchParams: { [key: string]: string | string[] | undefined };
+  initialPage?: PaginationResponse<Product>;
 }
 
 export default function CategoryProductsClient({
   category,
-  initialSearchParams
+  initialSearchParams,
+  initialPage,
 }: CategoryProductsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -54,40 +44,19 @@ export default function CategoryProductsClient({
   // Filter states
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filters, setFilters] = useState<CategoryProductFilters>({
-    page: 1,
-    page_size: 12,
-    category_id: String(category.id),
-    include_descendants: 'true',
-    sort_by: 'created_at',
-    sort_dir: 'desc',
-    min_price: '',
-    max_price: '',
-    search: '',
-    is_active: 'true'
-  });
+  const [serverFilters] = useState(() => categoryFiltersFromParams(category.id, initialSearchParams));
+  const [filters, setFilters] = useState<CategoryProductFilters>(serverFilters);
 
-  // Initialize filters from URL params
   useEffect(() => {
-    const urlFilters = {
-      page: parseInt(searchParams.get('page') || '1'),
-      page_size: parseInt(searchParams.get('page_size') || '12'),
-      category_id: String(category.id),
-      include_descendants: 'true',
-      sort_by: normalizeSortBy(searchParams.get('sort_by')),
-      sort_dir: normalizeSortDirection(searchParams.get('sort_dir')),
-      min_price: searchParams.get('min_price') || '',
-      max_price: searchParams.get('max_price') || '',
-      search: searchParams.get('search') || '',
-      is_active: 'true'
-    };
-    setFilters(urlFilters);
+    setFilters(categoryFiltersFromParams(category.id, searchParams));
   }, [searchParams, category.id]);
 
-  // Fetch products
+  // The server renders the first page so crawlers see the products; later
+  // filter changes fetch on the client.
   const { data: productsResponse, isLoading, error } = useQuery({
     queryKey: queryKeys.products.list(filters),
     queryFn: () => ProductService.getProducts(filters),
+    initialData: initialPage && sameCategoryFilters(filters, serverFilters) ? initialPage : undefined,
     staleTime: 5 * 60 * 1000,
   });
 

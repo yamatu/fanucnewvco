@@ -4,6 +4,19 @@ import { toProductPathId } from '@/lib/utils'
 import { fetchProductSitemapPage, sitemapUnavailable, type ProductSitemapEntry } from '@/lib/product-sitemap'
 
 export const dynamic = 'force-dynamic'
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+function absoluteUrl(baseUrl: string, url: string): string {
+  return /^https?:\/\//i.test(url) ? url : `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
+}
 export const revalidate = 1800 // 30 minutes
 
 export async function GET(
@@ -34,15 +47,19 @@ export async function GET(
           : product.stock_quantity === 0
             ? '0.6'
             : '0.8',
+      images: (product.images || []).map((image) => absoluteUrl(baseUrl, image)),
+      title: product.name || product.sku,
     }))
 
     const sitemap =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
-      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n` +
       urls
         .map(
           (u) =>
-            `  <url>\n    <loc>${u.url}</loc>\n    <lastmod>${u.lastModified}</lastmod>\n    <changefreq>${u.changeFrequency}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`
+            `  <url>\n    <loc>${escapeXml(u.url)}</loc>\n    <lastmod>${u.lastModified}</lastmod>\n    <changefreq>${u.changeFrequency}</changefreq>\n    <priority>${u.priority}</priority>\n` +
+            u.images.map((image) => `    <image:image>\n      <image:loc>${escapeXml(image)}</image:loc>\n      <image:title>${escapeXml(u.title)}</image:title>\n    </image:image>\n`).join('') +
+            `  </url>`
         )
         .join('\n') +
       `\n</urlset>`

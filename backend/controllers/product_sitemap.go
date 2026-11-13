@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,6 +20,8 @@ const ProductSitemapMaxPageSize = 5000
 
 type productSitemapEntry struct {
 	SKU           string    `json:"sku"`
+	Name          string    `json:"name"`
+	Images        []string  `json:"images"`
 	UpdatedAt     time.Time `json:"updated_at"`
 	StockQuantity int       `json:"stock_quantity"`
 	IsFeatured    bool      `json:"is_featured"`
@@ -62,7 +65,14 @@ func (pc *ProductController) GetProductSitemapEntries(c *gin.Context) {
 		return
 	}
 
-	entries := make([]productSitemapEntry, 0, pageSize)
+	var rows []struct {
+		SKU           string
+		Name          string
+		ImageURLs     string `gorm:"column:image_urls"`
+		UpdatedAt     time.Time
+		StockQuantity int
+		IsFeatured    bool
+	}
 	// Page through the covering index first, then read only this shard's rows;
 	// a plain OFFSET reads every skipped row (1.4s for deep shards).
 	shardIDs := db.Model(&models.Product{}).
@@ -72,12 +82,33 @@ func (pc *ProductController) GetProductSitemapEntries(c *gin.Context) {
 		Offset((page - 1) * pageSize).
 		Limit(pageSize)
 	if err := db.Table("products AS p").
-		Select("p.sku, p.updated_at, p.stock_quantity, p.is_featured").
+		Select("p.sku, p.name, p.image_urls, p.updated_at, p.stock_quantity, p.is_featured").
 		Joins("JOIN (?) AS shard ON shard.id = p.id", shardIDs).
 		Order("p.id ASC").
-		Scan(&entries).Error; err != nil {
+		Scan(&rows).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{Success: false, Message: "Database error", Error: err.Error()})
 		return
+	}
+
+	entries := make([]productSitemapEntry, 0, len(rows))
+	for _, row := range rows {
+		// Up to five images per URL for the image sitemap extension.
+		var images []string
+		_ = json.Unmarshal([]byte(row.ImageURLs), &images)
+		if len(images) > 5 {
+			images = images[:5]
+		}
+		if images == nil {
+			images = []string{}
+		}
+		entries = append(entries, productSitemapEntry{
+			SKU:           row.SKU,
+			Name:          row.Name,
+			Images:        images,
+			UpdatedAt:     row.UpdatedAt,
+			StockQuantity: row.StockQuantity,
+			IsFeatured:    row.IsFeatured,
+		})
 	}
 
 	totalPages := int((total + int64(pageSize) - 1) / int64(pageSize))

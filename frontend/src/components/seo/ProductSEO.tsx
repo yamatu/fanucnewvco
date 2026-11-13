@@ -102,7 +102,9 @@ function buildAnswerFirstSummary(product: Product, category?: Category): string 
     ? `Standard supply includes a ${product.warranty_period} warranty.`
     : 'Standard supply includes a 12-month warranty.';
 
-  return `${brandLabel} ${product.sku} is a ${categoryName.toLowerCase()} used for CNC repair, replacement, and industrial automation maintenance. ${stockText} ${warrantyText}`;
+  const article = /^[aeiou]/i.test(categoryName) ? 'an' : 'a';
+  const subject = categoryName.toLowerCase().startsWith(brandLabel.toLowerCase()) ? categoryName : `${brandLabel} ${categoryName}`;
+  return `${brandLabel} ${product.sku} is ${article} ${subject} used for CNC repair, replacement, and industrial automation maintenance. ${stockText} ${warrantyText}`;
 }
 
 export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'https://www.vcocncspare.com' }: ProductSEOProps) {
