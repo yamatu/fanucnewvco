@@ -16,6 +16,10 @@ import (
 // HomepageContentController handles homepage content operations
 type HomepageContentController struct{}
 
+// The homepage editor also edits the About and Contact pages (about_page and
+// contact_page sections), so every save purges those paths too.
+var homepageEditorPaths = []string{"/", "/about", "/contact"}
+
 // GetHomepageContents retrieves all homepage content sections
 func (hc *HomepageContentController) GetHomepageContents(c *gin.Context) {
 	var contents []models.HomepageContent
@@ -110,7 +114,7 @@ func (hc *HomepageContentController) CreateHomepageContent(c *gin.Context) {
 	}
 
 	services.InvalidatePublicCaches(c.Request.Context(), "homepage:create", nil)
-	services.TriggerNextRevalidate(nil, []string{"/"}, false)
+	services.TriggerNextRevalidate(nil, homepageEditorPaths, false)
 	c.JSON(http.StatusCreated, content)
 }
 
@@ -169,7 +173,7 @@ func (hc *HomepageContentController) UpdateHomepageContent(c *gin.Context) {
 	}
 
 	services.InvalidatePublicCaches(c.Request.Context(), "homepage:update", nil)
-	services.TriggerNextRevalidate(nil, []string{"/"}, false)
+	services.TriggerNextRevalidate(nil, homepageEditorPaths, false)
 	c.JSON(http.StatusOK, content)
 }
 
@@ -246,7 +250,7 @@ func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Conte
 				return
 			}
 			services.InvalidatePublicCaches(c.Request.Context(), "homepage:create", nil)
-			services.TriggerNextRevalidate(nil, []string{"/"}, false)
+			services.TriggerNextRevalidate(nil, homepageEditorPaths, false)
 			c.JSON(http.StatusCreated, content)
 
 			return
@@ -291,7 +295,7 @@ func (hc *HomepageContentController) UpsertHomepageContentBySection(c *gin.Conte
 	}
 
 	services.InvalidatePublicCaches(c.Request.Context(), "homepage:update", nil)
-	services.TriggerNextRevalidate(nil, []string{"/"}, false)
+	services.TriggerNextRevalidate(nil, homepageEditorPaths, false)
 	c.JSON(http.StatusOK, content)
 }
 
@@ -309,7 +313,7 @@ func (hc *HomepageContentController) DeleteHomepageContent(c *gin.Context) {
 	}
 
 	services.InvalidatePublicCaches(c.Request.Context(), "homepage:delete", nil)
-	services.TriggerNextRevalidate(nil, []string{"/"}, false)
+	services.TriggerNextRevalidate(nil, homepageEditorPaths, false)
 	c.JSON(http.StatusOK, gin.H{"message": "Homepage content deleted successfully"})
 }
 

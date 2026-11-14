@@ -11,6 +11,7 @@ import TemplateSection from '@/components/home/TemplateSection';
 import HomepagePreviewMarker from '@/components/admin/homepage/HomepagePreviewMarker';
 import PreviewBridge from '@/components/admin/homepage/PreviewBridge';
 import { generateHomePageSchema, generateOrganizationSchema, generateWebsiteSchema } from '@/lib/structured-data';
+import { EDITABLE_PAGE_SECTION_KEYS } from '@/lib/page-content';
 import { toTemplateModel } from '@/lib/section-templates';
 import { applyHomepageDrafts } from '@/lib/homepage-drafts.server';
 import type { HomepageContent } from '@/types';
@@ -64,7 +65,7 @@ export default async function HomePageContent({ isAdminPreview = false }: { isAd
       };
     }),
     ...list
-      .filter((c) => !PRIMARY_HOME_SECTIONS.some((s) => s.key === c.section_key))
+      .filter((c) => !PRIMARY_HOME_SECTIONS.some((s) => s.key === c.section_key) && !EDITABLE_PAGE_SECTION_KEYS.has(c.section_key))
       .map((c) => ({
         key: c.section_key,
         sort: Number(c.sort_order ?? 999),
