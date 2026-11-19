@@ -79,7 +79,7 @@ export function CompanyStats({ content }: Props) {
             return (
               <div
                 key={stat.id}
-                className="bg-white rounded-xl p-5 sm:p-6 lg:p-8 shadow-md sm:shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 sm:hover:-translate-y-2"
+                className="min-w-0 bg-white rounded-xl p-4 sm:p-6 lg:p-8 shadow-md sm:shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 sm:hover:-translate-y-2"
               >
                 <div className="flex items-center justify-center mb-4 sm:mb-6">
                   <div className={`p-3 sm:p-4 rounded-full bg-gray-50 ${stat.color}`}>
@@ -88,7 +88,7 @@ export function CompanyStats({ content }: Props) {
                 </div>
                 
                 <div className="text-center">
-                  <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">
+                  <div className="text-xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-1 sm:mb-2 break-words">
                     <span>{Number(stat.value).toLocaleString('en-US')}</span>
                     <span className={`${stat.color} text-base sm:text-lg align-top ml-1`}>{stat.suffix}</span>
                   </div>

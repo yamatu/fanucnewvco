@@ -221,16 +221,16 @@ export function Header() {
       {/* Top Bar */}
       <div className="bg-yellow-500 text-black py-2">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center text-sm">
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2">
+          <div className="flex justify-between items-center text-xs sm:text-sm">
+            <div className="flex min-w-0 items-center gap-x-3 sm:gap-x-6">
+              <div className="flex shrink-0 items-center space-x-1.5 sm:space-x-2">
                 <PhoneIcon className="h-4 w-4" />
-                <span suppressHydrationWarning>+86 13348028050</span>
+                <span className="whitespace-nowrap" suppressHydrationWarning>+86 13348028050</span>
 
               </div>
-              <div className="flex items-center space-x-2">
-                <EnvelopeIcon className="h-4 w-4" />
-                <span suppressHydrationWarning>sales@vcocncspare.com</span>
+              <div className="flex min-w-0 items-center space-x-1.5 sm:space-x-2">
+                <EnvelopeIcon className="h-4 w-4 shrink-0" />
+                <span className="truncate" suppressHydrationWarning>sales@vcocncspare.com</span>
 
               </div>
             </div>
@@ -297,7 +297,7 @@ export function Header() {
                         placeholder="Search products..."
                         value={searchQuery}
                         onChange={(e) => handleSearchInput(e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                        className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
                         autoFocus
                       />
                       <button
@@ -444,7 +444,7 @@ export function Header() {
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => handleSearchInput(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 />
                 <button
                   type="submit"
