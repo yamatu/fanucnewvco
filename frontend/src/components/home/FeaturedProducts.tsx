@@ -245,9 +245,9 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                 </div>
 
                 {/* Price and Actions */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center space-x-3">
-                    <span className="text-2xl font-bold text-gray-900">
+                    <span className="text-xl sm:text-2xl font-bold text-gray-900">
                       {hasProductPrice(product) ? formatCurrency(product.price) : 'Contact for B2B quote'}
                     </span>
                     {product.compare_price && product.compare_price > product.price && (
@@ -257,7 +257,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                     )}
                   </div>
 
-                  <div className="ml-1 text-sm text-gray-600">
+                  <div className="text-sm text-gray-600">
                     {(product.stock_quantity ?? 0) > 0 ? `In Stock: ${product.stock_quantity}` : 'Out of Stock'}
                   </div>
 
