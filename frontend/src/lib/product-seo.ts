@@ -35,7 +35,11 @@ export function cleanTitleArtifacts(value?: string): string {
  * Infer a customer-facing product family while legacy catalogue records still
  * carry a broad category. These rules only affect rendered SEO copy.
  */
-export function inferProductTypeLabel(product: Product): string {
+type ProductNameSource = Pick<Product, 'name' | 'sku'>
+  & Partial<Pick<Product, 'brand' | 'short_description' | 'description' | 'meta_title'>>
+  & { category?: { name?: string } | null };
+
+export function inferProductTypeLabel(product: ProductNameSource): string {
   const sku = normalizeWhitespace(product.sku).toUpperCase();
   const brand = normalizeWhitespace(product.brand).toLowerCase();
   const content = stripProductMarkup([
@@ -57,15 +61,21 @@ export function inferProductTypeLabel(product: Product): string {
   return normalizeWhitespace(product.category?.name) || GENERIC_PART_TYPE;
 }
 
-export function buildSemanticProductName(product: Product): string {
+const GENERIC_CATEGORY_NAME = /^(?:other|others|misc|miscellaneous|uncategori[sz]ed)(?:\s+(?:parts?|products?|items?))?$/i;
+
+export function buildSemanticProductName(product: ProductNameSource): string {
   const brand = normalizeWhitespace(product.brand);
   const sku = normalizeWhitespace(product.sku);
   const storedName = normalizeWhitespace(product.name);
-  const rawType = inferProductTypeLabel(product);
+  const inferredType = inferProductTypeLabel(product);
+  const rawType = GENERIC_CATEGORY_NAME.test(stripLeadingBrand(inferredType, brand)) ? GENERIC_PART_TYPE : inferredType;
   const type = stripLeadingBrand(rawType, brand) || rawType;
-  const normalizedStored = storedName.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  const normalizedSku = sku.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  const storedIsSkuOnly = !storedName || normalizedStored === normalizedSku;
+  const toToken = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const normalizedStored = toToken(storedName);
+  const normalizedSku = toToken(sku);
+  const storedIsSkuOnly = !storedName
+    || normalizedStored === normalizedSku
+    || (Boolean(brand) && normalizedStored === toToken(`${brand} ${sku}`));
   const hasBrand = Boolean(brand && new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(brand)}(?:[^a-z0-9]|$)`, 'i').test(storedName));
 
   return [
@@ -116,7 +126,7 @@ export function buildProductSeoKeywords(product: Product): string {
     type,
     [type, 'replacement'].filter(Boolean).join(' '),
     'industrial automation parts',
-    'Vibocnc',
+    'Vcocnc',
   ];
   return [...new Set(candidates.map(normalizeWhitespace).filter(Boolean))].join(', ');
 }

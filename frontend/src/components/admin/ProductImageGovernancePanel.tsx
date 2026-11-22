@@ -222,8 +222,8 @@ export default function ProductImageGovernancePanel({
               <h2 className="text-base font-semibold text-slate-900">{locale === 'zh' ? '安全清理非自有图片来源' : 'Safely remove unowned image sources'}</h2>
               <p className="mt-1 text-sm text-slate-600">
                 {locale === 'zh'
-                  ? '本地 /uploads/、VIBOCNC 域名、SKU 默认图、产品编辑器中手动添加的外链和下方可信域名始终保留。必须先预览，确认后才会后台删除其余 HTTP(S) 外链。'
-                  : 'Local /uploads/, VIBOCNC hosts, SKU fallbacks, external links explicitly added in the product editor, and trusted hosts are always kept. Preview is required before background removal.'}
+                  ? '本地 /uploads/、本站域名、SKU 默认图、产品编辑器中手动添加的外链和下方可信域名始终保留。必须先预览，确认后才会后台删除其余 HTTP(S) 外链。'
+                  : 'Local /uploads/, site-owned hosts, SKU fallbacks, external links explicitly added in the product editor, and trusted hosts are always kept. Preview is required before background removal.'}
               </p>
             </div>
           </div>

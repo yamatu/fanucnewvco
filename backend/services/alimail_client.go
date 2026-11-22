@@ -483,7 +483,7 @@ func sendAliMailEmail(s *models.EmailSetting, opts EmailSendOptions) error {
 }
 
 func buildAliMailMessageID(fromEmail string) string {
-	domain := "vibocnc.local"
+	domain := "vcocncspare.local"
 	if i := strings.LastIndex(fromEmail, "@"); i >= 0 && i+1 < len(fromEmail) {
 		domain = fromEmail[i+1:]
 	}

@@ -63,7 +63,7 @@ func TestFanucDescriptionDoesNotDuplicateDedicatedSections(t *testing.T) {
 			t.Fatalf("description must not repeat %q:\n%s", header, enriched.Description)
 		}
 	}
-	for _, section := range []string{"Typical applications", "Why buy from Vibocnc"} {
+	for _, section := range []string{"Typical applications", "Why buy from Vcocnc"} {
 		if !strings.Contains(enriched.Description, section) {
 			t.Fatalf("expected %q in description:\n%s", section, enriched.Description)
 		}

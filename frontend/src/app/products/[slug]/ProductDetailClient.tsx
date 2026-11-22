@@ -35,7 +35,9 @@ import {
   extraSpecRows,
   resolveLeadTime,
   resolveWarrantyPeriod,
+  WARRANTY_COVERAGE_TEXT,
 } from '@/lib/product-content';
+import { buildSemanticProductName } from '@/lib/product-seo';
 import { useCartStore } from '@/store/cart.store';
 import { useRouter } from 'next/navigation';
 
@@ -633,10 +635,14 @@ export default function ProductDetailClient({
 
               {/* Trust Badges */}
               <div className="mt-6 grid grid-cols-3 gap-3">
-                <div className="flex flex-col items-center text-center p-3 rounded-lg bg-gray-50">
+                <Link
+                  href="/warranty-policy"
+                  title={WARRANTY_COVERAGE_TEXT}
+                  className="flex flex-col items-center text-center p-3 rounded-lg bg-gray-50 hover:bg-yellow-50"
+                >
                   <ShieldCheckIcon className="h-6 w-6 text-yellow-600 mb-1" />
                   <span className="text-xs font-medium text-gray-700">{shownWarranty} Warranty</span>
-                </div>
+                </Link>
                 <div className="flex flex-col items-center text-center p-3 rounded-lg bg-gray-50">
                   <GlobeAltIcon className="h-6 w-6 text-yellow-600 mb-1" />
                   <span className="text-xs font-medium text-gray-700">Worldwide Shipping</span>
@@ -689,6 +695,10 @@ export default function ProductDetailClient({
                   <div>
                     <dt className="text-sm text-gray-500">Warranty</dt>
                     <dd className="mt-1 text-sm font-medium text-gray-900">{shownWarranty}</dd>
+                    <dd className="mt-1 text-xs text-gray-500">
+                      {WARRANTY_COVERAGE_TEXT}{' '}
+                      <Link href="/warranty-policy" className="text-yellow-700 hover:underline">Warranty policy</Link>
+                    </dd>
                   </div>
                   {product.origin_country && (
                     <div>
@@ -828,7 +838,7 @@ export default function ProductDetailClient({
                         href={`/products/${toProductPathId(relatedProduct.sku)}`}
                         className="text-sm font-medium text-gray-900 hover:text-yellow-600"
                       >
-                        {relatedProduct.name}
+                        {buildSemanticProductName(relatedProduct)}
                       </Link>
                       <p className="text-sm text-gray-500">SKU: {relatedProduct.sku}</p>
                     </div>

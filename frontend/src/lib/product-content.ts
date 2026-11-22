@@ -4,6 +4,8 @@ import type { Product, ProductFAQ } from '@/types';
 // shipping policy and the warranty policy pages). They are hard-coded on this
 // site, so they live in one place for the visible FAQ and its JSON-LD.
 export const DEFAULT_WARRANTY_PERIOD = '12 months';
+// Must stay in sync with the Coverage list on /warranty-policy.
+export const WARRANTY_COVERAGE_TEXT = 'Covers manufacturing defects and functional failures under normal use; excludes damage from improper installation, misuse or unauthorized repair.';
 export const DEFAULT_LEAD_TIME = '3-7 days';
 export const IN_STOCK_HANDLING_TEXT = '1-2 business days';
 export const SALES_EMAIL = 'sales@vcocncspare.com';
@@ -104,7 +106,7 @@ export function buildProductFaqs(product: Product): ProductFaqItem[] {
     },
     {
       question: `What warranty applies to ${sku}?`,
-      answer: `${sku} is supplied with a warranty of ${resolveWarrantyPeriod(product)}, covering manufacturing defects and functional failures under normal use.`,
+      answer: `${sku} is supplied with a warranty of ${resolveWarrantyPeriod(product)}. ${WARRANTY_COVERAGE_TEXT}`,
     },
     {
       question: `How do I confirm ${sku} fits my machine?`,

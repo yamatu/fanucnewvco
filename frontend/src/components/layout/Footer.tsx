@@ -60,14 +60,13 @@ export function Footer() {
               </div>
               <div>
                 <div className="text-xl font-bold">CNC Solutions</div>
-                <div className="text-sm text-gray-400">Since 2005</div>
+                <div className="text-sm text-gray-400">Since 2007</div>
               </div>
             </div>
 
             <p className="text-gray-300 mb-6 max-w-md">
-              Vcocnc is a one-stop CNC solution supplier established in 2005 in Kunshan, China.
-              We are selling automation components of AB, ABB, Fanuc, Mitsubishi, Siemens and
-              other manufacturers with professional expertise.
+              FANUC, Siemens, Mitsubishi, ABB and AB automation parts, stocked, tested and
+              shipped worldwide from Kunshan, China.
             </p>
 
             {/* Contact Info */}

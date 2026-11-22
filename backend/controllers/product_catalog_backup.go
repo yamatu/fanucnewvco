@@ -41,11 +41,11 @@ func productCatalogJobResponse(job models.ProductCatalogImportJob) gin.H {
 func (bc *BackupController) DownloadProductCatalog(c *gin.Context) {
 	siteName := strings.TrimSpace(os.Getenv("SITE_NAME"))
 	if siteName == "" {
-		siteName = "Vibocnc"
+		siteName = "Vcocnc"
 	}
 	siteURL := strings.TrimSpace(os.Getenv("SITE_URL"))
 	if siteURL == "" {
-		siteURL = "https://vibocnc.com"
+		siteURL = "https://www.vcocncspare.com"
 	}
 	filename := fmt.Sprintf("product-catalog-%s.zip", time.Now().Format("20060102-150405"))
 	c.Header("Content-Type", "application/zip")

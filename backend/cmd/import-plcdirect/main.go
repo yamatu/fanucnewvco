@@ -412,13 +412,22 @@ func buildProduct(row inputRow, sku string, inference services.ProductCategoryIn
 
 	p.ShortDescription = limitRunes(fmt.Sprintf("%s %s, new condition, %s warranty and worldwide shipping from %s.", subject, lowerType, defaultWarranty, siteName), 200)
 
+	var overview string
+	switch {
+	case partType != "":
+		overview = fmt.Sprintf("The %s is %s %s for %s industrial automation equipment. %s supplies it for maintenance, breakdown repair and retrofit projects where the original part number has to be matched exactly.", subject, article(lowerType), lowerType, row.Brand, siteName)
+	case row.Series != "":
+		overview = fmt.Sprintf("%s supplies the %s from the %s %s product line for maintenance, breakdown repair and retrofit projects where the original part number has to be matched exactly.", siteName, subject, row.Brand, row.Series)
+	default:
+		overview = fmt.Sprintf("%s supplies the %s as a like-for-like replacement for maintenance, breakdown repair and retrofit projects where the original part number has to be matched exactly.", siteName, subject)
+	}
 	lines := []string{
 		p.Name,
 		"",
 		"Product overview",
-		fmt.Sprintf("The %s is %s %s for %s industrial automation equipment. %s supplies it for maintenance, breakdown repair and retrofit projects where the original part number has to be matched exactly.", subject, article(lowerType), lowerType, row.Brand, siteName),
+		overview,
 	}
-	if row.Series != "" {
+	if partType != "" && row.Series != "" {
 		lines = append(lines, fmt.Sprintf("It belongs to the %s product line.", row.Series))
 	}
 	if len(extra) > 0 {
@@ -442,7 +451,7 @@ func buildProduct(row inputRow, sku string, inference services.ProductCategoryIn
 		lines = append(lines, "- Price on request: send an inquiry with the quantity you need")
 	}
 	lines = append(lines,
-		fmt.Sprintf("- %s warranty", defaultWarranty),
+		fmt.Sprintf("- %s warranty covering manufacturing defects and functional failures under normal use", defaultWarranty),
 		"- Worldwide shipping with tracking",
 		"",
 		"Before you order",

@@ -3,7 +3,7 @@ import { getSiteUrl } from '@/lib/url';
 
 export const HOME_TITLE = 'FANUC Parts & Industrial Automation Components | Vcocnc';
 export const HOME_DESCRIPTION =
-  'Vcocnc supplies FANUC CNC parts and industrial automation components, with 100,000+ items in stock, technical support and worldwide shipping since 2005.';
+  'Vcocnc supplies FANUC CNC parts and industrial automation components, with 100,000+ items in stock, technical support and worldwide shipping since 2007.';
 export const DEFAULT_OG_IMAGE = {
   url: '/images/og-image.jpg',
   width: 1200,

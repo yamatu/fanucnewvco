@@ -13,9 +13,10 @@ import {
 import { useCart } from '@/store/cart.store';
 import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { DEFAULT_FEATURED_PRODUCTS_SECTION_DATA } from '@/lib/homepage-defaults';
+import { buildSemanticProductName } from '@/lib/product-seo';
 
 type FeaturedProduct = Pick<Product, 'id' | 'name' | 'sku' | 'price' | 'stock_quantity' | 'image_urls'>
-  & Partial<Pick<Product, 'compare_price' | 'description' | 'images'>>
+  & Partial<Pick<Product, 'compare_price' | 'description' | 'images' | 'reviews'>>
   & { features?: string[]; category?: { name: string } };
 
 // Fallback products with test images for development (using image_urls format)
@@ -218,14 +219,22 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
               <div className="p-6">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-yellow-600 font-medium">{product.category?.name || 'FANUC'}</span>
-                  <div className="flex items-center space-x-1">
-                    <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
-                    <span className="text-sm text-gray-600">4.9 (18)</span>
-                  </div>
+                  {(() => {
+                    const approved = (product.reviews || []).filter((r) => r.is_approved);
+                    const count = approved.length;
+                    if (count === 0) return null;
+                    const average = approved.reduce((sum, r) => sum + r.rating, 0) / count;
+                    return (
+                      <div className="flex items-center space-x-1">
+                        <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
+                        <span className="text-sm text-gray-600">{average.toFixed(1)} ({count})</span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                  {product.name}
+                  {buildSemanticProductName(product)}
                 </h3>
                 
                 <p className="text-sm text-gray-600 mb-3 line-clamp-2">
