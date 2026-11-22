@@ -82,7 +82,7 @@ export default function FAQPage() {
                   Contact Us
                 </a>
                 <a
-                  href="mailto:sales@vcocncspare.com"
+                  href="mailto:janice@vcocncspare.com"
                   className="bg-white text-amber-600 border border-amber-600 px-6 py-3 rounded-lg hover:bg-amber-50 transition-colors"
                 >
                   Email Support

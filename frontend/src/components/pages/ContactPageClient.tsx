@@ -27,7 +27,7 @@ const contactPageSchema = {
     "@type": "Organization",
     "name": "Vcocnc",
     "telephone": "+86-13348028050",
-    "email": "sales@vcocncspare.com",
+    "email": "janice@vcocncspare.com",
     "address": {
       "@type": "PostalAddress",
       "addressLocality": "Kunshan",

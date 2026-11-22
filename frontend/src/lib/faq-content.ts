@@ -24,7 +24,7 @@ export const SITE_FAQ_ENTRIES: FaqEntry[] = [
   },
   {
     question: 'How can I get technical support?',
-    answer: 'Our technical support team is available via email at sales@vcocncspare.com or phone. We provide installation guidance, troubleshooting, compatibility assistance, and replacement recommendations.',
+    answer: 'Our technical support team is available via email at janice@vcocncspare.com or phone. We provide installation guidance, troubleshooting, compatibility assistance, and replacement recommendations.',
   },
   {
     question: 'How do I place an order?',

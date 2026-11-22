@@ -230,7 +230,7 @@ export function Header() {
               </div>
               <div className="flex min-w-0 items-center space-x-1.5 sm:space-x-2">
                 <EnvelopeIcon className="h-4 w-4 shrink-0" />
-                <span className="truncate" suppressHydrationWarning>sales@vcocncspare.com</span>
+                <span className="truncate" suppressHydrationWarning>janice@vcocncspare.com</span>
 
               </div>
             </div>

@@ -6,7 +6,7 @@ import type { Product, ProductFAQ } from '@/types';
 export const DEFAULT_WARRANTY_PERIOD = '12 months';
 export const DEFAULT_LEAD_TIME = '3-7 days';
 export const IN_STOCK_HANDLING_TEXT = '1-2 business days';
-export const SALES_EMAIL = 'sales@vcocncspare.com';
+export const SALES_EMAIL = 'janice@vcocncspare.com';
 
 // Bulk/auto optimisation and catalogue seeds fill compatibility, installation,
 // maintenance and FAQ fields with the same template text on every product.

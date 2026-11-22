@@ -45,7 +45,7 @@ export function generateOrganizationSchema() {
         "@type": "ContactPoint",
         "contactType": "sales",
         "telephone": "+86-13348028050",
-        "email": "sales@vcocncspare.com",
+        "email": "janice@vcocncspare.com",
 
         "availableLanguage": ["en", "zh"],
         "areaServed": "Worldwide"
@@ -54,7 +54,7 @@ export function generateOrganizationSchema() {
         "@type": "ContactPoint",
         "contactType": "technical support",
         "telephone": "+86-13348028050",
-        "email": "sales@vcocncspare.com",
+        "email": "janice@vcocncspare.com",
 
         "availableLanguage": ["en", "zh"],
         "areaServed": "Worldwide"
@@ -235,7 +235,7 @@ export function generateLocalBusinessSchema() {
       `${baseUrl}/android-chrome-512x512.png`
     ],
     "telephone": "+86-13348028050",
-    "email": "sales@vcocncspare.com",
+    "email": "janice@vcocncspare.com",
 
     "address": {
       "@type": "PostalAddress",

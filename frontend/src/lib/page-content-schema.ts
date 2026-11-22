@@ -107,7 +107,7 @@ export const CONTACT_PAGE_SCHEMA: PageSchema = {
         field('infoTitle', '区块标题', 'Section title', 'Get in Touch'),
         field('address', '地址', 'Address', 'Kunshan, Jiangsu Province\nChina', 'textarea'),
         field('phone', '电话', 'Phone', '+86 13348028050'),
-        field('email', '邮箱', 'Email', 'sales@vcocncspare.com'),
+        field('email', '邮箱', 'Email', 'janice@vcocncspare.com'),
         field('hours', '营业时间', 'Business hours', 'Monday - Friday: 8:00 AM - 6:00 PM\nSaturday: 9:00 AM - 5:00 PM\nSunday: Closed', 'textarea'),
         field('facility', '设施', 'Facility', '5,000 sqm Workshop'),
         field('serviceArea', '服务范围', 'Service area', 'Worldwide Shipping'),

@@ -33,7 +33,7 @@ function currentTargetIdentity() {
   const host = typeof window === 'undefined' ? '' : window.location.hostname.toLowerCase();
   const vcocnc = /vcocnc|vco/i.test(configured) || host.includes('vcocnc');
   return vcocnc
-    ? { name: 'Vcocnc', domain: 'vcocncspare.com', email: 'sales@vcocncspare.com' }
+    ? { name: 'Vcocnc', domain: 'vcocncspare.com', email: 'janice@vcocncspare.com' }
     : { name: configured || 'Vibocnc', domain: 'vibocnc.com', email: 'sales@vibocnc.com' };
 }
 
@@ -49,7 +49,7 @@ function defaultReplacements(preview: ProductCatalogPreview) {
   }
   if (target.name === 'Vibocnc' && (source.includes('vcocnc') || source.includes('vcocncspare'))) {
     return [
-      { from: 'sales@vcocncspare.com', to: target.email },
+      { from: 'janice@vcocncspare.com', to: target.email },
       { from: 'vcocncspare.com', to: target.domain },
       { from: 'Vcocnc', to: target.name },
     ];

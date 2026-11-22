@@ -41,7 +41,7 @@ export function baseTwoColumnTemplate(opts: {
     primaryLabel = 'Browse Products',
     secondaryUrl = 'https://www.vcocncspare.com/contact',
     secondaryLabel = 'Contact Us',
-    footerEmail = 'sales@vcocncspare.com',
+    footerEmail = 'janice@vcocncspare.com',
     footerPhone = '+86 13348028050',
   } = opts;
 
@@ -235,7 +235,7 @@ export function buildEmailHtml(subject: string, modules: EmailModule[]): { html:
     textLines.push(m.ctaLabel + ': ' + m.ctaUrl);
     textLines.push('');
   }
-  textLines.push('Contact: sales@vcocncspare.com');
+  textLines.push('Contact: janice@vcocncspare.com');
 
   return { html, text: textLines.join('\n') };
 }
