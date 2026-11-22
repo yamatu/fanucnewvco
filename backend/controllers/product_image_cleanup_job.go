@@ -183,7 +183,7 @@ func hostnameMatchesTrustedDomain(host string, trustedDomains []string) bool {
 	if host == "" {
 		return false
 	}
-	owned := append([]string{"vibocnc.com", "localhost", "127.0.0.1", "::1"}, trustedDomains...)
+	owned := append([]string{"vcocncspare.com", "vibocnc.com", "localhost", "127.0.0.1", "::1"}, trustedDomains...)
 	for _, envName := range []string{"FRONTEND_URL", "PUBLIC_SITE_URL", "NEXT_PUBLIC_SITE_URL", "API_BASE_URL", "NEXT_PUBLIC_API_BASE_URL"} {
 		if raw := strings.TrimSpace(os.Getenv(envName)); raw != "" {
 			if parsed, err := url.Parse(raw); err == nil && parsed.Hostname() != "" {

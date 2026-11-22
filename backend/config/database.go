@@ -176,9 +176,6 @@ func ConnectDatabase() {
 	// Create default company profile
 	createDefaultCompanyProfile()
 
-	// Clean legacy brand/domain text left by older imports or previous SEO generation.
-	sanitizeLegacyBrandReferences()
-
 	// Upgrade known legacy company facts and duplicated homepage copy without
 	// overwriting unrelated admin-managed content.
 	migrateLegacyCompanyFacts()
@@ -293,7 +290,7 @@ func createDefaultAdmin() {
 	}
 	email := os.Getenv("DEFAULT_ADMIN_EMAIL")
 	if email == "" {
-		email = "admin@vibocnc.com"
+		email = "admin@vcocncspare.com"
 	}
 	fullName := os.Getenv("DEFAULT_ADMIN_FULLNAME")
 	if fullName == "" {
@@ -372,97 +369,18 @@ func createDefaultAdmin() {
 	log.Printf("默认管理员已创建（用户名：%s）。密码来自 DEFAULT_ADMIN_PASSWORD（未输出明文）", username)
 }
 
-func sanitizeLegacyBrandReferences() {
-	if os.Getenv("DISABLE_LEGACY_BRAND_SANITIZE") == "true" {
-		return
-	}
-	silentDB := DB.Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)})
-
-	type tableColumns struct {
-		table   string
-		columns []string
-	}
-
-	targets := []tableColumns{
-		{"admin_users", []string{"email", "full_name"}},
-		{"products", []string{
-			"name", "short_description", "description",
-			"meta_title", "meta_description", "meta_keywords",
-			"packaging_info", "compatibility_info", "installation_guide", "maintenance_tips",
-			"datasheet_url", "manual_url",
-		}},
-		{"product_translations", []string{"name", "short_description", "description", "meta_title", "meta_description", "meta_keywords"}},
-		{"product_faqs", []string{"question", "answer"}},
-		{"categories", []string{"name", "description", "image_url"}},
-		{"category_translations", []string{"name", "description"}},
-		{"articles", []string{"title", "custom_path", "summary", "content", "featured_image", "image_urls", "meta_title", "meta_description", "meta_keywords"}},
-		{"article_translations", []string{"title", "slug", "summary", "content", "meta_title", "meta_description", "meta_keywords"}},
-		{"homepage_contents", []string{"title", "subtitle", "description", "image_url", "button_text", "button_url"}},
-		{"company_profiles", []string{"company_name", "company_subtitle", "location", "description1", "description2", "description_1", "description_2", "achievement"}},
-		{"email_settings", []string{"from_name", "from_email", "reply_to", "smtp_host", "smtp_username", "order_notification_emails"}},
-		{"hotlink_protection_settings", []string{"allowed_hosts"}},
-		{"index_now_settings", []string{"site_url", "last_submission_host", "last_submission_note"}},
-		{"seo_redirects", []string{"old_url", "new_url"}},
-		{"ebay_import_drafts", []string{"source_url", "source_title", "source_description", "name", "description", "meta_title", "meta_description", "meta_keywords"}},
-	}
-
-	legacyCompact := "vco" + "cnc"
-	legacySpareHost := legacyCompact + "spare.com"
-	legacyShopHost := legacyCompact + ".shop"
-	replacements := [][2]string{
-		{"sales@" + legacySpareHost, "sales@vibocnc.com"},
-		{"admin@" + legacyShopHost, "admin@vibocnc.com"},
-		{"VIBO CNC", "Vibocnc"},
-		{"Vibo CNC", "Vibocnc"},
-		{"ViboCNC", "Vibocnc"},
-		{"VIBOCNC", "Vibocnc"},
-		{"VCO" + "CNC", "Vibocnc"},
-		{"VCO " + "CNC", "Vibocnc"},
-		{"Vco" + "cnc", "Vibocnc"},
-		{legacyCompact, "vibocnc"},
-	}
-
-	totalUpdated := int64(0)
-	for _, target := range targets {
-		if !silentDB.Migrator().HasTable(target.table) {
-			continue
-		}
-		for _, column := range target.columns {
-			if !silentDB.Migrator().HasColumn(target.table, column) {
-				continue
-			}
-			for _, pair := range replacements {
-				oldValue := pair[0]
-				newValue := pair[1]
-				result := silentDB.Exec(
-					fmt.Sprintf("UPDATE `%s` SET `%s` = REPLACE(`%s`, ?, ?) WHERE `%s` LIKE ?", target.table, column, column, column),
-					oldValue,
-					newValue,
-					"%"+oldValue+"%",
-				)
-				if result.Error != nil {
-					log.Printf("Legacy brand sanitize skipped %s.%s: %v", target.table, column, result.Error)
-					continue
-				}
-				totalUpdated += result.RowsAffected
-			}
-		}
-	}
-
-	if totalUpdated > 0 {
-		log.Printf("Legacy brand/domain references sanitized: %d field update(s)", totalUpdated)
-	}
-}
-
 func upgradeLegacyCompanyCopy(value string) string {
 	replacements := [][2]string{
 		{"Vibocnc- One-Stop CNC Solution Supplier", "Industrial Automation Parts, CNC Spares & Repair Support"},
 		{"Your Trusted Partner Since 2005", "FANUC, Siemens, Mitsubishi, ABB and 20+ automation brands"},
-		{"Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.", "Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
-		{"Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
+		{"Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.", "Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
+		{"Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
+		{"Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.", "Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
+		{"Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Vcocnc was established in 2007 in Kunshan, China. We supply system units, circuit boards, PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from AB, ABB, FANUC, Mitsubishi, Siemens and other manufacturers, all handled in our own 3,500 sqm workshop."},
+		{"Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Vcocnc was established in 2007 in Kunshan, China. We supply system units, circuit boards, PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from AB, ABB, FANUC, Mitsubishi, Siemens and other manufacturers, all handled in our own 3,500 sqm workshop."},
 		{"5,000sqm Workshop Facility", "3,500 sqm Parts Inspection & Service Facility"},
-		{"Top 3 Fanuc Supplier in China", "Organized stock, testing benches and export packing"},
-		{"Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.", "Our Kunshan facility supports organized storage, incoming inspection, functional checks, protective export packing and efficient dispatch for urgent industrial parts orders."},
+		{"Top 3 Fanuc Supplier in China", "Top 3 FANUC Supplier in China"},
+		{"Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.", "We specialize in FANUC and are one of the top three FANUC parts suppliers in China. Our 37 employees, including 10 sales professionals, keep more than 100,000 items regularly stocked. We ship 50-100 parcels daily worldwide, with a yearly turnover of around USD 200 million."},
 		{"20+ Years Professional Service", "15+ Years Supporting Industrial Maintenance"},
 		{"More than 18 years experience we have ability to coordinate specific strengths into a whole, providing clients with solutions that consider various import and export transportation options.", "Our sales and technical teams coordinate part-number checks, sourcing, testing, repair evaluation and international transport as one practical service."},
 		{"More than 20 years", "More than 15 years"},
@@ -472,10 +390,8 @@ func upgradeLegacyCompanyCopy(value string) string {
 		{"5,000 sqm", "3,500 sqm"},
 		{"5,000 m²", "3,500 m²"},
 		{"2005", "2007"},
-		{"Yearly Turnover: 200M", "Worldwide Delivery Support"},
-		{"Yearly Turnover / 200M", "Worldwide Delivery Support"},
-		{"200M Yearly Turnover", "Worldwide Delivery Support"},
-		{"Yearly Turnover", "Worldwide Delivery Support"},
+		{"yearly turnover around 200 million", "yearly turnover of around USD 200 million"},
+		{"Annual revenue in millions", "Around USD 200 million per year"},
 		{"ISO Certified", "Documented Inspection"},
 		{"International quality management standards", "Documented inspection and quality-control procedures"},
 		{"24/7 Operations", "Responsive Service"},
@@ -509,10 +425,6 @@ func isUnsupportedLegacyStat(value, label, description, title, subtitle any) boo
 	normalizedDescription := normalizeLegacyClaimValue(description)
 	normalizedSubtitle := normalizeLegacyClaimValue(subtitle)
 
-	if normalizedLabel == "yearly turnover" || normalizedTitle == "yearly turnover" ||
-		(normalizedValue == "200m" && (normalizedDescription == "annual revenue" || normalizedSubtitle == "annual revenue")) {
-		return true
-	}
 	if normalizedValue == "24/7" && (normalizedLabel == "operations" || normalizedTitle == "operations") {
 		return true
 	}
@@ -745,7 +657,7 @@ func migrateLegacyCompanyFacts() {
 
 const (
 	legacyHomepageHeroTitle  = "Industrial Automation Parts, CNC Spares & Repair Support"
-	brandedHomepageHeroTitle = "Vibocnc Industrial Automation Parts, CNC Spares & Repair Support"
+	brandedHomepageHeroTitle = "Vcocnc Industrial Automation Parts, CNC Spares & Repair Support"
 )
 
 func upgradeHomepageSEOContent(content *models.HomepageContent) bool {
@@ -984,13 +896,13 @@ func createDefaultCompanyProfile() {
 
 	// Create default company profile
 	defaultProfile := models.CompanyProfile{
-		CompanyName:       "Vibocnc",
+		CompanyName:       "Vcocnc",
 		CompanySubtitle:   "Industrial Automation Specialists",
 		EstablishmentYear: "2007",
 		Location:          "Kunshan, China",
 		WorkshopSize:      "3,500sqm",
-		Description1:      "Since 2007, Vibocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.",
-		Description2:      "We support multiple automation brands with 27 workers, 10 sales professionals and more than 100,000 items regularly stocked. Daily parcel volume is around 50-100 pieces, with testing, repair and worldwide delivery support.",
+		Description1:      "Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.",
+		Description2:      "We specialize in FANUC and are one of the top three FANUC parts suppliers in China. Our 37 employees, including 10 sales professionals, keep more than 100,000 items regularly stocked. We ship 50-100 parcels daily worldwide, with a yearly turnover of around USD 200 million.",
 		Achievement:       "Multi-Brand Automation Parts Supplier",
 		Stats: models.CompanyStatsArray{
 			{Icon: "CalendarIcon", Value: "2007", Label: "Established", Description: "Founded in Kunshan, China"},

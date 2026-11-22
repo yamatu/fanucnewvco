@@ -13,6 +13,7 @@ import ProductFilters from '@/components/products/ProductFilters';
 import Pagination from '@/components/common/Pagination';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { buildSemanticProductName } from '@/lib/product-seo';
 import { useCartStore } from '@/store/cart.store';
 import {
   AdjustmentsHorizontalIcon,
@@ -324,7 +325,7 @@ export default function CategoryProductsClient({
                   <div className="p-4">
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
                       <Link href={`/products/${toProductPathId(product.sku)}`} className="hover:text-yellow-600">
-                        {product.name}
+                        {buildSemanticProductName(product)}
                       </Link>
                     </h3>
                     <p className="text-sm text-gray-500 mb-2">SKU: {product.sku}</p>
@@ -384,7 +385,7 @@ export default function CategoryProductsClient({
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-medium text-gray-900 mb-1">
                         <Link href={`/products/${toProductPathId(product.sku)}`} className="hover:text-yellow-600">
-                          {product.name}
+                          {buildSemanticProductName(product)}
                         </Link>
                       </h3>
                       <p className="text-sm text-gray-500 mb-2">SKU: {product.sku}</p>

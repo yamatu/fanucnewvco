@@ -100,7 +100,7 @@ export async function generateMetadata({ searchParams }: {
   const hasSearch = !!searchQuery;
 
   let title = 'FANUC & Industrial Automation Parts | Vcocnc';
-  let description = 'Professional CNC parts supplier since 2005. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.';
+  let description = 'Professional CNC parts supplier since 2007. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.';
   const baseUrl = getSiteUrl();
 
   if (categoryParam && !hasSearch) {
@@ -135,7 +135,7 @@ export async function generateMetadata({ searchParams }: {
 
   if (hasSearch) {
     title = `Search: ${searchQuery} - Parts | Vcocnc`;
-    description = `Search results for "${searchQuery}" in industrial automation parts and components. Professional supplier since 2005.`;
+    description = `Search results for "${searchQuery}" in industrial automation parts and components. Professional supplier since 2007.`;
   }
 
   return {
@@ -250,7 +250,7 @@ export default async function ProductsPage({
       '@context': 'https://schema.org',
       '@type': 'CollectionPage',
       'name': 'Industrial Automation Parts & Components',
-      'description': 'Professional CNC parts supplier since 2005. Browse our extensive catalog of servo motors, PCB boards, I/O modules, and control units.',
+      'description': 'Professional CNC parts supplier since 2007. Browse our extensive catalog of servo motors, PCB boards, I/O modules, and control units.',
       'url': `${baseUrl}/products`,
       'mainEntity': {
         '@type': 'ItemList',

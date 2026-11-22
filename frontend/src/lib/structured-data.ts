@@ -27,7 +27,7 @@ export function generateOrganizationSchema() {
         "height": 630
       }
     ],
-    "foundingDate": "2005",
+    "foundingDate": "2007",
     "numberOfEmployees": {
       "@type": "QuantitativeValue",
       "value": 37
@@ -60,7 +60,7 @@ export function generateOrganizationSchema() {
         "areaServed": "Worldwide"
       }
     ],
-    "slogan": "Your Trusted FANUC Parts Partner Since 2005",
+    "slogan": "Your Trusted FANUC Parts Partner Since 2007",
     "knowsAbout": [
       "FANUC CNC parts",
       "Industrial automation",

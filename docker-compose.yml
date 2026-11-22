@@ -83,9 +83,6 @@ services:
       # 是否自动迁移（生产环境建议配合备份谨慎开启）
       DB_AUTO_MIGRATE: ${DB_AUTO_MIGRATE:-true}
 
-      # 备用站专用：禁止旧版品牌清洗，防止启动时把 Vcocnc 文案改写回 Vibocnc
-      DISABLE_LEGACY_BRAND_SANITIZE: "true"
-
       # 商品搜索策略：like（默认，%子串% 全表扫描）| fulltext（需先执行
       # backend/migrations/optional/20260910_add_product_search_fulltext.sql 建 FULLTEXT 索引）
       PRODUCT_SEARCH_MODE: ${PRODUCT_SEARCH_MODE:-like}
