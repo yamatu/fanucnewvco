@@ -8,7 +8,7 @@
 // description. It only touches copy that is clearly machine generated (it must
 // contain a generated marker) and only removes blocks whose heading matches a
 // dedicated section that is actually being rendered.
-const GENERATED_COPY_MARKERS = ['Why buy from Vibocnc', 'Typical applications'];
+const GENERATED_COPY_MARKERS = ['Why buy from Vcocnc', 'Why buy from Vibocnc', 'Typical applications'];
 
 const SPEC_TABLE_FOOTNOTE_PREFIX = 'Values above are taken from the catalogue record';
 

@@ -169,7 +169,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       product.category?.name ? `${product.category.name} for CNC and industrial automation systems.` : 'Industrial automation component.',
       // Generated template text is not rendered, so only operator-written guidance counts.
       customCompatibilityInfo(product) ? 'Compatibility guidance available on the product page.' : '',
-      `Source from Vcocnc, professional ${supplierLabel} since 2005.`,
+      `Source from Vcocnc, professional ${supplierLabel} since 2007.`,
     ].filter(Boolean).join(' ');
     const enhancedDescription = trimMetaDescription(`${baseDescription} ${availabilityText} ${supportingText}`, 160);
 

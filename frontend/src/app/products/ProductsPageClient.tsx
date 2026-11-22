@@ -17,6 +17,7 @@ import Layout from '@/components/layout/Layout';
 import SmartPagination from '@/components/ui/SmartPagination';
 import CategoryFilterTree from '@/components/categories/CategoryFilterTree';
 import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import { buildSemanticProductName } from '@/lib/product-seo';
 import { useCartStore } from '@/store/cart.store';
 
 interface ProductsPageClientProps {
@@ -160,9 +161,9 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
             <div className="text-center">
               <h1 className="text-4xl md:text-5xl font-bold mb-6">FANUC & Industrial Automation Parts</h1>
               <p className="text-xl md:text-2xl text-yellow-900 max-w-4xl mx-auto mb-8">
-                More than 18 years experience we have ability to coordinate specific strengths
-                into a whole, providing clients with solutions that consider various import and
-                export transportation options.
+                With more than 15 years of experience, our sales and technical teams coordinate
+                part-number checks, sourcing, testing, repair evaluation and international
+                shipping as one service.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
                 <div className="bg-yellow-700 bg-opacity-50 rounded-lg p-4">
@@ -175,7 +176,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                 </div>
                 <div className="bg-yellow-700 bg-opacity-50 rounded-lg p-4">
                   <div className="text-2xl font-bold text-black">Top 3</div>
-                  <div className="text-yellow-900">Fanuc Supplier in China</div>
+                  <div className="text-yellow-900">FANUC Supplier in China</div>
                 </div>
               </div>
             </div>
@@ -341,7 +342,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                           <Link href={`/products/${toProductPathId(product.sku)}`} className="hover:text-yellow-600">
 
 
-                            {product.name}
+                            {buildSemanticProductName(product)}
                           </Link>
                         </h3>
                         <p className="text-sm text-gray-500 mb-2">SKU: {product.sku}</p>
@@ -402,7 +403,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                           <h3 className="text-lg font-medium text-gray-900 mb-1">
                             <Link href={`/products/${toProductPathId(product.sku)}`} className="hover:text-yellow-600">
 
-                              {product.name}
+                              {buildSemanticProductName(product)}
                             </Link>
                           </h3>
                           <p className="text-sm text-gray-500 mb-2">SKU: {product.sku}</p>

@@ -36,7 +36,7 @@ export default function AdminEmailPage() {
     id: 1,
     enabled: false,
     provider: 'smtp',
-    from_name: 'Vibocnc',
+    from_name: 'Vcocnc',
     from_email: '',
     reply_to: '',
     smtp_host: '',
@@ -155,7 +155,7 @@ export default function AdminEmailPage() {
   const [single, setSingle] = useState({ to: '', subject: '', html: '', text: '' });
 
   useEffect(() => {
-    const subject = mk.subject || 'Vibocnc Updates';
+    const subject = mk.subject || 'Vcocnc Updates';
     const built = buildEmailHtml(subject, modules);
     setMk((p) => ({ ...p, html: built.html, text: built.text }));
     setSingle((p) => ({ ...p, html: built.html, text: built.text }));
@@ -163,7 +163,7 @@ export default function AdminEmailPage() {
   }, []);
 
   useEffect(() => {
-    const subject = mk.subject || 'Vibocnc Updates';
+    const subject = mk.subject || 'Vcocnc Updates';
     const built = buildEmailHtml(subject, modules);
     setMk((p) => ({ ...p, html: built.html, text: p.text ? p.text : built.text }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -318,7 +318,7 @@ export default function AdminEmailPage() {
                   value={form.from_email || ''}
                   onChange={(e) => setForm((p: any) => ({ ...p, from_email: e.target.value }))}
                   className="block w-full rounded-md border border-gray-300 px-3 py-2"
-                  placeholder="sales@vibocnc.com"
+                  placeholder="sales@vcocncspare.com"
                 />
               </div>
               <div>
@@ -327,7 +327,7 @@ export default function AdminEmailPage() {
                   value={form.reply_to || ''}
                   onChange={(e) => setForm((p: any) => ({ ...p, reply_to: e.target.value }))}
                   className="block w-full rounded-md border border-gray-300 px-3 py-2"
-                  placeholder="sales@vibocnc.com"
+                  placeholder="sales@vcocncspare.com"
                 />
               </div>
             </div>
@@ -424,7 +424,7 @@ export default function AdminEmailPage() {
                       value={form.alimail_account_email || ''}
                       onChange={(e) => setForm((p: any) => ({ ...p, alimail_account_email: e.target.value }))}
                       className="block w-full rounded-md border border-gray-300 px-3 py-2"
-                      placeholder={form.from_email || 'sales@vibocnc.com'}
+                      placeholder={form.from_email || 'sales@vcocncspare.com'}
                     />
                     <p className="mt-1 text-xs text-gray-500">
                       {t(
@@ -483,14 +483,14 @@ export default function AdminEmailPage() {
                     value={form.smtp_host || ''}
                     onChange={(e) => setForm((p: any) => ({ ...p, smtp_host: e.target.value }))}
                     className="block w-full rounded-md border border-gray-300 px-3 py-2"
-                    placeholder="mail.vibocnc.com"
+                    placeholder="mail.vcocncspare.com"
                   />
                   <p className="mt-1 text-xs text-gray-500">
                     {t(
                       'email.settings.smtp.hostHint',
                       locale === 'zh'
-                        ? '建议仅填写域名（推荐），也可填写域名+端口（例如 mail.vibocnc.com:8443）。如果粘贴 URL，服务端会自动清洗。'
-                        : 'You can use hostname only (recommended) or hostname with port (e.g. mail.vibocnc.com:8443). If you paste a URL, it will be sanitized server-side.'
+                        ? '建议仅填写域名（推荐），也可填写域名+端口（例如 mail.vcocncspare.com:8443）。如果粘贴 URL，服务端会自动清洗。'
+                        : 'You can use hostname only (recommended) or hostname with port (e.g. mail.vcocncspare.com:8443). If you paste a URL, it will be sanitized server-side.'
                     )}
                   </p>
                 </div>
