@@ -12,8 +12,8 @@ import {
   EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import { useCart } from '@/store/cart.store';
+import { buildQuoteProductContext, useQuoteModalStore } from '@/store/quote-modal.store';
 import {
-  buildProductQuoteHref,
   formatCurrency,
   getDefaultProductImageWithSku,
   getProductImageUrl,
@@ -76,6 +76,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
   const [productsPending, setProductsPending] = useState(true);
   const sectionRef = useRef<HTMLElement>(null);
   const { addItem } = useCart();
+  const openQuoteModal = useQuoteModalStore((state) => state.openQuoteModal);
 
   const headerTitle = content?.title || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.headerTitle;
   const headerDescription = content?.description || DEFAULT_FEATURED_PRODUCTS_SECTION_DATA.headerDescription;
@@ -135,6 +136,14 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
     addItem(product as Product, 1);
   };
 
+  const handleOpenQuote = (product: FeaturedProduct, semanticName: string) => {
+    openQuoteModal(
+      buildQuoteProductContext(product, {
+        name: semanticName,
+      })
+    );
+  };
+
   return (
     <section ref={sectionRef} className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -167,7 +176,6 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
           )) : products.map((product) => {
             const priced = hasProductPrice(product);
             const productHref = `/products/${toProductPathId(product.sku)}`;
-            const quoteHref = buildProductQuoteHref(product);
             const semanticName = buildSemanticProductName(product);
 
             return (
@@ -210,28 +218,26 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                       <EyeIcon className="h-5 w-5" />
                     </Link>
 
-                    {priced ? (
-                      (product.stock_quantity ?? 0) > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => handleAddToCart(product)}
-                          className="bg-yellow-500 text-black p-3 rounded-full hover:bg-yellow-600 transition-colors"
-                          title="Add to cart"
-                          aria-label={`Add ${semanticName} to cart`}
-                        >
-                          <ShoppingCartIcon className="h-5 w-5" />
-                        </button>
-                      )
-                    ) : (
-                      <Link
-                        href={quoteHref}
-                        className="bg-gray-900 text-yellow-400 p-3 rounded-full hover:bg-yellow-500 hover:text-black transition-colors"
-                        title="Contact for quote"
-                        aria-label={`Contact for quote on ${product.sku}`}
+                    {priced && (product.stock_quantity ?? 0) > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleAddToCart(product)}
+                        className="bg-yellow-500 text-black p-3 rounded-full hover:bg-yellow-600 transition-colors"
+                        title="Add to cart"
+                        aria-label={`Add ${semanticName} to cart`}
                       >
-                        <EnvelopeIcon className="h-5 w-5" />
-                      </Link>
+                        <ShoppingCartIcon className="h-5 w-5" />
+                      </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenQuote(product, semanticName)}
+                      className="bg-gray-900 text-yellow-400 p-3 rounded-full hover:bg-yellow-500 hover:text-black transition-colors"
+                      title={priced ? 'Request quote' : 'Contact for quote'}
+                      aria-label={`Request quote for ${product.sku}`}
+                    >
+                      <EnvelopeIcon className="h-5 w-5" />
+                    </button>
                   </div>
 
                   {/* Badges */}
@@ -314,44 +320,59 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2">
-                      {priced ? (
-                        (product.stock_quantity ?? 0) > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => handleAddToCart(product)}
-                            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-yellow-500 px-4 text-sm font-semibold text-black transition-colors hover:bg-yellow-600"
-                          >
-                            <ShoppingCartIcon className="h-4 w-4 shrink-0" />
-                            <span>Add to Cart</span>
-                          </button>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        {priced ? (
+                          (product.stock_quantity ?? 0) > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => handleAddToCart(product)}
+                              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-yellow-500 px-4 text-sm font-semibold text-black transition-colors hover:bg-yellow-600"
+                            >
+                              <ShoppingCartIcon className="h-4 w-4 shrink-0" />
+                              <span>Add to Cart</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              className="inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-gray-200 px-4 text-sm font-medium text-gray-500 cursor-not-allowed"
+                            >
+                              Out of Stock
+                            </button>
+                          )
                         ) : (
                           <button
                             type="button"
-                            disabled
-                            className="inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-gray-200 px-4 text-sm font-medium text-gray-500 cursor-not-allowed"
+                            onClick={() => handleOpenQuote(product, semanticName)}
+                            className="group/quote inline-flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-yellow-500 hover:text-black"
                           >
-                            Out of Stock
+                            <EnvelopeIcon className="h-4 w-4 shrink-0 text-yellow-400 transition-colors group-hover/quote:text-black" />
+                            <span>Contact for quote</span>
                           </button>
-                        )
-                      ) : (
-                        <Link
-                          href={quoteHref}
-                          className="group/quote inline-flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-yellow-500 hover:text-black"
-                        >
-                          <EnvelopeIcon className="h-4 w-4 shrink-0 text-yellow-400 transition-colors group-hover/quote:text-black" />
-                          <span>Contact for quote</span>
-                        </Link>
-                      )}
+                        )}
 
-                      <Link
-                        href={productHref}
-                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
-                        title="View details"
-                        aria-label={`View ${semanticName} details`}
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                      </Link>
+                        <Link
+                          href={productHref}
+                          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
+                          title="View details"
+                          aria-label={`View ${semanticName} details`}
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                        </Link>
+                      </div>
+
+                      {priced && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenQuote(product, semanticName)}
+                          className="inline-flex h-9 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-800 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
+                          title={`Request quote for ${product.sku}`}
+                        >
+                          <EnvelopeIcon className="h-4 w-4 shrink-0" />
+                          <span>Request Quote</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

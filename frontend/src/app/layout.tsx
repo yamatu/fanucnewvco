@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { SocialLinksProvider } from "@/components/social/SocialLinksProvider";
 import DeferredToaster from "@/components/ui/DeferredToaster";
+import QuickQuoteModal from "@/components/quote/QuickQuoteModal";
 import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
 import {
   getConfiguredSocialURLs,
@@ -152,6 +153,7 @@ export default async function RootLayout({
       <body className={`${inter.className} antialiased`}>
         <SocialLinksProvider initialConfig={socialLinks}>
           {children}
+          <QuickQuoteModal />
           <DeferredToaster />
         </SocialLinksProvider>
       </body>

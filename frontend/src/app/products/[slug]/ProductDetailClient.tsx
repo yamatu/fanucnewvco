@@ -26,7 +26,8 @@ import { ShippingRateService } from '@/services/shipping-rate.service';
 import type { ShippingRatePublic, ShippingQuote } from '@/services/shipping-rate.service';
 import type { PaginationResponse, Product, ProductImage, Category } from '@/types';
 import { queryKeys } from '@/lib/react-query';
-import { buildProductQuoteHref, formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
+import { buildQuoteProductContext, useQuoteModalStore } from '@/store/quote-modal.store';
 import { stripDuplicateGeneratedSections } from '@/lib/product-description';
 import {
   buildProductFaqs,
@@ -120,6 +121,7 @@ export default function ProductDetailClient({
   const countryDropdownRef = useRef<HTMLDivElement>(null);
 
   const { addItem } = useCartStore();
+  const openQuoteModal = useQuoteModalStore((state) => state.openQuoteModal);
   const router = useRouter();
 
   // Fetch product details by SKU
@@ -267,6 +269,17 @@ export default function ProductDetailClient({
       `Please send me a quote. Thank you!`,
     ].join('\n');
     window.open(`https://wa.me/8613348028050?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleOpenQuoteModal = () => {
+    if (!product) return;
+    openQuoteModal(
+      buildQuoteProductContext(product, {
+        name: computedHeading,
+        quantity,
+        productUrl: `/products/${toProductPathId(product.sku)}`,
+      })
+    );
   };
 
   const handleBuyNow = () => {
@@ -481,7 +494,7 @@ export default function ProductDetailClient({
 
               {/* Actions — moved above specs */}
               {hasProductPrice(product) ? (
-                <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={handleAddToCart}
@@ -499,6 +512,14 @@ export default function ProductDetailClient({
                   </button>
                   <button
                     type="button"
+                    onClick={handleOpenQuoteModal}
+                    className="group/quote inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-yellow-500 hover:text-black"
+                  >
+                    <EnvelopeIcon className="h-5 w-5 shrink-0 text-yellow-400 transition-colors group-hover/quote:text-black" />
+                    <span>Request Quote</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={handleWhatsAppInquiry}
                     className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-green-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700"
                   >
@@ -510,13 +531,14 @@ export default function ProductDetailClient({
                 </div>
               ) : (
                 <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Link
-                    href={buildProductQuoteHref(product)}
+                  <button
+                    type="button"
+                    onClick={handleOpenQuoteModal}
                     className="group/quote inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-gray-900 px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-yellow-500 hover:text-black"
                   >
                     <EnvelopeIcon className="h-5 w-5 shrink-0 text-yellow-400 transition-colors group-hover/quote:text-black" />
                     <span>Contact for quote</span>
-                  </Link>
+                  </button>
                   <button
                     type="button"
                     onClick={handleWhatsAppInquiry}
@@ -883,6 +905,18 @@ export default function ProductDetailClient({
           )}
         </div>
       </div>
+
+      {/* Floating Quick-Quote Button (stays accessible while scrolling specs/FAQ) */}
+      <button
+        type="button"
+        onClick={handleOpenQuoteModal}
+        aria-label={`Request quote for ${product.sku}`}
+        title={`Quick quote for ${product.sku}`}
+        className="group/float fixed right-6 bottom-[6.25rem] z-40 inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-3 text-sm font-semibold text-white shadow-2xl ring-2 ring-yellow-400/90 transition-all duration-200 hover:scale-105 hover:bg-yellow-500 hover:text-black active:scale-95"
+      >
+        <EnvelopeIcon className="h-5 w-5 shrink-0 text-yellow-400 transition-colors group-hover/float:text-black" />
+        <span className="hidden sm:inline">Get Quote</span>
+      </button>
     </Layout>
   );
 }

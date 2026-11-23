@@ -5,7 +5,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ShoppingCartIcon, EyeIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import {
-  buildProductQuoteHref,
   formatCurrency,
   getDefaultProductImageWithSku,
   getProductImageUrl,
@@ -13,6 +12,7 @@ import {
   toProductPathId,
 } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
+import { buildQuoteProductContext, useQuoteModalStore } from '@/store/quote-modal.store';
 
 type Product = {
   id: number;
@@ -34,6 +34,7 @@ type Product = {
 export default function ProductCardHorizontal({ product }: { product: Product }) {
   const [isLoading, setIsLoading] = useState(false);
   const { addItem } = useCartStore();
+  const openQuoteModal = useQuoteModalStore((state) => state.openQuoteModal);
 
   const priced = hasProductPrice(product);
   const imageUrl = getProductImageUrl(product.image_urls || product.images || [], getDefaultProductImageWithSku(product.sku));
@@ -49,6 +50,12 @@ export default function ProductCardHorizontal({ product }: { product: Product })
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleOpenQuote = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openQuoteModal(buildQuoteProductContext(product));
   };
 
   return (
@@ -110,23 +117,34 @@ export default function ProductCardHorizontal({ product }: { product: Product })
               <span>View</span>
             </Link>
             {priced ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  disabled={isLoading}
+                  className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-yellow-500 px-3.5 text-sm font-semibold text-black transition-colors hover:bg-yellow-600 disabled:opacity-60 sm:flex-initial"
+                >
+                  <ShoppingCartIcon className="h-4 w-4 shrink-0" />
+                  <span>{isLoading ? 'Adding...' : 'Add to Cart'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenQuote}
+                  className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-800 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
+                >
+                  <EnvelopeIcon className="h-4 w-4 shrink-0" />
+                  <span>Quote</span>
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
-                onClick={handleAddToCart}
-                disabled={isLoading}
-                className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-yellow-500 px-4 text-sm font-semibold text-black transition-colors hover:bg-yellow-600 disabled:opacity-60 sm:flex-initial"
-              >
-                <ShoppingCartIcon className="h-4 w-4 shrink-0" />
-                <span>{isLoading ? 'Adding...' : 'Add to Cart'}</span>
-              </button>
-            ) : (
-              <Link
-                href={buildProductQuoteHref(product)}
+                onClick={handleOpenQuote}
                 className="group/quote inline-flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-yellow-500 hover:text-black sm:flex-initial"
               >
                 <EnvelopeIcon className="h-4 w-4 shrink-0 text-yellow-400 transition-colors group-hover/quote:text-black" />
                 <span>Contact for quote</span>
-              </Link>
+              </button>
             )}
           </div>
         </div>
