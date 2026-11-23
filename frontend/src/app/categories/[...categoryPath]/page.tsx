@@ -5,6 +5,7 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import PublicLayout from '@/components/layout/PublicLayout';
 import CategoryProductsClient from '@/components/categories/CategoryProductsClient';
 import CategorySidebarTree from '@/components/categories/CategorySidebarTree';
+import CategorySubcategoriesBar from '@/components/categories/CategorySubcategoriesBar';
 import ScrollRestorer from '@/components/common/ScrollRestorer';
 import { CategoryService } from '@/services/category.service';
 import { ProductService } from '@/services/product.service';
@@ -163,6 +164,12 @@ function getCategoryMetaDescription(
   return trimMetaDescription(
     `Browse ${displayName} at Vcocnc. Tested ${titleSuffix} with ${DEFAULT_WARRANTY_PERIOD} warranty and worldwide shipping.`,
   );
+}
+
+function isOtherBucketSubcategory(category: Pick<Category, 'slug' | 'name'>): boolean {
+  const slug = String(category.slug || '').toLowerCase();
+  const name = String(category.name || '').toLowerCase();
+  return slug.endsWith('-other-parts') || slug === 'other-parts' || /\bother parts\b/.test(name);
 }
 
 async function resolveCategoryProductCount(categoryId: number): Promise<number> {
@@ -393,7 +400,26 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
 
   const visibleSubcategories = (matchedTreeNode?.children || [])
     .filter((child) => !isInternalCategory(child) && Number(child.product_count || 0) > 0)
-    .sort((a, b) => Number(b.product_count || 0) - Number(a.product_count || 0));
+    .sort((a, b) => {
+      const aOther = isOtherBucketSubcategory(a);
+      const bOther = isOtherBucketSubcategory(b);
+      const aCount = Number(a.product_count || 0);
+      const bCount = Number(b.product_count || 0);
+      // Keep specific product families ahead of catch-all "Other Parts" buckets
+      // in the compact top bar so engineers immediately see real categories.
+      if (aOther !== bOther) {
+        if (aOther && bCount >= 10) return 1;
+        if (bOther && aCount >= 10) return -1;
+      }
+      return bCount - aCount;
+    });
+
+  const subcategoryBarItems = visibleSubcategories.map((child) => ({
+    id: child.id,
+    name: child.name,
+    href: `/categories/${child.path || child.slug}`,
+    count: Number(child.product_count || 0),
+  }));
 
   const categoryItemList = (initialPage?.data || []).map((item) => ({
     name: buildSemanticProductName(item) || item.name || item.sku,
@@ -428,52 +454,50 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
       />
       <ScrollRestorer storageKey="category-scroll-y" />
       <div className="min-h-screen bg-gray-50">
-        {/* Hero */}
-        <div className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-white py-12">
+        {/* Compact Hero */}
+        <div className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-white py-6 md:py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <h1 className="text-3xl md:text-5xl font-bold mb-3">{displayName}</h1>
+              <nav className="flex justify-center mb-2" aria-label="Breadcrumb">
+                <ol className="flex items-center flex-wrap gap-x-1.5 gap-y-1 text-xs sm:text-sm text-yellow-100">
+                  <li>
+                    <Link href="/" className="hover:text-white transition-colors">
+                      Home
+                    </Link>
+                  </li>
+                  {breadcrumb.map((bc) => (
+                    <li key={bc.id} className="flex items-center">
+                      <span className="mx-1.5">/</span>
+                      <Link
+                        href={bc.path ? `/categories/${bc.path}` : `/categories/${bc.slug}`}
+                        className={
+                          bc.id === resolved!.category.id
+                            ? 'text-white font-medium'
+                            : 'hover:text-white transition-colors'
+                        }
+                      >
+                        {bc.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
+              </nav>
+              <h1 className="text-2xl md:text-4xl font-bold mb-2">{displayName}</h1>
               {resolved.category.description && (
-                <p className="text-base md:text-lg text-yellow-50 max-w-4xl mx-auto leading-relaxed">
+                <p className="text-sm md:text-base text-yellow-50 max-w-4xl mx-auto leading-relaxed">
                   {resolved.category.description}
                 </p>
               )}
-              <div className="mt-5">
-                <nav className="flex justify-center" aria-label="Breadcrumb">
-                  <ol className="flex items-center flex-wrap gap-x-2 gap-y-1 text-yellow-100">
-                    <li>
-                      <Link href="/" className="hover:text-white transition-colors">
-                        Home
-                      </Link>
-                    </li>
-                    {breadcrumb.map((bc) => (
-                      <li key={bc.id} className="flex items-center">
-                        <span className="mx-2">/</span>
-                        <Link
-                          href={bc.path ? `/categories/${bc.path}` : `/categories/${bc.slug}`}
-                          className={
-                            bc.id === resolved!.category.id
-                              ? 'text-white font-medium'
-                              : 'hover:text-white transition-colors'
-                          }
-                        >
-                          {bc.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ol>
-                </nav>
-              </div>
             </div>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Left sidebar */}
-            <aside className="lg:col-span-3">
-              <div className="bg-white rounded-lg shadow p-4">
-                <div className="text-sm font-semibold text-gray-900 mb-3">Categories</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left sidebar (rendered after products on mobile so items appear above the fold) */}
+            <aside className="lg:col-span-3 order-2 lg:order-1">
+              <div className="bg-white rounded-lg shadow p-4 lg:sticky lg:top-28">
+                <div className="text-sm font-semibold text-gray-900 mb-2.5">Categories</div>
                 <CategorySidebarTree
                   tree={tree}
                   activeCategoryId={resolved.category.id}
@@ -485,25 +509,13 @@ export default async function CategoryPathPage({ params, searchParams }: Categor
             </aside>
 
             {/* Products & structured guides */}
-            <section className="lg:col-span-9">
-              {visibleSubcategories.length > 0 && (
-                <div className="bg-white rounded-lg shadow p-4 mb-6">
-                  <h2 className="text-sm font-semibold text-gray-900 mb-3">
-                    Browse {displayName} Subcategories
-                  </h2>
-                  <div className="flex flex-wrap gap-2">
-                    {visibleSubcategories.map((child) => (
-                      <Link
-                        key={child.id}
-                        href={`/categories/${child.path || child.slug}`}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-800 hover:border-yellow-500 hover:bg-yellow-50 hover:text-yellow-800 transition-colors"
-                      >
-                        <span>{child.name}</span>
-                        <span className="text-xs text-gray-500">({child.product_count})</span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
+            <section className="lg:col-span-9 order-1 lg:order-2 min-w-0">
+              {subcategoryBarItems.length > 0 && (
+                <CategorySubcategoriesBar
+                  displayName={displayName}
+                  subcategories={subcategoryBarItems}
+                  initialLimit={8}
+                />
               )}
 
               <Suspense

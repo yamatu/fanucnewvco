@@ -184,88 +184,85 @@ export default function CategoryProductsClient({
 
   return (
     <div>
-      {/* Toolbar */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex flex-col space-y-4">
-          {/* Top row */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                {pagination ? (
-                  pagination.total > 0 ? (
-                    <>Showing {((pagination.page - 1) * pagination.page_size) + 1}-{Math.min(pagination.page * pagination.page_size, pagination.total)} of {pagination.total} products</>
-                  ) : (
-                    <>0 products</>
-                  )
+      {/* Compact Single-Row Toolbar */}
+      <div className="bg-white rounded-lg shadow px-3.5 py-2.5 mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-700">
+            <span>
+              {pagination ? (
+                pagination.total > 0 ? (
+                  <>
+                    Showing {((pagination.page - 1) * pagination.page_size) + 1}-
+                    {Math.min(pagination.page * pagination.page_size, pagination.total)} of{' '}
+                    <span className="font-medium text-gray-900">{pagination.total.toLocaleString()}</span> products
+                  </>
                 ) : (
-                  <>Loading...</>
-                )}
-                {hasActiveFilters && <span className="text-gray-500"> (filtered)</span>}
+                  <>0 products</>
+                )
+              ) : (
+                <>Loading...</>
+              )}
+              {hasActiveFilters && <span className="text-gray-500"> (filtered)</span>}
+            </span>
+            {pagination && pagination.total_pages > 1 && (
+              <span className="text-xs text-gray-500">
+                Page {pagination.page} / {pagination.total_pages}
               </span>
-            </div>
+            )}
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-xs text-yellow-700 hover:text-yellow-800 font-semibold underline"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
 
-            {/* View Mode */}
-            <div className="flex items-center border border-gray-300 rounded-md">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={sortValue}
+              onChange={handleSortChange}
+              aria-label="Sort products"
+              className="px-2.5 py-1.5 border border-gray-300 rounded-md text-xs sm:text-sm bg-white focus:outline-none focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500"
+            >
+              <option value="name">Sort by Name (A-Z)</option>
+              <option value="name_desc">Sort by Name (Z-A)</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="created_at">Newest First</option>
+            </select>
+
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <AdjustmentsHorizontalIcon className="h-4 w-4 mr-1.5" />
+              Filters
+              {hasActiveFilters && (
+                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-800">
+                  Active
+                </span>
+              )}
+            </button>
+
+            <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2 ${viewMode === 'grid' ? 'bg-yellow-100 text-yellow-600' : 'text-gray-400'}`}
+                className={`p-1.5 ${viewMode === 'grid' ? 'bg-yellow-100 text-yellow-700' : 'text-gray-400 hover:text-gray-600'}`}
                 title="Grid view"
+                aria-label="Grid view"
               >
                 <Squares2X2Icon className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2 ${viewMode === 'list' ? 'bg-yellow-100 text-yellow-600' : 'text-gray-400'}`}
+                className={`p-1.5 ${viewMode === 'list' ? 'bg-yellow-100 text-yellow-700' : 'text-gray-400 hover:text-gray-600'}`}
                 title="List view"
+                aria-label="List view"
               >
                 <ListBulletIcon className="h-4 w-4" />
               </button>
-            </div>
-          </div>
-
-          {/* Bottom row */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <div className="flex items-center space-x-4">
-              <select
-                value={sortValue}
-                onChange={handleSortChange}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500"
-              >
-                <option value="name">Sort by Name (A-Z)</option>
-                <option value="name_desc">Sort by Name (Z-A)</option>
-                <option value="price_asc">Price: Low to High</option>
-                <option value="price_desc">Price: High to Low</option>
-                <option value="created_at">Newest First</option>
-              </select>
-
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <AdjustmentsHorizontalIcon className="h-4 w-4 mr-2" />
-                Filters
-                {hasActiveFilters && (
-                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    Active
-                  </span>
-                )}
-              </button>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="text-sm text-yellow-600 hover:text-yellow-500 font-medium"
-                >
-                  Clear all filters
-                </button>
-              )}
-              {pagination && pagination.total_pages > 0 && (
-                <div className="text-sm text-gray-500">
-                  Page {pagination.page} of {pagination.total_pages}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -273,7 +270,7 @@ export default function CategoryProductsClient({
 
       {/* Filters Panel */}
       {showFilters && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-5 mb-4">
           <ProductFilters
             filters={filters}
             categories={categories}
@@ -291,7 +288,7 @@ export default function CategoryProductsClient({
       ) : products.length > 0 ? (
         <>
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
               {products.map((product: Product) => (
                 <div key={product.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
                   <div className="relative">
