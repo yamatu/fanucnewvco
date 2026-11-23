@@ -5,6 +5,7 @@ import { SocialLinksProvider } from "@/components/social/SocialLinksProvider";
 import DeferredToaster from "@/components/ui/DeferredToaster";
 import QuickQuoteModal from "@/components/quote/QuickQuoteModal";
 import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
+import { generateOrganizationSchema } from "@/lib/structured-data";
 import {
   getConfiguredSocialURLs,
   type SocialLinksPublicConfig,
@@ -56,11 +57,13 @@ export function generateMetadata(): Metadata {
     metadataBase: new URL(siteUrl),
     title: {
       default: HOME_TITLE,
-      template: "%s | Vcocnc FANUC Parts",
+      template: "%s | Vcocnc",
     },
     description: HOME_DESCRIPTION,
     keywords: [
       "FANUC parts",
+      "Siemens automation parts",
+      "Mitsubishi servo parts",
       "CNC parts",
       "industrial automation",
       "servo motors",
@@ -68,14 +71,13 @@ export function generateMetadata(): Metadata {
       "I/O modules",
       "control units",
       "power supplies",
-      "FANUC repair",
+      "CNC repair",
       "automation components",
       "Vcocnc",
-      "China FANUC supplier",
       "industrial spare parts",
       "CNC machine parts",
     ].join(", "),
-    authors: [{ name: "Vcocnc", url: "https://vcocnc.shop" }],
+    authors: [{ name: "Vcocnc", url: siteUrl }],
     creator: "Vcocnc Industrial Automation",
     publisher: "Vcocnc",
     robots: {
@@ -92,7 +94,7 @@ export function generateMetadata(): Metadata {
     openGraph: {
       type: "website",
       locale: "en_US",
-      siteName: "Vcocnc FANUC Parts",
+      siteName: "Vcocnc",
       url: siteUrl,
       title: HOME_TITLE,
       description: HOME_DESCRIPTION,
@@ -115,21 +117,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const socialLinks = await getSocialLinksConfig();
-  const trackingConfig = await getTrackingConfig();
-  const siteUrl = getSiteUrl();
-  const normalizedSiteUrl = siteUrl.replace(/\/$/, '');
+  const [socialLinks, trackingConfig] = await Promise.all([
+    getSocialLinksConfig(),
+    getTrackingConfig(),
+  ]);
   const socialURLs = getConfiguredSocialURLs(socialLinks);
-  const socialIdentitySchema = socialURLs.length > 0
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'Organization',
-        '@id': `${normalizedSiteUrl}/#organization`,
-        name: 'Vcocnc',
-        url: normalizedSiteUrl,
-        sameAs: socialURLs,
-      }
-    : null;
+  const organizationSchema = generateOrganizationSchema(socialURLs);
 
   return (
     <html lang="en" className="scroll-smooth">
@@ -141,14 +134,12 @@ export default async function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/site.webmanifest" />
         <meta name="theme-color" content="#f59e0b" />
-        {socialIdentitySchema && (
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify(socialIdentitySchema).replace(/</g, '\\u003c'),
-            }}
-          />
-        )}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationSchema).replace(/</g, '\\u003c'),
+          }}
+        />
       </head>
       <body className={`${inter.className} antialiased`}>
         <SocialLinksProvider initialConfig={socialLinks}>

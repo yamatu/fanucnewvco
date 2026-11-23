@@ -22,7 +22,8 @@ export async function generateMetadata({
     const baseUrl = getSiteUrl();
     const canonicalUrl = `${baseUrl}/news/${article.slug}`;
 
-    const metaTitle = (article.meta_title || '').trim() || `${article.title} | Vcocnc`;
+    const rawTitle = (article.meta_title || '').trim() || article.title;
+    const metaTitle = /\bvcocnc\b/i.test(rawTitle) ? rawTitle : `${rawTitle} | Vcocnc`;
     const metaDescription =
       (article.meta_description || '').trim() ||
       article.summary ||
@@ -34,7 +35,7 @@ export async function generateMetadata({
     const images = article.featured_image ? [article.featured_image] : [];
 
     return {
-      title: metaTitle,
+      title: { absolute: metaTitle },
       description: metaDescription,
       keywords: metaKeywords,
       openGraph: {
@@ -57,7 +58,7 @@ export async function generateMetadata({
     };
   } catch {
     return {
-      title: 'Article Not Found | Vcocnc',
+      title: { absolute: 'Article Not Found | Vcocnc' },
       description: 'The requested article could not be found.',
     };
   }
@@ -88,6 +89,7 @@ export default async function ArticlePage({
     },
     publisher: {
       '@type': 'Organization',
+      '@id': `${baseUrl}/#organization`,
       name: 'Vcocnc',
       url: baseUrl,
     },
@@ -116,11 +118,11 @@ export default async function ArticlePage({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData).replace(/</g, '\\u003c') }}
       />
       <ArticleDetailClient article={article} />
     </>

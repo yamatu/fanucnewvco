@@ -5,9 +5,9 @@ import { getSiteUrl } from '@/lib/url';
 import { SITE_FAQ_ENTRIES } from '@/lib/faq-content';
 
 export const metadata: Metadata = {
-  title: 'FAQ - Frequently Asked Questions | Vcocnc FANUC Parts',
-  description: 'Find answers to common questions about FANUC parts, shipping, warranty, technical support, and more. Professional industrial automation support from Vcocnc.',
-  keywords: 'FANUC parts FAQ, industrial automation support, CNC parts questions, technical support, warranty information, FANUC shipping, FANUC compatibility',
+  title: { absolute: 'FAQ - Frequently Asked Questions | Vcocnc' },
+  description: 'Find answers to common questions about FANUC, Siemens, Mitsubishi and CNC spare parts, shipping, warranty, technical support, and ordering from Vcocnc.',
+  keywords: 'CNC parts FAQ, FANUC parts FAQ, industrial automation support, technical support, warranty information, global shipping, part compatibility',
   robots: {
     index: true,
     follow: true,
@@ -48,7 +48,7 @@ export default function FAQPage() {
                 Frequently Asked Questions
               </h1>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Find answers to common questions about FANUC parts, shipping, warranty, and technical support.
+                Find answers to common questions about CNC and industrial automation spare parts, shipping, warranty, and technical support.
               </p>
             </div>
 
@@ -72,7 +72,7 @@ export default function FAQPage() {
                 Still Have Questions?
               </h2>
               <p className="text-gray-600 mb-6">
-                Our expert team is here to help with any questions about FANUC parts or technical support.
+                Our expert team is here to help with part compatibility checks, quotes, or technical support.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a

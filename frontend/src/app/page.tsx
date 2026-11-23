@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       type: 'website',
       locale: 'en_US',
-      siteName: 'Vcocnc FANUC Parts',
+      siteName: 'Vcocnc',
       url: baseUrl,
       title: HOME_TITLE,
       description: HOME_DESCRIPTION,

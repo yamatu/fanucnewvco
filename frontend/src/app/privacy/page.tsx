@@ -3,9 +3,9 @@ import Layout from '@/components/layout/Layout';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | Vcocnc - FANUC CNC Parts & Automation Components',
-  description: 'Learn about how Vcocnc protects your privacy and handles your personal information when you shop for FANUC CNC parts and automation components.',
-  keywords: 'privacy policy, data protection, FANUC parts, CNC components, automation, Vcocnc',
+  title: { absolute: 'Privacy Policy | Vcocnc' },
+  description: 'Learn about how Vcocnc protects your privacy and handles your personal information when you shop for CNC parts and industrial automation components.',
+  keywords: 'privacy policy, data protection, CNC components, industrial automation, Vcocnc',
   openGraph: {
     title: 'Privacy Policy | Vcocnc',
     description: 'Learn about how Vcocnc protects your privacy and handles your personal information.',
@@ -60,7 +60,7 @@ export default function PrivacyPage() {
                 </ul>
                 <p className="text-gray-700">
                   This may include your name, email address, phone number, shipping address, 
-                  payment information, and details about your FANUC CNC parts and automation component needs.
+                  payment information, and details about your CNC parts and industrial automation component needs.
                 </p>
               </section>
 
@@ -68,7 +68,7 @@ export default function PrivacyPage() {
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. How We Use Your Information</h2>
                 <p className="text-gray-700 mb-4">We use the information we collect to:</p>
                 <ul className="list-disc pl-6 text-gray-700">
-                  <li>Process and fulfill your orders for FANUC parts and CNC components</li>
+                  <li>Process and fulfill your orders for CNC parts and industrial automation components</li>
                   <li>Provide customer support and technical assistance</li>
                   <li>Send you important updates about your orders and our services</li>
                   <li>Improve our website and product offerings</li>
@@ -102,7 +102,7 @@ export default function PrivacyPage() {
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">5. Cookies and Tracking</h2>
                 <p className="text-gray-700">
                   We use cookies and similar tracking technologies to enhance your browsing experience, 
-                  analyze website traffic, and understand user preferences for FANUC parts and automation components.
+                  analyze website traffic, and understand user preferences for CNC parts and automation components.
                 </p>
               </section>
 
@@ -133,7 +133,7 @@ export default function PrivacyPage() {
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Changes to This Policy</h2>
                 <p className="text-gray-700">
                   We may update this Privacy Policy from time to time. We will notify you of any changes 
-                  by posting the new Privacy Policy on this page and updating the "Last updated" date.
+                  by posting the new Privacy Policy on this page and updating the &quot;Last updated&quot; date.
                 </p>
               </section>
             </div>

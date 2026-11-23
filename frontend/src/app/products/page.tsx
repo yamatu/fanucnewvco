@@ -92,6 +92,22 @@ async function resolveCategory(rawValue?: string): Promise<CategoryNode | null> 
   }
 }
 
+function hasNonCanonicalProductsParams(params: PageSearchParams): boolean {
+  const page = Number.parseInt(getFirstParamValue(params.page) || '1', 10);
+  if (Number.isFinite(page) && page > 1) return true;
+  if (getFirstParamValue(params.search)) return true;
+  if (getFirstParamValue(params.brand)) return true;
+  if (getFirstParamValue(params.min_price)) return true;
+  if (getFirstParamValue(params.max_price)) return true;
+  const pageSize = getFirstParamValue(params.page_size);
+  if (pageSize && pageSize !== '12') return true;
+  const sortBy = getFirstParamValue(params.sort_by);
+  if (sortBy && sortBy !== 'created_at') return true;
+  const sortOrder = getFirstParamValue(params.sort_order) || getFirstParamValue(params.sort_dir);
+  if (sortOrder && sortOrder !== 'desc') return true;
+  return false;
+}
+
 // Generate dynamic metadata for products page
 export async function generateMetadata({ searchParams }: {
   searchParams: Promise<PageSearchParams>
@@ -100,9 +116,11 @@ export async function generateMetadata({ searchParams }: {
   const categoryParam = getFirstParamValue(params.category_id) || getFirstParamValue(params.category);
   const searchQuery = getFirstParamValue(params.search);
   const hasSearch = !!searchQuery;
+  const page = Math.max(1, Number.parseInt(getFirstParamValue(params.page) || '1', 10) || 1);
+  const isNonCanonical = hasNonCanonicalProductsParams(params);
 
-  let title = 'FANUC & Industrial Automation Parts | Vcocnc';
-  let description = 'Professional CNC parts supplier since 2007. 100,000+ items in stock, worldwide shipping. Servo motors, PCB boards, I/O modules, control units.';
+  let title = 'CNC & Industrial Automation Spare Parts | Vcocnc';
+  let description = 'Browse 100,000+ CNC and industrial automation spare parts from FANUC, Siemens, Mitsubishi, Schneider, ABB, SICK and 20+ brands. 12-month warranty and worldwide shipping since 2007.';
   const baseUrl = getSiteUrl();
 
   if (categoryParam && !hasSearch) {
@@ -111,13 +129,13 @@ export async function generateMetadata({ searchParams }: {
 
     if (category && categoryPath) {
       title = `${category.name} - Parts | Vcocnc`;
-      description = `Professional ${category.name} for CNC systems. High-quality industrial automation components with worldwide shipping.`;
+      description = `Professional ${category.name} for CNC and industrial automation systems. High-quality replacement components with worldwide shipping.`;
       const catUrl = `${baseUrl}${categoryPath}`;
 
       return {
         title: { absolute: title },
         description,
-        robots: { index: true, follow: true },
+        robots: isNonCanonical ? { index: false, follow: true } : { index: true, follow: true },
         keywords: [
           'CNC parts', 'industrial automation', 'servo motors', 'PCB boards',
           'I/O modules', 'control units', category.name,
@@ -138,12 +156,14 @@ export async function generateMetadata({ searchParams }: {
   if (hasSearch) {
     title = `Search: ${searchQuery} - Parts | Vcocnc`;
     description = `Search results for "${searchQuery}" in industrial automation parts and components. Professional supplier since 2007.`;
+  } else if (page > 1) {
+    title = `CNC & Industrial Automation Parts - Page ${page} | Vcocnc`;
   }
 
   return {
     title: { absolute: title },
     description,
-    robots: hasSearch ? { index: false, follow: true } : { index: true, follow: true },
+    robots: isNonCanonical ? { index: false, follow: true } : { index: true, follow: true },
     keywords: [
       'CNC parts', 'industrial automation', 'servo motors', 'PCB boards',
       'I/O modules', 'control units', searchQuery,
@@ -240,48 +260,27 @@ export default async function ProductsPage({
 
   const serverData = await getServerSideData(params);
 
-  // Generate structured data for product listing page
+  // Generate CollectionPage + lightweight ItemList structured data (avoid
+  // emitting invalid zero-price Offer/Product nodes on catalogue listing pages).
   const generateListingStructuredData = (data: ProductsPageServerData) => {
-    const baseUrl = getSiteUrl();
+    const baseUrl = getSiteUrl().replace(/\/+$/, '');
 
     return {
       '@context': 'https://schema.org',
       '@type': 'CollectionPage',
-      'name': 'Industrial Automation Parts & Components',
-      'description': 'Professional CNC parts supplier since 2007. Browse our extensive catalog of servo motors, PCB boards, I/O modules, and control units.',
+      '@id': `${baseUrl}/products#webpage`,
+      'name': 'CNC & Industrial Automation Spare Parts',
+      'description': 'Browse stocked and available CNC and industrial automation replacement parts from FANUC, Siemens, Mitsubishi, Schneider, ABB, SICK and 20+ brands.',
       'url': `${baseUrl}/products`,
+      'isPartOf': { '@id': `${baseUrl}/#website` },
       'mainEntity': {
         '@type': 'ItemList',
         'numberOfItems': data.total,
-        'itemListElement': data.products.slice(0, 10).map((product, index: number) => ({
+        'itemListElement': data.products.slice(0, 12).map((product, index: number) => ({
           '@type': 'ListItem',
           'position': index + 1,
-          'item': {
-            '@type': 'Product',
-            'name': product.name,
-            'description': product.description || `${product.name} - Professional industrial part`,
-            'sku': product.sku,
-            'brand': {
-              '@type': 'Brand',
-              'name': product.brand || 'Vcocnc',
-            },
-            'image': product.image_urls && product.image_urls.length > 0
-              ? product.image_urls[0]
-              : `${baseUrl}/images/default-product.svg`,
-            'url': `${baseUrl}/products/${toProductPathId(product.sku)}`,
-            'offers': {
-              '@type': 'Offer',
-              'price': product.price || 0,
-              'priceCurrency': 'USD',
-              'availability': product.stock_quantity > 0
-                ? 'https://schema.org/InStock'
-                : 'https://schema.org/PreOrder',
-              'seller': {
-                '@type': 'Organization',
-                'name': 'Vcocnc',
-              },
-            },
-          },
+          'name': product.name,
+          'url': `${baseUrl}/products/${toProductPathId(product.sku)}`,
         })),
       },
       'breadcrumb': {
@@ -312,7 +311,7 @@ export default async function ProductsPage({
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData),
+          __html: JSON.stringify(structuredData).replace(/</g, '\\u003c'),
         }}
       />
       <Suspense fallback={

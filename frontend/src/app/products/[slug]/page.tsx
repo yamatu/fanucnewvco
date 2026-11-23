@@ -102,25 +102,49 @@ function getProductImageFallback(product: Product, baseUrl: string): string {
   return `${baseUrl}/api/v1/public/products/default-image/${encodeURIComponent(safeSku)}?sku=${encodeURIComponent(sku)}`;
 }
 
-function buildMetadataTitle(product: Product): string {
-  const explicit = trimMetaTitle(product.meta_title || '', 58);
-  if (explicit) return explicit;
+function isUsefulCategoryLabel(categoryName: string, existingTitle: string): boolean {
+  const clean = normalizeWhitespace(categoryName);
+  if (!clean) return false;
+  if (/other parts|imported products|review|uncategorized/i.test(clean)) return false;
+  if (existingTitle.toLowerCase().includes(clean.toLowerCase())) return false;
+  return clean.length <= 28;
+}
 
+function buildMetadataTitle(product: Product): string {
   const brand = getProductBrand(product);
-  const parts = [
-    brand,
-    product.sku,
-    product.category?.name || '',
-  ].filter(Boolean);
-  let title = parts.join(' ');
-  if (!title) title = product.name || 'Product';
-  if (title.length > 58) {
-    title = [brand, product.sku].filter(Boolean).join(' ');
+  const categoryName = normalizeWhitespace(product.category?.name);
+  const brandSuffix = ` | ${DEFAULT_SITE_NAME}`;
+  const maxCoreLen = 65 - brandSuffix.length;
+
+  const rawExplicit = cleanTitleArtifacts(product.meta_title || '');
+  if (rawExplicit) {
+    if (/\bvcocnc\b/i.test(rawExplicit)) {
+      return trimMetaTitle(rawExplicit, 65);
+    }
+    let core = rawExplicit;
+    if (core.length < 36 && isUsefulCategoryLabel(categoryName, core)) {
+      const candidate = `${core} ${categoryName}`;
+      if (candidate.length <= maxCoreLen) {
+        core = candidate;
+      }
+    } else if (core.length < 30 && !/spare part|automation|cnc/i.test(core)) {
+      const candidate = `${core} Automation Part`;
+      if (candidate.length <= maxCoreLen) {
+        core = candidate;
+      }
+    }
+    return `${trimMetaTitle(core, maxCoreLen)}${brandSuffix}`;
   }
-  if (!title) {
-    title = [product.sku, product.category?.name || 'industrial automation part'].filter(Boolean).join(' ');
+
+  const baseCore = [brand, product.sku].filter(Boolean).join(' ') || product.name || 'Industrial Part';
+  let core = baseCore;
+  if (isUsefulCategoryLabel(categoryName, core) && `${core} ${categoryName}`.length <= maxCoreLen) {
+    core = `${core} ${categoryName}`;
+  } else if (core.length < 32) {
+    const candidate = `${core} Spare Part`;
+    if (candidate.length <= maxCoreLen) core = candidate;
   }
-  return trimMetaTitle(title, 58);
+  return `${trimMetaTitle(core, maxCoreLen)}${brandSuffix}`;
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -133,7 +157,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
     if (!product) {
       return {
-        title: 'Product Not Found',
+        title: { absolute: 'Product Not Found | Vcocnc' },
         description: 'The requested product could not be found.',
         robots: {
           index: false,
@@ -227,7 +251,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   } catch (error) {
     console.error('Error generating product metadata:', error);
     return {
-      title: 'Product | Vcocnc',
+      title: { absolute: 'Product | Vcocnc' },
       description: 'Professional industrial automation parts and components.',
     };
   }

@@ -64,12 +64,6 @@ export async function GET() {
       priority: '0.4',
     },
     {
-      url: `${baseUrl}/warranty`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: '0.5',
-    },
-    {
       url: `${baseUrl}/warranty-policy`,
       lastModified,
       changeFrequency: 'monthly',

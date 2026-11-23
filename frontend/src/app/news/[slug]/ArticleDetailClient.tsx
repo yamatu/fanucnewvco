@@ -9,11 +9,11 @@ function markdownToHtml(md: string): string {
   let html = md;
   // Code blocks (must be before inline code)
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-6 text-sm"><code>$2</code></pre>');
-  // Headers
+  // Headers (demote Markdown # to h2 because article.title is the sole page h1)
   html = html.replace(/^#### (.+)$/gm, '<h4 class="text-base font-semibold text-gray-900 mt-6 mb-2">$1</h4>');
   html = html.replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold text-gray-900 mt-8 mb-3">$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold text-gray-900 mt-10 mb-4">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold text-gray-900 mt-10 mb-4">$1</h1>');
+  html = html.replace(/^# (.+)$/gm, '<h2 class="text-2xl font-bold text-gray-900 mt-10 mb-4">$1</h2>');
   // Horizontal rule
   html = html.replace(/^---$/gm, '<hr class="my-8 border-gray-200" />');
   // Bold / Italic

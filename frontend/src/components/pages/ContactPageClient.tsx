@@ -1,11 +1,12 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import ContactService from '@/services/contact.service';
 import type { ContactCreateRequest } from '@/services/contact.service';
 import PublicLayout from '@/components/layout/PublicLayout';
+import { getSiteUrl } from '@/lib/url';
 import { createPageText, type PageData } from '@/lib/page-content';
 import { CONTACT_PAGE_SCHEMA } from '@/lib/page-content-schema';
 import {
@@ -17,56 +18,42 @@ import {
   GlobeAltIcon
 } from '@heroicons/react/24/outline';
 
-const contactPageSchema = {
-  "@context": "https://schema.org",
-  "@type": "ContactPage",
-  "name": "Contact Vcocnc",
-  "description": "Get in touch with Vcocnc for FANUC parts inquiries, technical support, and quotes.",
-  "url": "https://www.vcocncspare.com/contact",
-  "mainEntity": {
-    "@type": "Organization",
-    "name": "Vcocnc",
-    "telephone": "+86-13348028050",
-    "email": "janice@vcocncspare.com",
-    "address": {
-      "@type": "PostalAddress",
-      "addressLocality": "Kunshan",
-      "addressRegion": "Jiangsu",
-      "addressCountry": "CN"
-    },
-    "openingHoursSpecification": [
-      {
-        "@type": "OpeningHoursSpecification",
-        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-        "opens": "08:00",
-        "closes": "18:00"
-      },
-      {
-        "@type": "OpeningHoursSpecification",
-        "dayOfWeek": ["Saturday"],
-        "opens": "09:00",
-        "closes": "17:00"
-      }
-    ]
-  }
-};
+interface QueryPrefillPayload {
+  email: string;
+  sku: string;
+  productName: string;
+  inquiryType?: ContactCreateRequest['inquiry_type'];
+}
 
-const breadcrumbSchema = {
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  "itemListElement": [
-    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.vcocncspare.com" },
-    { "@type": "ListItem", "position": 2, "name": "Contact", "item": "https://www.vcocncspare.com/contact" }
-  ]
-};
+const ALLOWED_INQUIRY_TYPES = new Set(['general', 'parts', 'repair', 'support', 'quote']);
 
-function ContactContent({ data }: { data: PageData }) {
+function ContactQueryPrefill({ onPrefill }: { onPrefill: (payload: QueryPrefillPayload) => void }) {
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const email = (searchParams?.get('email') || '').trim();
+    const sku = (searchParams?.get('sku') || '').trim();
+    const productName = (searchParams?.get('product') || '').trim();
+    const rawType = (searchParams?.get('type') || searchParams?.get('inquiry_type') || '').trim().toLowerCase();
+    const inquiryType = ALLOWED_INQUIRY_TYPES.has(rawType)
+      ? (rawType as ContactCreateRequest['inquiry_type'])
+      : undefined;
+
+    if (!email && !sku && !productName && !inquiryType) return;
+    onPrefill({ email, sku, productName, inquiryType });
+  }, [searchParams, onPrefill]);
+
+  return null;
+}
+
+export default function ContactPageClient({ data }: { data: PageData }) {
+  const siteUrl = getSiteUrl().replace(/\/+$/, '');
   const text = createPageText(CONTACT_PAGE_SCHEMA, data);
   const heroImage = text('heroImage');
   const heroStyle = heroImage
     ? { backgroundImage: `linear-gradient(rgba(234, 179, 8, 0.85), rgba(202, 138, 4, 0.85)), url(${JSON.stringify(heroImage)})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : undefined;
+  const [prefillBanner, setPrefillBanner] = useState<{ sku: string; productName: string } | null>(null);
   const [formData, setFormData] = useState<ContactCreateRequest>({
     name: '',
     email: '',
@@ -79,21 +66,15 @@ function ContactContent({ data }: { data: PageData }) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Prefill form from query string (e.g., /contact?sku=...&product=...&type=quote or ?email=...)
-  useEffect(() => {
-    const email = (searchParams?.get('email') || '').trim();
-    const sku = (searchParams?.get('sku') || '').trim();
-    const productName = (searchParams?.get('product') || '').trim();
-    const rawType = (searchParams?.get('type') || '').trim().toLowerCase();
-    const allowedTypes = new Set(['general', 'parts', 'repair', 'support', 'quote']);
-
-    if (!email && !sku && !productName && !rawType) return;
-
+  const handleQueryPrefill = useCallback(({ email, sku, productName, inquiryType }: QueryPrefillPayload) => {
+    if (sku || productName) {
+      setPrefillBanner({ sku, productName });
+    }
     setFormData((prev) => {
       const next = { ...prev };
       if (email) next.email = email;
-      if (rawType && allowedTypes.has(rawType)) {
-        next.inquiry_type = rawType as ContactCreateRequest['inquiry_type'];
+      if (inquiryType) {
+        next.inquiry_type = inquiryType;
       }
       if (sku || productName) {
         next.inquiry_type = 'quote';
@@ -118,7 +99,7 @@ function ContactContent({ data }: { data: PageData }) {
       }
       return next;
     });
-  }, [searchParams]);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -152,13 +133,67 @@ function ContactContent({ data }: { data: PageData }) {
     }
   };
 
+  const contactPageSchema = {
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    "@id": `${siteUrl}/contact#webpage`,
+    "name": "Contact Vcocnc",
+    "description": "Get in touch with Vcocnc for CNC and industrial automation spare parts inquiries, model verification, technical support, and quotes.",
+    "url": `${siteUrl}/contact`,
+    "mainEntity": {
+      "@type": "Organization",
+      "@id": `${siteUrl}/#organization`,
+      "name": "Vcocnc",
+      "url": siteUrl,
+      "telephone": text('phone'),
+      "email": text('email'),
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Kunshan",
+        "addressRegion": "Jiangsu",
+        "addressCountry": "CN"
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+          "opens": "08:00",
+          "closes": "18:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Saturday"],
+          "opens": "09:00",
+          "closes": "17:00"
+        }
+      ]
+    }
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": siteUrl },
+      { "@type": "ListItem", "position": 2, "name": "Contact", "item": `${siteUrl}/contact` }
+    ]
+  };
+
   return (
     <PublicLayout>
+      {/* Keep useSearchParams isolated in a zero-UI Suspense child so the entire Contact page & JSON-LD SSR cleanly */}
+      <Suspense fallback={null}>
+        <ContactQueryPrefill onPrefill={handleQueryPrefill} />
+      </Suspense>
+
       {/* Contact Page Structured Data */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": [{ ...contactPageSchema, mainEntity: { ...contactPageSchema.mainEntity, telephone: text('phone'), email: text('email') } }, breadcrumbSchema] }) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({ "@context": "https://schema.org", "@graph": [contactPageSchema, breadcrumbSchema] }).replace(/</g, '\\u003c')
+        }}
       />
+
       {/* Hero Section */}
       <section className="relative bg-gradient-to-r from-yellow-500 to-yellow-600 text-black py-24" style={heroStyle}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -173,11 +208,11 @@ function ContactContent({ data }: { data: PageData }) {
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            
+
             {/* Contact Information */}
             <div className="lg:col-span-1">
               <h2 className="text-2xl font-bold text-gray-900 mb-8">{text('infoTitle')}</h2>
-              
+
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
                   <MapPinIcon className="h-6 w-6 text-yellow-600 mt-1 flex-shrink-0" />
@@ -228,22 +263,22 @@ function ContactContent({ data }: { data: PageData }) {
                 </div>
               </div>
             </div>
-            
+
             {/* Contact Form */}
             <div className="lg:col-span-2">
               <div className="bg-white rounded-lg shadow-lg p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">{text('formTitle')}</h2>
-                {(searchParams?.get('sku') || searchParams?.get('product')) && (
+                {prefillBanner && (prefillBanner.sku || prefillBanner.productName) && (
                   <div className="mb-6 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-gray-800">
                     <span className="font-semibold text-gray-900">Quote inquiry prefilled:</span>{' '}
-                    {searchParams?.get('sku') && (
-                      <span className="font-mono font-medium">{searchParams.get('sku')}</span>
+                    {prefillBanner.sku && (
+                      <span className="font-mono font-medium">{prefillBanner.sku}</span>
                     )}
-                    {searchParams?.get('sku') && searchParams?.get('product') && ' — '}
-                    {searchParams?.get('product')}
+                    {prefillBanner.sku && prefillBanner.productName && ' — '}
+                    {prefillBanner.productName}
                   </div>
                 )}
-                
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -261,7 +296,7 @@ function ContactContent({ data }: { data: PageData }) {
                         placeholder="Your full name"
                       />
                     </div>
-                    
+
                     <div>
                       <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                         Email Address *
@@ -278,7 +313,7 @@ function ContactContent({ data }: { data: PageData }) {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
@@ -294,7 +329,7 @@ function ContactContent({ data }: { data: PageData }) {
                         placeholder="Your company name"
                       />
                     </div>
-                    
+
                     <div>
                       <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
                         Phone Number
@@ -310,7 +345,7 @@ function ContactContent({ data }: { data: PageData }) {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label htmlFor="inquiry_type" className="block text-sm font-medium text-gray-700 mb-2">
@@ -330,7 +365,7 @@ function ContactContent({ data }: { data: PageData }) {
                         <option value="quote">Request Quote</option>
                       </select>
                     </div>
-                    
+
                     <div>
                       <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
                         Subject *
@@ -347,7 +382,7 @@ function ContactContent({ data }: { data: PageData }) {
                       />
                     </div>
                   </div>
-                  
+
                   <div>
                     <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
                       Message *
@@ -363,7 +398,7 @@ function ContactContent({ data }: { data: PageData }) {
                       placeholder="Please provide details about your requirements, including part numbers if available..."
                     />
                   </div>
-                  
+
                   <button
                     type="submit"
                     disabled={isSubmitting}
@@ -386,7 +421,7 @@ function ContactContent({ data }: { data: PageData }) {
               {text('whyTitle')}
             </h2>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center p-6">
               <div className="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -415,13 +450,5 @@ function ContactContent({ data }: { data: PageData }) {
         </div>
       </section>
     </PublicLayout>
-  );
-}
-
-export default function ContactPageClient({ data }: { data: PageData }) {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center py-10">Loading...</div>}>
-      <ContactContent data={data} />
-    </Suspense>
   );
 }

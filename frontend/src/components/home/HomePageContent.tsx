@@ -10,7 +10,7 @@ import SimpleContentSection from '@/components/home/SimpleContentSection';
 import TemplateSection from '@/components/home/TemplateSection';
 import HomepagePreviewMarker from '@/components/admin/homepage/HomepagePreviewMarker';
 import PreviewBridge from '@/components/admin/homepage/PreviewBridge';
-import { generateHomePageSchema, generateOrganizationSchema, generateWebsiteSchema } from '@/lib/structured-data';
+import { generateHomePageSchema, generateWebsiteSchema } from '@/lib/structured-data';
 import { EDITABLE_PAGE_SECTION_KEYS } from '@/lib/page-content';
 import { toTemplateModel } from '@/lib/section-templates';
 import { applyHomepageDrafts } from '@/lib/homepage-drafts.server';
@@ -77,15 +77,13 @@ export default async function HomePageContent({ isAdminPreview = false }: { isAd
     .filter((s) => s.isActive || isAdminPreview)
     .sort((a, b) => a.sort - b.sort);
 
-  // Enhanced structured data using the new utility functions
-  const organizationSchema = generateOrganizationSchema();
+  // Organization is emitted once globally in RootLayout (#organization).
   const websiteSchema = generateWebsiteSchema();
   const homePageSchema = generateHomePageSchema();
 
   const combinedStructuredData = {
     "@context": "https://schema.org",
     "@graph": [
-      organizationSchema,
       websiteSchema,
       homePageSchema
     ]
@@ -95,7 +93,7 @@ export default async function HomePageContent({ isAdminPreview = false }: { isAd
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(combinedStructuredData)
+          __html: JSON.stringify(combinedStructuredData).replace(/</g, '\\u003c')
         }}
       />
       <PublicLayout>

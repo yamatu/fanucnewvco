@@ -106,7 +106,8 @@ function buildAnswerFirstSummary(product: Product, category?: Category): string 
 }
 
 export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'https://www.vcocncspare.com' }: ProductSEOProps) {
-  const productUrl = `${baseUrl}/products/${toProductPathId(product.sku)}`;
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+  const productUrl = `${normalizedBaseUrl}/products/${toProductPathId(product.sku)}`;
   const productId = `${productUrl}#product`;
   const brandLabel = getBrandLabel(product);
   const manufacturerName = getManufacturerName(product);
@@ -118,8 +119,8 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
   const imageSources = product.images?.map(img => typeof img === 'string' ? img : img.url) ||
     product.image_urls ||
     [];
-  const imageUrls = (imageSources.length > 0 ? imageSources : [getProductImageFallback(product, baseUrl)])
-    .map((url) => toAbsoluteUrl(url, baseUrl));
+  const imageUrls = (imageSources.length > 0 ? imageSources : [getProductImageFallback(product, normalizedBaseUrl)])
+    .map((url) => toAbsoluteUrl(url, normalizedBaseUrl));
 
   // Reviews & aggregate rating
   // Reviews transcribed from other channels without an order are shown on the
@@ -147,9 +148,24 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
   const additionalProperties = [...specProperties, ...attributeProperties];
 
   // A zero-price quote-only record cannot satisfy Google's Product rich-result
-  // requirements. Keep its WebPage, breadcrumb and FAQ markup, but omit the
-  // invalid Product node until an offer or approved review exists.
+  // requirements (Google flags Product nodes lacking offers, review, or
+  // aggregateRating as critical errors). Keep full entity metadata inside
+  // ItemPage.mainEntity as a rich Thing with additionalType=schema.org/Product
+  // so AI/GEO engines can extract SKU, MPN, brand, specs and documents cleanly.
   const hasProductRichResultData = product.price > 0 || hasReviews;
+
+  const subjectOf = [
+    product.datasheet_url ? {
+      "@type": "DigitalDocument",
+      "name": `${product.sku} datasheet`,
+      "url": product.datasheet_url,
+    } : null,
+    product.manual_url ? {
+      "@type": "DigitalDocument",
+      "name": `${product.sku} manual`,
+      "url": product.manual_url,
+    } : null,
+  ].filter(Boolean);
 
   // Generate rich structured data for the product
   const structuredData: { [key: string]: JsonLdValue } = {
@@ -199,9 +215,18 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
         : "https://schema.org/BackOrder",
       "seller": {
         "@type": "Organization",
-        "@id": `${baseUrl}/#organization`,
+        "@id": `${normalizedBaseUrl}/#organization`,
         "name": "Vcocnc",
-        "url": baseUrl
+        "url": normalizedBaseUrl
+      },
+      "hasMerchantReturnPolicy": {
+        "@type": "MerchantReturnPolicy",
+        "applicableCountry": "US",
+        "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+        "merchantReturnDays": 30,
+        "returnMethod": "https://schema.org/ReturnByMail",
+        "returnFees": "https://schema.org/ReturnShippingFees",
+        "merchantReturnLink": `${normalizedBaseUrl}/warranty-policy`
       }
     } : undefined
   };
@@ -238,19 +263,6 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     structuredData.additionalProperty = additionalProperties;
   }
 
-  const subjectOf = [
-    product.datasheet_url ? {
-      "@type": "DigitalDocument",
-      "name": `${product.sku} datasheet`,
-      "url": product.datasheet_url,
-    } : null,
-    product.manual_url ? {
-      "@type": "DigitalDocument",
-      "name": `${product.sku} manual`,
-      "url": product.manual_url,
-    } : null,
-  ].filter(Boolean);
-
   if (subjectOf.length > 0) {
     structuredData.subjectOf = subjectOf as JsonLdValue[];
   }
@@ -270,19 +282,19 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
         "@type": "ListItem",
         "position": 1,
         "name": "Home",
-        "item": baseUrl
+        "item": normalizedBaseUrl
       },
       {
         "@type": "ListItem",
         "position": 2,
         "name": "Products",
-        "item": `${baseUrl}/products`
+        "item": `${normalizedBaseUrl}/products`
       },
       ...(categoryBreadcrumb?.map((cat, index) => ({
         "@type": "ListItem",
         "position": index + 3,
         "name": cat.name,
-         "item": `${baseUrl}/categories/${cat.path || cat.slug}`
+        "item": `${normalizedBaseUrl}/categories/${cat.path || cat.slug}`
       })) || []),
       {
         "@type": "ListItem",
@@ -309,9 +321,33 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     "mainEntity": faqEntities
   };
 
+  const quoteOnlyEntity: { [key: string]: JsonLdValue } = {
+    "@type": "Thing",
+    "@id": productId,
+    "additionalType": "https://schema.org/Product",
+    "name": product.name,
+    "alternateName": product.part_number && product.part_number !== product.sku ? product.part_number : undefined,
+    "identifier": [
+      { "@type": "PropertyValue", "propertyID": "SKU", "value": product.sku },
+      { "@type": "PropertyValue", "propertyID": "MPN", "value": product.part_number || product.sku },
+      ...(getBrandName(product)
+        ? [{ "@type": "PropertyValue", "propertyID": "Brand", "value": getBrandName(product) }]
+        : []),
+      { "@type": "PropertyValue", "propertyID": "Category", "value": category?.name || "Industrial Automation" },
+      { "@type": "PropertyValue", "propertyID": "Condition", "value": product.condition_type || "new" },
+      { "@type": "PropertyValue", "propertyID": "Warranty", "value": product.warranty_period || "12 months" },
+      { "@type": "PropertyValue", "propertyID": "Pricing", "value": "Request for Quote (RFQ)" },
+    ],
+    "description": description,
+    "disambiguatingDescription": answerFirstSummary,
+    "image": imageUrls,
+    "url": productUrl,
+    ...(subjectOf.length > 0 ? { "subjectOf": subjectOf as JsonLdValue[] } : {}),
+  };
+
   const webPageData = {
     "@context": "https://schema.org",
-    "@type": "WebPage",
+    "@type": "ItemPage",
     "@id": `${productUrl}#webpage`,
     "url": productUrl,
     "name": product.name,
@@ -322,17 +358,26 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     // Same @id as the homepage WebSite node so the graphs merge into one entity.
     "isPartOf": {
       "@type": "WebSite",
-      "@id": `${baseUrl}/#website`,
+      "@id": `${normalizedBaseUrl}/#website`,
       "name": DEFAULT_SITE_NAME,
-      "url": baseUrl,
+      "url": normalizedBaseUrl,
     },
+    "publisher": {
+      "@id": `${normalizedBaseUrl}/#organization`,
+    },
+    "mainEntity": hasProductRichResultData
+      ? { "@id": productId }
+      : quoteOnlyEntity,
     "about": hasProductRichResultData
       ? { "@id": productId }
-      : {
-          "@type": "Thing",
-          "name": product.name,
-          "identifier": product.sku,
-        },
+      : { "@id": productId },
+    "potentialAction": !hasProductRichResultData
+      ? {
+          "@type": "CommunicateAction",
+          "name": `Request quote for ${product.sku}`,
+          "target": `${normalizedBaseUrl}/contact?sku=${encodeURIComponent(product.sku)}&type=quote`,
+        }
+      : undefined,
     "speakable": {
       "@type": "SpeakableSpecification",
       "cssSelector": ["h1", ".product-description", ".product-specs"]

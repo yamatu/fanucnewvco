@@ -3,12 +3,12 @@ import Layout from '@/components/layout/Layout';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service | Vcocnc - FANUC CNC Parts & Automation Components',
-  description: 'Read our terms and conditions for purchasing FANUC CNC parts and automation components from Vcocnc. Learn about our policies and guidelines.',
-  keywords: 'terms of service, conditions, FANUC parts, CNC components, automation, Vcocnc, purchase policy',
+  title: { absolute: 'Terms of Service | Vcocnc' },
+  description: 'Read our terms and conditions for purchasing CNC parts and industrial automation components from Vcocnc. Learn about our policies and guidelines.',
+  keywords: 'terms of service, conditions, CNC components, industrial automation, Vcocnc, purchase policy',
   openGraph: {
     title: 'Terms of Service | Vcocnc',
-    description: 'Read our terms and conditions for purchasing FANUC CNC parts and automation components.',
+    description: 'Read our terms and conditions for purchasing CNC parts and industrial automation components.',
     type: 'website',
     url: 'https://www.vcocncspare.com/terms',
   },
@@ -50,22 +50,22 @@ export default function TermsPage() {
               <section className="mb-8">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Acceptance of Terms</h2>
                 <p className="text-gray-700">
-                  By accessing and using Vcocnc's website and services, you accept and agree to be bound by 
+                  By accessing and using Vcocnc&apos;s website and services, you accept and agree to be bound by 
                   these Terms of Service. If you do not agree to these terms, please do not use our services 
-                  for purchasing FANUC CNC parts and automation components.
+                  for purchasing CNC parts and industrial automation components.
                 </p>
               </section>
 
               <section className="mb-8">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. Products and Services</h2>
                 <p className="text-gray-700 mb-4">
-                  Vcocnc specializes in providing high-quality FANUC CNC parts and automation components including:
+                  Vcocnc specializes in providing CNC parts and industrial automation components across major OEM brands including:
                 </p>
                 <ul className="list-disc pl-6 text-gray-700 mb-4">
-                  <li>FANUC Amplifiers and Servo Motors</li>
-                  <li>CNC Control Systems and Modules</li>
+                  <li>Servo Amplifiers, Drives and Servo Motors</li>
+                  <li>CNC Control Systems, PCB Boards and Modules</li>
                   <li>Encoders and Feedback Systems</li>
-                  <li>PLC Modules and Industrial Automation Components</li>
+                  <li>PLC Modules, HMIs and Industrial Automation Components</li>
                   <li>Technical Support and Maintenance Services</li>
                 </ul>
                 <p className="text-gray-700">
@@ -83,14 +83,14 @@ export default function TermsPage() {
                   <li>Payment must be made in full before shipment</li>
                   <li>We accept major credit cards, bank transfers, and approved payment methods</li>
                   <li>Prices do not include shipping, taxes, or customs duties</li>
-                  <li>Special pricing may apply for bulk orders of FANUC parts</li>
+                  <li>Special pricing may apply for bulk orders of automation spare parts</li>
                 </ul>
               </section>
 
               <section className="mb-8">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">4. Shipping and Delivery</h2>
                 <p className="text-gray-700 mb-4">
-                  We provide global shipping for FANUC CNC parts and automation components:
+                  We provide global shipping for CNC parts and industrial automation components:
                 </p>
                 <ul className="list-disc pl-6 text-gray-700">
                   <li>Shipping costs are calculated based on destination and package weight</li>
@@ -103,11 +103,11 @@ export default function TermsPage() {
               <section className="mb-8">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">5. Returns and Warranties</h2>
                 <p className="text-gray-700 mb-4">
-                  Our return and warranty policy for FANUC parts includes:
+                  Our return and warranty policy for industrial spare parts includes:
                 </p>
                 <ul className="list-disc pl-6 text-gray-700">
                   <li>30-day return policy for unused items in original packaging</li>
-                  <li>Warranty terms vary by product and manufacturer specifications</li>
+                  <li>1-year in-service warranty coverage under normal operating conditions</li>
                   <li>Custom or special-order items may not be returnable</li>
                   <li>Return shipping costs are the responsibility of the buyer unless item is defective</li>
                 </ul>
@@ -116,17 +116,17 @@ export default function TermsPage() {
               <section className="mb-8">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">6. Intellectual Property</h2>
                 <p className="text-gray-700">
-                  All content on this website, including product descriptions, images, and technical specifications 
-                  for FANUC parts, is protected by copyright and other intellectual property laws. FANUC is a 
-                  registered trademark of FANUC Corporation.
+                  All content on this website, including product descriptions, images, and technical specifications, 
+                  is protected by copyright and other intellectual property laws. OEM brand names are trademarks 
+                  of their respective owners.
                 </p>
               </section>
 
               <section className="mb-8">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">7. Limitation of Liability</h2>
                 <p className="text-gray-700">
-                  Vcocnc's liability is limited to the purchase price of the products. We are not liable for 
-                  indirect, incidental, or consequential damages arising from the use of FANUC CNC parts or 
+                  Vcocnc&apos;s liability is limited to the purchase price of the products. We are not liable for 
+                  indirect, incidental, or consequential damages arising from the use of CNC parts or 
                   automation components purchased from us.
                 </p>
               </section>
@@ -134,7 +134,7 @@ export default function TermsPage() {
               <section className="mb-8">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Technical Support</h2>
                 <p className="text-gray-700">
-                  We provide technical support for FANUC parts and automation components to help ensure 
+                  We provide technical support for CNC parts and automation components to help ensure 
                   proper installation and operation. Support is available during business hours and may 
                   include product specifications, compatibility guidance, and troubleshooting assistance.
                 </p>
@@ -151,7 +151,7 @@ export default function TermsPage() {
               <section className="mb-8">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">10. Contact Information</h2>
                 <p className="text-gray-700 mb-4">
-                  For questions about these Terms of Service or our FANUC parts and services:
+                  For questions about these Terms of Service or our parts and services:
                 </p>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-gray-700"><strong>Email:</strong> janice@vcocncspare.com</p>
@@ -174,10 +174,10 @@ export default function TermsPage() {
                   <p className="text-blue-700 text-sm">How we protect your data</p>
                 </Link>
                 <Link 
-                  href="/warranty" 
+                  href="/warranty-policy" 
                   className="block p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
                 >
-                  <h4 className="font-semibold text-green-900">Warranty Info</h4>
+                  <h4 className="font-semibold text-green-900">Warranty Policy</h4>
                   <p className="text-green-700 text-sm">Product warranty details</p>
                 </Link>
                 <Link 

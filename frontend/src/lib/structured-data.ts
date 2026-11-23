@@ -2,15 +2,20 @@ import { getSiteUrl } from '@/lib/url';
 import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from '@/lib/seo';
 import { SITE_FAQ_ENTRIES } from '@/lib/faq-content';
 
-export function generateOrganizationSchema() {
-  const baseUrl = getSiteUrl();
+export function generateOrganizationSchema(sameAs: string[] = []) {
+  const baseUrl = getSiteUrl().replace(/\/+$/, '');
+  const socialProfiles = [...new Set(sameAs.filter((url) => {
+    if (!/^https?:\/\//i.test(url)) return false;
+    // Exclude personal LinkedIn profiles from Organization sameAs.
+    return !/^https?:\/\/(?:www\.)?linkedin\.com\/in\//i.test(url);
+  }))];
 
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${baseUrl}/#organization`,
     "name": "Vcocnc",
-    "alternateName": "VCOCNC Industrial Automation",
+    "alternateName": ["VCOCNC Industrial Automation", "vcocncspare.com"],
     "description": HOME_DESCRIPTION,
     "url": baseUrl,
     "logo": {
@@ -46,7 +51,6 @@ export function generateOrganizationSchema() {
         "contactType": "sales",
         "telephone": "+86-13348028050",
         "email": "janice@vcocncspare.com",
-
         "availableLanguage": ["en", "zh"],
         "areaServed": "Worldwide"
       },
@@ -55,48 +59,49 @@ export function generateOrganizationSchema() {
         "contactType": "technical support",
         "telephone": "+86-13348028050",
         "email": "janice@vcocncspare.com",
-
         "availableLanguage": ["en", "zh"],
         "areaServed": "Worldwide"
       }
     ],
-    "slogan": "Your Trusted FANUC Parts Partner Since 2007",
+    "slogan": "Your Trusted CNC & Industrial Automation Parts Partner Since 2007",
     "knowsAbout": [
       "FANUC CNC parts",
+      "Siemens SIMATIC and SINAMICS parts",
+      "Mitsubishi MELSERVO and MELSEC parts",
+      "Schneider Electric and ABB automation spares",
       "Industrial automation",
-      "Servo motors",
-      "PCB boards",
-      "I/O modules",
-      "Control units",
-      "Power supplies",
-      "CNC machine maintenance",
-      "Factory automation"
+      "Servo motors and servo amplifiers",
+      "PCB boards and control units",
+      "PLC and I/O modules",
+      "Power supplies and encoders",
+      "CNC machine maintenance and repair"
     ],
     "makesOffer": {
       "@type": "Offer",
       "itemOffered": {
         "@type": "Service",
-        "name": "FANUC Parts Supply and Technical Support",
-        "description": "Comprehensive FANUC parts supply with worldwide shipping and technical support"
+        "name": "CNC & Industrial Automation Spare Parts Supply and Technical Support",
+        "description": "Multi-brand CNC and industrial automation replacement parts supply with 12-month warranty, compatibility verification and worldwide express shipping"
       },
       "areaServed": "Worldwide",
       "eligibleCustomerType": [
         "Business",
         "Industrial"
       ]
-    }
+    },
+    ...(socialProfiles.length > 0 ? { "sameAs": socialProfiles } : {})
   };
 }
 
 export function generateWebsiteSchema() {
-  const baseUrl = getSiteUrl();
+  const baseUrl = getSiteUrl().replace(/\/+$/, '');
 
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "@id": `${baseUrl}/#website`,
-    "name": "Vcocnc FANUC Parts",
-    "alternateName": "FANUC Parts & Industrial Automation Components",
+    "name": "Vcocnc",
+    "alternateName": ["Vcocnc Spare Parts", "vcocncspare.com"],
     "url": baseUrl,
     "description": HOME_DESCRIPTION,
     "publisher": {
@@ -124,7 +129,7 @@ export function generateWebsiteSchema() {
         {
           "@type": "ListItem",
           "position": 1,
-          "name": "FANUC Parts & Industrial Automation Components",
+          "name": "CNC & Industrial Automation Parts",
           "url": `${baseUrl}/products`
         },
         {
@@ -167,7 +172,7 @@ export function generateWebsiteSchema() {
 }
 
 export function generateHomePageSchema() {
-  const baseUrl = getSiteUrl();
+  const baseUrl = getSiteUrl().replace(/\/+$/, '');
 
   return {
     "@context": "https://schema.org",
@@ -223,7 +228,7 @@ export function generateFAQSchema() {
 }
 
 export function generateLocalBusinessSchema() {
-  const baseUrl = getSiteUrl();
+  const baseUrl = getSiteUrl().replace(/\/+$/, '');
 
   return {
     "@context": "https://schema.org",
@@ -236,7 +241,6 @@ export function generateLocalBusinessSchema() {
     ],
     "telephone": "+86-13348028050",
     "email": "janice@vcocncspare.com",
-
     "address": {
       "@type": "PostalAddress",
       "streetAddress": process.env.NEXT_PUBLIC_COMPANY_STREET || "Industrial Park Road",
