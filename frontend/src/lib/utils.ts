@@ -17,6 +17,16 @@ export function hasProductPrice(product?: { price?: number | null }): boolean {
   return Number(product?.price) > 0;
 }
 
+export function buildProductQuoteHref(product?: { sku?: string | null; name?: string | null }): string {
+  const params = new URLSearchParams();
+  const sku = String(product?.sku || '').trim();
+  const name = String(product?.name || '').trim();
+  if (sku) params.set('sku', sku);
+  if (name) params.set('product', name);
+  params.set('type', 'quote');
+  return `/contact?${params.toString()}`;
+}
+
 // Format date
 export function formatDate(date: string | Date): string {
   const d = new Date(date);

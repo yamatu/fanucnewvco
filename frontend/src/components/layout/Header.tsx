@@ -18,7 +18,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useCart } from '@/store/cart.store';
 import { useCustomer } from '@/store/customer.store';
-import { cn, formatCurrency, getProductImageUrl, getDefaultProductImageWithSku, toProductPathId } from '@/lib/utils';
+import { cn, formatCurrency, getProductImageUrl, getDefaultProductImageWithSku, hasProductPrice, toProductPathId } from '@/lib/utils';
 import type { APIResponse, Category, PaginationResponse, Product } from '@/types';
 
 const CartSidebar = dynamic(
@@ -195,8 +195,16 @@ export function Header() {
                     <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
                     <p className="text-xs text-gray-500">SKU: {p.sku}</p>
                   </div>
-                  <div className="text-sm font-semibold text-yellow-700 whitespace-nowrap">
-                    {formatCurrency(p.price)}
+                  <div className="shrink-0 whitespace-nowrap">
+                    {hasProductPrice(p) ? (
+                      <span className="text-sm font-semibold text-yellow-700">
+                        {formatCurrency(p.price)}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white">
+                        Contact for quote
+                      </span>
+                    )}
                   </div>
                 </Link>
               );

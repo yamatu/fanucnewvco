@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { hasProductPrice } from '@/lib/utils';
 import type { Product, CartItem } from '@/types';
 
 function notifySuccess(message: string) {
@@ -37,6 +38,10 @@ export const useCartStore = create<CartState & CartActions>()(
 
       // Actions
       addItem: (product, quantity = 1) => {
+        if (!hasProductPrice(product)) {
+          return;
+        }
+
         const { items } = get();
         const existingItem = items.find(item => item.product.id === product.id);
 
@@ -143,8 +148,12 @@ export const useCartStore = create<CartState & CartActions>()(
         itemCount: state.itemCount
       }),
       onRehydrateStorage: () => (state) => {
-        // Recalculate total after rehydration
+        // Strip legacy unpriced items and recalculate total after rehydration
         if (state) {
+          const validItems = state.items.filter((item) => hasProductPrice(item?.product));
+          if (validItems.length !== state.items.length) {
+            state.items = validItems;
+          }
           state.calculateTotal();
         }
       },

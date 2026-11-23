@@ -6,10 +6,18 @@ import Link from 'next/link';
 import {
   ShoppingCartIcon,
   HeartIcon,
-  EyeIcon
+  EyeIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
+import {
+  buildProductQuoteHref,
+  formatCurrency,
+  getDefaultProductImageWithSku,
+  getProductImageUrl,
+  hasProductPrice,
+  toProductPathId,
+} from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
 import type { Product } from '@/types';
 
@@ -21,23 +29,26 @@ interface ProductCardProps {
   className?: string;
 }
 
-export default function ProductCard({ 
-  product, 
-  showFavorite = true, 
-  className = '' 
+export default function ProductCard({
+  product,
+  showFavorite = true,
+  className = '',
 }: ProductCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { addItem } = useCartStore();
 
+  const priced = hasProductPrice(product);
+  const productHref = `/products/${toProductPathId(product.sku)}`;
+
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+    if (!priced) return;
+
     setIsLoading(true);
     try {
       addItem(product, 1);
-      // You could add a toast notification here
     } catch (error) {
       console.error('Failed to add to cart:', error);
     } finally {
@@ -49,18 +60,18 @@ export default function ProductCard({
     e.preventDefault();
     e.stopPropagation();
     setIsFavorite(!isFavorite);
-    // You could add favorite functionality here
   };
 
-  // Use image_urls array directly from API response
   const imageUrl = getProductImageUrl(product.image_urls || [], getDefaultProductImageWithSku(product.sku));
 
   return (
-    <div className={`bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-200 ${className}`}>
+    <div
+      className={`flex h-full flex-col overflow-hidden rounded-xl border border-gray-200/80 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md ${className}`}
+    >
       <div className="relative">
         {/* Product Image */}
-        <Link href={`/products/${toProductPathId(product.sku)}`} className="block">
-          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-lg bg-gray-200">
+        <Link href={productHref} className="block">
+          <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
             {imageUrl && imageUrl !== '/images/placeholder.svg' ? (
               <Image
                 src={imageUrl}
@@ -70,8 +81,8 @@ export default function ProductCard({
                 className="object-cover object-center"
               />
             ) : (
-              <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
-                <span className="text-gray-400 text-sm">No Image</span>
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                <span className="text-sm text-gray-400">No Image</span>
               </div>
             )}
           </div>
@@ -79,99 +90,104 @@ export default function ProductCard({
 
         {/* Favorite Button */}
         {showFavorite && (
-          hasProductPrice(product) ? (
-            <button
-              onClick={toggleFavorite}
-              className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow z-10"
-            >
-              {isFavorite ? (
-                <HeartIconSolid className="h-5 w-5 text-red-500" />
-              ) : (
-                <HeartIcon className="h-5 w-5 text-gray-400 hover:text-red-500" />
-              )}
-            </button>
-          ) : (
-            <a
-              href={`/contact?sku=${encodeURIComponent(product.sku)}`}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-800 bg-white hover:bg-gray-50"
-            >
-              B2B Contact
-            </a>
-          )
+          <button
+            type="button"
+            onClick={toggleFavorite}
+            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            className="absolute top-2 right-2 z-10 rounded-full bg-white/95 p-2 shadow-sm transition-shadow hover:shadow-md"
+          >
+            {isFavorite ? (
+              <HeartIconSolid className="h-5 w-5 text-red-500" />
+            ) : (
+              <HeartIcon className="h-5 w-5 text-gray-400 hover:text-red-500" />
+            )}
+          </button>
         )}
 
-        {/* Featured Badge */}
-        {product.is_featured && (
-          <div className="absolute top-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded-md text-xs font-medium z-10">
-            Featured
-          </div>
-        )}
-
-        {/* Compare Price Badge */}
-        {product.compare_price && product.compare_price > product.price && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-md text-xs font-medium z-10">
-            Sale
-          </div>
-        )}
+        {/* Badges */}
+        <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+          {product.is_featured && (
+            <span className="rounded-md bg-yellow-500 px-2 py-0.5 text-xs font-semibold text-black">
+              Featured
+            </span>
+          )}
+          {priced && product.compare_price && product.compare_price > product.price && (
+            <span className="rounded-md bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
+              Sale
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Product Info */}
-      <div className="p-4">
-        <Link href={`/products/${toProductPathId(product.sku)}`}>
-          <h3 className="text-lg font-medium text-gray-900 mb-2 line-clamp-2 hover:text-yellow-600 transition-colors cursor-pointer">
+      <div className="flex flex-1 flex-col p-4">
+        <Link href={productHref}>
+          <h3 className="mb-1.5 line-clamp-2 text-base font-semibold leading-snug text-gray-900 transition-colors hover:text-yellow-700">
             {product.name}
           </h3>
         </Link>
 
-        <p className="text-sm text-gray-500 mb-2">
+        <p className="mb-1.5 truncate font-mono text-xs text-gray-500">
           SKU: {product.sku}
         </p>
 
         {product.brand && (
-          <p className="text-sm text-gray-500 mb-2">
+          <p className="mb-2 text-xs text-gray-500">
             Brand: {product.brand}
           </p>
         )}
 
         {product.short_description && (
-          <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+          <p className="mb-3 line-clamp-2 text-sm text-gray-600">
             {product.short_description}
           </p>
         )}
 
-        {/* Price */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <span className="text-xl font-bold text-yellow-600">
-              {formatCurrency(product.price)}
-            </span>
-            {product.compare_price && product.compare_price > product.price && (
-              <span className="text-sm text-gray-500 line-through">
-                {formatCurrency(product.compare_price)}
+        {/* Footer: Price (when priced) + Aligned Actions */}
+        <div className="mt-auto border-t border-gray-100 pt-3">
+          {priced && (
+            <div className="mb-2.5 flex items-baseline gap-2">
+              <span className="text-lg font-bold tracking-tight text-yellow-700">
+                {formatCurrency(product.price)}
               </span>
+              {product.compare_price && product.compare_price > product.price && (
+                <span className="text-xs text-gray-400 line-through">
+                  {formatCurrency(product.compare_price)}
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            {priced ? (
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={isLoading}
+                className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-yellow-500 px-3 text-sm font-semibold text-black transition-colors hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ShoppingCartIcon className="h-4 w-4 shrink-0" />
+                <span>{isLoading ? 'Adding...' : 'Add to Cart'}</span>
+              </button>
+            ) : (
+              <Link
+                href={buildProductQuoteHref(product)}
+                className="group/quote inline-flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-gray-900 px-3 text-sm font-semibold text-white transition-colors hover:bg-yellow-500 hover:text-black"
+              >
+                <EnvelopeIcon className="h-4 w-4 shrink-0 text-yellow-400 transition-colors group-hover/quote:text-black" />
+                <span>Contact for quote</span>
+              </Link>
             )}
+
+            <Link
+              href={productHref}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
+              title="View details"
+              aria-label={`View ${product.name} details`}
+            >
+              <EyeIcon className="h-4 w-4" />
+            </Link>
           </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center justify-between">
-          <Link
-             href={`/products/${toProductPathId(product.sku)}`}
-
-            className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-          >
-            <EyeIcon className="h-4 w-4 mr-1" />
-            View Details
-          </Link>
-
-          <button
-            onClick={handleAddToCart}
-            disabled={isLoading}
-            className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-black bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <ShoppingCartIcon className="h-4 w-4 mr-1" />
-            {isLoading ? 'Adding...' : 'Add to Cart'}
-          </button>
         </div>
       </div>
     </div>

@@ -10,13 +10,21 @@ import {
   ListBulletIcon,
   ShoppingCartIcon,
   HeartIcon,
-  EyeIcon
+  EyeIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import Layout from '@/components/layout/Layout';
 import SmartPagination from '@/components/ui/SmartPagination';
 import CategoryFilterTree from '@/components/categories/CategoryFilterTree';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
+import {
+  buildProductQuoteHref,
+  formatCurrency,
+  getDefaultProductImageWithSku,
+  getProductImageUrl,
+  hasProductPrice,
+  toProductPathId,
+} from '@/lib/utils';
 import { buildSemanticProductName } from '@/lib/product-seo';
 import { useCartStore } from '@/store/cart.store';
 
@@ -45,7 +53,6 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
   const [currentPage, setCurrentPage] = useState(initialData.currentPage);
   const [favorites, setFavorites] = useState<number[]>([]);
 
-
   const { addItem } = useCartStore();
 
   useEffect(() => {
@@ -57,10 +64,20 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
     switch (sortBy) {
       case 'name_desc':
         return b.name.localeCompare(a.name);
-      case 'price_asc':
-        return a.price - b.price;
-      case 'price_desc':
-        return b.price - a.price;
+      case 'price_asc': {
+        const aPriced = hasProductPrice(a);
+        const bPriced = hasProductPrice(b);
+        if (aPriced && !bPriced) return -1;
+        if (!aPriced && bPriced) return 1;
+        return (Number(a.price) || 0) - (Number(b.price) || 0);
+      }
+      case 'price_desc': {
+        const aPriced = hasProductPrice(a);
+        const bPriced = hasProductPrice(b);
+        if (aPriced && !bPriced) return -1;
+        if (!aPriced && bPriced) return 1;
+        return (Number(b.price) || 0) - (Number(a.price) || 0);
+      }
       case 'created_at':
         return new Date(b.created_at || b.updated_at).getTime() - new Date(a.created_at || a.updated_at).getTime();
       case 'stock_desc':
@@ -81,6 +98,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
   const totalProducts = initialData.total;
 
   const handleAddToCart = (product: any) => {
+    if (!hasProductPrice(product)) return;
     addItem(product, 1);
   };
 
@@ -119,12 +137,10 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
       if (newUrl !== window.location.pathname + window.location.search) {
         router.push(newUrl, { scroll: false });
       }
-    }, 500); // Increased debounce time
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [searchQuery, selectedCategory, currentPage, router]);
-
-
 
   // Handle category change
   const handleCategoryChange = (categoryId: string) => {
@@ -134,7 +150,6 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
       // ignore
     }
     setSelectedCategory(categoryId);
-    // The useEffect above will handle the URL update
   };
 
   // Build crawlable href for pagination links
@@ -155,8 +170,6 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
     setCurrentPage(page);
     router.push(getPageHref(page), { scroll: false });
   };
-
-
 
   return (
     <Layout>
@@ -210,7 +223,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                 </div>
                 {searchQuery && (
                   <div className="mt-2 text-sm text-gray-500">
-                    Searching for "{searchQuery}"...
+                    Searching for &ldquo;{searchQuery}&rdquo;...
                   </div>
                 )}
               </div>
@@ -227,12 +240,10 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                   allLabel="All Products"
                 />
               </div>
-
-
             </div>
 
             {/* Main Content */}
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               {/* Enhanced Toolbar */}
               <div className="bg-white rounded-lg shadow p-4 mb-6">
                 <div className="flex flex-col space-y-4">
@@ -247,31 +258,35 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                       </span>
                       {searchQuery && (
                         <span className="text-sm text-gray-500">
-                          for "{searchQuery}"
+                          for &ldquo;{searchQuery}&rdquo;
                         </span>
                       )}
                     </div>
 
                     {/* View Mode */}
-                    <div className="flex items-center border border-gray-300 rounded-md">
+                    <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
                       <button
+                        type="button"
                         onClick={() => setViewMode('grid')}
                         className={`p-2 ${viewMode === 'grid' ? 'bg-yellow-100 text-yellow-600' : 'text-gray-400'}`}
                         title="Grid view"
+                        aria-label="Grid view"
                       >
                         <Squares2X2Icon className="h-4 w-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => setViewMode('list')}
                         className={`p-2 ${viewMode === 'list' ? 'bg-yellow-100 text-yellow-600' : 'text-gray-400'}`}
                         title="List view"
+                        aria-label="List view"
                       >
                         <ListBulletIcon className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Bottom row - Sort and page size */}
+                  {/* Bottom row - Sort and page info */}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
                     <div className="flex items-center space-x-4">
                       {/* Sort */}
@@ -288,14 +303,13 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                         <option value="stock_desc">Stock: High to Low</option>
                         <option value="featured">Featured First</option>
                       </select>
-
-
                     </div>
 
                     {/* Clear filters and page info */}
                     <div className="flex items-center space-x-4">
                       {(searchQuery || selectedCategory) && (
                         <button
+                          type="button"
                           onClick={clearAllFilters}
                           className="text-sm text-yellow-600 hover:text-yellow-500 font-medium"
                         >
@@ -312,150 +326,219 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
 
               {/* Products Grid/List */}
               {viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {sortedProducts.map((product: any) => (
-                    <div key={product.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
-                      <div className="relative">
-                        <Link href={`/products/${toProductPathId(product.sku)}`} className="block aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-t-lg bg-gray-200">
-                          <Image
-                            src={getProductImageUrl(
-                              (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
-                              getDefaultProductImageWithSku(product.sku)
-                            )}
-                            alt={`${product.name} - ${product.sku} | Professional ${product.category?.name || 'Industrial'} Part | In Stock at Vcocnc`}
-                            width={300}
-                            height={300}
-                            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                            className="h-48 w-full object-cover object-center"
-                            priority={false}
-                            loading="lazy"
-                          />
-                        </Link>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {sortedProducts.map((product: any) => {
+                    const priced = hasProductPrice(product);
+                    const productHref = `/products/${toProductPathId(product.sku)}`;
+                    const semanticName = buildSemanticProductName(product);
 
-                        <button
-                          onClick={() => toggleFavorite(product.id)}
-                          className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow"
-                        >
-                          {favorites.includes(product.id) ? (
-                            <HeartIconSolid className="h-5 w-5 text-red-500" />
-                          ) : (
-                            <HeartIcon className="h-5 w-5 text-gray-400" />
-                          )}
-                        </button>
-                      </div>
-
-                      <div className="p-4">
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
-                          <Link href={`/products/${toProductPathId(product.sku)}`} className="hover:text-yellow-600">
-
-
-                            {buildSemanticProductName(product)}
+                    return (
+                      <div
+                        key={product.id}
+                        className="flex h-full flex-col overflow-hidden rounded-xl border border-gray-200/80 bg-white shadow-sm transition-shadow hover:shadow-md"
+                      >
+                        <div className="relative">
+                          <Link href={productHref} className="block w-full overflow-hidden bg-gray-100">
+                            <Image
+                              src={getProductImageUrl(
+                                (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
+                                getDefaultProductImageWithSku(product.sku)
+                              )}
+                              alt={`${product.name} - ${product.sku} | Professional ${product.category?.name || 'Industrial'} Part | In Stock at Vcocnc`}
+                              width={300}
+                              height={300}
+                              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                              className="h-48 w-full object-cover object-center"
+                              priority={false}
+                              loading="lazy"
+                            />
                           </Link>
-                        </h3>
-                        <p className="text-sm text-gray-500 mb-2">SKU: {product.sku}</p>
-                        {product.description && (
-                          <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                            {product.description}
-                          </p>
-                        )}
 
-                        <div className="flex items-center justify-between">
-                          <span className="text-xl font-bold text-yellow-600">
-                            {formatCurrency(product.price)}
-                          </span>
-
-                          <div className="flex items-center space-x-2">
-                            <Link
-                              href={`/products/${toProductPathId(product.sku)}`}
-                              className="p-2 text-gray-400 hover:text-yellow-600 transition-colors"
-                              title={`View ${product.name} details`}
-                            >
-                              <EyeIcon className="h-5 w-5" />
-                            </Link>
-                            <button
-                              onClick={() => handleAddToCart(product)}
-                              className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-black bg-yellow-500 hover:bg-yellow-600 transition-colors"
-                              title={`Add ${product.name} to cart`}
-                            >
-                              <ShoppingCartIcon className="h-4 w-4 mr-1" />
-                              Add to Cart
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {sortedProducts.map((product: any) => (
-                    <div key={product.id} className="bg-white rounded-lg shadow p-6">
-                      <div className="flex items-center space-x-6">
-                        <Link href={`/products/${toProductPathId(product.sku)}`} className="flex-shrink-0">
-                          <Image
-                            src={getProductImageUrl(
-                              (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
-                              getDefaultProductImageWithSku(product.sku)
+                          <button
+                            type="button"
+                            onClick={() => toggleFavorite(product.id)}
+                            aria-label={favorites.includes(product.id) ? 'Remove from favorites' : 'Add to favorites'}
+                            className="absolute top-2 right-2 rounded-full bg-white/95 p-2 shadow-sm transition-shadow hover:shadow-md"
+                          >
+                            {favorites.includes(product.id) ? (
+                              <HeartIconSolid className="h-5 w-5 text-red-500" />
+                            ) : (
+                              <HeartIcon className="h-5 w-5 text-gray-400 hover:text-red-500" />
                             )}
-                            alt={`${product.name} - ${product.sku} | Professional ${product.category?.name || 'Industrial'} Part | In Stock at Vcocnc`}
-                            width={120}
-                            height={120}
-                            sizes="120px"
-                            className="h-20 w-20 object-cover rounded-lg"
-                            loading="lazy"
-                          />
-                        </Link>
+                          </button>
+                        </div>
 
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-medium text-gray-900 mb-1">
-                            <Link href={`/products/${toProductPathId(product.sku)}`} className="hover:text-yellow-600">
-
-                              {buildSemanticProductName(product)}
+                        <div className="flex flex-1 flex-col p-4">
+                          <h3 className="mb-1.5 line-clamp-2 text-base font-semibold leading-snug text-gray-900">
+                            <Link href={productHref} className="transition-colors hover:text-yellow-700">
+                              {semanticName}
                             </Link>
                           </h3>
-                          <p className="text-sm text-gray-500 mb-2">SKU: {product.sku}</p>
+                          <p className="mb-2 truncate font-mono text-xs text-gray-500">SKU: {product.sku}</p>
                           {product.description && (
-                            <p className="text-sm text-gray-600 line-clamp-2">
+                            <p className="mb-3 line-clamp-2 text-sm text-gray-600">
                               {product.description}
                             </p>
                           )}
-                        </div>
 
-                        <div className="flex-shrink-0 text-right">
-                          <div className="text-xl font-bold text-yellow-600 mb-2">
-                            {formatCurrency(product.price)}
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => toggleFavorite(product.id)}
-                              className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                            >
-                              {favorites.includes(product.id) ? (
-                                <HeartIconSolid className="h-5 w-5 text-red-500" />
+                          <div className="mt-auto border-t border-gray-100 pt-3">
+                            {priced && (
+                              <div className="mb-2.5 flex items-baseline gap-2">
+                                <span className="text-lg font-bold tracking-tight text-yellow-700">
+                                  {formatCurrency(product.price)}
+                                </span>
+                                {product.compare_price && product.compare_price > product.price && (
+                                  <span className="text-xs text-gray-400 line-through">
+                                    {formatCurrency(product.compare_price)}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2">
+                              {priced ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddToCart(product)}
+                                  className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-yellow-500 px-3 text-sm font-semibold text-black transition-colors hover:bg-yellow-600"
+                                  title={`Add ${product.name} to cart`}
+                                >
+                                  <ShoppingCartIcon className="h-4 w-4 shrink-0" />
+                                  <span>Add to Cart</span>
+                                </button>
                               ) : (
-                                <HeartIcon className="h-5 w-5" />
+                                <Link
+                                  href={buildProductQuoteHref(product)}
+                                  className="group/quote inline-flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-gray-900 px-3 text-sm font-semibold text-white transition-colors hover:bg-yellow-500 hover:text-black"
+                                  title={`Contact for quote on ${product.sku}`}
+                                >
+                                  <EnvelopeIcon className="h-4 w-4 shrink-0 text-yellow-400 transition-colors group-hover/quote:text-black" />
+                                  <span>Contact for quote</span>
+                                </Link>
                               )}
-                            </button>
-                            <Link
-                              href={`/products/${toProductPathId(product.sku)}`}
-                              className="p-2 text-gray-400 hover:text-yellow-600 transition-colors"
-                              title={`View ${product.name} details`}
-                            >
-                              <EyeIcon className="h-5 w-5" />
-                            </Link>
-                            <button
-                              onClick={() => handleAddToCart(product)}
-                              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-black bg-yellow-500 hover:bg-yellow-600 transition-colors"
-                              title={`Add ${product.name} to cart`}
-                            >
-                              <ShoppingCartIcon className="h-4 w-4 mr-2" />
-                              Add to Cart
-                            </button>
+
+                              <Link
+                                href={productHref}
+                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
+                                title={`View ${product.name} details`}
+                                aria-label={`View ${semanticName} details`}
+                              >
+                                <EyeIcon className="h-4 w-4" />
+                              </Link>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {sortedProducts.map((product: any) => {
+                    const priced = hasProductPrice(product);
+                    const productHref = `/products/${toProductPathId(product.sku)}`;
+                    const semanticName = buildSemanticProductName(product);
+
+                    return (
+                      <div
+                        key={product.id}
+                        className="rounded-xl border border-gray-200/80 bg-white p-4 sm:p-5 shadow-sm transition-shadow hover:shadow-md"
+                      >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                          <div className="flex items-start gap-4 min-w-0 flex-1">
+                            <Link href={productHref} className="shrink-0">
+                              <Image
+                                src={getProductImageUrl(
+                                  (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
+                                  getDefaultProductImageWithSku(product.sku)
+                                )}
+                                alt={`${product.name} - ${product.sku} | Professional ${product.category?.name || 'Industrial'} Part | In Stock at Vcocnc`}
+                                width={120}
+                                height={120}
+                                sizes="120px"
+                                className="h-20 w-20 rounded-lg object-cover bg-gray-100"
+                                loading="lazy"
+                              />
+                            </Link>
+
+                            <div className="min-w-0 flex-1">
+                              <h3 className="mb-1 text-base sm:text-lg font-semibold text-gray-900">
+                                <Link href={productHref} className="transition-colors hover:text-yellow-700">
+                                  {semanticName}
+                                </Link>
+                              </h3>
+                              <p className="mb-1.5 font-mono text-xs text-gray-500">SKU: {product.sku}</p>
+                              {product.description && (
+                                <p className="line-clamp-2 text-sm text-gray-600">
+                                  {product.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex shrink-0 flex-col gap-2 border-t border-gray-100 pt-3 sm:w-64 sm:items-end sm:border-t-0 sm:pt-0">
+                            {priced && (
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-lg font-bold tracking-tight text-yellow-700">
+                                  {formatCurrency(product.price)}
+                                </span>
+                                {product.compare_price && product.compare_price > product.price && (
+                                  <span className="text-xs text-gray-400 line-through">
+                                    {formatCurrency(product.compare_price)}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="flex w-full items-center gap-2 sm:w-auto">
+                              <button
+                                type="button"
+                                onClick={() => toggleFavorite(product.id)}
+                                aria-label={favorites.includes(product.id) ? 'Remove from favorites' : 'Add to favorites'}
+                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-colors hover:border-red-300 hover:text-red-500"
+                              >
+                                {favorites.includes(product.id) ? (
+                                  <HeartIconSolid className="h-4 w-4 text-red-500" />
+                                ) : (
+                                  <HeartIcon className="h-4 w-4" />
+                                )}
+                              </button>
+
+                              <Link
+                                href={productHref}
+                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
+                                title={`View ${product.name} details`}
+                                aria-label={`View ${semanticName} details`}
+                              >
+                                <EyeIcon className="h-4 w-4" />
+                              </Link>
+
+                              {priced ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddToCart(product)}
+                                  className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-yellow-500 px-4 text-sm font-semibold text-black transition-colors hover:bg-yellow-600 sm:flex-initial"
+                                  title={`Add ${product.name} to cart`}
+                                >
+                                  <ShoppingCartIcon className="h-4 w-4 shrink-0" />
+                                  <span>Add to Cart</span>
+                                </button>
+                              ) : (
+                                <Link
+                                  href={buildProductQuoteHref(product)}
+                                  className="group/quote inline-flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-yellow-500 hover:text-black sm:flex-initial"
+                                  title={`Contact for quote on ${product.sku}`}
+                                >
+                                  <EnvelopeIcon className="h-4 w-4 shrink-0 text-yellow-400 transition-colors group-hover/quote:text-black" />
+                                  <span>Contact for quote</span>
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 

@@ -79,12 +79,45 @@ function ContactContent({ data }: { data: PageData }) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Prefill email from query string (e.g., /contact?email=foo@bar.com)
+  // Prefill form from query string (e.g., /contact?sku=...&product=...&type=quote or ?email=...)
   useEffect(() => {
-    const email = searchParams?.get('email') || '';
-    if (email) {
-      setFormData((prev) => ({ ...prev, email }));
-    }
+    const email = (searchParams?.get('email') || '').trim();
+    const sku = (searchParams?.get('sku') || '').trim();
+    const productName = (searchParams?.get('product') || '').trim();
+    const rawType = (searchParams?.get('type') || '').trim().toLowerCase();
+    const allowedTypes = new Set(['general', 'parts', 'repair', 'support', 'quote']);
+
+    if (!email && !sku && !productName && !rawType) return;
+
+    setFormData((prev) => {
+      const next = { ...prev };
+      if (email) next.email = email;
+      if (rawType && allowedTypes.has(rawType)) {
+        next.inquiry_type = rawType as ContactCreateRequest['inquiry_type'];
+      }
+      if (sku || productName) {
+        next.inquiry_type = 'quote';
+        if (!prev.subject) {
+          next.subject = sku
+            ? `Quote Request: ${sku}`
+            : `Quote Request: ${productName}`;
+        }
+        if (!prev.message) {
+          const lines = [
+            'Hello,',
+            '',
+            'I would like to request a quote for the following part:',
+            ...(sku ? [`SKU: ${sku}`] : []),
+            ...(productName ? [`Product: ${productName}`] : []),
+            'Quantity: 1',
+            '',
+            'Please provide pricing, availability, and lead time. Thank you!',
+          ];
+          next.message = lines.join('\n');
+        }
+      }
+      return next;
+    });
   }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -200,6 +233,16 @@ function ContactContent({ data }: { data: PageData }) {
             <div className="lg:col-span-2">
               <div className="bg-white rounded-lg shadow-lg p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">{text('formTitle')}</h2>
+                {(searchParams?.get('sku') || searchParams?.get('product')) && (
+                  <div className="mb-6 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-gray-800">
+                    <span className="font-semibold text-gray-900">Quote inquiry prefilled:</span>{' '}
+                    {searchParams?.get('sku') && (
+                      <span className="font-mono font-medium">{searchParams.get('sku')}</span>
+                    )}
+                    {searchParams?.get('sku') && searchParams?.get('product') && ' — '}
+                    {searchParams?.get('product')}
+                  </div>
+                )}
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

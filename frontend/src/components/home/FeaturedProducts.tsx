@@ -8,10 +8,18 @@ import {
   ShoppingCartIcon,
   EyeIcon,
   StarIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import { useCart } from '@/store/cart.store';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
+import {
+  buildProductQuoteHref,
+  formatCurrency,
+  getDefaultProductImageWithSku,
+  getProductImageUrl,
+  hasProductPrice,
+  toProductPathId,
+} from '@/lib/utils';
 import { DEFAULT_FEATURED_PRODUCTS_SECTION_DATA } from '@/lib/homepage-defaults';
 import { buildSemanticProductName } from '@/lib/product-seo';
 
@@ -60,7 +68,6 @@ const featuredProductsFallback: FeaturedProduct[] = [
     category: { name: 'Servo Motors' }
   }
 ];
-
 
 export function FeaturedProducts({ content }: { content?: HomepageContent | null }) {
   const [hoveredProduct, setHoveredProduct] = useState<number | null>(null);
@@ -124,6 +131,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
   }, [shouldLoadProducts]);
 
   const handleAddToCart = (product: FeaturedProduct) => {
+    if (!hasProductPrice(product)) return;
     addItem(product as Product, 1);
   };
 
@@ -156,141 +164,200 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                 <div className="h-10 w-1/2 rounded bg-gray-200" />
               </div>
             </div>
-          )) : products.map((product) => (
-            <div
-              key={product.id}
-              className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden group"
-              onMouseEnter={() => setHoveredProduct(product.id)}
-              onMouseLeave={() => setHoveredProduct(null)}
-            >
-              {/* Product Image */}
-              <div className="relative h-64 overflow-hidden">
-                {(() => {
-                  const src = getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []), getDefaultProductImageWithSku(product.sku));
-                  return (
-                <Image
-                  src={src}
-                  alt={product.name}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className="object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                  );
-                })()}
-                
-                {/* Overlay Actions */}
-                <div className={`absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center space-x-4 transition-opacity duration-300 ${
-                  hoveredProduct === product.id ? 'opacity-100' : 'opacity-0'
-                }`}>
-                  <Link
-                    href={`/products/${toProductPathId(product.sku)}`}
-                    className="bg-white text-gray-900 p-3 rounded-full hover:bg-gray-100 transition-colors"
-                  >
-                    <EyeIcon className="h-5 w-5" />
-                  </Link>
-                  
-                  {(product.stock_quantity ?? 0) > 0 && hasProductPrice(product) && (
-                    <button
-                      onClick={() => handleAddToCart(product)}
-                      className="bg-yellow-500 text-black p-3 rounded-full hover:bg-yellow-600 transition-colors"
-                    >
-                      <ShoppingCartIcon className="h-5 w-5" />
-                    </button>
-                  )}
-                </div>
+          )) : products.map((product) => {
+            const priced = hasProductPrice(product);
+            const productHref = `/products/${toProductPathId(product.sku)}`;
+            const quoteHref = buildProductQuoteHref(product);
+            const semanticName = buildSemanticProductName(product);
 
-                {/* Badges */}
-                <div className="absolute top-4 left-4 flex flex-col space-y-2">
-                  {product.compare_price && product.compare_price > product.price && (
-                    <span className="bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold" suppressHydrationWarning>
-                      Save {Math.round(((product.compare_price - product.price) / product.compare_price) * 100)}%
-                    </span>
-                  )}
-
-                  {(product.stock_quantity ?? 0) <= 0 && (
-                    <span className="bg-gray-500 text-white px-2 py-1 rounded text-sm font-semibold">
-                      Out of Stock
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Product Info */}
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-yellow-600 font-medium">{product.category?.name || 'FANUC'}</span>
+            return (
+              <div
+                key={product.id}
+                className="flex h-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl group"
+                onMouseEnter={() => setHoveredProduct(product.id)}
+                onMouseLeave={() => setHoveredProduct(null)}
+              >
+                {/* Product Image */}
+                <div className="relative h-64 overflow-hidden bg-gray-100">
                   {(() => {
-                    const approved = (product.reviews || []).filter((r) => r.is_approved);
-                    const count = approved.length;
-                    if (count === 0) return null;
-                    const average = approved.reduce((sum, r) => sum + r.rating, 0) / count;
+                    const src = getProductImageUrl(
+                      (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
+                      getDefaultProductImageWithSku(product.sku)
+                    );
                     return (
-                      <div className="flex items-center space-x-1">
-                        <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
-                        <span className="text-sm text-gray-600">{average.toFixed(1)} ({count})</span>
-                      </div>
+                      <Image
+                        src={src}
+                        alt={product.name}
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
                     );
                   })()}
-                </div>
 
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                  {buildSemanticProductName(product)}
-                </h3>
-                
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                  {product.description}
-                </p>
-
-                {/* Features */}
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {Array.isArray(product.features) && product.features.slice(0, 2).map((feature) => (
-                    <span
-                      key={String(feature)}
-                      className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs"
+                  {/* Overlay Actions */}
+                  <div
+                    className={`absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center space-x-4 transition-opacity duration-300 ${
+                      hoveredProduct === product.id ? 'opacity-100' : 'opacity-0'
+                    }`}
+                  >
+                    <Link
+                      href={productHref}
+                      className="bg-white text-gray-900 p-3 rounded-full hover:bg-gray-100 transition-colors"
+                      title="View details"
+                      aria-label={`View ${semanticName} details`}
                     >
-                      {feature}
-                    </span>
-                  ))}
-                </div>
+                      <EyeIcon className="h-5 w-5" />
+                    </Link>
 
-                {/* Price and Actions */}
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xl sm:text-2xl font-bold text-gray-900">
-                      {hasProductPrice(product) ? formatCurrency(product.price) : 'Contact for B2B quote'}
-                    </span>
-                    {product.compare_price && product.compare_price > product.price && (
-                      <span className="text-lg text-gray-500 line-through">
-                        {formatCurrency(product.compare_price)}
-                      </span>
+                    {priced ? (
+                      (product.stock_quantity ?? 0) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleAddToCart(product)}
+                          className="bg-yellow-500 text-black p-3 rounded-full hover:bg-yellow-600 transition-colors"
+                          title="Add to cart"
+                          aria-label={`Add ${semanticName} to cart`}
+                        >
+                          <ShoppingCartIcon className="h-5 w-5" />
+                        </button>
+                      )
+                    ) : (
+                      <Link
+                        href={quoteHref}
+                        className="bg-gray-900 text-yellow-400 p-3 rounded-full hover:bg-yellow-500 hover:text-black transition-colors"
+                        title="Contact for quote"
+                        aria-label={`Contact for quote on ${product.sku}`}
+                      >
+                        <EnvelopeIcon className="h-5 w-5" />
+                      </Link>
                     )}
                   </div>
 
-                  <div className="text-sm text-gray-600">
-                    {(product.stock_quantity ?? 0) > 0 ? `In Stock: ${product.stock_quantity}` : 'Out of Stock'}
+                  {/* Badges */}
+                  <div className="absolute top-4 left-4 flex flex-col space-y-2">
+                    {priced && product.compare_price && product.compare_price > product.price && (
+                      <span className="bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold" suppressHydrationWarning>
+                        Save {Math.round(((product.compare_price - product.price) / product.compare_price) * 100)}%
+                      </span>
+                    )}
+
+                    {priced && (product.stock_quantity ?? 0) <= 0 && (
+                      <span className="bg-gray-500 text-white px-2 py-1 rounded text-sm font-semibold">
+                        Out of Stock
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Product Info */}
+                <div className="flex flex-1 flex-col p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-yellow-600 font-medium">{product.category?.name || 'FANUC'}</span>
+                    {(() => {
+                      const approved = (product.reviews || []).filter((r) => r.is_approved);
+                      const count = approved.length;
+                      if (count === 0) return null;
+                      const average = approved.reduce((sum, r) => sum + r.rating, 0) / count;
+                      return (
+                        <div className="flex items-center space-x-1">
+                          <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
+                          <span className="text-sm text-gray-600">{average.toFixed(1)} ({count})</span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  {(product.stock_quantity ?? 0) > 0 && hasProductPrice(product) ? (
-                    <button
-                      onClick={() => handleAddToCart(product)}
-                      className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg font-medium transition-colors duration-300"
-                    >
-                      Add to Cart
-                    </button>
-                  ) : hasProductPrice(product) ? (
-                    <button
-                      disabled
-                      className="bg-gray-300 text-gray-500 px-4 py-2 rounded-lg font-medium cursor-not-allowed"
-                    >
-                      Out of Stock
-                    </button>
-                  ) : (
-                    <a href={`/contact?sku=${encodeURIComponent(product.sku)}`} className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-800">B2B Contact</a>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                    <Link href={productHref} className="hover:text-yellow-700 transition-colors">
+                      {semanticName}
+                    </Link>
+                  </h3>
+
+                  {product.description && (
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                      {product.description}
+                    </p>
                   )}
+
+                  {/* Features */}
+                  {Array.isArray(product.features) && product.features.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-4">
+                      {product.features.slice(0, 2).map((feature) => (
+                        <span
+                          key={String(feature)}
+                          className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs"
+                        >
+                          {feature}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Footer: Price (when priced) + Aligned Actions */}
+                  <div className="mt-auto border-t border-gray-100 pt-4">
+                    {priced && (
+                      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-xl font-bold tracking-tight text-gray-900">
+                            {formatCurrency(product.price)}
+                          </span>
+                          {product.compare_price && product.compare_price > product.price && (
+                            <span className="text-sm text-gray-400 line-through">
+                              {formatCurrency(product.compare_price)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs font-medium text-gray-500">
+                          {(product.stock_quantity ?? 0) > 0 ? `In Stock: ${product.stock_quantity}` : 'Out of Stock'}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      {priced ? (
+                        (product.stock_quantity ?? 0) > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => handleAddToCart(product)}
+                            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-yellow-500 px-4 text-sm font-semibold text-black transition-colors hover:bg-yellow-600"
+                          >
+                            <ShoppingCartIcon className="h-4 w-4 shrink-0" />
+                            <span>Add to Cart</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-gray-200 px-4 text-sm font-medium text-gray-500 cursor-not-allowed"
+                          >
+                            Out of Stock
+                          </button>
+                        )
+                      ) : (
+                        <Link
+                          href={quoteHref}
+                          className="group/quote inline-flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-yellow-500 hover:text-black"
+                        >
+                          <EnvelopeIcon className="h-4 w-4 shrink-0 text-yellow-400 transition-colors group-hover/quote:text-black" />
+                          <span>Contact for quote</span>
+                        </Link>
+                      )}
+
+                      <Link
+                        href={productHref}
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
+                        title="View details"
+                        aria-label={`View ${semanticName} details`}
+                      >
+                        <EyeIcon className="h-4 w-4" />
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* View All Products CTA */}
@@ -309,4 +376,3 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
 }
 
 export default FeaturedProducts;
-

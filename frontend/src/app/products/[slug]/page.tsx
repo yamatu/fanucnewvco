@@ -3,7 +3,7 @@ import { ProductService } from '@/services/product.service';
 import { CategoryService } from '@/services/category.service';
 import { getProductBySkuCached, searchFirstProduct } from '@/services/product.server';
 import { getSiteUrl } from '@/lib/url';
-import { toProductPathId } from '@/lib/utils';
+import { hasProductPrice, toProductPathId } from '@/lib/utils';
 import { cleanTitleArtifacts, stripModelNoteArtifacts } from '@/lib/product-seo';
 import { customCompatibilityInfo, resolveLeadTime, withoutGeneratedContent } from '@/lib/product-content';
 import type { Category, Product, ProductImage } from '@/types';
@@ -210,8 +210,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         creator: '@vcocnc',
       },
       other: {
-        'product:price:amount': product.price?.toString() || '',
-        'product:price:currency': 'USD',
+        ...(hasProductPrice(product)
+          ? {
+              'product:price:amount': product.price.toString(),
+              'product:price:currency': 'USD',
+            }
+          : {}),
         'product:availability': product.stock_quantity > 0 ? 'in stock' : 'available',
         'product:brand': product.brand || '',
         'product:category': product.category?.name || 'Industrial Automation',
