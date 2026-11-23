@@ -370,6 +370,7 @@ func (ac *AnalyticsController) UpdateSettings(c *gin.Context) {
 	services.TriggerNextRevalidateTag("analytics-config")
 
 	// Reload
+	_ = services.ClearRedisByPrefixes(c.Request.Context(), "cache:public:analytics:")
 	s, _ = services.GetOrCreateAnalyticsSetting(db)
 	c.JSON(http.StatusOK, models.APIResponse{Success: true, Message: "Settings updated", Data: s})
 }

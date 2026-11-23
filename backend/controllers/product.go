@@ -27,6 +27,22 @@ var imagesTableOnce sync.Once
 var imagesTableExists bool
 var faqsTableOnce sync.Once
 var faqsTableExists bool
+var skuSanitizedColOnce sync.Once
+var skuSanitizedColExists bool
+
+func hasSKUSanitizedColumn(db *gorm.DB) bool {
+	skuSanitizedColOnce.Do(func() {
+		if db != nil && db.Dialector.Name() == "mysql" {
+			var count int64
+			if err := db.Raw(
+				"SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'sku_sanitized'",
+			).Scan(&count).Error; err == nil && count > 0 {
+				skuSanitizedColExists = true
+			}
+		}
+	})
+	return skuSanitizedColExists
+}
 
 func hasImagesTable() bool {
 	imagesTableOnce.Do(func() {
@@ -140,10 +156,16 @@ func findProductBySKUInternal(sku string) (models.Product, error) {
 				// (incl. NBSP), so slug-derived candidates like "MICROSCAN3-CORE-I-O"
 				// resolve stored SKUs like "microScan3 Core I/O" (sanitizeSKUForCompare).
 				sanitized := sanitizeSKUForCompare(normalized)
-				if err4 := withPublicProductPreloads(db).
-					Where("REGEXP_REPLACE(sku, '[-/[:space:]]+', '') = ?", sanitized).
-					Order("updated_at DESC").
-					First(&product).Error; err4 != nil {
+				if sanitized == "" {
+					return product, gorm.ErrRecordNotFound
+				}
+				q4 := withPublicProductPreloads(db)
+				if hasSKUSanitizedColumn(db) {
+					q4 = q4.Where("sku_sanitized = ?", sanitized)
+				} else {
+					q4 = q4.Where("REGEXP_REPLACE(sku, '[-/[:space:]]+', '') = ?", sanitized)
+				}
+				if err4 := q4.Order("updated_at DESC").First(&product).Error; err4 != nil {
 					return product, err4
 				}
 			}
@@ -326,8 +348,14 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 	query.Count(&total)
 
 	// Get products
+	findQuery := query
+	if isPublic && categoryID != "" && search == "" && brand == "" && isFeatured == "" &&
+		aiSEOStatus == "" && seoNoIndex == "" && priceStatus == "" && orderColumn == "created_at" &&
+		db.Dialector.Name() == "mysql" {
+		findQuery = query.Session(&gorm.Session{}).Table("products FORCE INDEX (idx_products_category_active_created)")
+	}
 	var products []models.Product
-	if err := query.Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
+	if err := findQuery.Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to fetch products",
@@ -363,40 +391,7 @@ func (pc *ProductController) GetProducts(c *gin.Context) {
 // getDescendantCategoryIDs returns a slice containing rootID and all its descendants' IDs.
 // It uses an in-memory walk to avoid DB-specific recursion requirements.
 func getDescendantCategoryIDs(db *gorm.DB, rootID uint) ([]uint, error) {
-	// Load only what we need.
-	type row struct {
-		ID       uint
-		ParentID *uint
-	}
-	var rows []row
-	if err := db.Model(&models.Category{}).Select("id,parent_id").Find(&rows).Error; err != nil {
-		return nil, err
-	}
-
-	children := make(map[uint][]uint)
-	for _, r := range rows {
-		if r.ParentID == nil {
-			continue
-		}
-		children[*r.ParentID] = append(children[*r.ParentID], r.ID)
-	}
-
-	// DFS with cycle protection.
-	visited := make(map[uint]bool)
-	out := make([]uint, 0)
-	var walk func(id uint)
-	walk = func(id uint) {
-		if visited[id] {
-			return
-		}
-		visited[id] = true
-		out = append(out, id)
-		for _, kid := range children[id] {
-			walk(kid)
-		}
-	}
-	walk(rootID)
-	return out, nil
+	return services.GetDescendantCategoryIDsCached(db, rootID)
 }
 
 // LookupSEO fetches SEO/content suggestion by SKU without requiring an existing product

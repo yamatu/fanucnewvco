@@ -16,7 +16,7 @@ import { buildQuoteProductContext, useQuoteModalStore } from '@/store/quote-moda
 import {
   formatCurrency,
   getDefaultProductImageWithSku,
-  getProductImageUrl,
+  getProductImageUrl, isDefaultProductImageUrl, withDefaultImageWidth,
   hasProductPrice,
   toProductPathId,
 } from '@/lib/utils';
@@ -188,14 +188,18 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                 {/* Product Image */}
                 <div className="relative h-64 overflow-hidden bg-gray-100">
                   {(() => {
-                    const src = getProductImageUrl(
-                      (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
-                      getDefaultProductImageWithSku(product.sku)
+                    const src = withDefaultImageWidth(
+                      getProductImageUrl(
+                        (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
+                        getDefaultProductImageWithSku(product.sku, '/images/placeholder.svg', 400)
+                      ),
+                      400
                     );
                     return (
                       <Image
                         src={src}
                         alt={product.name}
+                        unoptimized={isDefaultProductImageUrl(src)}
                         fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover group-hover:scale-110 transition-transform duration-500"
@@ -209,7 +213,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                       hoveredProduct === product.id ? 'opacity-100' : 'opacity-0'
                     }`}
                   >
-                    <Link
+                    <Link prefetch={false}
                       href={productHref}
                       className="bg-white text-gray-900 p-3 rounded-full hover:bg-gray-100 transition-colors"
                       title="View details"
@@ -275,7 +279,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                   </div>
 
                   <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                    <Link href={productHref} className="hover:text-yellow-700 transition-colors">
+                    <Link prefetch={false} href={productHref} className="hover:text-yellow-700 transition-colors">
                       {semanticName}
                     </Link>
                   </h3>
@@ -352,7 +356,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
                           </button>
                         )}
 
-                        <Link
+                        <Link prefetch={false}
                           href={productHref}
                           className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
                           title="View details"
@@ -383,7 +387,7 @@ export function FeaturedProducts({ content }: { content?: HomepageContent | null
 
         {/* View All Products CTA */}
         <div className="text-center">
-          <Link
+          <Link prefetch={false}
             href={ctaHref}
             className="inline-flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105"
           >

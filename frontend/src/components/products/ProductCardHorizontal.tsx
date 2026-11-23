@@ -7,7 +7,7 @@ import { ShoppingCartIcon, EyeIcon, EnvelopeIcon } from '@heroicons/react/24/out
 import {
   formatCurrency,
   getDefaultProductImageWithSku,
-  getProductImageUrl,
+  getProductImageUrl, isDefaultProductImageUrl, withDefaultImageWidth,
   hasProductPrice,
   toProductPathId,
 } from '@/lib/utils';
@@ -37,7 +37,7 @@ export default function ProductCardHorizontal({ product }: { product: Product })
   const openQuoteModal = useQuoteModalStore((state) => state.openQuoteModal);
 
   const priced = hasProductPrice(product);
-  const imageUrl = getProductImageUrl(product.image_urls || product.images || [], getDefaultProductImageWithSku(product.sku));
+  const imageUrl = withDefaultImageWidth(getProductImageUrl(product.image_urls || product.images || [], getDefaultProductImageWithSku(product.sku, '/images/placeholder.svg', 400)), 400);
   const href = `/products/${toProductPathId(product.sku)}`;
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -60,13 +60,14 @@ export default function ProductCardHorizontal({ product }: { product: Product })
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md sm:flex-row">
-      <Link href={href} className="relative w-full shrink-0 bg-gray-100 sm:w-48">
+      <Link prefetch={false} href={href} className="relative w-full shrink-0 bg-gray-100 sm:w-48">
         <div className="relative aspect-[4/3] w-full sm:h-full">
           {imageUrl && imageUrl !== '/images/placeholder.svg' ? (
             <Image
               src={imageUrl}
               alt={product.name}
               fill
+              unoptimized={isDefaultProductImageUrl(imageUrl)}
               sizes="(max-width: 640px) 100vw, 240px"
               className="object-cover object-center"
             />
@@ -79,7 +80,7 @@ export default function ProductCardHorizontal({ product }: { product: Product })
       <div className="flex min-w-0 flex-1 flex-col p-4">
         <div className="min-w-0">
           <div className="flex items-start justify-between gap-3">
-            <Link href={href} className="min-w-0">
+            <Link prefetch={false} href={href} className="min-w-0">
               <h3 className="line-clamp-2 text-base font-semibold text-gray-900 transition-colors hover:text-yellow-700 sm:text-lg">
                 {product.name}
               </h3>
@@ -109,7 +110,7 @@ export default function ProductCardHorizontal({ product }: { product: Product })
           )}
 
           <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
-            <Link
+            <Link prefetch={false}
               href={href}
               className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
             >

@@ -14,7 +14,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import {
   formatCurrency,
   getDefaultProductImageWithSku,
-  getProductImageUrl,
+  getProductImageUrl, isDefaultProductImageUrl, withDefaultImageWidth,
   hasProductPrice,
   toProductPathId,
 } from '@/lib/utils';
@@ -322,12 +322,10 @@ export default function CategoryProductsClient({
                     className="flex h-full flex-col overflow-hidden rounded-xl border border-gray-200/80 bg-white shadow-sm transition-shadow hover:shadow-md"
                   >
                     <div className="relative">
-                      <Link href={productHref} className="block w-full overflow-hidden bg-gray-100">
+                      <Link prefetch={false} href={productHref} className="block w-full overflow-hidden bg-gray-100">
                         <Image
-                          src={getProductImageUrl(
-                            (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
-                            getDefaultProductImageWithSku(product.sku)
-                          )}
+                          src={withDefaultImageWidth(getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []), getDefaultProductImageWithSku(product.sku, '/images/placeholder.svg', 400)), 400)}
+                        unoptimized={isDefaultProductImageUrl(getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []), getDefaultProductImageWithSku(product.sku)))}
                           alt={`${product.name} - ${product.sku}`}
                           width={300}
                           height={300}
@@ -340,7 +338,7 @@ export default function CategoryProductsClient({
 
                     <div className="flex flex-1 flex-col p-4">
                       <h3 className="mb-1.5 line-clamp-2 text-base font-semibold leading-snug text-gray-900">
-                        <Link href={productHref} className="transition-colors hover:text-yellow-700">
+                        <Link prefetch={false} href={productHref} className="transition-colors hover:text-yellow-700">
                           {semanticName}
                         </Link>
                       </h3>
@@ -389,7 +387,7 @@ export default function CategoryProductsClient({
                               </button>
                             )}
 
-                            <Link
+                            <Link prefetch={false}
                               href={productHref}
                               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
                               title="View details"
@@ -431,12 +429,10 @@ export default function CategoryProductsClient({
                   >
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                       <div className="flex items-start gap-4 min-w-0 flex-1">
-                        <Link href={productHref} className="shrink-0">
+                        <Link prefetch={false} href={productHref} className="shrink-0">
                           <Image
-                            src={getProductImageUrl(
-                              (product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []),
-                              getDefaultProductImageWithSku(product.sku)
-                            )}
+                            src={withDefaultImageWidth(getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []), getDefaultProductImageWithSku(product.sku, '/images/placeholder.svg', 400)), 400)}
+                        unoptimized={isDefaultProductImageUrl(getProductImageUrl((product.image_urls && product.image_urls.length > 0) ? product.image_urls : (product.images || []), getDefaultProductImageWithSku(product.sku)))}
                             alt={`${product.name} - ${product.sku}`}
                             width={120}
                             height={120}
@@ -448,7 +444,7 @@ export default function CategoryProductsClient({
 
                         <div className="min-w-0 flex-1">
                           <h3 className="mb-1 text-base sm:text-lg font-semibold text-gray-900">
-                            <Link href={productHref} className="transition-colors hover:text-yellow-700">
+                            <Link prefetch={false} href={productHref} className="transition-colors hover:text-yellow-700">
                               {semanticName}
                             </Link>
                           </h3>
@@ -476,7 +472,7 @@ export default function CategoryProductsClient({
                         )}
 
                         <div className="flex w-full items-center gap-2 sm:w-auto">
-                          <Link
+                          <Link prefetch={false}
                             href={productHref}
                             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
                             title="View details"

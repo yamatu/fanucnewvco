@@ -3,7 +3,7 @@
 import { useState, useRef, MouseEvent } from 'react';
 import Image from 'next/image';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { getProductImageUrlByIndex } from '@/lib/utils';
+import { getProductImageUrlByIndex, isDefaultProductImageUrl, withDefaultImageWidth } from '@/lib/utils';
 
 interface ProductImageViewerProps {
   images: string[] | any[];
@@ -92,9 +92,10 @@ export default function ProductImageViewer({
                 <span className="sr-only">Image {index + 1}</span>
                 <span className="absolute inset-0 rounded-md overflow-hidden">
                   <Image
-                    src={getProductImageUrlByIndex(images, index)}
+                    src={withDefaultImageWidth(getProductImageUrlByIndex(images, index), 400)}
                     alt={getImageAlt(productName, productSku, categoryName, index)}
                     fill
+                    unoptimized={isDefaultProductImageUrl(getProductImageUrlByIndex(images, index))}
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                     className="object-cover object-center"
                     loading="lazy"
@@ -116,9 +117,10 @@ export default function ProductImageViewer({
           onMouseLeave={handleMouseLeave}
         >
           <Image
-            src={currentImage}
+            src={withDefaultImageWidth(currentImage, 800)}
             alt={getImageAlt(productName, productSku, categoryName, selectedImageIndex)}
             fill
+            unoptimized={isDefaultProductImageUrl(currentImage)}
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 50vw"
             className="object-cover object-center transition-transform duration-200"
             style={{

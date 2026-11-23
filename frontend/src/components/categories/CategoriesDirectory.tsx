@@ -179,7 +179,7 @@ export default function CategoriesDirectory({
               const path = category.path || category.slug;
               const count = totalCount(category);
               return (
-                <Link
+                <Link prefetch={false}
                   key={`${category.id}-${path}`}
                   href={`/categories/${path}`}
                   className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-yellow-400 hover:shadow-xl"
@@ -228,7 +228,7 @@ export default function CategoriesDirectory({
                 const path = category.path || category.slug;
                 const count = totalCount(category);
                 return (
-                  <Link
+                  <Link prefetch={false}
                     key={category.id}
                     href={`/categories/${path}`}
                     className="rounded-full border border-slate-200 px-3.5 py-1.5 text-sm font-medium text-slate-700 transition hover:border-yellow-500 hover:bg-yellow-50 hover:text-yellow-800"

@@ -124,7 +124,7 @@ export default function CategorySubcategoriesBar({
           }
         >
           {visibleItems.map((child) => (
-            <Link
+            <Link prefetch={false}
               key={child.id}
               href={child.href}
               className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-800 hover:border-yellow-500 hover:bg-yellow-50 hover:text-yellow-900 transition-colors"

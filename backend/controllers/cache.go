@@ -162,7 +162,12 @@ func (cc *CacheController) PurgeNow(c *gin.Context) {
 			"cache:public:product_sku:",
 			"cache:public:product_sku_query:",
 			"cache:public:homepage:",
+			"cache:public:news:",
+			"cache:public:analytics:",
+			"cache:public:shipping_countries:",
 		)
+		services.InvalidateCategoryDescendantsCache()
+		services.InvalidateWatermarkRuntimeCache()
 	}
 
 	// If Cloudflare is disabled, we still consider this a valid "manual refresh" when ClearRedis=true.

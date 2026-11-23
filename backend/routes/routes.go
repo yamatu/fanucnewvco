@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"time"
 	"fanuc-backend/config"
 	"fanuc-backend/controllers"
 	"fanuc-backend/handlers"
@@ -69,16 +70,16 @@ func SetupRoutes(r *gin.Engine) {
 		{
 			// Categories (public read access) - cached
 			public.GET("/categories", middleware.CachePublicGET(middleware.CacheTTLCategories(), "cache:public:categories:"), categoryController.GetCategories)
-			public.GET("/categories/path/*path", categoryController.GetCategoryByPath)
+			public.GET("/categories/path/*path", middleware.CachePublicGET(middleware.CacheTTLCategories(), "cache:public:categories:"), categoryController.GetCategoryByPath)
 
-			public.GET("/categories/:id", categoryController.GetCategory)
-			public.GET("/categories/:id/trail", categoryController.GetCategoryTrail)
-			public.GET("/categories/slug/:slug", categoryController.GetCategoryBySlug)
+			public.GET("/categories/:id", middleware.CachePublicGET(middleware.CacheTTLCategories(), "cache:public:categories:"), categoryController.GetCategory)
+			public.GET("/categories/:id/trail", middleware.CachePublicGET(middleware.CacheTTLCategories(), "cache:public:categories:"), categoryController.GetCategoryTrail)
+			public.GET("/categories/slug/:slug", middleware.CachePublicGET(middleware.CacheTTLCategories(), "cache:public:categories:"), categoryController.GetCategoryBySlug)
 
 			// Products (public read access) - cached
 			public.GET("/products", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:products:"), productController.GetProducts)
 			// Key prefix sits under "cache:public:products:" so product mutations clear it too.
-			public.GET("/products/sitemap", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:products:sitemap:"), productController.GetProductSitemapEntries)
+			public.GET("/products/sitemap", middleware.CachePublicGET(middleware.CacheTTLSitemap(), "cache:public:products:sitemap:"), productController.GetProductSitemapEntries)
 			public.GET("/products/default-image", watermarkController.DefaultProductImage)
 			public.GET("/products/default-image/:sku", watermarkController.DefaultProductImage)
 			// Image validators may probe generated media with HEAD before GET.
@@ -86,14 +87,14 @@ func SetupRoutes(r *gin.Engine) {
 			public.HEAD("/products/default-image/:sku", watermarkController.DefaultProductImage)
 
 			// Shipping (public)
-			public.GET("/shipping/countries", shippingRateController.PublicCountries)
+			public.GET("/shipping/countries", middleware.CachePublicGET(middleware.CacheTTLShipping(), "cache:public:shipping_countries:"), shippingRateController.PublicCountries)
 			public.GET("/shipping/quote", shippingRateController.PublicQuote)
-			public.GET("/shipping/free-countries", shippingRateController.PublicFreeShippingCountries)
+			public.GET("/shipping/free-countries", middleware.CachePublicGET(middleware.CacheTTLShipping(), "cache:public:shipping_countries:"), shippingRateController.PublicFreeShippingCountries)
 
 			// Product detail endpoints are also cached (same TTL as product list)
 			public.GET("/products/:id", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:product:"), productController.GetProduct)
-			public.GET("/products/sku", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:product_sku_query:"), productController.GetProductBySKUQuery) // query param: sku=...
-			public.GET("/products/sku/:sku", middleware.CachePublicGET(middleware.CacheTTLProducts(), "cache:public:product_sku:"), productController.GetProductBySKU)       // legacy: path param
+			public.GET("/products/sku", middleware.CachePublicGETWithNotFound(middleware.CacheTTLProducts(), 60*time.Second, "cache:public:product_sku_query:"), productController.GetProductBySKUQuery) // query param: sku=...
+			public.GET("/products/sku/:sku", middleware.CachePublicGETWithNotFound(middleware.CacheTTLProducts(), 60*time.Second, "cache:public:product_sku:"), productController.GetProductBySKU)       // legacy: path param
 
 			// Banners (public read access) - cached
 			public.GET("/banners", middleware.CachePublicGET(middleware.CacheTTLHomepage(), "cache:public:banners:"), bannerController.GetPublicBanners)
@@ -105,7 +106,7 @@ func SetupRoutes(r *gin.Engine) {
 
 			// Company Profile (public read access) - cached
 			public.GET("/company-profile", middleware.CachePublicGET(middleware.CacheTTLHomepage(), "cache:public:company_profile:"), companyProfileController.GetCompanyProfile)
-			public.GET("/analytics/config", analyticsController.GetTrackingCode)
+			public.GET("/analytics/config", middleware.CachePublicGET(middleware.CacheTTLHomepage(), "cache:public:analytics:"), analyticsController.GetTrackingCode)
 
 			// Contact form submission (public access)
 			public.POST("/contact", contactHandler.SubmitContact)
@@ -124,10 +125,10 @@ func SetupRoutes(r *gin.Engine) {
 			public.GET("/indexnow/key", indexNowController.GetPublicKey)
 
 			// News / Articles (public read access)
-			public.GET("/news", newsController.GetPublicArticles)
-			public.GET("/news/path/*path", newsController.GetPublicArticleByPath)
-			public.GET("/news/:id", newsController.GetPublicArticle)
-			public.GET("/news/slug/:slug", newsController.GetPublicArticleBySlug)
+			public.GET("/news", middleware.CachePublicGET(middleware.CacheTTLContent(), "cache:public:news:"), newsController.GetPublicArticles)
+			public.GET("/news/path/*path", middleware.CachePublicGET(middleware.CacheTTLContent(), "cache:public:news:"), newsController.GetPublicArticleByPath)
+			public.GET("/news/:id", middleware.CachePublicGET(middleware.CacheTTLContent(), "cache:public:news:"), newsController.GetPublicArticle)
+			public.GET("/news/slug/:slug", middleware.CachePublicGET(middleware.CacheTTLContent(), "cache:public:news:"), newsController.GetPublicArticleBySlug)
 		}
 
 		// Authentication routes

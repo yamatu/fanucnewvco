@@ -13,7 +13,7 @@ import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import {
   formatCurrency,
   getDefaultProductImageWithSku,
-  getProductImageUrl,
+  getProductImageUrl, isDefaultProductImageUrl, withDefaultImageWidth,
   hasProductPrice,
   toProductPathId,
 } from '@/lib/utils';
@@ -69,7 +69,7 @@ export default function ProductCard({
     setIsFavorite(!isFavorite);
   };
 
-  const imageUrl = getProductImageUrl(product.image_urls || [], getDefaultProductImageWithSku(product.sku));
+  const imageUrl = withDefaultImageWidth(getProductImageUrl(product.image_urls || [], getDefaultProductImageWithSku(product.sku, '/images/placeholder.svg', 400)), 400);
 
   return (
     <div
@@ -77,13 +77,14 @@ export default function ProductCard({
     >
       <div className="relative">
         {/* Product Image */}
-        <Link href={productHref} className="block">
+        <Link prefetch={false} href={productHref} className="block">
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
             {imageUrl && imageUrl !== '/images/placeholder.svg' ? (
               <Image
                 src={imageUrl}
                 alt={product.name}
                 fill
+                unoptimized={isDefaultProductImageUrl(imageUrl)}
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                 className="object-cover object-center"
               />
@@ -128,7 +129,7 @@ export default function ProductCard({
 
       {/* Product Info */}
       <div className="flex flex-1 flex-col p-4">
-        <Link href={productHref}>
+        <Link prefetch={false} href={productHref}>
           <h3 className="mb-1.5 line-clamp-2 text-base font-semibold leading-snug text-gray-900 transition-colors hover:text-yellow-700">
             {product.name}
           </h3>
@@ -188,7 +189,7 @@ export default function ProductCard({
                 </button>
               )}
 
-              <Link
+              <Link prefetch={false}
                 href={productHref}
                 className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
                 title="View details"

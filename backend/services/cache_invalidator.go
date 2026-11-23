@@ -27,6 +27,9 @@ const (
 	redisPrefixProductSKU      = "cache:public:product_sku:"
 	redisPrefixProductSKUQuery = "cache:public:product_sku_query:"
 	redisPrefixHomepage        = "cache:public:homepage:"
+	redisPrefixNews            = "cache:public:news:"
+	redisPrefixAnalytics       = "cache:public:analytics:"
+	redisPrefixShipping        = "cache:public:shipping_countries:"
 )
 
 func getSiteURLForPurge() string {
@@ -156,6 +159,9 @@ func InvalidatePublicCaches(ctx context.Context, reason string, extraURLs []stri
 		return
 	}
 
+	// 0) In-memory hierarchy snapshot
+	InvalidateCategoryDescendantsCache()
+
 	// 1) Origin (Redis) cache
 	if s.AutoClearRedisOnMutation {
 		if err := ClearRedisByPrefixes(
@@ -166,6 +172,9 @@ func InvalidatePublicCaches(ctx context.Context, reason string, extraURLs []stri
 			redisPrefixProductSKU,
 			redisPrefixProductSKUQuery,
 			redisPrefixHomepage,
+			redisPrefixNews,
+			redisPrefixAnalytics,
+			redisPrefixShipping,
 		); err != nil {
 			log.Printf("cache invalidation: redis clear failed (%s): %v", reason, err)
 		}

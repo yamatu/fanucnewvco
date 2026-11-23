@@ -103,7 +103,7 @@ export function Footer() {
             <ul className="space-y-2">
               {footerNavigation.products.map((item) => (
                 <li key={item.name}>
-                  <Link
+                  <Link prefetch={false}
                     href={item.href}
                     className="text-gray-300 hover:text-white transition-colors duration-200"
                   >
@@ -120,7 +120,7 @@ export function Footer() {
             <ul className="space-y-2">
               {footerNavigation.services.map((item) => (
                 <li key={item.name}>
-                  <Link
+                  <Link prefetch={false}
                     href={item.href}
                     className="text-gray-300 hover:text-white transition-colors duration-200"
                   >
@@ -137,7 +137,7 @@ export function Footer() {
             <ul className="space-y-2">
               {footerNavigation.support.map((item) => (
                 <li key={item.name}>
-                  <Link
+                  <Link prefetch={false}
                     href={item.href}
                     className="text-gray-300 hover:text-white transition-colors duration-200"
                   >
@@ -154,7 +154,7 @@ export function Footer() {
             <ul className="space-y-2">
               {footerNavigation.partners.map((item) => (
                 <li key={item.name}>
-                  <Link
+                  <Link prefetch={false}
                     href={item.href}
                     {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                     className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center"
@@ -213,25 +213,25 @@ export function Footer() {
             </div>
 
             <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 md:mt-0">
-              <Link
+              <Link prefetch={false}
                 href="/privacy"
                 className="text-gray-400 hover:text-white text-sm transition-colors duration-200"
               >
                 Privacy Policy
               </Link>
-              <Link
+              <Link prefetch={false}
                 href="/terms"
                 className="text-gray-400 hover:text-white text-sm transition-colors duration-200"
               >
                 Terms of Service
               </Link>
-              <Link
+              <Link prefetch={false}
                 href="/sitemap.xml"
                 className="text-gray-400 hover:text-white text-sm transition-colors duration-200"
               >
                 Sitemap
               </Link>
-              <Link
+              <Link prefetch={false}
                 href="https://www.vcocnc.shop"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -243,13 +243,13 @@ export function Footer() {
                   <path fillRule="evenodd" d="M6.194 12.753a.75.75 0 001.06.053L16.5 4.44v2.81a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.553l-9.056 8.194a.75.75 0 00-.053 1.06z" clipRule="evenodd" />
                 </svg>
               </Link>
-              <Link
+              <Link prefetch={false}
                 href="/products"
                 className="text-gray-400 hover:text-white text-sm transition-colors duration-200"
               >
                 Product Categories
               </Link>
-              <Link
+              <Link prefetch={false}
                 href="/products"
                 className="text-gray-400 hover:text-white text-sm transition-colors duration-200"
               >

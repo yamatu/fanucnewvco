@@ -26,7 +26,7 @@ import { ShippingRateService } from '@/services/shipping-rate.service';
 import type { ShippingRatePublic, ShippingQuote } from '@/services/shipping-rate.service';
 import type { PaginationResponse, Product, ProductImage, Category } from '@/types';
 import { queryKeys } from '@/lib/react-query';
-import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, hasProductPrice, toProductPathId } from '@/lib/utils';
+import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, isDefaultProductImageUrl, withDefaultImageWidth, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { buildQuoteProductContext, useQuoteModalStore } from '@/store/quote-modal.store';
 import { stripDuplicateGeneratedSections } from '@/lib/product-description';
 import {
@@ -317,7 +317,7 @@ export default function ProductDetailClient({
             <div className="text-center">
               <h1 className="text-2xl font-bold text-gray-900 mb-4">Product Not Found</h1>
               <p className="text-gray-600 mb-8">The product you&apos;re looking for doesn&apos;t exist.</p>
-              <Link
+              <Link prefetch={false}
                 href="/products"
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700"
               >
@@ -423,9 +423,9 @@ export default function ProductDetailClient({
         <div className="bg-white border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <nav className="flex items-center space-x-2 text-sm text-gray-500">
-              <Link href="/" className="hover:text-yellow-600">Home</Link>
+              <Link prefetch={false} href="/" className="hover:text-yellow-600">Home</Link>
               <span>/</span>
-              <Link href="/products" className="hover:text-yellow-600">Products</Link>
+              <Link prefetch={false} href="/products" className="hover:text-yellow-600">Products</Link>
               <span>/</span>
               {product.category && (
                 <>
@@ -433,7 +433,7 @@ export default function ProductDetailClient({
                     const href = resolveCategoryHref();
                     if (!href) return <span>{product.category.name}</span>;
                     return (
-                      <Link href={href} className="hover:text-yellow-600">
+                      <Link prefetch={false} href={href} className="hover:text-yellow-600">
                         {product.category.name}
                       </Link>
                     );
@@ -691,7 +691,7 @@ export default function ProductDetailClient({
 
               {/* Trust Badges */}
               <div className="mt-6 grid grid-cols-3 gap-3">
-                <Link
+                <Link prefetch={false}
                   href="/warranty-policy"
                   title={WARRANTY_COVERAGE_TEXT}
                   className="flex flex-col items-center text-center p-3 rounded-lg bg-gray-50 hover:bg-yellow-50"
@@ -753,7 +753,7 @@ export default function ProductDetailClient({
                     <dd className="mt-1 text-sm font-medium text-gray-900">{shownWarranty}</dd>
                     <dd className="mt-1 text-xs text-gray-500">
                       {WARRANTY_COVERAGE_TEXT}{' '}
-                      <Link href="/warranty-policy" className="text-yellow-700 hover:underline">Warranty policy</Link>
+                      <Link prefetch={false} href="/warranty-policy" className="text-yellow-700 hover:underline">Warranty policy</Link>
                     </dd>
                   </div>
                   {product.origin_country && (
@@ -844,14 +844,14 @@ export default function ProductDetailClient({
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Explore More Options</h2>
               <div className="bg-white rounded-lg border border-gray-200 p-6 flex flex-wrap gap-3 text-sm">
-                <Link
+                <Link prefetch={false}
                   href="/products"
                   className="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 font-medium text-gray-900 hover:border-yellow-500 hover:text-yellow-700"
                 >
                   Browse all products
                 </Link>
                 {categoryHref && (
-                  <Link
+                  <Link prefetch={false}
                     href={categoryHref}
                     className="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 font-medium text-gray-900 hover:border-yellow-500 hover:text-yellow-700"
                   >
@@ -859,7 +859,7 @@ export default function ProductDetailClient({
                   </Link>
                 )}
                 {product.brand && (
-                  <Link
+                  <Link prefetch={false}
                     href={categoryHref || '/products'}
                     className="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 font-medium text-gray-900 hover:border-yellow-500 hover:text-yellow-700"
                   >
@@ -879,10 +879,8 @@ export default function ProductDetailClient({
                   <div key={relatedProduct.id} className="bg-white rounded-lg shadow p-4">
                     <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-md bg-gray-200">
                       <Image
-                        src={getProductImageUrl(
-                          (relatedProduct.image_urls && relatedProduct.image_urls.length > 0) ? relatedProduct.image_urls : (relatedProduct.images || []),
-                          getDefaultProductImageWithSku(relatedProduct.sku)
-                        )}
+                        src={withDefaultImageWidth(getProductImageUrl((relatedProduct.image_urls && relatedProduct.image_urls.length > 0) ? relatedProduct.image_urls : (relatedProduct.images || []), getDefaultProductImageWithSku(relatedProduct.sku, '/images/placeholder.svg', 400)), 400)}
+                        unoptimized={isDefaultProductImageUrl(getProductImageUrl((relatedProduct.image_urls && relatedProduct.image_urls.length > 0) ? relatedProduct.image_urls : (relatedProduct.images || []), getDefaultProductImageWithSku(relatedProduct.sku)))}
                         alt={relatedProduct.name}
                         width={200}
                         height={200}
@@ -890,7 +888,7 @@ export default function ProductDetailClient({
                       />
                     </div>
                     <div className="mt-2">
-                      <Link
+                      <Link prefetch={false}
                         href={`/products/${toProductPathId(relatedProduct.sku)}`}
                         className="text-sm font-medium text-gray-900 hover:text-yellow-600"
                       >

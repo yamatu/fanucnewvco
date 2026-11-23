@@ -176,7 +176,7 @@ export function Header() {
                 getDefaultProductImageWithSku(p.sku)
               );
               return (
-                <Link
+                <Link prefetch={false}
                   key={p.id}
                   href={`/products/${toProductPathId(p.sku)}`}
                   onClick={handleSuggestionClick}
@@ -209,7 +209,7 @@ export function Header() {
                 </Link>
               );
             })}
-            <Link
+            <Link prefetch={false}
               href={`/products?search=${encodeURIComponent(searchQuery.trim())}`}
               onClick={handleSuggestionClick}
               className="block text-center text-sm text-yellow-600 hover:text-yellow-700 font-medium py-2"
@@ -254,7 +254,7 @@ export function Header() {
         <div className="flex justify-between items-center py-4">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-3">
+            <Link prefetch={false} href="/" className="flex items-center space-x-3">
               <div className="bg-yellow-500 text-black px-4 py-2 rounded-lg font-bold text-xl">
                 Vcocnc
               </div>
@@ -274,7 +274,7 @@ export function Header() {
                 );
               }
               return (
-                <Link
+                <Link prefetch={false}
                   key={item.name}
                   href={item.href}
                   className="text-gray-700 hover:text-yellow-600 font-medium transition-colors duration-200"
@@ -347,28 +347,28 @@ export function Header() {
 
                 {userMenuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
-                    <Link
+                    <Link prefetch={false}
                       href="/account"
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
                       My Account
                     </Link>
-                    <Link
+                    <Link prefetch={false}
                       href="/account/orders"
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
                       My Orders
                     </Link>
-                    <Link
+                    <Link prefetch={false}
                       href="/account/tickets"
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
                       Support Tickets
                     </Link>
-                    <Link
+                    <Link prefetch={false}
                       href="/track-order"
                       onClick={() => setUserMenuOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -387,19 +387,19 @@ export function Header() {
               </div>
             ) : (
               <div className="hidden md:flex items-center space-x-2">
-                <Link
+                <Link prefetch={false}
                   href="/login"
                   className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-yellow-600 transition-colors"
                 >
                   Login
                 </Link>
-                <Link
+                <Link prefetch={false}
                   href="/register"
                   className="px-3 py-2 text-sm font-medium text-white bg-yellow-500 rounded-md hover:bg-yellow-600 transition-colors"
                 >
                   Register
                 </Link>
-                <Link
+                <Link prefetch={false}
                   href="/track-order"
                   className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
                 >
@@ -433,7 +433,7 @@ export function Header() {
                 return <MobileCategoriesMenu key={item.name} onNavigate={() => setMobileMenuOpen(false)} />;
               }
               return (
-                <Link
+                <Link prefetch={false}
                   key={item.name}
                   href={item.href}
                   className="block text-gray-700 hover:text-yellow-600 font-medium py-2"
@@ -466,7 +466,7 @@ export function Header() {
 
             {/* Mobile Track Order */}
             <div className="pt-4 border-t border-gray-200">
-              <Link
+              <Link prefetch={false}
                 href="/track-order"
                 className="block w-full text-center px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                 onClick={() => setMobileMenuOpen(false)}
@@ -551,7 +551,7 @@ function CategoriesDropdown() {
       onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false); }}
       onKeyDown={(event) => { if (event.key === 'Escape') { setMenuOpen(false); event.stopPropagation(); } }}
     >
-      <Link
+      <Link prefetch={false}
         href="/categories"
         aria-expanded={menuOpen}
         aria-controls="desktop-category-menu"
@@ -706,7 +706,7 @@ function MobileCategoryTree({
               <span className="w-5" />
             )}
 
-            <Link
+            <Link prefetch={false}
               href={`/categories/${cat.path || cat.slug}`}
               className="block text-sm text-gray-700 hover:text-yellow-600 py-0.5"
               onClick={onNavigate}

@@ -234,7 +234,7 @@ export default function CategorySidebarTree({
             <div className="w-5" />
           )}
 
-          <Link
+          <Link prefetch={false}
             aria-current={isActive ? 'page' : undefined}
             href={nodeHref(node)}
             scroll={false}
@@ -310,7 +310,7 @@ export default function CategorySidebarTree({
             {loadingFullTree ? 'Loading brands...' : `Show all ${effectiveTotalRoots} brands`}
           </button>
         )}
-        <Link
+        <Link prefetch={false}
           href={allCategoriesHref}
           className="block text-center text-xs font-semibold text-yellow-700 hover:text-yellow-800"
         >
