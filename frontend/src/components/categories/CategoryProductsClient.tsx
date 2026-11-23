@@ -7,7 +7,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ProductService } from '@/services/product.service';
 import { CategoryService } from '@/services/category.service';
-import type { ProductFilters as ProductServiceFilters } from '@/services/product.service';
 import { queryKeys } from '@/lib/react-query';
 import ProductFilters from '@/components/products/ProductFilters';
 import Pagination from '@/components/common/Pagination';
@@ -15,9 +14,15 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, toProductPathId } from '@/lib/utils';
 import { buildSemanticProductName } from '@/lib/product-seo';
 import { useCartStore } from '@/store/cart.store';
+import type { Category, PaginationResponse, Product } from '@/types';
+import {
+  DEFAULT_CATEGORY_PAGE_SIZE,
+  categoryFiltersFromParams,
+  sameCategoryFilters,
+  type CategoryProductFilters,
+} from '@/lib/category-listing';
 import {
   AdjustmentsHorizontalIcon,
-  XMarkIcon,
   FunnelIcon,
   Squares2X2Icon,
   ListBulletIcon,
@@ -26,27 +31,16 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 
-type CategoryProductFilters = Required<Pick<ProductServiceFilters, 'page' | 'page_size' | 'category_id' | 'include_descendants' | 'sort_by' | 'sort_dir' | 'search' | 'is_active'>> & {
-  min_price: string;
-  max_price: string;
-};
-
-function normalizeSortBy(value: string | null): CategoryProductFilters['sort_by'] {
-  return value === 'name' || value === 'price' || value === 'updated_at' ? value : 'created_at';
-}
-
-function normalizeSortDirection(value: string | null): CategoryProductFilters['sort_dir'] {
-  return value === 'asc' ? 'asc' : 'desc';
-}
-
 interface CategoryProductsClientProps {
-  category: any;
+  category: Category;
   initialSearchParams: { [key: string]: string | string[] | undefined };
+  initialPage?: PaginationResponse<Product>;
 }
 
 export default function CategoryProductsClient({
   category,
-  initialSearchParams
+  initialSearchParams,
+  initialPage,
 }: CategoryProductsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -55,47 +49,30 @@ export default function CategoryProductsClient({
   // Filter states
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filters, setFilters] = useState<CategoryProductFilters>({
-    page: 1,
-    page_size: 12,
-    category_id: String(category.id),
-    include_descendants: 'true',
-    sort_by: 'created_at',
-    sort_dir: 'desc',
-    min_price: '',
-    max_price: '',
-    search: '',
-    is_active: 'true'
-  });
+  const [serverFilters] = useState<CategoryProductFilters>(() =>
+    categoryFiltersFromParams(category.id, initialSearchParams)
+  );
+  const [filters, setFilters] = useState<CategoryProductFilters>(serverFilters);
 
-  // Initialize filters from URL params
+  // Sync filters when URL query changes on the client
   useEffect(() => {
-    const urlFilters = {
-      page: parseInt(searchParams.get('page') || '1'),
-      page_size: parseInt(searchParams.get('page_size') || '12'),
-      category_id: String(category.id),
-      include_descendants: 'true',
-      sort_by: normalizeSortBy(searchParams.get('sort_by')),
-      sort_dir: normalizeSortDirection(searchParams.get('sort_dir')),
-      min_price: searchParams.get('min_price') || '',
-      max_price: searchParams.get('max_price') || '',
-      search: searchParams.get('search') || '',
-      is_active: 'true'
-    };
-    setFilters(urlFilters);
+    setFilters(categoryFiltersFromParams(category.id, searchParams));
   }, [searchParams, category.id]);
 
-  // Fetch products
+  // The server renders the first page so crawlers see real product links; later
+  // filter/sort/page changes fetch on the client.
   const { data: productsResponse, isLoading, error } = useQuery({
     queryKey: queryKeys.products.list(filters),
     queryFn: () => ProductService.getProducts(filters),
+    initialData: initialPage && sameCategoryFilters(filters, serverFilters) ? initialPage : undefined,
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch all categories for filters
+  // Fetch all categories for filters only when the filter panel is opened
   const { data: categoriesResponse } = useQuery({
     queryKey: queryKeys.categories.all(),
     queryFn: () => CategoryService.getCategories(),
+    enabled: showFilters,
   });
 
   const products = productsResponse?.data || [];
@@ -107,21 +84,29 @@ export default function CategoryProductsClient({
   } : null;
   const categories = categoriesResponse || [];
 
-  // Update URL when filters change
-  const updateURL = (newFilters: typeof filters) => {
+  const buildCategoryUrl = (targetFilters: CategoryProductFilters): string => {
     const params = new URLSearchParams();
 
-    Object.entries(newFilters).forEach(([key, value]) => {
+    Object.entries(targetFilters).forEach(([key, value]) => {
       if (value && value !== '' && key !== 'category_id' && key !== 'is_active' && key !== 'include_descendants') {
-        if (key === 'page' && value === 1) return;
+        if (key === 'page' && Number(value) <= 1) return;
+        if (key === 'page_size' && Number(value) === DEFAULT_CATEGORY_PAGE_SIZE) return;
+        if (key === 'sort_by' && value === 'created_at' && targetFilters.sort_dir === 'desc') return;
+        if (key === 'sort_dir' && value === 'desc' && targetFilters.sort_by === 'created_at') return;
         params.set(key, value.toString());
       }
     });
 
     const base = `/categories/${category.path || category.slug}`;
-    const newURL = `${base}${params.toString() ? `?${params.toString()}` : ''}`;
-    router.push(newURL, { scroll: false });
+    return `${base}${params.toString() ? `?${params.toString()}` : ''}`;
   };
+
+  // Update URL when filters change
+  const updateURL = (newFilters: typeof filters) => {
+    router.push(buildCategoryUrl(newFilters), { scroll: false });
+  };
+
+  const getPageHref = (page: number) => buildCategoryUrl({ ...filters, page });
 
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
     const updatedFilters = {
@@ -164,7 +149,7 @@ export default function CategoryProductsClient({
   const clearFilters = () => {
     const clearedFilters: CategoryProductFilters = {
       page: 1,
-      page_size: 12,
+      page_size: DEFAULT_CATEGORY_PAGE_SIZE,
       category_id: String(category.id),
       include_descendants: 'true',
       sort_by: 'created_at',
@@ -179,7 +164,7 @@ export default function CategoryProductsClient({
     router.push(base, { scroll: false });
   };
 
-  const handleAddToCart = (product: any) => {
+  const handleAddToCart = (product: Product) => {
     addItem(product, 1);
   };
 
@@ -207,7 +192,11 @@ export default function CategoryProductsClient({
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">
                 {pagination ? (
-                  <>Showing {((pagination.page - 1) * pagination.page_size) + 1}-{Math.min(pagination.page * pagination.page_size, pagination.total)} of {pagination.total} products</>
+                  pagination.total > 0 ? (
+                    <>Showing {((pagination.page - 1) * pagination.page_size) + 1}-{Math.min(pagination.page * pagination.page_size, pagination.total)} of {pagination.total} products</>
+                  ) : (
+                    <>0 products</>
+                  )
                 ) : (
                   <>Loading...</>
                 )}
@@ -272,7 +261,7 @@ export default function CategoryProductsClient({
                   Clear all filters
                 </button>
               )}
-              {pagination && (
+              {pagination && pagination.total_pages > 0 && (
                 <div className="text-sm text-gray-500">
                   Page {pagination.page} of {pagination.total_pages}
                 </div>
@@ -303,7 +292,7 @@ export default function CategoryProductsClient({
         <>
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {products.map((product: any) => (
+              {products.map((product: Product) => (
                 <div key={product.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
                   <div className="relative">
                     <Link href={`/products/${toProductPathId(product.sku)}`} className="block aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-t-lg bg-gray-200">
@@ -364,7 +353,7 @@ export default function CategoryProductsClient({
             </div>
           ) : (
             <div className="space-y-4 mb-8">
-              {products.map((product: any) => (
+              {products.map((product: Product) => (
                 <div key={product.id} className="bg-white rounded-lg shadow p-6">
                   <div className="flex items-center space-x-6">
                     <Link href={`/products/${toProductPathId(product.sku)}`} className="flex-shrink-0">
@@ -431,6 +420,7 @@ export default function CategoryProductsClient({
                 currentPage={pagination.page}
                 totalPages={pagination.total_pages}
                 onPageChange={handlePageChange}
+                getPageHref={getPageHref}
                 showJump
               />
             </div>

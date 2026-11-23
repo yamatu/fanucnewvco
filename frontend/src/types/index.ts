@@ -410,6 +410,7 @@ export interface CategoryNavigationNode {
   image_url?: string;
   sort_order?: number;
   product_count?: number;
+  child_count?: number;
   children?: CategoryNavigationNode[];
 }
 

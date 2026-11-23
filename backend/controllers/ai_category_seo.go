@@ -49,9 +49,9 @@ type aiCategorySEOResponse struct {
 	Results     []aiCategorySEOResult `json:"results"`
 }
 
-const aiCategorySEOPrompt = `You write the SEO description for one industrial automation parts catalogue category. Return JSON only, without Markdown, exactly with one field: description.
+const aiCategorySEOPrompt = `You write the SEO and GEO landing-page description for Vcocnc (vcocncspare.com), a specialist in CNC machine-tool repair, motion-control replacement, and rapid downtime recovery. Return JSON only, without Markdown, with exactly one field: description.
 
-description is 2-3 plain-text sentences (about 150-320 characters) for the category landing page. Lead with the brand and equipment type, mention what a buyer finds there (current, legacy and obsolete models, testing, warranty context typical of an industrial parts supplier), and weave in the example models naturally. No quotes, no HTML, no keyword stuffing, no promises about price or stock, and never invent certifications or specifications.`
+description is 2-3 crisp plain-text sentences (180-340 characters). Lead with the brand and equipment type from a hands-on maintenance and direct-swap perspective, weave in 2-3 example models naturally, and note practical compatibility checks (exact part suffix, revision, or voltage/interface match) plus bench inspection before dispatch. Never use robotic phrases like "testing and warranty context typical of an industrial parts supplier", never invent specs or certifications, and avoid HTML or quotes.`
 
 // aiCategorySEONeedsDescription reports whether an existing description is a
 // placeholder worth replacing: empty, too short, or the auto-generated

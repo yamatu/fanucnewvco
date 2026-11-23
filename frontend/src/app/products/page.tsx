@@ -3,7 +3,8 @@ import { permanentRedirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { ProductService } from '@/services/product.service';
 import { CategoryService } from '@/services/category.service';
-import type { Category, Product } from '@/types';
+import type { Category, CategoryNavigationNode, Product } from '@/types';
+import { buildCompactSidebarTree, toSlimListingProduct } from '@/lib/category-listing';
 import { getSiteUrl } from '@/lib/url';
 import { toProductPathId } from '@/lib/utils';
 import ProductsPageClient from './ProductsPageClient';
@@ -16,7 +17,8 @@ type ProductsPageServerData = {
   products: Product[];
   totalPages: number;
   total: number;
-  categories: Category[];
+  categories: CategoryNavigationNode[];
+  totalCategoryRoots: number;
   currentPage: number;
   selectedCategory: string;
   searchQuery: string;
@@ -158,20 +160,7 @@ export async function generateMetadata({ searchParams }: {
   };
 }
 
-// The sidebar tree only renders names and nesting. The raw tree carries
-// descriptions, images and translations per node, which would otherwise be
-// serialized into every listing page.
-function toFilterTreeNode(category: Category): Category {
-  return {
-    id: category.id,
-    name: category.name,
-    slug: category.slug,
-    path: category.path,
-    parent_id: category.parent_id,
-    product_count: category.product_count,
-    children: category.children?.map(toFilterTreeNode),
-  } as Category;
-}
+// Compact sidebar tree & slim product helpers live in @/lib/category-listing.
 
 // Server-side data fetching for SEO
 async function getServerSideData(searchParams: PageSearchParams): Promise<ProductsPageServerData> {
@@ -193,11 +182,19 @@ async function getServerSideData(searchParams: PageSearchParams): Promise<Produc
       CategoryService.getCategories(),
     ]);
 
+    const parsedCategoryId = categoryId ? Number.parseInt(categoryId, 10) : null;
+    const { tree: compactCategories, totalRootCount } = buildCompactSidebarTree(
+      categories || [],
+      Number.isFinite(parsedCategoryId) ? parsedCategoryId : null,
+      { topRootLimit: 24 },
+    );
+
     return {
-      products: productsData.data || [],
+      products: (productsData.data || []).map(toSlimListingProduct),
       totalPages: Math.ceil((productsData.total || 0) / 12),
       total: productsData.total || 0,
-      categories: (categories || []).map(toFilterTreeNode),
+      categories: compactCategories,
+      totalCategoryRoots: totalRootCount,
       currentPage: page,
       selectedCategory: categoryId || '',
       searchQuery: search || '',
@@ -210,6 +207,7 @@ async function getServerSideData(searchParams: PageSearchParams): Promise<Produc
       totalPages: 1,
       total: 0,
       categories: [],
+      totalCategoryRoots: 0,
       currentPage: 1,
       selectedCategory: '',
       searchQuery: '',

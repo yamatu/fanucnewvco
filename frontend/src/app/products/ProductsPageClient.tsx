@@ -26,6 +26,7 @@ interface ProductsPageClientProps {
     totalPages: number;
     total: number;
     categories: any[];
+    totalCategoryRoots?: number;
     currentPage: number;
     selectedCategory: string;
     searchQuery: string;
@@ -136,9 +137,8 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
     // The useEffect above will handle the URL update
   };
 
-  // Handle pagination with URL update
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+  // Build crawlable href for pagination links
+  const getPageHref = (page: number) => {
     const params = new URLSearchParams();
     if (searchQuery) params.set('search', searchQuery);
     if (selectedCategory) {
@@ -146,8 +146,14 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
       params.set('include_descendants', 'true');
     }
     if (page > 1) params.set('page', page.toString());
+    const qs = params.toString();
+    return `/products${qs ? `?${qs}` : ''}`;
+  };
 
-    router.push(`/products?${params.toString()}`, { scroll: false });
+  // Handle pagination with URL update
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    router.push(getPageHref(page), { scroll: false });
   };
 
 
@@ -216,6 +222,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                   tree={initialData.categories as any}
                   selectedCategoryId={selectedCategory ? Number(selectedCategory) : null}
                   onSelectCategory={(id) => handleCategoryChange(id ? String(id) : '')}
+                  totalRootCount={initialData.totalCategoryRoots}
                   storageKey="products-category-open-ids"
                   allLabel="All Products"
                 />
@@ -459,6 +466,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={handlePageChange}
+                    getPageHref={getPageHref}
                   />
                 </div>
               )}

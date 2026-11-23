@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server'
 import { getRequestBaseUrl } from '@/lib/request-url'
 import { CategoryService } from '@/services/category.service'
+import { isCategoryIndexable } from '@/lib/category-listing'
+import type { Category } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 3600 // 1 hour
 
 export async function GET() {
   const baseUrl = await getRequestBaseUrl()
-  
-  let categories: any[] = []
+
+  let categories: Category[] = []
   try {
     categories = await CategoryService.getCategories()
   } catch (error) {
@@ -16,8 +18,8 @@ export async function GET() {
     return new NextResponse('Error generating sitemap', { status: 500 })
   }
 
-  const flat: any[] = []
-  const walk = (nodes: any[]) => {
+  const flat: Category[] = []
+  const walk = (nodes: Category[]) => {
     for (const n of nodes) {
       flat.push(n)
       if (Array.isArray(n.children) && n.children.length > 0) walk(n.children)
@@ -26,12 +28,12 @@ export async function GET() {
   walk(categories)
 
   const categoryPages = flat
-    .filter((c) => c && (c.path || c.slug))
+    .filter((c) => c && (c.path || c.slug) && isCategoryIndexable(c, Number(c.product_count || 0)))
     .map((category) => ({
       url: `${baseUrl}/categories/${category.path || category.slug}`,
       lastModified: category.updated_at ? new Date(category.updated_at).toISOString() : new Date().toISOString(),
       changeFrequency: 'weekly',
-      priority: '0.8',
+      priority: category.parent_id ? '0.7' : '0.8',
     }))
 
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
@@ -51,4 +53,3 @@ ${categoryPages.map(page => `  <url>
     },
   })
 }
-

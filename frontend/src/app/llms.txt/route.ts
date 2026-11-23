@@ -2,27 +2,13 @@ import { getRequestBaseUrl } from '@/lib/request-url';
 import { CategoryService } from '@/services/category.service';
 import { HOME_DESCRIPTION } from '@/lib/seo';
 import { DEFAULT_LEAD_TIME, DEFAULT_WARRANTY_PERIOD, IN_STOCK_HANDLING_TEXT, SALES_EMAIL } from '@/lib/product-content';
+import { isInternalCategory } from '@/lib/category-listing';
+import type { Category } from '@/types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
 
 const MAX_CATEGORY_LINES = 200;
-
-interface CategoryNode {
-  name?: string;
-  path?: string;
-  slug?: string;
-  children?: CategoryNode[];
-}
-
-function flattenCategories(nodes: CategoryNode[], out: CategoryNode[] = []): CategoryNode[] {
-  for (const node of nodes || []) {
-    if (!node) continue;
-    out.push(node);
-    if (Array.isArray(node.children) && node.children.length > 0) flattenCategories(node.children, out);
-  }
-  return out;
-}
 
 /**
  * /llms.txt: a compact plain-text map of the site for AI answer engines. It
@@ -35,11 +21,22 @@ export async function GET() {
 
   let categoryLines: string[] = [];
   try {
-    const categories = (await CategoryService.getCategories()) as unknown as CategoryNode[];
-    categoryLines = flattenCategories(categories || [])
-      .filter((category) => Boolean(category.name && (category.path || category.slug)))
+    const categories: Category[] = await CategoryService.getCategories();
+    // Root categories are brands; rank by active product count so major brands
+    // (Siemens, FANUC, Schneider, Mitsubishi, ABB, etc.) appear first.
+    categoryLines = (categories || [])
+      .filter(
+        (category) =>
+          Boolean(category?.name && (category.path || category.slug)) &&
+          !isInternalCategory(category) &&
+          Number(category.product_count || 0) > 0,
+      )
+      .sort((a, b) => Number(b.product_count || 0) - Number(a.product_count || 0))
       .slice(0, MAX_CATEGORY_LINES)
-      .map((category) => `- ${category.name}: ${baseUrl}/categories/${category.path || category.slug}`);
+      .map((category) => {
+        const count = category.product_count ? ` (${category.product_count} products)` : '';
+        return `- ${category.name}${count}: ${baseUrl}/categories/${category.path || category.slug}`;
+      });
   } catch {
     categoryLines = [];
   }
