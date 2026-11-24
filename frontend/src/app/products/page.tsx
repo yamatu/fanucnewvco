@@ -120,7 +120,7 @@ export async function generateMetadata({ searchParams }: {
   const isNonCanonical = hasNonCanonicalProductsParams(params);
 
   let title = 'CNC & Industrial Automation Spare Parts | Vcocnc';
-  let description = 'Browse 100,000+ CNC and industrial automation spare parts from FANUC, Siemens, Mitsubishi, Schneider, ABB, SICK and 20+ brands. 12-month warranty and worldwide shipping since 2005.';
+  let description = 'Browse 150,000+ CNC drive, servo motor, power supply and industrial automation spare parts from FANUC, Mitsubishi, Yaskawa, Siemens, ABB and 20+ brands. 12-month warranty and worldwide shipping since 2005.';
   const baseUrl = getSiteUrl();
 
   if (categoryParam && !hasSearch) {

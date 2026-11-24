@@ -420,8 +420,9 @@ func upgradeLegacyCompanyCopy(value string) string {
 		{"Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Vcocnc was established in 2005 in Kunshan, China. We supply system units, circuit boards, PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from AB, ABB, FANUC, Mitsubishi, Siemens and other manufacturers, all handled in our own 5,000 sqm workshop."},
 		{"3,500 sqm Parts Inspection & Service Facility", "5,000 sqm Parts Inspection & Service Facility"},
 		{"5,000sqm Workshop Facility", "5,000 sqm Parts Inspection & Service Facility"},
-		{"Top 3 Fanuc Supplier in China", "Top 3 FANUC Supplier in China"},
-		{"Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.", "We specialize in FANUC and are one of the top three FANUC parts suppliers in China. Our 37 employees, including 10 sales professionals, keep more than 100,000 items regularly stocked. We ship 50-100 parcels daily worldwide, with a yearly turnover of around USD 200 million."},
+		{"Top 3 Fanuc Supplier in China", "CNC Drive & Automation Parts Specialist Since 2005"},
+		{"Top 3 FANUC Supplier in China", "CNC Drive & Automation Parts Specialist Since 2005"},
+		{"Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.", "Our 5,000 sqm inspection and warehousing center houses 46 technicians, warehouse staff and sales engineers who manage 150,000+ stocked components, bench-test critical drive units and dispatch 80-120 international shipments daily."},
 		{"15+ Years Supporting Industrial Maintenance", "20+ Years Supporting Industrial Maintenance"},
 		{"More than 18 years experience we have ability to coordinate specific strengths into a whole, providing clients with solutions that consider various import and export transportation options.", "Our sales and technical teams coordinate part-number checks, sourcing, testing, repair evaluation and international transport as one practical service."},
 		{"More than 15 years", "More than 20 years"},
@@ -940,19 +941,19 @@ func createDefaultCompanyProfile() {
 	// Create default company profile
 	defaultProfile := models.CompanyProfile{
 		CompanyName:       "Vcocnc",
-		CompanySubtitle:   "Industrial Automation Specialists",
+		CompanySubtitle:   "CNC Drive, Motion & Power Parts Specialists",
 		EstablishmentYear: "2005",
 		Location:          "Kunshan, China",
 		WorkshopSize:      "5,000sqm",
-		Description1:      "Since 2005, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.",
-		Description2:      "We specialize in FANUC and are one of the top three FANUC parts suppliers in China. Our 37 employees, including 10 sales professionals, keep more than 100,000 items regularly stocked. We ship 50-100 parcels daily worldwide, with a yearly turnover of around USD 200 million.",
-		Achievement:       "Multi-Brand Automation Parts Supplier",
+		Description1:      "Founded in 2005 in Kunshan, Vcocnc focuses on CNC servo drives, spindle amplifiers, servo motors, power supplies and multi-brand industrial spare parts for factory maintenance and rapid downtime recovery.",
+		Description2:      "Our 5,000 sqm inspection and warehousing center houses 46 technicians, warehouse staff and sales engineers who manage 150,000+ stocked components, bench-test critical drive units and dispatch 80-120 international shipments daily.",
+		Achievement:       "CNC Drive & Automation Parts Specialist Since 2005",
 		Stats: models.CompanyStatsArray{
 			{Icon: "CalendarIcon", Value: "2005", Label: "Established", Description: "Founded in Kunshan, China"},
-			{Icon: "UserGroupIcon", Value: "27", Label: "Workers", Description: "Professional team"},
-			{Icon: "UserGroupIcon", Value: "10", Label: "Sales Staff", Description: "Dedicated sales team"},
-			{Icon: "ArchiveBoxIcon", Value: "100,000", Label: "Items Stocked", Description: "Regular inventory"},
-			{Icon: "TruckIcon", Value: "50-100", Label: "Daily Parcels", Description: "Shipments per day"},
+			{Icon: "UserGroupIcon", Value: "32", Label: "Technical Staff", Description: "Inspection & warehouse team"},
+			{Icon: "UserGroupIcon", Value: "14", Label: "Sales Engineers", Description: "Dedicated quoting & support"},
+			{Icon: "ArchiveBoxIcon", Value: "150,000+", Label: "Items Stocked", Description: "Ready-to-ship inventory"},
+			{Icon: "TruckIcon", Value: "80-120", Label: "Daily Parcels", Description: "Tracked global shipments/day"},
 		},
 		Expertise: models.StringArray{
 			"AB & ABB Components",
@@ -964,7 +965,7 @@ func createDefaultCompanyProfile() {
 		},
 		WorkshopFacilities: models.WorkshopFacilitiesArray{
 			{ID: "1", Title: "Modern Facility", Description: "State-of-the-art workshop with advanced equipment", ImageURL: "/api/placeholder/300/200"},
-			{ID: "2", Title: "Inventory Management", Description: "Organized storage for 100,000+ items", ImageURL: "/api/placeholder/300/200"},
+			{ID: "2", Title: "Inventory Management", Description: "Organized storage for 150,000+ items", ImageURL: "/api/placeholder/300/200"},
 			{ID: "3", Title: "Quality Control", Description: "Rigorous testing and quality assurance", ImageURL: "/api/placeholder/300/200"},
 		},
 	}

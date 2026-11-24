@@ -322,6 +322,210 @@ func merchantEscapeXML(s string) string {
 	return buf.String()
 }
 
+
+const (
+	merchantSitePartition = "vcocnc"
+	merchantFeedVersion   = "v2-b1"
+)
+
+// classifyMerchantFeedSite deterministically assigns every eligible product to
+// exactly one storefront ("vcocnc" or "vibocnc") so the two Google Merchant
+// Center feeds maintain strictly 0 SKU overlap now and as new photographed
+// products are added across brands (Strategy B1).
+func classifyMerchantFeedSite(brand, catSlug, productType, name, sku string) string {
+	b := strings.ToLower(strings.TrimSpace(brand))
+	slug := strings.ToLower(strings.TrimSpace(catSlug))
+	pt := strings.ToLower(strings.TrimSpace(productType))
+	nm := strings.ToLower(strings.TrimSpace(name))
+	upSKU := strings.ToUpper(strings.TrimSpace(sku))
+
+	// 1. FANUC: strict subsystem split between Drive/Motor/Power (vcocnc)
+	// and PCB/Control Board/I/O/HMI/System (vibocnc).
+	if b == "fanuc" || strings.HasPrefix(slug, "fanuc") || strings.HasPrefix(pt, "fanuc") {
+		catContext := slug + " " + pt
+		for _, kw := range []string{
+			"pcb", "control-board", "control board", "i-o-module", "i/o",
+			"display", "monitor", "operator-panel", "operator panel", "mdi",
+			"plc-module", "plc module", "memory", "backplane", "keyboard",
+			"keypad", "communication", "usb-interface", "software", "manual",
+		} {
+			if strings.Contains(catContext, kw) {
+				return "vibocnc"
+			}
+		}
+		for _, kw := range []string{
+			"servo-amplifier", "servo amplifier",
+			"spindle-amplifier", "spindle amplifier",
+			"servo-motor", "servo motor",
+			"spindle-motor", "spindle motor",
+			"power-supply", "power supply",
+			"encoder", "reactor", "transformer", "brake", "fan-unit", "cooling",
+		} {
+			if strings.Contains(catContext, kw) {
+				return "vcocnc"
+			}
+		}
+		if strings.HasPrefix(upSKU, "A06B-") || strings.HasPrefix(upSKU, "A14B-") || strings.HasPrefix(upSKU, "A76L-") {
+			return "vcocnc"
+		}
+		if strings.Contains(nm, "servo amplifier") || strings.Contains(nm, "spindle amplifier") ||
+			strings.Contains(nm, "servo motor") || strings.Contains(nm, "spindle motor") ||
+			strings.Contains(nm, "power supply") {
+			return "vcocnc"
+		}
+		return "vibocnc"
+	}
+
+	// 2. Non-FANUC brand-level partition (immune to cross-DB category_id diffs).
+	brandKey := b
+	if brandKey == "" || brandKey == "industrial automation" {
+		if idx := strings.Index(pt, ">"); idx > 0 {
+			brandKey = strings.ToLower(strings.TrimSpace(pt[:idx]))
+		} else {
+			brandKey = pt
+		}
+	}
+
+	switch brandKey {
+	case "ab", "ge", "apc", "ifm", "tdk":
+		return "vibocnc"
+	case "weg", "invt", "teco":
+		return "vcocnc"
+	}
+	if strings.HasPrefix(brandKey, "apc ") || strings.HasPrefix(brandKey, "ifm ") || strings.HasPrefix(brandKey, "tdk ") {
+		return "vibocnc"
+	}
+	if strings.HasPrefix(brandKey, "weg ") || strings.HasPrefix(brandKey, "invt ") || strings.HasPrefix(brandKey, "teco ") {
+		return "vcocnc"
+	}
+
+	// Automation / PLC / Sensor / Control brands -> vibocnc
+	for _, vb := range []string{
+		"siemens", "abb", "schneider", "sick",
+		"allen-bradley", "rockwell", "omron", "keyence", "festo",
+		"honeywell", "general electric", "balluff", "phoenix contact",
+		"turck", "pepperl", "eaton", "cutler-hammer", "beckhoff", "b&r",
+		"pilz", "emerson", "foxboro", "yokogawa", "endress", "leuze",
+		"pro-face", "weintek", "weidm", "wika", "idec", "red lion",
+		"azbil", "carel", "fluke", "amprobe", "hakko", "hitech",
+		"patlite", "qlight", "schaffner", "molex", "amphenol",
+		"hirose", "westermo", "m-system",
+	} {
+		if strings.Contains(brandKey, vb) {
+			return "vibocnc"
+		}
+	}
+
+	// CNC Drive / Motion / Motor brands -> vcocnc
+	for _, cb := range []string{
+		"mitsubishi", "yaskawa", "okuma", "heidenhain", "kollmorgen",
+		"sanyo denki", "tamagawa", "lenze", "control techniques", "bosch rexroth",
+		"rexroth", "oriental motor", "fuji electric", "delta", "danfoss",
+		"vacon", "toshiba", "hitachi", "ls mecapion",
+		"berger lahr", "sanken", "apex dynamics", "moons",
+		"ebm-papst", "fandis", "parker hannifin", "vickers", "tolomatic",
+		"nemicon", "raytools",
+	} {
+		if strings.Contains(brandKey, cb) {
+			return "vcocnc"
+		}
+	}
+
+	if strings.Contains(brandKey, "motor") || strings.Contains(brandKey, "drive") || strings.Contains(brandKey, "servo") {
+		return "vcocnc"
+	}
+	return "vibocnc"
+}
+
+func merchantLeafCategory(productType, brand string) string {
+	leaf := strings.TrimSpace(productType)
+	if idx := strings.LastIndex(leaf, ">"); idx >= 0 {
+		leaf = strings.TrimSpace(leaf[idx+1:])
+	}
+	b := strings.TrimSpace(brand)
+	if b != "" && len(leaf) > len(b)+1 && strings.EqualFold(leaf[:len(b)], b) && leaf[len(b)] == ' ' {
+		leaf = strings.TrimSpace(leaf[len(b)+1:])
+	}
+	if leaf == "" {
+		return "Industrial Spare Part"
+	}
+	return leaf
+}
+
+func merchantConditionLabel(cond string) string {
+	switch strings.ToLower(strings.TrimSpace(cond)) {
+	case "refurbished":
+		return "Refurbished"
+	case "used":
+		return "Used"
+	default:
+		return "New"
+	}
+}
+
+func stripBrandAndSKUFromName(rawName, brand, sku string) string {
+	s := merchantStripText(rawName)
+	if brand != "" {
+		reB := regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(brand) + `\b`)
+		s = reB.ReplaceAllString(s, " ")
+	}
+	if sku != "" {
+		reS := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(sku))
+		s = reS.ReplaceAllString(s, " ")
+	}
+	s = merchantMultiSpaceRe.ReplaceAllString(s, " ")
+	s = strings.Trim(s, " -–—|:/,.")
+	return strings.TrimSpace(s)
+}
+
+func buildVcocncFeedRoleAndSuffix(leafCat string) (string, string) {
+	lc := strings.ToLower(strings.TrimSpace(leafCat))
+	switch {
+	case strings.Contains(lc, "servo amplifier"):
+		return "Servo Amplifier Drive", "CNC Drive Replacement"
+	case strings.Contains(lc, "spindle amplifier"):
+		return "Spindle Amplifier Drive", "CNC Drive Replacement"
+	case strings.Contains(lc, "servo motor"):
+		return "Servo Motor", "CNC Motion Replacement"
+	case strings.Contains(lc, "spindle motor"):
+		return "Spindle Motor", "CNC Motion Replacement"
+	case strings.Contains(lc, "power supply"):
+		return "Power Supply Unit", "CNC Power Replacement"
+	case strings.Contains(lc, "encoder"):
+		return "Encoder Feedback Unit", "CNC Motion Replacement"
+	default:
+		return leafCat, "CNC Drive & Power Replacement"
+	}
+}
+
+func buildVcocncMerchantCopy(brand, sku, mpn, rawName, leafCat, condition, warranty string, weightKg float64, timing merchantPolicyTiming) (string, string) {
+	role, suffix := buildVcocncFeedRoleAndSuffix(leafCat)
+	condLabel := merchantConditionLabel(condition)
+	title := fmt.Sprintf("%s %s %s - %s", brand, sku, role, suffix)
+	if condLabel != "New" {
+		title += " (" + condLabel + ")"
+	}
+	if !strings.Contains(strings.ToLower(title), strings.ToLower(sku)) {
+		title = sku + " " + title
+	}
+	title = merchantTrimLen(title, 150)
+
+	if warranty == "" {
+		warranty = "12 months"
+	}
+	desc := fmt.Sprintf(
+		"%s %s %s for CNC machine-tool drive repair, axis restoration, and industrial power replacement. "+
+			"Part Number (MPN): %s. Subsystem: %s. Condition: %s. Shipping Weight: %.2f kg. "+
+			"Supplied by Vcocnc (Kunshan, established 2005) — functionally bench-inspected before anti-static export packaging, "+
+			"dispatched within %d-%d business days via DHL/FedEx/UPS (%d-%d business days international transit), "+
+			"and covered by a %s warranty with a %d-day return policy.",
+		brand, sku, role, mpn, leafCat, condLabel, weightKg,
+		timing.HandlingMin, timing.HandlingMax, timing.TransitMin, timing.TransitMax,
+		warranty, timing.ReturnDays,
+	)
+	return title, merchantTrimLen(desc, 4800)
+}
+
 type merchantFeedProductRow struct {
 	ID               uint     `gorm:"column:id"`
 	SKU              string   `gorm:"column:sku"`
@@ -376,7 +580,7 @@ func (mc *MerchantFeedController) GetMerchantFeedXML(c *gin.Context) {
 		}
 	}
 
-	cacheSig := fmt.Sprintf("%s|%s|%d", baseURL, strings.Join(targetCountries, ","), limit)
+	cacheSig := fmt.Sprintf("%s|%s|%s|%s|%d", merchantSitePartition, merchantFeedVersion, baseURL, strings.Join(targetCountries, ","), limit)
 	h := sha256.Sum256([]byte(cacheSig))
 	redisKey := merchantFeedCachePrefix + hex.EncodeToString(h[:])
 	if rdb := config.GetRedis(); rdb != nil {
@@ -385,6 +589,7 @@ func (mc *MerchantFeedController) GetMerchantFeedXML(c *gin.Context) {
 		cancel()
 		if err == nil && len(raw) > 0 {
 			c.Header("X-Cache", "HIT")
+			c.Header("X-Merchant-Site-Partition", merchantSitePartition)
 			c.Header("Cache-Control", "public, max-age=1800, s-maxage=1800")
 			c.Data(http.StatusOK, "application/xml; charset=utf-8", raw)
 			return
@@ -426,11 +631,12 @@ func (mc *MerchantFeedController) GetMerchantFeedXML(c *gin.Context) {
 
 	type catRow struct {
 		ID       uint   `gorm:"column:id"`
+		Slug     string `gorm:"column:slug"`
 		Name     string `gorm:"column:name"`
 		ParentID *uint  `gorm:"column:parent_id"`
 	}
 	var catRows []catRow
-	_ = db.Table("categories").Select("id, name, parent_id").Scan(&catRows).Error
+	_ = db.Table("categories").Select("id, slug, name, parent_id").Scan(&catRows).Error
 	catMap := make(map[uint]catRow, len(catRows))
 	for _, cr := range catRows {
 		catMap[cr.ID] = cr
@@ -509,14 +715,29 @@ func (mc *MerchantFeedController) GetMerchantFeedXML(c *gin.Context) {
 	out.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
 	out.WriteString(`<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">` + "\n")
 	out.WriteString("  <channel>\n")
-	out.WriteString("    <title>" + merchantEscapeXML("Vcocnc Industrial Automation Parts Catalog") + "</title>\n")
+	out.WriteString("    <title>" + merchantEscapeXML("Vcocnc CNC Drive, Motor & Power Replacement Parts") + "</title>\n")
 	out.WriteString("    <link>" + merchantEscapeXML(baseURL) + "</link>\n")
-	out.WriteString("    <description>" + merchantEscapeXML("Genuine CNC and industrial automation replacement parts supplied by Vcocnc with worldwide express shipping.") + "</description>\n")
+	out.WriteString("    <description>" + merchantEscapeXML("Bench-tested CNC servo amplifiers, spindle drives, servo motors and power supply replacement parts from Vcocnc (Kunshan, established 2005) with 12-month warranty and express global dispatch.") + "</description>\n")
 
 	itemCount := 0
+	skippedOtherPartition := 0
 	for i, r := range rows {
 		sku := strings.TrimSpace(r.SKU)
 		if sku == "" {
+			continue
+		}
+
+		brand := strings.TrimSpace(r.Brand)
+		if brand == "" {
+			brand = "Industrial Automation"
+		}
+		catSlug := ""
+		if cr, ok := catMap[r.CategoryID]; ok {
+			catSlug = strings.TrimSpace(cr.Slug)
+		}
+		rawTrail := buildCategoryTrail(r.CategoryID)
+		if classifyMerchantFeedSite(brand, catSlug, rawTrail, r.Name, sku) != merchantSitePartition {
+			skippedOtherPartition++
 			continue
 		}
 
@@ -533,39 +754,10 @@ func (mc *MerchantFeedController) GetMerchantFeedXML(c *gin.Context) {
 			continue
 		}
 
-		brand := strings.TrimSpace(r.Brand)
-		if brand == "" {
-			brand = "Industrial Automation"
-		}
 		mpn := strings.TrimSpace(r.PartNumber)
 		if mpn == "" {
 			mpn = sku
 		}
-
-		title := merchantStripText(r.Name)
-		if title == "" {
-			title = strings.TrimSpace(brand + " " + sku)
-		}
-		if !strings.Contains(strings.ToLower(title), strings.ToLower(sku)) {
-			title = sku + " " + title
-		}
-		title = merchantTrimLen(title, 150)
-
-		desc := merchantStripText(r.MetaDescription)
-		if len(desc) < 40 {
-			desc = merchantStripText(r.ShortDescription)
-		}
-		if len(desc) < 40 {
-			desc = merchantStripText(r.Description)
-		}
-		if len(desc) < 25 {
-			warranty := strings.TrimSpace(r.WarrantyPeriod)
-			if warranty == "" {
-				warranty = "12 months"
-			}
-			desc = fmt.Sprintf("%s %s industrial automation spare part. Tested prior to shipment and backed by a %s warranty with worldwide express shipping.", brand, sku, warranty)
-		}
-		desc = merchantTrimLen(desc, 4800)
 
 		availability := "backorder"
 		if r.StockQuantity > 0 {
@@ -583,7 +775,9 @@ func (mc *MerchantFeedController) GetMerchantFeedXML(c *gin.Context) {
 		}
 
 		link := baseURL + services.BuildProductPublicPath(sku)
-		productType := buildCategoryTrail(r.CategoryID)
+		leafCat := merchantLeafCategory(rawTrail, brand)
+		title, desc := buildVcocncMerchantCopy(brand, sku, mpn, r.Name, leafCat, condition, strings.TrimSpace(r.WarrantyPeriod), weightKg, timing)
+		productType := fmt.Sprintf("CNC Drive & Power Parts > %s > %s", brand, leafCat)
 
 		out.WriteString("    <item>\n")
 		out.WriteString("      <g:id>" + merchantEscapeXML(sku) + "</g:id>\n")
@@ -602,6 +796,8 @@ func (mc *MerchantFeedController) GetMerchantFeedXML(c *gin.Context) {
 		out.WriteString("      <g:condition>" + condition + "</g:condition>\n")
 		out.WriteString("      <g:google_product_category>Business &amp; Industrial</g:google_product_category>\n")
 		out.WriteString("      <g:product_type>" + merchantEscapeXML(productType) + "</g:product_type>\n")
+		out.WriteString("      <g:custom_label_0>cnc-drive-power</g:custom_label_0>\n")
+		out.WriteString("      <g:custom_label_1>vcocnc-replacement</g:custom_label_1>\n")
 		out.WriteString(fmt.Sprintf("      <g:shipping_weight>%.2f kg</g:shipping_weight>\n", weightKg))
 		out.WriteString(fmt.Sprintf("      <g:min_handling_time>%d</g:min_handling_time>\n", timing.HandlingMin))
 		out.WriteString(fmt.Sprintf("      <g:max_handling_time>%d</g:max_handling_time>\n", timing.HandlingMax))
@@ -635,7 +831,9 @@ func (mc *MerchantFeedController) GetMerchantFeedXML(c *gin.Context) {
 	}
 
 	c.Header("X-Cache", "MISS")
+	c.Header("X-Merchant-Site-Partition", merchantSitePartition)
 	c.Header("X-Merchant-Items", strconv.Itoa(itemCount))
+	c.Header("X-Merchant-Skipped-Other-Partition", strconv.Itoa(skippedOtherPartition))
 	c.Header("Cache-Control", "public, max-age=1800, s-maxage=1800")
 	c.Data(http.StatusOK, "application/xml; charset=utf-8", payload)
 }

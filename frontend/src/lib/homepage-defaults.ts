@@ -24,7 +24,7 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
       title: 'Vcocnc - One-Stop CNC Solution Supplier',
       subtitle: 'Your Trusted Partner Since 2005',
       description:
-        'Since 2005, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
+        'Founded in 2005 in Kunshan, Vcocnc supplies bench-tested CNC servo drives, spindle amplifiers, motors, power supplies and multi-brand replacement components for urgent production recovery.',
       image: 'https://s2.loli.net/2025/08/26/Vo4JfbtW5H2GMEN.png',
       cta: {
         primary: { text: 'Browse Products', href: '/products' },
@@ -33,10 +33,10 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
     },
     {
       id: 2,
-      title: '5,000 sqm Workshop Facility',
-      subtitle: 'Top 3 FANUC Supplier in China',
+      title: '5,000 sqm Inspection & Drive Center',
+      subtitle: 'CNC Drive & Power Replacement Specialist',
       description:
-        'We specialize in FANUC and are one of the top three FANUC parts suppliers in China. Our 37 employees, including 10 sales professionals, keep more than 100,000 items regularly stocked, and we ship 50-100 parcels daily worldwide.',
+        'Our 46 specialists—including 32 technical and warehouse staff and 14 sales engineers—manage 150,000+ stocked parts and dispatch 80-120 tracked international shipments daily.',
       image: 'https://s2.loli.net/2025/08/26/17MRNhXEcrKTdDY.png',
       cta: {
         primary: { text: 'View Facility', href: '/about' },
@@ -104,46 +104,46 @@ export const DEFAULT_COMPANY_STATS_DATA: CompanyStatsData = {
     {
       id: 3,
       icon: 'users',
-      value: 37,
+      value: 46,
       suffix: '',
-      label: 'Total Employees',
-      description: 'Including 27 workers and 10 sales professionals',
+      label: 'Team Specialists',
+      description: '32 technical & warehouse staff and 14 sales engineers',
       color: 'text-yellow-600',
     },
     {
       id: 4,
       icon: 'shield',
-      value: 3,
-      suffix: '',
-      label: 'Top FANUC Supplier',
-      description: 'One of top 3 suppliers in China',
+      value: 12,
+      suffix: ' mo',
+      label: 'Warranty Coverage',
+      description: 'Standard 12-month warranty on tested replacement parts',
       color: 'text-yellow-600',
     },
     {
       id: 5,
       icon: 'cog',
-      value: 100000,
+      value: 150000,
       suffix: '+',
       label: 'Items in Stock',
-      description: '100,000+ items regularly stocked',
+      description: '150,000+ industrial & CNC spare parts stocked',
       color: 'text-yellow-600',
     },
     {
       id: 6,
       icon: 'truck',
-      value: 100,
+      value: 120,
       suffix: '',
       label: 'Daily Parcels',
-      description: 'We ship 50-100 parcels daily worldwide',
+      description: '80-120 tracked parcels dispatched daily worldwide',
       color: 'text-yellow-600',
     },
     {
       id: 7,
       icon: 'globe',
-      value: 200,
-      suffix: 'M',
-      label: 'Yearly Turnover',
-      description: 'Around USD 200 million per year',
+      value: 80,
+      suffix: '+',
+      label: 'Countries Served',
+      description: 'Express DHL, FedEx & UPS delivery across 80+ countries',
       color: 'text-yellow-600',
     },
     {
@@ -260,13 +260,13 @@ export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
     { icon: 'cog', title: 'Advanced Manufacturing', description: 'Precision manufacturing with cutting-edge technology' },
     { icon: 'clipboard', title: 'Quality Assurance', description: 'Rigorous testing and certification processes' },
     { icon: 'truck', title: 'Global Logistics', description: 'Worldwide shipping and distribution network' },
-    { icon: 'check', title: 'ISO Certified', description: 'International quality management standards' },
+    { icon: 'check', title: 'Documented Inspection', description: 'Bench-tested incoming and pre-shipment quality control' },
   ],
   statsBlock: {
     items: [
       { value: '5,000', title: 'Square Meters', subtitle: 'Modern facility space' },
-      { value: '24/7', title: 'Operations', subtitle: 'Continuous production' },
-      { value: 'ISO', title: 'Certified', subtitle: 'Quality standards' },
+      { value: '1-2d', title: 'Fast Dispatch', subtitle: 'In-stock handling time' },
+      { value: '12 mo', title: 'Warranty', subtitle: 'Tested spare parts' },
     ],
     ctaTitle: 'Experience Our World-Class Facility',
     ctaDescription:
@@ -332,8 +332,8 @@ export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
       icon: 'phone',
       title: 'Technical Support',
       description:
-        '24/7 technical assistance from certified FANUC specialists for troubleshooting and guidance.',
-      features: ['24/7 availability', 'Certified specialists', 'Remote diagnostics', 'Quick response'],
+        'Responsive technical assistance from experienced CNC specialists for part verification and drive replacement guidance.',
+      features: ['Responsive support', 'Experienced specialists', 'Part-number verification', 'Quick response'],
       color: 'bg-purple-500',
       href: '/contact',
     },
@@ -353,7 +353,7 @@ export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
       title: 'Quality Assurance',
       description:
         'Rigorous testing and quality control processes ensuring all parts meet FANUC specifications.',
-      features: ['ISO certified', 'Comprehensive testing', 'Quality documentation', 'Compliance verification'],
+      features: ['Documented inspection', 'Functional bench testing', 'Quality records', 'Pre-shipment checks'],
       color: 'bg-red-500',
       href: '/contact',
     },
@@ -402,7 +402,7 @@ export const DEFAULT_SERVICES_SECTION_DATA: ServicesSectionData = {
     'Contact our experts today to discuss your FANUC automation needs and discover how we can help optimize your industrial processes.',
   ctaPrimary: { text: 'Contact Us Today', href: '/contact' },
   ctaSecondary: { text: 'Browse Products', href: '/products' },
-  ctaBadges: ['24/7 Support Available', 'Worldwide Service', 'Quality Guaranteed'],
+  ctaBadges: ['Responsive Technical Support', 'Worldwide Express Dispatch', 'Bench-Tested Quality'],
 };
 
 export type FeaturedProductsSectionData = {

@@ -195,16 +195,16 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
                 <div className="bg-yellow-700 bg-opacity-50 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-black">100K+</div>
+                  <div className="text-2xl font-bold text-black">150K+</div>
                   <div className="text-yellow-900">Items in Stock</div>
                 </div>
                 <div className="bg-yellow-700 bg-opacity-50 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-black">50-100</div>
+                  <div className="text-2xl font-bold text-black">80-120</div>
                   <div className="text-yellow-900">Daily Parcels</div>
                 </div>
                 <div className="bg-yellow-700 bg-opacity-50 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-black">Top 3</div>
-                  <div className="text-yellow-900">FANUC Supplier in China</div>
+                  <div className="text-2xl font-bold text-black">12-Month</div>
+                  <div className="text-yellow-900">Warranty Coverage</div>
                 </div>
               </div>
             </div>

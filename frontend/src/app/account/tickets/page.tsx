@@ -145,16 +145,15 @@ export default function ContactPage() {
                 <h3 className="text-sm font-medium text-blue-800">About Vcocnc</h3>
                 <div className="mt-2 text-sm text-blue-700">
                   <p>
-                    Established in 2005, we are one of the top three FANUC suppliers in China.
-                    We specialize in automation components including system units, circuit boards,
-                    PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from
-                    manufacturers like AB, ABB, FANUC, Mitsubishi, and Siemens.
+                    Established in 2005 in Kunshan, Vcocnc supplies bench-tested CNC servo drives,
+                    spindle amplifiers, servo motors, power supplies and multi-brand industrial
+                    automation spare parts from FANUC, Mitsubishi, Yaskawa, Siemens and ABB.
                   </p>
                   <ul className="list-disc pl-5 mt-3 space-y-1">
-                    <li>37 employees, including 10 sales professionals</li>
-                    <li>100,000+ items regularly stocked</li>
-                    <li>50-100 parcels shipped daily worldwide</li>
-                    <li>Yearly turnover of around USD 200 million</li>
+                    <li>46 specialists, including 32 technical &amp; warehouse staff and 14 sales engineers</li>
+                    <li>150,000+ industrial spare parts regularly stocked in our 5,000 sqm facility</li>
+                    <li>80-120 tracked parcels dispatched daily worldwide</li>
+                    <li>12-month warranty and 30-day return policy</li>
                   </ul>
                 </div>
               </div>

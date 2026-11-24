@@ -3,7 +3,7 @@ import { getSiteUrl } from '@/lib/url';
 
 export const HOME_TITLE = 'Vcocnc – CNC & Industrial Automation Spare Parts Supplier';
 export const HOME_DESCRIPTION =
-  'Vcocnc supplies FANUC, Siemens, Mitsubishi, Schneider, ABB, SICK and 20+ brands of CNC and industrial automation spare parts, with 100,000+ stocked items, 12-month warranty and worldwide shipping since 2005.';
+  'Vcocnc supplies bench-tested CNC servo drives, spindle amplifiers, motors, power supplies and multi-brand automation spare parts from FANUC, Mitsubishi, Yaskawa, Siemens, ABB and 20+ brands—150,000+ stocked items, 12-month warranty and global dispatch since 2005.';
 export const DEFAULT_OG_IMAGE = {
   url: '/images/og-image.jpg',
   width: 1200,

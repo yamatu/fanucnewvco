@@ -7,8 +7,8 @@ export interface FaqEntry {
 
 export const SITE_FAQ_ENTRIES: FaqEntry[] = [
   {
-    question: 'What FANUC parts do you stock?',
-    answer: 'We stock over 100,000 FANUC parts including PCB boards, I/O modules, servo motors, control units, power supplies, and other automation components. All parts are genuine FANUC or compatible alternatives clearly marked for your convenience.',
+    question: 'What CNC and automation parts do you stock?',
+    answer: 'We stock over 150,000 CNC and industrial automation replacement parts—including FANUC, Mitsubishi, Yaskawa, Siemens and ABB servo amplifiers, spindle drives, servo motors, power supplies, encoders, PCB boards and I/O modules. Condition and compatibility are clearly verified before dispatch.',
   },
   {
     question: 'Do you ship worldwide?',

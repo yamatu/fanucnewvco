@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
     };
     const itemCount = upstream.headers.get('x-merchant-items');
     if (itemCount) headers['X-Merchant-Items'] = itemCount;
+    const partition = upstream.headers.get('x-merchant-site-partition');
+    if (partition) headers['X-Merchant-Site-Partition'] = partition;
     return new NextResponse(xml, { status: 200, headers });
   } catch (error) {
     console.error('Error proxying merchant feed:', error);

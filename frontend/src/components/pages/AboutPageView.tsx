@@ -36,7 +36,7 @@ export default function AboutPageView({ data }: { data: PageData }) {
     "@context": "https://schema.org",
     "@type": "AboutPage",
     "name": text('heroTitle'),
-    "description": "Learn about Vcocnc, a top 3 FANUC parts supplier in China since 2005.",
+    "description": "Learn about Vcocnc, a Kunshan CNC drive, motor and industrial automation spare parts specialist established in 2005.",
     "url": `${baseUrl}/about`,
     "mainEntity": {
       "@type": "Organization",
@@ -48,9 +48,9 @@ export default function AboutPageView({ data }: { data: PageData }) {
       },
       "numberOfEmployees": {
         "@type": "QuantitativeValue",
-        "value": 37
+        "value": 46
       },
-      "description": "One of the top three FANUC suppliers in China with 100,000+ items regularly stocked, serving customers worldwide with industrial automation components.",
+      "description": "Kunshan-based CNC drive, motor, power supply and industrial automation replacement parts supplier with a 5,000 sqm facility and 150,000+ stocked components since 2005.",
       "knowsAbout": [
         "FANUC CNC parts",
         "Industrial automation",
@@ -63,7 +63,7 @@ export default function AboutPageView({ data }: { data: PageData }) {
         "Encoders",
         "Amplifiers"
       ],
-      "slogan": "Your Trusted FANUC Parts Partner Since 2005"
+      "slogan": "CNC Drive, Motor & Industrial Replacement Parts Specialist Since 2005"
     }
   };
 
