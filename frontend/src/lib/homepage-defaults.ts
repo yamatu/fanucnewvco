@@ -22,9 +22,9 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
     {
       id: 1,
       title: 'Vcocnc - One-Stop CNC Solution Supplier',
-      subtitle: 'Your Trusted Partner Since 2007',
+      subtitle: 'Your Trusted Partner Since 2005',
       description:
-        'Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
+        'Since 2005, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.',
       image: 'https://s2.loli.net/2025/08/26/Vo4JfbtW5H2GMEN.png',
       cta: {
         primary: { text: 'Browse Products', href: '/products' },
@@ -33,7 +33,7 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
     },
     {
       id: 2,
-      title: '3,500 sqm Workshop Facility',
+      title: '5,000 sqm Workshop Facility',
       subtitle: 'Top 3 FANUC Supplier in China',
       description:
         'We specialize in FANUC and are one of the top three FANUC parts suppliers in China. Our 37 employees, including 10 sales professionals, keep more than 100,000 items regularly stocked, and we ship 50-100 parcels daily worldwide.',
@@ -45,10 +45,10 @@ export const DEFAULT_HERO_DATA: HeroSectionData = {
     },
     {
       id: 3,
-      title: '15+ Years Professional Service',
+      title: '20+ Years Professional Service',
       subtitle: 'Sales, Testing & Maintenance',
       description:
-        'With more than 15 years of experience, our sales and technical teams coordinate part-number checks, sourcing, testing, repair evaluation and international shipping as one service.',
+        'With more than 20 years of experience, our sales and technical teams coordinate part-number checks, sourcing, testing, repair evaluation and international shipping as one service.',
       image: 'https://s2.loli.net/2025/08/26/17MRNhXEcrKTdDY.png',
       cta: {
         primary: { text: 'Get Support', href: '/contact' },
@@ -81,21 +81,21 @@ export type CompanyStatsData = {
 export const DEFAULT_COMPANY_STATS_DATA: CompanyStatsData = {
   headerTitle: 'Vcocnc - One-Stop CNC Solution Supplier',
   headerDescription:
-    'We supply system units, circuit boards, PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from AB, ABB, FANUC, Mitsubishi, Siemens and other manufacturers, all handled in our own 3,500 sqm workshop.',
+    'We supply system units, circuit boards, PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from AB, ABB, FANUC, Mitsubishi, Siemens and other manufacturers, all handled in our own 5,000 sqm workshop.',
   stats: [
     {
       id: 1,
       icon: 'calendar',
-      value: 15,
+      value: 20,
       suffix: '+',
       label: 'Years Experience',
-      description: 'Established in 2007 in Kunshan, China',
+      description: 'Established in 2005 in Kunshan, China',
       color: 'text-yellow-600',
     },
     {
       id: 2,
       icon: 'building',
-      value: 3500,
+      value: 5000,
       suffix: 'sqm',
       label: 'Workshop Facility',
       description: 'Modern infrastructure for quality service',
@@ -195,7 +195,7 @@ export type WorkshopSectionData = {
 };
 
 export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
-  headerTitle: '3,500 sqm Modern Workshop Facility',
+  headerTitle: '5,000 sqm Modern Workshop Facility',
   headerDescription:
     'Our state-of-the-art facility combines advanced technology with expert craftsmanship to deliver exceptional FANUC parts and services.',
   facilities: [
@@ -264,7 +264,7 @@ export const DEFAULT_WORKSHOP_SECTION_DATA: WorkshopSectionData = {
   ],
   statsBlock: {
     items: [
-      { value: '3,500', title: 'Square Meters', subtitle: 'Modern facility space' },
+      { value: '5,000', title: 'Square Meters', subtitle: 'Modern facility space' },
       { value: '24/7', title: 'Operations', subtitle: 'Continuous production' },
       { value: 'ISO', title: 'Certified', subtitle: 'Quality standards' },
     ],

@@ -32,7 +32,7 @@ export function generateOrganizationSchema(sameAs: string[] = []) {
         "height": 630
       }
     ],
-    "foundingDate": "2007",
+    "foundingDate": "2005",
     "numberOfEmployees": {
       "@type": "QuantitativeValue",
       "value": 37
@@ -63,7 +63,7 @@ export function generateOrganizationSchema(sameAs: string[] = []) {
         "areaServed": "Worldwide"
       }
     ],
-    "slogan": "Your Trusted CNC & Industrial Automation Parts Partner Since 2007",
+    "slogan": "Your Trusted CNC & Industrial Automation Parts Partner Since 2005",
     "knowsAbout": [
       "FANUC CNC parts",
       "Siemens SIMATIC and SINAMICS parts",

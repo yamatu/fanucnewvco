@@ -29,6 +29,7 @@ const (
 	redisPrefixHomepage        = "cache:public:homepage:"
 	redisPrefixNews            = "cache:public:news:"
 	redisPrefixAnalytics       = "cache:public:analytics:"
+	redisPrefixMerchantFeed    = "cache:public:merchant_feed:"
 	redisPrefixShipping        = "cache:public:shipping_countries:"
 )
 
@@ -175,6 +176,7 @@ func InvalidatePublicCaches(ctx context.Context, reason string, extraURLs []stri
 			redisPrefixNews,
 			redisPrefixAnalytics,
 			redisPrefixShipping,
+			redisPrefixMerchantFeed,
 		); err != nil {
 			log.Printf("cache invalidation: redis clear failed (%s): %v", reason, err)
 		}

@@ -189,7 +189,7 @@ export default function ProductsPageClient({ initialData, searchParams }: Produc
             <div className="text-center">
               <h1 className="text-4xl md:text-5xl font-bold mb-6">FANUC & Industrial Automation Parts</h1>
               <p className="text-xl md:text-2xl text-yellow-900 max-w-4xl mx-auto mb-8">
-                With more than 15 years of experience, our sales and technical teams coordinate
+                With more than 20 years of experience, our sales and technical teams coordinate
                 part-number checks, sourcing, testing, repair evaluation and international
                 shipping as one service.
               </p>

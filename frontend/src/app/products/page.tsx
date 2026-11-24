@@ -120,7 +120,7 @@ export async function generateMetadata({ searchParams }: {
   const isNonCanonical = hasNonCanonicalProductsParams(params);
 
   let title = 'CNC & Industrial Automation Spare Parts | Vcocnc';
-  let description = 'Browse 100,000+ CNC and industrial automation spare parts from FANUC, Siemens, Mitsubishi, Schneider, ABB, SICK and 20+ brands. 12-month warranty and worldwide shipping since 2007.';
+  let description = 'Browse 100,000+ CNC and industrial automation spare parts from FANUC, Siemens, Mitsubishi, Schneider, ABB, SICK and 20+ brands. 12-month warranty and worldwide shipping since 2005.';
   const baseUrl = getSiteUrl();
 
   if (categoryParam && !hasSearch) {
@@ -155,7 +155,7 @@ export async function generateMetadata({ searchParams }: {
 
   if (hasSearch) {
     title = `Search: ${searchQuery} - Parts | Vcocnc`;
-    description = `Search results for "${searchQuery}" in industrial automation parts and components. Professional supplier since 2007.`;
+    description = `Search results for "${searchQuery}" in industrial automation parts and components. Professional supplier since 2005.`;
   } else if (page > 1) {
     title = `CNC & Industrial Automation Parts - Page ${page} | Vcocnc`;
   }

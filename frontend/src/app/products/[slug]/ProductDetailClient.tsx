@@ -25,6 +25,7 @@ import { CategoryService } from '@/services/category.service';
 import { ShippingRateService } from '@/services/shipping-rate.service';
 import type { ShippingRatePublic, ShippingQuote } from '@/services/shipping-rate.service';
 import type { PaginationResponse, Product, ProductImage, Category } from '@/types';
+import type { MerchantShippingQuoteItem } from '@/services/shipping.server';
 import { queryKeys } from '@/lib/react-query';
 import { formatCurrency, getDefaultProductImageWithSku, getProductImageUrl, isDefaultProductImageUrl, withDefaultImageWidth, hasProductPrice, toProductPathId } from '@/lib/utils';
 import { buildQuoteProductContext, useQuoteModalStore } from '@/store/quote-modal.store';
@@ -54,6 +55,7 @@ interface ProductDetailClientProps {
   initialCategoryPath?: string | null;
   // Canonical site origin (same source as the page's canonical URL).
   siteUrl?: string;
+  merchantShippingQuotes?: MerchantShippingQuoteItem[];
 }
 
 function parseTechnicalSpecs(raw?: string): Record<string, string> | null {
@@ -107,6 +109,7 @@ export default function ProductDetailClient({
   initialRelatedProducts,
   initialCategoryPath,
   siteUrl,
+  merchantShippingQuotes = [],
 }: ProductDetailClientProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity] = useState(1);
@@ -416,6 +419,7 @@ export default function ProductDetailClient({
         category={category}
         categoryBreadcrumb={categoryBreadcrumb}
         baseUrl={siteUrl}
+        merchantShippingQuotes={merchantShippingQuotes}
       />
 
       <div className="min-h-screen bg-gray-50">
@@ -472,15 +476,27 @@ export default function ProductDetailClient({
               
               <h2 className="sr-only">Product information</h2>
               {hasProductPrice(product) && (
-                <div className="mt-3 flex items-baseline gap-3">
-                  <p className="text-3xl font-bold tracking-tight text-gray-900">
-                    {formatCurrency(product.price)}
-                  </p>
-                  {product.compare_price && product.compare_price > product.price && (
-                    <span className="text-lg text-gray-400 line-through">
-                      {formatCurrency(product.compare_price)}
+                <div className="mt-3 space-y-1.5">
+                  <div className="flex flex-wrap items-baseline gap-3">
+                    <p className="text-3xl font-bold tracking-tight text-gray-900">
+                      {formatCurrency(product.price)} <span className="text-base font-semibold text-gray-500">USD</span>
+                    </p>
+                    {product.compare_price && product.compare_price > product.price && (
+                      <span className="text-lg text-gray-400 line-through">
+                        {formatCurrency(product.compare_price)}
+                      </span>
+                    )}
+                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium capitalize text-gray-700">
+                      Condition: {product.condition_type || 'new'}
                     </span>
-                  )}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Shipping calculated at checkout ({' '}
+                    <Link prefetch={false} href="/shipping-policy" className="underline hover:text-gray-800">Shipping Policy</Link>
+                    {' · '}
+                    <Link prefetch={false} href="/returns" className="underline hover:text-gray-800">30-Day Returns</Link>
+                    {' '})
+                  </p>
                 </div>
               )}
 

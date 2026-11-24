@@ -243,7 +243,7 @@ export function Header() {
               </div>
             </div>
             <div className="hidden md:flex items-center space-x-4">
-              <span suppressHydrationWarning>Professional FANUC Parts & Services | Vcocnc Since 2007</span>
+              <span suppressHydrationWarning>Professional FANUC Parts & Services | Vcocnc Since 2005</span>
             </div>
           </div>
         </div>
@@ -260,7 +260,7 @@ export function Header() {
               </div>
               <div className="hidden sm:block">
                 <div className="text-xl font-bold text-gray-900">CNC Solutions</div>
-                <div className="text-sm text-gray-600">Since 2007</div>
+                <div className="text-sm text-gray-600">Since 2005</div>
               </div>
             </Link>
           </div>

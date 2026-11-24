@@ -101,17 +101,6 @@ export default function PayPalCheckout(props: PayPalCheckoutProps) {
   const [config, setConfig] = useState<PayPalPublicConfig | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Validate amount
-  if (!amount || amount <= 0) {
-    return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-        <div className="text-red-800 text-sm">
-          Invalid payment amount. Please refresh and try again.
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -144,6 +133,17 @@ export default function PayPalCheckout(props: PayPalCheckoutProps) {
       'disable-funding': 'credit,card',
     } as any;
   }, [config?.client_id, config?.currency, currency]);
+
+  // Validate amount after hooks so React hook order stays stable
+  if (!amount || amount <= 0) {
+    return (
+      <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+        <div className="text-red-800 text-sm">
+          Invalid payment amount. Please refresh and try again.
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

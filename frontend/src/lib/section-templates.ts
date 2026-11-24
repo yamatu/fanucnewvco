@@ -200,7 +200,7 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
       ...base,
       style: { ...DEFAULT_SECTION_STYLE, background: 'dark', columns: 4, align: 'center', spacing: 'compact' },
       items: [
-        blankItem({ value: '15+', title: 'Years of experience' }),
+        blankItem({ value: '20+', title: 'Years of experience' }),
         blankItem({ value: '50,000+', title: 'Parts in stock' }),
         blankItem({ value: '100+', title: 'Countries served' }),
         blankItem({ value: '12 mo', title: 'Warranty' }),

@@ -412,24 +412,27 @@ func createDefaultAdmin() {
 func upgradeLegacyCompanyCopy(value string) string {
 	replacements := [][2]string{
 		{"Vibocnc- One-Stop CNC Solution Supplier", "Industrial Automation Parts, CNC Spares & Repair Support"},
-		{"Your Trusted Partner Since 2005", "FANUC, Siemens, Mitsubishi, ABB and 20+ automation brands"},
-		{"Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.", "Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
-		{"Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
-		{"Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.", "Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
-		{"Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Vcocnc was established in 2007 in Kunshan, China. We supply system units, circuit boards, PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from AB, ABB, FANUC, Mitsubishi, Siemens and other manufacturers, all handled in our own 3,500 sqm workshop."},
-		{"Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Vcocnc was established in 2007 in Kunshan, China. We supply system units, circuit boards, PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from AB, ABB, FANUC, Mitsubishi, Siemens and other manufacturers, all handled in our own 3,500 sqm workshop."},
-		{"5,000sqm Workshop Facility", "3,500 sqm Parts Inspection & Service Facility"},
+		{"Your Trusted Partner Since 2007", "FANUC, Siemens, Mitsubishi, ABB and 20+ automation brands"},
+		{"Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.", "Since 2005, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
+		{"Vibocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Since 2005, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
+		{"Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers.", "Since 2005, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery."},
+		{"Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Vcocnc was established in 2005 in Kunshan, China. We supply system units, circuit boards, PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from AB, ABB, FANUC, Mitsubishi, Siemens and other manufacturers, all handled in our own 5,000 sqm workshop."},
+		{"Vcocnc established in 2005 in Kunshan, China. We are selling automation components like System unit, Circuit board, PLC, HMI, Inverter, Encoder, Amplifier, Servomotor, Servodrive etc of AB, ABB, Fanuc, Mitsubishi, Siemens and other manufacturers in our own 5,000sqm workshop.", "Vcocnc was established in 2005 in Kunshan, China. We supply system units, circuit boards, PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from AB, ABB, FANUC, Mitsubishi, Siemens and other manufacturers, all handled in our own 5,000 sqm workshop."},
+		{"3,500 sqm Parts Inspection & Service Facility", "5,000 sqm Parts Inspection & Service Facility"},
+		{"5,000sqm Workshop Facility", "5,000 sqm Parts Inspection & Service Facility"},
 		{"Top 3 Fanuc Supplier in China", "Top 3 FANUC Supplier in China"},
 		{"Especially Fanuc, We are one of the top three suppliers in China. We now have 27 workers, 10 sales and 100,000 items regularly stocked. Daily parcel around 50-100pcs, yearly turnover around 200 million.", "We specialize in FANUC and are one of the top three FANUC parts suppliers in China. Our 37 employees, including 10 sales professionals, keep more than 100,000 items regularly stocked. We ship 50-100 parcels daily worldwide, with a yearly turnover of around USD 200 million."},
-		{"20+ Years Professional Service", "15+ Years Supporting Industrial Maintenance"},
+		{"15+ Years Supporting Industrial Maintenance", "20+ Years Supporting Industrial Maintenance"},
 		{"More than 18 years experience we have ability to coordinate specific strengths into a whole, providing clients with solutions that consider various import and export transportation options.", "Our sales and technical teams coordinate part-number checks, sourcing, testing, repair evaluation and international transport as one practical service."},
-		{"More than 20 years", "More than 15 years"},
-		{"20+ Years", "15+ Years"},
-		{"20+ years", "15+ years"},
-		{"5,000sqm", "3,500sqm"},
-		{"5,000 sqm", "3,500 sqm"},
-		{"5,000 m²", "3,500 m²"},
-		{"2005", "2007"},
+		{"More than 15 years", "More than 20 years"},
+		{"15+ Years", "20+ Years"},
+		{"15+ years", "20+ years"},
+		{"3,500sqm", "5,000sqm"},
+		{"3,500 sqm", "5,000 sqm"},
+		{"3,500 m²", "5,000 m²"},
+		{"Since 2007", "Since 2005"},
+		{"since 2007", "since 2005"},
+		{"in 2007", "in 2005"},
 		{"yearly turnover around 200 million", "yearly turnover of around USD 200 million"},
 		{"Annual revenue in millions", "Around USD 200 million per year"},
 		{"ISO Certified", "Documented Inspection"},
@@ -544,11 +547,11 @@ func upgradeLegacyJSONValue(value any) (any, bool) {
 			}
 			switch {
 			case strings.Contains(context, "years experience") || strings.Contains(context, "industry experience"):
-				setStatValue(15, "15")
+				setStatValue(20, "20")
 				setSuffix("+")
-				setIfDifferent("description", "Supporting industrial maintenance teams since 2007")
+				setIfDifferent("description", "Supporting industrial maintenance teams since 2005")
 			case strings.Contains(context, "workshop") || strings.Contains(context, "facility") || strings.Contains(context, "square meters") || strings.Contains(context, "sqm"):
-				setStatValue(3500, "3,500")
+				setStatValue(5000, "5,000")
 				setSuffix(" sqm")
 			case strings.Contains(context, "brand"):
 				setStatValue(20, "20")
@@ -568,12 +571,12 @@ func upgradeLegacyCompanyProfile(profile *models.CompanyProfile) bool {
 	}
 
 	changed := false
-	if profile.EstablishmentYear == "2005" {
-		profile.EstablishmentYear = "2007"
+	if profile.EstablishmentYear == "2007" {
+		profile.EstablishmentYear = "2005"
 		changed = true
 	}
-	if profile.WorkshopSize == "5,000sqm" || profile.WorkshopSize == "5,000 sqm" {
-		profile.WorkshopSize = "3,500sqm"
+	if profile.WorkshopSize == "3,500sqm" || profile.WorkshopSize == "3,500 sqm" {
+		profile.WorkshopSize = "5,000sqm"
 		changed = true
 	}
 	for _, field := range []*string{
@@ -596,8 +599,8 @@ func upgradeLegacyCompanyProfile(profile *models.CompanyProfile) bool {
 			statsChanged = true
 			continue
 		}
-		if stat.Value == "2005" && strings.EqualFold(stat.Label, "Established") {
-			stat.Value = "2007"
+		if stat.Value == "2007" && strings.EqualFold(stat.Label, "Established") {
+			stat.Value = "2005"
 			stat.Description = "Founded in Kunshan, China"
 			statsChanged = true
 		}
@@ -938,14 +941,14 @@ func createDefaultCompanyProfile() {
 	defaultProfile := models.CompanyProfile{
 		CompanyName:       "Vcocnc",
 		CompanySubtitle:   "Industrial Automation Specialists",
-		EstablishmentYear: "2007",
+		EstablishmentYear: "2005",
 		Location:          "Kunshan, China",
-		WorkshopSize:      "3,500sqm",
-		Description1:      "Since 2007, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.",
+		WorkshopSize:      "5,000sqm",
+		Description1:      "Since 2005, Vcocnc has helped maintenance teams source current, legacy and obsolete automation parts, verify models and coordinate inspection, repair evaluation and worldwide delivery.",
 		Description2:      "We specialize in FANUC and are one of the top three FANUC parts suppliers in China. Our 37 employees, including 10 sales professionals, keep more than 100,000 items regularly stocked. We ship 50-100 parcels daily worldwide, with a yearly turnover of around USD 200 million.",
 		Achievement:       "Multi-Brand Automation Parts Supplier",
 		Stats: models.CompanyStatsArray{
-			{Icon: "CalendarIcon", Value: "2007", Label: "Established", Description: "Founded in Kunshan, China"},
+			{Icon: "CalendarIcon", Value: "2005", Label: "Established", Description: "Founded in Kunshan, China"},
 			{Icon: "UserGroupIcon", Value: "27", Label: "Workers", Description: "Professional team"},
 			{Icon: "UserGroupIcon", Value: "10", Label: "Sales Staff", Description: "Dedicated sales team"},
 			{Icon: "ArchiveBoxIcon", Value: "100,000", Label: "Items Stocked", Description: "Regular inventory"},

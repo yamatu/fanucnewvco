@@ -36,12 +36,12 @@ export default function AboutPageView({ data }: { data: PageData }) {
     "@context": "https://schema.org",
     "@type": "AboutPage",
     "name": text('heroTitle'),
-    "description": "Learn about Vcocnc, a top 3 FANUC parts supplier in China since 2007.",
+    "description": "Learn about Vcocnc, a top 3 FANUC parts supplier in China since 2005.",
     "url": `${baseUrl}/about`,
     "mainEntity": {
       "@type": "Organization",
       "name": "Vcocnc",
-      "foundingDate": "2007",
+      "foundingDate": "2005",
       "foundingLocation": {
         "@type": "Place",
         "name": "Kunshan, Jiangsu, China"
@@ -63,7 +63,7 @@ export default function AboutPageView({ data }: { data: PageData }) {
         "Encoders",
         "Amplifiers"
       ],
-      "slogan": "Your Trusted FANUC Parts Partner Since 2007"
+      "slogan": "Your Trusted FANUC Parts Partner Since 2005"
     }
   };
 

@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { ProductService } from '@/services/product.service';
 import { CategoryService } from '@/services/category.service';
 import { getProductBySkuCached, searchFirstProduct } from '@/services/product.server';
+import { getMerchantShippingQuotesCached } from '@/services/shipping.server';
 import { getSiteUrl } from '@/lib/url';
 import { hasProductPrice, toProductPathId } from '@/lib/utils';
 import { cleanTitleArtifacts, stripModelNoteArtifacts } from '@/lib/product-seo';
@@ -193,7 +194,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       product.category?.name ? `${product.category.name} for CNC and industrial automation systems.` : 'Industrial automation component.',
       // Generated template text is not rendered, so only operator-written guidance counts.
       customCompatibilityInfo(product) ? 'Compatibility guidance available on the product page.' : '',
-      `Source from Vcocnc, professional ${supplierLabel} since 2007.`,
+      `Source from Vcocnc, professional ${supplierLabel} since 2005.`,
     ].filter(Boolean).join(' ');
     const enhancedDescription = trimMetaDescription(`${baseDescription} ${availabilityText} ${supportingText}`, 160);
 
@@ -280,7 +281,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   // page; drop it from the serialized payload too.
   const pageProduct = withoutGeneratedContent(initialProduct);
 
-  const context = await loadProductPageContext(initialProduct);
+  const [context, merchantShippingQuotes] = await Promise.all([
+    loadProductPageContext(initialProduct),
+    hasProductPrice(initialProduct) ? getMerchantShippingQuotesCached(initialProduct.weight) : Promise.resolve([]),
+  ]);
 
   return (
     <>
@@ -293,6 +297,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           initialCategoryBreadcrumb={context.breadcrumb}
           initialRelatedProducts={context.related}
           initialCategoryPath={context.categoryPath}
+          merchantShippingQuotes={merchantShippingQuotes}
         />
       </ReactQueryProvider>
     </>

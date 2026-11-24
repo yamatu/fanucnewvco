@@ -140,14 +140,14 @@ func (s *CompanyProfileService) InitializeDefaultProfile() error {
 	defaultProfile := &models.CompanyProfile{
 		CompanyName:       "Vcocnc",
 		CompanySubtitle:   "Industrial Automation Specialists",
-		EstablishmentYear: "2007",
+		EstablishmentYear: "2005",
 		Location:          "Kunshan, China",
-		WorkshopSize:      "3,500sqm",
-		Description1:      "Vcocnc was established in 2007 in Kunshan, China. We supply system units, circuit boards, PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from AB, ABB, FANUC, Mitsubishi, Siemens and other manufacturers, all handled in our own 3,500 sqm workshop.",
+		WorkshopSize:      "5,000sqm",
+		Description1:      "Vcocnc was established in 2005 in Kunshan, China. We supply system units, circuit boards, PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from AB, ABB, FANUC, Mitsubishi, Siemens and other manufacturers, all handled in our own 5,000 sqm workshop.",
 		Description2:      "We specialize in FANUC and are one of the top three FANUC parts suppliers in China. Our 37 employees, including 10 sales professionals, keep more than 100,000 items regularly stocked. We ship 50-100 parcels daily worldwide, with a yearly turnover of around USD 200 million.",
 		Achievement:       "Top 3 FANUC Supplier in China",
 		Stats: models.CompanyStatsArray{
-			{Icon: "CalendarIcon", Value: "2007", Label: "Established", Description: "Founded in Kunshan, China"},
+			{Icon: "CalendarIcon", Value: "2005", Label: "Established", Description: "Founded in Kunshan, China"},
 			{Icon: "UserGroupIcon", Value: "27", Label: "Workers", Description: "Professional team"},
 			{Icon: "UserGroupIcon", Value: "10", Label: "Sales Staff", Description: "Dedicated sales team"},
 			{Icon: "ArchiveBoxIcon", Value: "100,000", Label: "Items Stocked", Description: "Regular inventory"},

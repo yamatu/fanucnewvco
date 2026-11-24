@@ -39,7 +39,7 @@ export default function ContactPage() {
       icon: MapPinIcon,
       label: 'Address',
       value: 'Kunshan, Jiangsu Province, China',
-      description: '3,500 sqm workshop facility',
+      description: '5,000 sqm workshop facility',
     },
     {
       icon: GlobeAltIcon,
@@ -145,7 +145,7 @@ export default function ContactPage() {
                 <h3 className="text-sm font-medium text-blue-800">About Vcocnc</h3>
                 <div className="mt-2 text-sm text-blue-700">
                   <p>
-                    Established in 2007, we are one of the top three FANUC suppliers in China.
+                    Established in 2005, we are one of the top three FANUC suppliers in China.
                     We specialize in automation components including system units, circuit boards,
                     PLCs, HMIs, inverters, encoders, amplifiers, servo motors and servo drives from
                     manufacturers like AB, ABB, FANUC, Mitsubishi, and Siemens.

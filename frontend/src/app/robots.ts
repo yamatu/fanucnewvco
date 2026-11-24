@@ -17,7 +17,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
     // conflicting user-agent blocks in the generated robots.txt.
     rules: {
       userAgent: '*',
-      allow: '/',
+      allow: ['/', '/api/v1/public/'],
       disallow: privatePaths,
     },
     host: site,

@@ -1,6 +1,7 @@
 'use client';
 
 import { Product, Category } from '@/types';
+import type { MerchantShippingQuoteItem } from '@/services/shipping.server';
 import { toProductPathId } from '@/lib/utils';
 import { stripModelNoteArtifacts } from '@/lib/product-seo';
 import { buildProductFaqs } from '@/lib/product-content';
@@ -23,6 +24,7 @@ interface ProductSEOProps {
   category?: Category;
   categoryBreadcrumb?: Category[];
   baseUrl?: string;
+  merchantShippingQuotes?: MerchantShippingQuoteItem[];
 }
 
 function mapConditionType(condition?: string): string {
@@ -105,7 +107,7 @@ function buildAnswerFirstSummary(product: Product, category?: Category): string 
   return `${brandLabel} ${product.sku} is a ${categoryName.toLowerCase()} used for CNC repair, replacement, and industrial automation maintenance. ${stockText} ${warrantyText}`;
 }
 
-export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'https://www.vcocncspare.com' }: ProductSEOProps) {
+export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'https://www.vcocncspare.com', merchantShippingQuotes = [] }: ProductSEOProps) {
   const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
   const productUrl = `${normalizedBaseUrl}/products/${toProductPathId(product.sku)}`;
   const productId = `${productUrl}#product`;
@@ -219,14 +221,46 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
         "name": "Vcocnc",
         "url": normalizedBaseUrl
       },
+      "priceValidUntil": "2027-12-31",
+      ...(merchantShippingQuotes.length > 0 ? {
+        "shippingDetails": merchantShippingQuotes.map((q) => ({
+          "@type": "OfferShippingDetails",
+          "shippingRate": {
+            "@type": "MonetaryAmount",
+            "value": Number(q.shipping_fee || 0).toFixed(2),
+            "currency": q.currency || "USD"
+          },
+          "shippingDestination": {
+            "@type": "DefinedRegion",
+            "addressCountry": q.country_code
+          },
+          "deliveryTime": {
+            "@type": "ShippingDeliveryTime",
+            "handlingTime": {
+              "@type": "QuantitativeValue",
+              "minValue": q.handling_days_min || 1,
+              "maxValue": q.handling_days_max || 2,
+              "unitCode": "DAY"
+            },
+            "transitTime": {
+              "@type": "QuantitativeValue",
+              "minValue": q.transit_days_min || 4,
+              "maxValue": q.transit_days_max || 5,
+              "unitCode": "DAY"
+            }
+          }
+        }))
+      } : {}),
       "hasMerchantReturnPolicy": {
         "@type": "MerchantReturnPolicy",
-        "applicableCountry": "US",
+        "applicableCountry": merchantShippingQuotes.length > 0
+          ? merchantShippingQuotes.map((q) => q.country_code)
+          : ["US", "CA", "GB", "DE", "FR", "AU", "JP"],
         "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
         "merchantReturnDays": 30,
         "returnMethod": "https://schema.org/ReturnByMail",
         "returnFees": "https://schema.org/ReturnShippingFees",
-        "merchantReturnLink": `${normalizedBaseUrl}/warranty-policy`
+        "merchantReturnLink": `${normalizedBaseUrl}/returns`
       }
     } : undefined
   };
