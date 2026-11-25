@@ -9,6 +9,7 @@ import { buildProductFaqs } from '@/lib/product-content';
 const DEFAULT_SITE_NAME = 'Vcocnc';
 const GENERIC_BRAND_LABEL = 'industrial automation';
 const GENERIC_MANUFACTURER_LABEL = 'industrial automation parts manufacturer';
+const DEFAULT_MERCHANT_COUNTRIES = ['US', 'CA', 'GB', 'DE', 'FR', 'AU', 'JP'];
 
 type JsonLdValue =
   | string
@@ -171,6 +172,7 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
   const description = stripModelNoteArtifacts(stripHtml(product.meta_description || product.short_description || product.description))
     || `${product.name} industrial automation spare part from ${brandLabel}.`;
   const answerFirstSummary = buildAnswerFirstSummary(product, category);
+  const validShippingQuotes = merchantShippingQuotes.filter((q) => Boolean(q?.country_code));
 
   // Build image array
   const imageSources = product.images?.map(img => typeof img === 'string' ? img : img.url) ||
@@ -255,10 +257,6 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
     "datePublished": product.created_at || undefined,
     "dateModified": product.updated_at || undefined,
     "keywords": [product.sku, product.part_number, product.brand, category?.name].filter(Boolean).join(', '),
-    "audience": {
-      "@type": "Audience",
-      "audienceType": "CNC maintenance buyers and industrial automation service teams"
-    },
     "offers": product.price > 0 ? {
       "@type": "Offer",
       "url": productUrl,
@@ -280,8 +278,8 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
         "url": normalizedBaseUrl
       },
       "priceValidUntil": "2027-12-31",
-      ...(merchantShippingQuotes.length > 0 ? {
-        "shippingDetails": merchantShippingQuotes.map((q) => ({
+      ...(validShippingQuotes.length > 0 ? {
+        "shippingDetails": validShippingQuotes.map((q) => ({
           "@type": "OfferShippingDetails",
           "shippingRate": {
             "@type": "MonetaryAmount",
@@ -311,9 +309,9 @@ export function ProductSEO({ product, category, categoryBreadcrumb, baseUrl = 'h
       } : {}),
       "hasMerchantReturnPolicy": {
         "@type": "MerchantReturnPolicy",
-        "applicableCountry": merchantShippingQuotes.length > 0
-          ? merchantShippingQuotes.map((q) => q.country_code)
-          : ["US", "CA", "GB", "DE", "FR", "AU", "JP"],
+        "applicableCountry": validShippingQuotes.length > 0
+          ? validShippingQuotes.map((q) => q.country_code)
+          : DEFAULT_MERCHANT_COUNTRIES,
         "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
         "merchantReturnDays": 30,
         "returnMethod": "https://schema.org/ReturnByMail",
