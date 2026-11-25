@@ -56,6 +56,7 @@ interface ProductDetailClientProps {
   // Canonical site origin (same source as the page's canonical URL).
   siteUrl?: string;
   merchantShippingQuotes?: MerchantShippingQuoteItem[];
+  referenceDate?: string;
 }
 
 function parseTechnicalSpecs(raw?: string): Record<string, string> | null {
@@ -110,6 +111,7 @@ export default function ProductDetailClient({
   initialCategoryPath,
   siteUrl,
   merchantShippingQuotes = [],
+  referenceDate,
 }: ProductDetailClientProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity] = useState(1);
@@ -420,6 +422,7 @@ export default function ProductDetailClient({
         categoryBreadcrumb={categoryBreadcrumb}
         baseUrl={siteUrl}
         merchantShippingQuotes={merchantShippingQuotes}
+        referenceDate={referenceDate}
       />
 
       <div className="min-h-screen bg-gray-50">
