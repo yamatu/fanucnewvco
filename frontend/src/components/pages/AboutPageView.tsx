@@ -38,33 +38,9 @@ export default function AboutPageView({ data }: { data: PageData }) {
     "name": text('heroTitle'),
     "description": "Learn about Vcocnc, a Kunshan CNC drive, motor and industrial automation spare parts specialist established in 2005.",
     "url": `${baseUrl}/about`,
-    "mainEntity": {
-      "@type": "Organization",
-      "name": "Vcocnc",
-      "foundingDate": "2005",
-      "foundingLocation": {
-        "@type": "Place",
-        "name": "Kunshan, Jiangsu, China"
-      },
-      "numberOfEmployees": {
-        "@type": "QuantitativeValue",
-        "value": 46
-      },
-      "description": "Kunshan-based CNC drive, motor, power supply and industrial automation replacement parts supplier with a 5,000 sqm facility and 150,000+ stocked components since 2005.",
-      "knowsAbout": [
-        "FANUC CNC parts",
-        "Industrial automation",
-        "Servo motors",
-        "PCB boards",
-        "I/O modules",
-        "PLC",
-        "HMI",
-        "Inverters",
-        "Encoders",
-        "Amplifiers"
-      ],
-      "slogan": "CNC Drive, Motor & Industrial Replacement Parts Specialist Since 2005"
-    }
+    // Reference the single organisation node emitted by the root layout.
+    // Restating it here created a second, anonymous Organization entity.
+    "mainEntity": { "@id": `${baseUrl}/#organization` }
   };
 
   const combinedSchema = {

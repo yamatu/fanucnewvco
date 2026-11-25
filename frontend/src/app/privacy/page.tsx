@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import Layout from '@/components/layout/Layout';
 import Link from 'next/link';
+import { getSiteContactInfo } from '@/lib/contact-info.server';
 
 export const metadata: Metadata = {
   title: { absolute: 'Privacy Policy | Vcocnc' },
@@ -17,7 +18,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function PrivacyPage() {
+// Contact details follow the Contact page record, so this page cannot
+// drift from /contact again.
+export const revalidate = 300;
+
+export default async function PrivacyPage() {
+  const contact = await getSiteContactInfo();
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 py-12">
@@ -123,8 +129,8 @@ export default function PrivacyPage() {
                   If you have any questions about this Privacy Policy or our data practices, please contact us:
                 </p>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-700"><strong>Email:</strong> janice@vcocncspare.com</p>
-                  <p className="text-gray-700"><strong>Phone:</strong> +86 13348028050</p>
+                  <p className="text-gray-700"><strong>Email:</strong> {contact.email}</p>
+                  <p className="text-gray-700"><strong>Phone:</strong> {contact.phone}</p>
                   <p className="text-gray-700"><strong>Address:</strong> Kunshan, Jiangsu Province, China</p>
                 </div>
               </section>

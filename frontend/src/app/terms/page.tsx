@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
 import Layout from '@/components/layout/Layout';
 import Link from 'next/link';
+import { BUSINESS_TIMEZONE_LABEL } from '@/lib/business-hours';
+import { getSiteContactInfo } from '@/lib/contact-info.server';
 
 export const metadata: Metadata = {
   title: { absolute: 'Terms of Service | Vcocnc' },
@@ -17,7 +19,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function TermsPage() {
+// Contact details follow the Contact page record, so this page cannot
+// drift from /contact again.
+export const revalidate = 300;
+
+export default async function TermsPage() {
+  const contact = await getSiteContactInfo();
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 py-12">
@@ -154,10 +161,10 @@ export default function TermsPage() {
                   For questions about these Terms of Service or our parts and services:
                 </p>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-700"><strong>Email:</strong> janice@vcocncspare.com</p>
-                  <p className="text-gray-700"><strong>Phone:</strong> +86 13348028050</p>
+                  <p className="text-gray-700"><strong>Email:</strong> {contact.email}</p>
+                  <p className="text-gray-700"><strong>Phone:</strong> {contact.phone}</p>
                   <p className="text-gray-700"><strong>Address:</strong> Kunshan, Jiangsu Province, China</p>
-                  <p className="text-gray-700"><strong>Business Hours:</strong> Mon-Fri: 8:00 AM - 6:00 PM (CST)</p>
+                  <p className="text-gray-700"><strong>Business Hours:</strong> {contact.hoursSummary} ({BUSINESS_TIMEZONE_LABEL})</p>
                 </div>
               </section>
             </div>

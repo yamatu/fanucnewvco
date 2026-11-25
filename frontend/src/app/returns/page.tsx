@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import PublicLayout from '@/components/layout/PublicLayout';
 import { buildStaticPageMetadata } from '@/lib/seo';
+import { BUSINESS_TIMEZONE_LABEL } from '@/lib/business-hours';
+import { getSiteContactInfo } from '@/lib/contact-info.server';
 
 export const metadata: Metadata = buildStaticPageMetadata(
   '/returns',
@@ -10,7 +12,12 @@ export const metadata: Metadata = buildStaticPageMetadata(
   'returns policy, refund policy, RMA process, CNC parts returns, automation parts refund, Vcocnc returns'
 );
 
-export default function ReturnsPage() {
+// Contact details follow the Contact page record, so this page cannot
+// drift from /contact again.
+export const revalidate = 300;
+
+export default async function ReturnsPage() {
+  const contact = await getSiteContactInfo();
   return (
     <PublicLayout>
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -70,7 +77,7 @@ export default function ReturnsPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-3">2. How to Start a Return (RMA Process)</h2>
             <ol className="list-decimal list-inside space-y-2">
               <li>
-                Email <a href="mailto:janice@vcocncspare.com" className="text-amber-700 underline">janice@vcocncspare.com</a> or call <strong>+86 13348028050</strong> within 30 days of receiving your order.
+                Email <a href={`mailto:${contact.email}`} className="text-amber-700 underline">{contact.email}</a> or call <strong>{contact.phone}</strong> within 30 days of receiving your order.
               </li>
               <li>
                 Include your <strong>Order Number</strong>, <strong>SKU / Part Number</strong>, reason for return, and photos or short video if the item is defective or damaged.
@@ -108,9 +115,9 @@ export default function ReturnsPage() {
             <ul className="space-y-1.5 text-sm">
               <li><strong>Company:</strong> Vcocnc CNC Solutions</li>
               <li><strong>Return Warehouse Location:</strong> Kunshan, Jiangsu Province, China (full street dispatch label provided upon RMA approval)</li>
-              <li><strong>Email:</strong> <a href="mailto:janice@vcocncspare.com" className="text-amber-700 underline">janice@vcocncspare.com</a></li>
-              <li><strong>Phone / WhatsApp:</strong> +86 13348028050</li>
-              <li><strong>Business Hours:</strong> Monday – Friday, 8:00 AM – 6:00 PM (GMT+8)</li>
+              <li><strong>Email:</strong> <a href={`mailto:${contact.email}`} className="text-amber-700 underline">{contact.email}</a></li>
+              <li><strong>Phone / WhatsApp:</strong> {contact.phone}</li>
+              <li><strong>Business Hours:</strong> {contact.hoursSummary} ({BUSINESS_TIMEZONE_LABEL})</li>
             </ul>
           </section>
         </div>

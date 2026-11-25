@@ -1,4 +1,5 @@
 import { PAGE_SECTION_KEYS, type EditablePage, type PageField, type PageSchema } from '@/lib/page-content';
+import { DEFAULT_BUSINESS_HOURS_TEXT } from '@/lib/business-hours';
 
 const DEFAULT_ABOUT_IMAGE = 'https://s2.loli.net/2025/09/01/G1JcoeXWNTdpIfZ.jpg';
 
@@ -108,7 +109,7 @@ export const CONTACT_PAGE_SCHEMA: PageSchema = {
         field('address', '地址', 'Address', 'Kunshan, Jiangsu Province\nChina', 'textarea'),
         field('phone', '电话', 'Phone', '+86 13348028050'),
         field('email', '邮箱', 'Email', 'janice@vcocncspare.com'),
-        field('hours', '营业时间', 'Business hours', 'Monday - Friday: 8:00 AM - 6:00 PM\nSaturday: 9:00 AM - 5:00 PM\nSunday: Closed', 'textarea'),
+        field('hours', '营业时间', 'Business hours', DEFAULT_BUSINESS_HOURS_TEXT, 'textarea'),
         field('facility', '设施', 'Facility', '5,000 sqm Workshop'),
         field('serviceArea', '服务范围', 'Service area', 'Worldwide Shipping'),
       ],

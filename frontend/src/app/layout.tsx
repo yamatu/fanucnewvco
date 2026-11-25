@@ -6,6 +6,8 @@ import DeferredToaster from "@/components/ui/DeferredToaster";
 import QuickQuoteModal from "@/components/quote/QuickQuoteModal";
 import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
 import { generateOrganizationSchema } from "@/lib/structured-data";
+import { getSiteContactInfo } from "@/lib/contact-info.server";
+import { ContactInfoProvider } from '@/components/layout/ContactInfoProvider';
 import {
   getConfiguredSocialURLs,
   type SocialLinksPublicConfig,
@@ -117,12 +119,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [socialLinks, trackingConfig] = await Promise.all([
+  const [socialLinks, trackingConfig, contactInfo] = await Promise.all([
     getSocialLinksConfig(),
     getTrackingConfig(),
+    getSiteContactInfo(),
   ]);
   const socialURLs = getConfiguredSocialURLs(socialLinks);
-  const organizationSchema = generateOrganizationSchema(socialURLs);
+  const organizationSchema = generateOrganizationSchema(socialURLs, contactInfo);
 
   return (
     <html lang="en" className="scroll-smooth">
@@ -143,9 +146,11 @@ export default async function RootLayout({
       </head>
       <body className={`${inter.className} antialiased`}>
         <SocialLinksProvider initialConfig={socialLinks}>
-          {children}
-          <QuickQuoteModal />
-          <DeferredToaster />
+          <ContactInfoProvider value={contactInfo}>
+            {children}
+            <QuickQuoteModal />
+            <DeferredToaster />
+          </ContactInfoProvider>
         </SocialLinksProvider>
       </body>
     </html>

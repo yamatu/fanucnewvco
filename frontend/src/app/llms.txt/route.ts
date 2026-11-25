@@ -1,8 +1,10 @@
 import { getRequestBaseUrl } from '@/lib/request-url';
 import { CategoryService } from '@/services/category.service';
 import { HOME_DESCRIPTION } from '@/lib/seo';
-import { DEFAULT_LEAD_TIME, DEFAULT_WARRANTY_PERIOD, IN_STOCK_HANDLING_TEXT, SALES_EMAIL } from '@/lib/product-content';
+import { DEFAULT_LEAD_TIME, DEFAULT_WARRANTY_PERIOD, IN_STOCK_HANDLING_TEXT } from '@/lib/product-content';
 import { isInternalCategory } from '@/lib/category-listing';
+import { BUSINESS_TIMEZONE_LABEL } from '@/lib/business-hours';
+import { getSiteContactInfo } from '@/lib/contact-info.server';
 import type { Category } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +20,7 @@ const MAX_CATEGORY_LINES = 200;
  */
 export async function GET() {
   const baseUrl = await getRequestBaseUrl();
+  const contact = await getSiteContactInfo();
 
   let categoryLines: string[] = [];
   try {
@@ -74,9 +77,9 @@ export async function GET() {
     ...(categoryLines.length > 0 ? categoryLines : ['- (category list unavailable)']),
     '',
     '## Contact',
-    `- Email: ${SALES_EMAIL}`,
-    '- Phone / WhatsApp: +86-13348028050',
-    '- Business hours: Mon-Fri, 8:00-18:00 (GMT+8)',
+    `- Email: ${contact.email}`,
+    `- Phone / WhatsApp: ${contact.phone}`,
+    `- Business hours: ${contact.hoursSummary} (${BUSINESS_TIMEZONE_LABEL})`,
     '',
     '## Sourcing notes',
     '- Compatibility is confirmed by the Vcocnc team against the original part label and machine model before shipment.',

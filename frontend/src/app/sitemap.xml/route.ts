@@ -15,11 +15,21 @@ const CONTENT_SITEMAP_PATHS = [
 // index that points at another sitemap index (the old /sitemap-products-index.xml
 // entry), so nesting hid the product shards from crawlers.
 function buildSitemapIndex(baseUrl: string, productSitemapPaths: readonly string[]) {
-  const sitemapPaths = [...CONTENT_SITEMAP_PATHS, ...productSitemapPaths]
+  const now = new Date().toISOString()
+  const sitemapPaths = [
+    // Only the static shard has a trustworthy baseline (it is rebuilt daily).
+    // Categories, news and the product shards change independently, so no
+    // lastmod is claimed for them rather than inventing one.
+    ...CONTENT_SITEMAP_PATHS.map((path) => ({
+      path,
+      lastModified: path === '/sitemap-static.xml' ? now : undefined,
+    })),
+    ...productSitemapPaths.map((path) => ({ path, lastModified: undefined })),
+  ]
   return `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${sitemapPaths.map((path) => `  <sitemap>
-    <loc>${baseUrl}${path}</loc>
+${sitemapPaths.map(({ path, lastModified }) => `  <sitemap>
+    <loc>${baseUrl}${path}</loc>${lastModified ? `\n    <lastmod>${lastModified}</lastmod>` : ''}
   </sitemap>`).join('\n')}
 </sitemapindex>`
 }

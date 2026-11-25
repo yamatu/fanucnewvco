@@ -63,6 +63,9 @@ const nextConfig: NextConfig = {
   compress: true,
   generateEtags: true,
 
+  // Do not advertise the framework via the X-Powered-By response header.
+  poweredByHeader: false,
+
   ...(buildWorkerCount
     ? {
         experimental: {

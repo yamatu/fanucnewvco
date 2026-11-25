@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { useCustomer } from '@/store/customer.store';
+import { BUSINESS_TIMEZONE_LABEL } from '@/lib/business-hours';
+import { useSiteContactInfo } from '@/components/layout/ContactInfoProvider';
 import { CustomerService } from '@/services/customer.service';
 import Layout from '@/components/layout/Layout';
 import {
@@ -18,6 +20,7 @@ import {
 export default function AccountPage() {
   const router = useRouter();
   const { customer, isAuthenticated, logout, checkAuth } = useCustomer();
+  const contact = useSiteContactInfo();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -153,10 +156,10 @@ export default function AccountPage() {
                 <div className="px-4 py-5 sm:p-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Need Help?</h3>
                   <div className="text-sm text-gray-600 space-y-2">
-                    <p>janice@vcocncspare.com</p>
-                    <p>Phone: +86 13348028050</p>
+                    <p>{contact.email}</p>
+                    <p>Phone: {contact.phone}</p>
 
-                    <p>Hours: 8AM-19PM</p>
+                    <p>Hours: {contact.hoursSummary} ({BUSINESS_TIMEZONE_LABEL})</p>
                   </div>
                   <Link
                     href="/account/tickets"

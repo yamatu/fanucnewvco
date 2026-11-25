@@ -140,34 +140,9 @@ export default function ContactPageClient({ data }: { data: PageData }) {
     "name": "Contact Vcocnc",
     "description": "Get in touch with Vcocnc for CNC and industrial automation spare parts inquiries, model verification, technical support, and quotes.",
     "url": `${siteUrl}/contact`,
-    "mainEntity": {
-      "@type": "Organization",
-      "@id": `${siteUrl}/#organization`,
-      "name": "Vcocnc",
-      "url": siteUrl,
-      "telephone": text('phone'),
-      "email": text('email'),
-      "address": {
-        "@type": "PostalAddress",
-        "addressLocality": "Kunshan",
-        "addressRegion": "Jiangsu",
-        "addressCountry": "CN"
-      },
-      "openingHoursSpecification": [
-        {
-          "@type": "OpeningHoursSpecification",
-          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-          "opens": "08:00",
-          "closes": "18:00"
-        },
-        {
-          "@type": "OpeningHoursSpecification",
-          "dayOfWeek": ["Saturday"],
-          "opens": "09:00",
-          "closes": "17:00"
-        }
-      ]
-    }
+    // Reference the organisation node declared once in the root layout
+    // instead of redefining the same @id (with conflicting hours) here.
+    "mainEntity": { "@id": `${siteUrl}/#organization` }
   };
 
   const breadcrumbSchema = {

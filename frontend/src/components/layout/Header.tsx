@@ -20,6 +20,7 @@ import { useCart } from '@/store/cart.store';
 import { useCustomer } from '@/store/customer.store';
 import { cn, formatCurrency, getProductImageUrl, getDefaultProductImageWithSku, hasProductPrice, toProductPathId } from '@/lib/utils';
 import type { APIResponse, Category, PaginationResponse, Product } from '@/types';
+import { useSiteContactInfo } from '@/components/layout/ContactInfoProvider';
 
 const CartSidebar = dynamic(
   () => import('@/components/cart/CartSidebar').then((module) => module.CartSidebar),
@@ -78,6 +79,7 @@ function useCategoryTree(enabled: boolean) {
 }
 
 export function Header() {
+  const contact = useSiteContactInfo();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -233,12 +235,12 @@ export function Header() {
             <div className="flex min-w-0 items-center gap-x-3 sm:gap-x-6">
               <div className="flex shrink-0 items-center space-x-1.5 sm:space-x-2">
                 <PhoneIcon className="h-4 w-4" />
-                <span className="whitespace-nowrap" suppressHydrationWarning>+86 13348028050</span>
+                <span className="whitespace-nowrap" suppressHydrationWarning>{contact.phone}</span>
 
               </div>
               <div className="flex min-w-0 items-center space-x-1.5 sm:space-x-2">
                 <EnvelopeIcon className="h-4 w-4 shrink-0" />
-                <span className="truncate" suppressHydrationWarning>janice@vcocncspare.com</span>
+                <span className="truncate" suppressHydrationWarning>{contact.email}</span>
 
               </div>
             </div>

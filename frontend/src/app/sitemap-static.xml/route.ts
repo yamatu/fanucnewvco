@@ -12,86 +12,58 @@ export async function GET() {
     {
       url: baseUrl,
       lastModified,
-      changeFrequency: 'daily',
-      priority: '1.0',
     },
     {
       url: `${baseUrl}/products`,
       lastModified,
-      changeFrequency: 'hourly',
-      priority: '0.9',
     },
     {
       url: `${baseUrl}/categories`,
       lastModified,
-      changeFrequency: 'daily',
-      priority: '0.85',
     },
     {
       url: `${baseUrl}/news`,
       lastModified,
-      changeFrequency: 'daily',
-      priority: '0.8',
     },
     {
       url: `${baseUrl}/about`,
       lastModified,
-      changeFrequency: 'monthly',
-      priority: '0.8',
     },
     {
       url: `${baseUrl}/contact`,
       lastModified,
-      changeFrequency: 'monthly',
-      priority: '0.8',
     },
     {
       url: `${baseUrl}/faq`,
       lastModified,
-      changeFrequency: 'monthly',
-      priority: '0.6',
     },
     {
       url: `${baseUrl}/privacy`,
       lastModified,
-      changeFrequency: 'yearly',
-      priority: '0.4',
     },
     {
       url: `${baseUrl}/terms`,
       lastModified,
-      changeFrequency: 'yearly',
-      priority: '0.4',
     },
     {
       url: `${baseUrl}/warranty-policy`,
       lastModified,
-      changeFrequency: 'monthly',
-      priority: '0.5',
     },
     {
       url: `${baseUrl}/shipping-policy`,
       lastModified,
-      changeFrequency: 'monthly',
-      priority: '0.5',
     },
     {
       url: `${baseUrl}/technical-support`,
       lastModified,
-      changeFrequency: 'monthly',
-      priority: '0.5',
     },
     {
       url: `${baseUrl}/returns`,
       lastModified,
-      changeFrequency: 'monthly',
-      priority: '0.5',
     },
     {
       url: `${baseUrl}/docs`,
       lastModified,
-      changeFrequency: 'monthly',
-      priority: '0.4',
     },
   ]
 
@@ -100,8 +72,6 @@ export async function GET() {
 ${staticPages.map(page => `  <url>
     <loc>${page.url}</loc>
     <lastmod>${page.lastModified}</lastmod>
-    <changefreq>${page.changeFrequency}</changefreq>
-    <priority>${page.priority}</priority>
   </url>`).join('\n')}
 </urlset>`
 

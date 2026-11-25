@@ -32,8 +32,6 @@ export async function GET() {
     .map((category) => ({
       url: `${baseUrl}/categories/${category.path || category.slug}`,
       lastModified: category.updated_at ? new Date(category.updated_at).toISOString() : new Date().toISOString(),
-      changeFrequency: 'weekly',
-      priority: category.parent_id ? '0.7' : '0.8',
     }))
 
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
@@ -41,8 +39,6 @@ export async function GET() {
 ${categoryPages.map(page => `  <url>
     <loc>${page.url}</loc>
     <lastmod>${page.lastModified}</lastmod>
-    <changefreq>${page.changeFrequency}</changefreq>
-    <priority>${page.priority}</priority>
   </url>`).join('\n')}
 </urlset>`
 

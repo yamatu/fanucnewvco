@@ -20,7 +20,6 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       allow: ['/', '/api/v1/public/'],
       disallow: privatePaths,
     },
-    host: site,
     sitemap: `${site}/sitemap.xml`,
   };
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import PublicLayout from '@/components/layout/PublicLayout';
 import { buildStaticPageMetadata } from '@/lib/seo';
+import { getSiteContactInfo } from '@/lib/contact-info.server';
 
 export const metadata: Metadata = buildStaticPageMetadata(
   '/technical-support',
@@ -9,7 +10,12 @@ export const metadata: Metadata = buildStaticPageMetadata(
   'technical support, FANUC troubleshooting, CNC support, industrial automation diagnostics, Vcocnc support'
 );
 
-export default function TechnicalSupportPage() {
+// Contact details follow the Contact page record, so this page cannot
+// drift from /contact again.
+export const revalidate = 300;
+
+export default async function TechnicalSupportPage() {
+  const contact = await getSiteContactInfo();
   return (
     <PublicLayout>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -28,7 +34,7 @@ export default function TechnicalSupportPage() {
 
         <section className="space-y-2 mt-8">
           <h2 className="text-xl font-semibold">Contact</h2>
-          <p className="text-gray-700">Email: janice@vcocncspare.com • Phone: +86-13348028050</p>
+          <p className="text-gray-700">Email: {contact.email} • Phone: {contact.phone}</p>
           <p className="text-gray-500">24/7 priority support available for urgent production issues</p>
         </section>
       </main>

@@ -90,8 +90,10 @@ export default async function NewsPage({
     'url': `${baseUrl}/news`,
     'publisher': {
       '@type': 'Organization',
+      '@id': `${baseUrl}/#organization`,
       'name': 'Vcocnc',
       'url': baseUrl,
+      'logo': { '@type': 'ImageObject', 'url': `${baseUrl}/android-chrome-512x512.png` },
     },
     'blogPost': serverData.articles.slice(0, 10).map((article: any) => ({
       '@type': 'BlogPosting',

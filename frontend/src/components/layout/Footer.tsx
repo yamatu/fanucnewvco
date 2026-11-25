@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import {
   PhoneIcon,
@@ -6,6 +8,7 @@ import {
   ClockIcon,
 } from '@heroicons/react/24/outline';
 import FooterSocialLinks from '@/components/social/FooterSocialLinks';
+import { useSiteContactInfo } from '@/components/layout/ContactInfoProvider';
 
 const footerNavigation = {
   products: [
@@ -46,6 +49,8 @@ const footerNavigation = {
 };
 
 export function Footer() {
+  const contact = useSiteContactInfo();
+
   return (
     <footer className="bg-gray-900 text-white">
       {/* Main Footer Content */}
@@ -79,17 +84,17 @@ export function Footer() {
 
               <div className="flex items-center space-x-3">
                 <PhoneIcon className="h-5 w-5 text-yellow-400 flex-shrink-0" />
-                <span className="text-gray-300">+86 13348028050</span>
+                <span className="text-gray-300">{contact.phone}</span>
               </div>
 
               <div className="flex items-center space-x-3">
                 <EnvelopeIcon className="h-5 w-5 text-yellow-400 flex-shrink-0" />
-                <span className="text-gray-300">janice@vcocncspare.com</span>
+                <span className="text-gray-300">{contact.email}</span>
               </div>
 
               <div className="flex items-center space-x-3">
                 <ClockIcon className="h-5 w-5 text-yellow-400 flex-shrink-0" />
-                <span className="text-gray-300">Mon-Fri: 8:00 AM - 6:00 PM</span>
+                <span className="text-gray-300">{contact.hoursSummary}</span>
               </div>
             </div>
 

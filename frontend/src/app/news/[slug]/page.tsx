@@ -92,6 +92,8 @@ export default async function ArticlePage({
       '@id': `${baseUrl}/#organization`,
       name: 'Vcocnc',
       url: baseUrl,
+      // Article rich results require a publisher logo.
+      logo: { '@type': 'ImageObject', url: `${baseUrl}/android-chrome-512x512.png` },
     },
     mainEntityOfPage: {
       '@type': 'WebPage',

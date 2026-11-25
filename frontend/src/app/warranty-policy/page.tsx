@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import PublicLayout from '@/components/layout/PublicLayout';
 import { buildStaticPageMetadata } from '@/lib/seo';
+import { BUSINESS_TIMEZONE_LABEL } from '@/lib/business-hours';
+import { getSiteContactInfo } from '@/lib/contact-info.server';
 
 export const metadata: Metadata = buildStaticPageMetadata(
   '/warranty-policy',
@@ -9,7 +11,12 @@ export const metadata: Metadata = buildStaticPageMetadata(
   'warranty policy, FANUC parts warranty, CNC parts warranty, repair claims, Vcocnc warranty'
 );
 
-export default function WarrantyPolicyPage() {
+// Contact details follow the Contact page record, so this page cannot drift
+// from /contact again.
+export const revalidate = 300;
+
+export default async function WarrantyPolicyPage() {
+  const contact = await getSiteContactInfo();
   return (
     <PublicLayout>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -37,8 +44,8 @@ export default function WarrantyPolicyPage() {
 
         <section className="space-y-2 mt-8">
           <h2 className="text-xl font-semibold">Contact</h2>
-          <p className="text-gray-700">Email: janice@vcocncspare.com • Phone: +86-13348028050</p>
-          <p className="text-gray-500">Business hours: Mon–Fri, 8:00–18:00 (GMT+8)</p>
+          <p className="text-gray-700">Email: {contact.email} • Phone: {contact.phone}</p>
+          <p className="text-gray-500">Business hours: {contact.hoursSummary} ({BUSINESS_TIMEZONE_LABEL})</p>
         </section>
       </main>
     </PublicLayout>

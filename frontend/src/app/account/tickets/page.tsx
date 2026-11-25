@@ -10,8 +10,12 @@ import {
   GlobeAltIcon,
   BuildingOfficeIcon,
 } from '@heroicons/react/24/outline';
+import { BUSINESS_TIMEZONE_LABEL } from '@/lib/business-hours';
+import { useSiteContactInfo } from '@/components/layout/ContactInfoProvider';
 
 export default function ContactPage() {
+  const contact = useSiteContactInfo();
+
   const contactInfo = [
     {
       icon: BuildingOfficeIcon,
@@ -22,18 +26,18 @@ export default function ContactPage() {
     {
       icon: EnvelopeIcon,
       label: 'Email',
-      value: 'janice@vcocncspare.com',
-      link: 'mailto:janice@vcocncspare.com',
+      value: contact.email,
+      link: `mailto:${contact.email}`,
 
       description: 'Send us an email anytime',
     },
     {
       icon: PhoneIcon,
       label: 'Phone',
-      value: '+86 13348028050',
-      link: 'tel:+8613348028050',
+      value: contact.phone,
+      link: `tel:${contact.telephone}`,
 
-      description: 'Monday to Friday, 9:00 AM - 6:00 PM (China Time)',
+      description: `${contact.hoursSummary} (${BUSINESS_TIMEZONE_LABEL})`,
     },
     {
       icon: MapPinIcon,

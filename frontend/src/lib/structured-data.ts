@@ -1,14 +1,21 @@
 import { getSiteUrl } from '@/lib/url';
 import { DEFAULT_OG_IMAGE, HOME_DESCRIPTION, HOME_TITLE } from '@/lib/seo';
 import { SITE_FAQ_ENTRIES } from '@/lib/faq-content';
+import { DEFAULT_CONTACT_INFO, type SiteContactInfo } from '@/lib/contact-info';
 
-export function generateOrganizationSchema(sameAs: string[] = []) {
+export function generateOrganizationSchema(
+  sameAs: string[] = [],
+  contact: SiteContactInfo = DEFAULT_CONTACT_INFO,
+) {
   const baseUrl = getSiteUrl().replace(/\/+$/, '');
-  const socialProfiles = [...new Set(sameAs.filter((url) => {
-    if (!/^https?:\/\//i.test(url)) return false;
-    // Exclude personal LinkedIn profiles from Organization sameAs.
-    return !/^https?:\/\/(?:www\.)?linkedin\.com\/in\//i.test(url);
-  }))];
+  const validProfiles = [...new Set(sameAs.filter((url) => /^https?:\/\//i.test(url)))];
+  // sameAs must point at pages that describe the organisation itself. A
+  // personal LinkedIn profile describes a person, so it is attached to
+  // `employee` below instead of being silently discarded (which left the
+  // Organization node with no external anchor at all).
+  const isPersonalProfile = (url: string) => /^https?:\/\/(?:www\.)?linkedin\.com\/in\//i.test(url);
+  const socialProfiles = validProfiles.filter((url) => !isPersonalProfile(url));
+  const personalProfiles = validProfiles.filter(isPersonalProfile);
 
   return {
     "@context": "https://schema.org",
@@ -49,21 +56,37 @@ export function generateOrganizationSchema(sameAs: string[] = []) {
       {
         "@type": "ContactPoint",
         "contactType": "sales",
-        "telephone": "+86-13348028050",
-        "email": "janice@vcocncspare.com",
+        "telephone": contact.telephone,
+        "email": contact.email,
         "availableLanguage": ["en", "zh"],
         "areaServed": "Worldwide"
       },
       {
         "@type": "ContactPoint",
         "contactType": "technical support",
-        "telephone": "+86-13348028050",
-        "email": "janice@vcocncspare.com",
+        "telephone": contact.telephone,
+        "email": contact.email,
         "availableLanguage": ["en", "zh"],
         "areaServed": "Worldwide"
       }
     ],
     "slogan": "CNC Drive, Motor & Industrial Replacement Parts Specialist Since 2005",
+    "foundingLocation": {
+      "@type": "Place",
+      "name": "Kunshan, Jiangsu, China"
+    },
+    // Opening hours come from the Contact page record, the same source the
+    // visible page renders; unparseable copy is omitted, never guessed.
+    ...(contact.openingHours.length > 0
+      ? {
+          "openingHoursSpecification": contact.openingHours.map((spec) => ({
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": spec.dayOfWeek,
+            "opens": spec.opens,
+            "closes": spec.closes
+          }))
+        }
+      : {}),
     "knowsAbout": [
       "FANUC CNC parts",
       "Siemens SIMATIC and SINAMICS parts",
@@ -89,7 +112,13 @@ export function generateOrganizationSchema(sameAs: string[] = []) {
         "Industrial"
       ]
     },
-    ...(socialProfiles.length > 0 ? { "sameAs": socialProfiles } : {})
+    ...(socialProfiles.length > 0 ? { "sameAs": socialProfiles } : {}),
+    // A staff LinkedIn profile is not a sameAs anchor for the company itself,
+    // but it still links that person to this organisation. `employee` is used
+    // rather than `founder` because the role is not stated anywhere on the site.
+    ...(personalProfiles.length > 0
+      ? { "employee": { "@type": "Person", "sameAs": personalProfiles } }
+      : {})
   };
 }
 
@@ -224,61 +253,5 @@ export function generateFAQSchema() {
         "text": entry.answer,
       },
     })),
-  };
-}
-
-export function generateLocalBusinessSchema() {
-  const baseUrl = getSiteUrl().replace(/\/+$/, '');
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "LocalBusiness",
-    "@id": `${baseUrl}/#organization`,
-    "name": "Vcocnc",
-    "image": [
-      `${baseUrl}${DEFAULT_OG_IMAGE.url}`,
-      `${baseUrl}/android-chrome-512x512.png`
-    ],
-    "telephone": "+86-13348028050",
-    "email": "janice@vcocncspare.com",
-    "address": {
-      "@type": "PostalAddress",
-      "streetAddress": process.env.NEXT_PUBLIC_COMPANY_STREET || "Industrial Park Road",
-      "addressLocality": process.env.NEXT_PUBLIC_COMPANY_CITY || "Kunshan",
-      "addressRegion": process.env.NEXT_PUBLIC_COMPANY_REGION || "Jiangsu",
-      "postalCode": process.env.NEXT_PUBLIC_COMPANY_POSTAL_CODE || "215300",
-      "addressCountry": process.env.NEXT_PUBLIC_COMPANY_COUNTRY_CODE || "CN"
-    },
-    "geo": {
-      "@type": "GeoCoordinates",
-      "latitude": 31.3888,
-      "longitude": 120.9625
-    },
-    "url": baseUrl,
-    "openingHoursSpecification": [
-      {
-        "@type": "OpeningHoursSpecification",
-        "dayOfWeek": [
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday"
-        ],
-        "opens": "08:00",
-        "closes": "18:00"
-      }
-    ],
-    "priceRange": "$$",
-    "currenciesAccepted": "USD,EUR,CNY",
-    "paymentAccepted": "PayPal,Bank Transfer,Credit Card",
-    "areaServed": {
-      "@type": "Place",
-      "name": "Worldwide"
-    },
-    "serviceArea": {
-      "@type": "Place",
-      "name": "Worldwide"
-    }
   };
 }

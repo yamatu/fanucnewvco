@@ -24,8 +24,6 @@ export async function GET() {
       {
         url: `${baseUrl}/news`,
         lastModified: new Date().toISOString(),
-        changeFrequency: 'daily',
-        priority: '0.8',
       },
       // Individual article pages
       ...articles.map((article) => ({
@@ -35,8 +33,6 @@ export async function GET() {
           : article.published_at
             ? new Date(article.published_at).toISOString()
             : new Date().toISOString(),
-        changeFrequency: 'weekly',
-        priority: article.is_featured ? '0.8' : '0.7',
       })),
     ]
 
@@ -46,7 +42,7 @@ export async function GET() {
       urls
         .map(
           (u) =>
-            `  <url>\n    <loc>${u.url}</loc>\n    <lastmod>${u.lastModified}</lastmod>\n    <changefreq>${u.changeFrequency}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`
+            `  <url>\n    <loc>${u.url}</loc>\n    <lastmod>${u.lastModified}</lastmod>\n  </url>`
         )
         .join('\n') +
       `\n</urlset>`
@@ -63,7 +59,7 @@ export async function GET() {
     const sitemap =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
-      `  <url>\n    <loc>${baseUrl}/news</loc>\n    <lastmod>${new Date().toISOString()}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n` +
+      `  <url>\n    <loc>${baseUrl}/news</loc>\n    <lastmod>${new Date().toISOString()}</lastmod>\n  </url>\n` +
       `</urlset>`
 
     return new NextResponse(sitemap, {

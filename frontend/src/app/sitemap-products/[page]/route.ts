@@ -23,17 +23,11 @@ export async function GET(
       return new NextResponse(`No products found for sitemap page ${pageNumber}`, { status: 404 })
     }
 
+    // changefreq/priority are deprecated and ignored by Google; lastmod is the
+    // only hint the crawler still uses, so it is all we emit.
     const urls = products.map((product: ProductSitemapEntry) => ({
       url: `${baseUrl}/products/${toProductPathId(product.sku)}`,
       lastModified: product.updated_at ? new Date(product.updated_at).toISOString() : new Date().toISOString(),
-      changeFrequency: product.stock_quantity === 0 ? 'monthly' : product.stock_quantity < 10 ? 'daily' : 'weekly',
-      priority: product.is_featured
-        ? '0.9'
-        : product.stock_quantity > 100
-          ? '0.85'
-          : product.stock_quantity === 0
-            ? '0.6'
-            : '0.8',
     }))
 
     const sitemap =
@@ -42,7 +36,7 @@ export async function GET(
       urls
         .map(
           (u) =>
-            `  <url>\n    <loc>${u.url}</loc>\n    <lastmod>${u.lastModified}</lastmod>\n    <changefreq>${u.changeFrequency}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`
+            `  <url>\n    <loc>${u.url}</loc>\n    <lastmod>${u.lastModified}</lastmod>\n  </url>`
         )
         .join('\n') +
       `\n</urlset>`

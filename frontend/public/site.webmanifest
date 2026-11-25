@@ -1,7 +1,7 @@
 {
-  "name": "Vcocnc FANUC Parts",
+  "name": "Vcocnc",
   "short_name": "Vcocnc",
-  "description": "Professional FANUC CNC parts supplier since 2005",
+  "description": "Vcocnc supplies bench-tested CNC servo drives, spindle amplifiers, motors, power supplies and multi-brand automation spare parts from FANUC, Mitsubishi, Yaskawa, Siemens, ABB and 20+ brands—150,000+ stocked items, 12-month warranty and global dispatch since 2005.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -3,6 +3,7 @@ import PublicLayout from '@/components/layout/PublicLayout';
 import { generateFAQSchema, generateBreadcrumbSchema } from '@/lib/structured-data';
 import { getSiteUrl } from '@/lib/url';
 import { SITE_FAQ_ENTRIES } from '@/lib/faq-content';
+import { getSiteContactInfo } from '@/lib/contact-info.server';
 
 export const metadata: Metadata = {
   title: { absolute: 'FAQ - Frequently Asked Questions | Vcocnc' },
@@ -17,7 +18,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function FAQPage() {
+// Contact details follow the Contact page record, so this page cannot
+// drift from /contact again.
+export const revalidate = 300;
+
+export default async function FAQPage() {
+  const contact = await getSiteContactInfo();
   const baseUrl = getSiteUrl();
 
   const faqSchema = generateFAQSchema();
@@ -82,7 +88,7 @@ export default function FAQPage() {
                   Contact Us
                 </a>
                 <a
-                  href="mailto:janice@vcocncspare.com"
+                  href={`mailto:${contact.email}`}
                   className="bg-white text-amber-600 border border-amber-600 px-6 py-3 rounded-lg hover:bg-amber-50 transition-colors"
                 >
                   Email Support

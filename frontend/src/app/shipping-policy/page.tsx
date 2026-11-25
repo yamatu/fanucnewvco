@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import PublicLayout from '@/components/layout/PublicLayout';
 import { buildStaticPageMetadata } from '@/lib/seo';
+import { BUSINESS_TIMEZONE_LABEL } from '@/lib/business-hours';
+import { getSiteContactInfo } from '@/lib/contact-info.server';
 
 export const metadata: Metadata = buildStaticPageMetadata(
   '/shipping-policy',
@@ -10,7 +12,12 @@ export const metadata: Metadata = buildStaticPageMetadata(
   'shipping policy, CNC parts shipping, industrial automation delivery, DHL FedEx UPS shipping, Vcocnc shipping'
 );
 
-export default function ShippingPolicyPage() {
+// Contact details follow the Contact page record, so this page cannot
+// drift from /contact again.
+export const revalidate = 300;
+
+export default async function ShippingPolicyPage() {
+  const contact = await getSiteContactInfo();
   return (
     <PublicLayout>
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -84,7 +91,7 @@ export default function ShippingPolicyPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-3">4. Export Packaging &amp; Transit Damage</h2>
             <ul className="list-disc list-inside space-y-2">
               <li>Sensitive PCBs, drives, amplifiers, and servo components are sealed in ESD-safe anti-static bags with high-density cushioning and rigid outer cartons.</li>
-              <li>Please inspect the shipment on delivery. If external damage is visible, note it with the courier and contact <a href="mailto:janice@vcocncspare.com" className="text-amber-700 underline">janice@vcocncspare.com</a> within <strong>48 hours</strong> with photos so we can assist immediately.</li>
+              <li>Please inspect the shipment on delivery. If external damage is visible, note it with the courier and contact <a href={`mailto:${contact.email}`} className="text-amber-700 underline">{contact.email}</a> within <strong>48 hours</strong> with photos so we can assist immediately.</li>
             </ul>
           </section>
 
@@ -98,7 +105,7 @@ export default function ShippingPolicyPage() {
           <section className="rounded-lg border border-gray-200 bg-white p-6 text-sm">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">Shipping Questions?</h2>
             <p>
-              Contact our logistics team at <a href="mailto:janice@vcocncspare.com" className="text-amber-700 underline">janice@vcocncspare.com</a> or <strong>+86 13348028050</strong> (Mon–Fri, 8:00 AM – 6:00 PM GMT+8).
+              Contact our logistics team at <a href={`mailto:${contact.email}`} className="text-amber-700 underline">{contact.email}</a> or <strong>{contact.phone}</strong> ({contact.hoursSummary} {BUSINESS_TIMEZONE_LABEL}).
             </p>
           </section>
         </div>
