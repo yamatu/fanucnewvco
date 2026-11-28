@@ -13,30 +13,13 @@ import {
   PencilIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
+import MarkdownContent from '@/components/MarkdownContent';
 import MediaPickerModal from '@/components/admin/MediaPickerModal';
 import { NewsService } from '@/services';
 import { queryKeys } from '@/lib/react-query';
 import { useAdminI18n } from '@/lib/admin-i18n';
 import type { ArticleCreateRequest } from '@/types';
 
-function markdownToHtml(md: string): string {
-  let html = md;
-  html = html.replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-6 mb-3">$1</h1>');
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full rounded-lg my-4" />');
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 underline" target="_blank" rel="noopener">$1</a>');
-  html = html.replace(/^\- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>');
-  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>');
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-100 p-4 rounded-lg overflow-x-auto my-4"><code>$2</code></pre>');
-  html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm">$1</code>');
-  html = html.replace(/\n\n/g, '</p><p class="mb-4">');
-  html = '<p class="mb-4">' + html + '</p>';
-  html = html.replace(/\n/g, '<br/>');
-  return html;
-}
 
 export default function EditArticlePage() {
   const { t } = useAdminI18n();
@@ -224,10 +207,7 @@ export default function EditArticlePage() {
                   </div>
                 </div>
                 {previewMode ? (
-                  <div
-                    className="prose prose-sm max-w-none min-h-[400px] p-4 border border-gray-200 rounded-md bg-gray-50"
-                    dangerouslySetInnerHTML={{ __html: markdownToHtml(watchContent) }}
-                  />
+                  <MarkdownContent content={watchContent} className="min-h-[400px] p-4 border border-gray-200 rounded-md bg-gray-50" />
                 ) : (
                   <textarea
                     {...register('content', { required: 'Content is required' })}
