@@ -46,6 +46,7 @@ func SetupRoutes(r *gin.Engine) {
 	analyticsController := &controllers.AnalyticsController{}
 	newsController := &controllers.NewsController{}
 	productOptimizationController := &controllers.ProductOptimizationController{}
+	datasheetController := &controllers.DatasheetController{}
 	indexNowController := &controllers.IndexNowController{}
 	ebayImportDraftController := &controllers.EbayImportDraftController{}
 	aiAgentController := &controllers.AIAgentController{}
@@ -238,6 +239,24 @@ func SetupRoutes(r *gin.Engine) {
 				products.POST("/classification-audit", middleware.AdminOnly(), productOptimizationController.AuditProductClassifications)
 				products.POST("/auto-optimize-categories", middleware.AdminOnly(), productOptimizationController.AutoOptimizeProductCategories)
 				products.GET("/optimization-status", productOptimizationController.GetOptimizationStatus)
+				// Datasheets.com product search API: one supervised part-number
+				// lookup at a time. The account allows 5,000 calls a month against
+				// hundreds of thousands of SKUs, so there is no bulk path; results
+				// reach a product only through an approved draft.
+				products.POST("/datasheet-search", datasheetController.Search)
+				products.POST("/datasheet-draft", datasheetController.ToDraft)
+				products.GET("/datasheet-drafts", datasheetController.ListDrafts)
+				products.GET("/datasheet-drafts/:id", datasheetController.GetDraft)
+				products.POST("/datasheet-drafts/:id/approve", datasheetController.ApproveDraft)
+				products.POST("/datasheet-drafts/:id/reject", datasheetController.RejectDraft)
+				products.GET("/datasheet-cache", datasheetController.ListCache)
+				datasheetSettings := products.Group("/datasheet-settings")
+				datasheetSettings.Use(middleware.AdminOnly())
+				{
+					datasheetSettings.GET("", datasheetController.GetSettings)
+					datasheetSettings.PUT("", datasheetController.UpdateSettings)
+					datasheetSettings.POST("/test", datasheetController.TestKey)
+				}
 				products.POST("/optimize", productOptimizationController.OptimizeProduct)
 				products.POST("/bulk-optimize", productOptimizationController.BulkOptimizeProducts)
 

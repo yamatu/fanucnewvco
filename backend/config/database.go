@@ -1029,6 +1029,12 @@ func MigratedModels() []interface{} {
 		&models.SocialLinkSetting{},
 		&models.EmailSetting{},
 		&models.IndexNowSetting{},
+		// Datasheets.com product search API: settings (key encrypted at rest),
+		// the local quota counters, the lookup cache, and the review queue the
+		// admin approves before a parameter reaches a product.
+		&models.DatasheetSetting{},
+		&models.DatasheetLookupCache{},
+		&models.ProductDatasheetDraft{},
 		&models.EmailVerificationCode{},
 		// Shipping (new template-based)
 		&models.ShippingTemplate{},

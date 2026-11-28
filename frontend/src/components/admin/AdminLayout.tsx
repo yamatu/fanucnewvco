@@ -63,6 +63,8 @@ const navigation = [
   { key: 'nav.turnstile', name: 'Human Verification', href: '/admin/turnstile', icon: ShieldCheckIcon },
   { key: 'nav.socialLinks', name: 'Social & SEO', href: '/admin/social-links', icon: ShareIcon },
   { key: 'nav.indexnow', name: 'IndexNow / Bing', href: '/admin/indexnow', icon: BellIcon },
+  { key: 'nav.datasheets', name: 'Datasheets.com Lookup', href: '/admin/datasheets', icon: ClipboardDocumentListIcon },
+  { key: 'nav.datasheetDrafts', name: 'Datasheet Drafts', href: '/admin/datasheet-drafts', icon: ClipboardDocumentListIcon },
   { key: 'nav.analytics', name: 'Visitor Analytics', href: '/admin/analytics', icon: ChartBarIcon },
   { key: 'nav.homepage', name: 'Homepage Content', href: '/admin/homepage', icon: DocumentTextIcon },
   { key: 'nav.aiAssistant', name: 'AI Assistant', href: '/admin/ai-assistant', icon: SparklesIcon },
